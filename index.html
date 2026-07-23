@@ -107,7 +107,9 @@
     background:var(--wisteria-pale);
     display:flex;align-items:center;justify-content:center;
     font-size:12px;
+    overflow:hidden;
   }
+  .profile-chip .dot img{ width:100%;height:100%;object-fit:cover; }
 
   /* ===== Tab content area ===== */
   main{
@@ -212,10 +214,11 @@
     background: linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
     border-radius:var(--radius);
     padding:16px;
-    display:flex; gap:14px; align-items:center;
+    display:flex; flex-direction:column; gap:12px;
     margin-bottom:18px;
     box-shadow: var(--shadow-sm);
   }
+  .oshi-banner .oshi-top{ display:flex; gap:14px; align-items:center; }
   .oshi-banner img, .oshi-banner .ph{
     width:58px;height:58px;border-radius:50%;
     object-fit:cover; border:3px solid #fff; box-shadow:var(--shadow-sm);
@@ -224,6 +227,27 @@
   }
   .oshi-banner .name{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px;}
   .oshi-banner .grp{ font-size:12px; color:var(--ink-soft); margin-top:1px;}
+  .oshi-stats{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
+  }
+  .oshi-stat{
+    background:rgba(255,255,255,0.6);
+    border-radius:14px;
+    padding:8px 4px;
+    text-align:center;
+    min-width:0;
+  }
+  .oshi-stat .v{
+    font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;
+    color:var(--rose-deep);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .oshi-stat .l{ font-size:10px; color:var(--ink-soft); margin-top:2px;}
+  @media (min-width:700px){
+    .oshi-stat{ padding:12px 8px; }
+    .oshi-stat .v{ font-size:15px; }
+    .oshi-stat .l{ font-size:11px; }
+  }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -380,7 +404,7 @@
   }
   .pc-series-card:hover{ transform:translateY(-3px); }
   .pc-series-cover{
-    width:100%; aspect-ratio:4/5; object-fit:contain; object-position:center top;
+    width:100%; aspect-ratio:4/5; object-fit:contain; object-position:center center;
     background:var(--sakura-pale); display:block; flex-shrink:0;
   }
   .pc-series-cover.ph{ display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--ink-faint);}
@@ -423,7 +447,7 @@
     height:100%;
   }
   .pc-img{
-    width:100%; aspect-ratio: 4/5; object-fit:contain; background:var(--sakura-pale);
+    width:100%; aspect-ratio: 4/5; object-fit:contain; object-position:center center; background:var(--sakura-pale);
     display:block;
   }
   .pc-img.ph{ display:flex; align-items:center; justify-content:center; font-size:26px; color:var(--ink-faint);}
@@ -606,6 +630,25 @@
   .btn.primary{ background:var(--rose-deep); color:#fff;}
   .btn.ghost{ background:var(--bg-deep); color:var(--ink-soft);}
   .btn.danger{ background:#F1D6D6; color:#B54545;}
+  .btn.google{
+    background:#fff; color:#3c4043; border:1px solid #dadce0;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+  }
+  .btn.google:disabled{ opacity:0.6; cursor:default; }
+  .account-box{
+    display:flex; align-items:center; gap:12px;
+    background:var(--bg-deep); border-radius:16px; padding:12px 14px;
+    margin-bottom:14px;
+  }
+  .account-box img.avatar{ width:44px;height:44px;border-radius:50%; flex-shrink:0; object-fit:cover;}
+  .account-box .avatar-ph{
+    width:44px;height:44px;border-radius:50%; flex-shrink:0;
+    background:var(--wisteria-pale); display:flex;align-items:center;justify-content:center; font-size:20px;
+  }
+  .account-box .name{ font-weight:700; font-size:14px; }
+  .account-box .mail{ font-size:12px; color:var(--ink-soft); }
+  .account-box .synced{ font-size:11px; color:var(--rose-deep); margin-top:2px; }
+  .login-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
 
   .toast{
     position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-40px);
@@ -694,7 +737,7 @@
         </div>
       </div>
       <div class="profile-chip" id="profileChip">
-        <div class="dot">🌸</div>
+        <div class="dot" id="profileDot">🌸</div>
         <span id="profileLabel">設定 / 登入</span>
       </div>
     </div>
@@ -743,9 +786,53 @@ try {
     db = firebase.firestore();
     auth = firebase.auth();
     useCloud = true;
+    // 保持登入狀態：同一台裝置/瀏覽器重新整理後不需要再次登入
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.log('設定登入持久化失敗', e));
+    // 若因跳出視窗被瀏覽器擋下而改用整頁導向登入，回來後在這裡接住結果
+    auth.getRedirectResult().catch(e=>{
+      console.log('Google 登入導向結果讀取失敗', e);
+    });
   }
 } catch(e) {
   console.log("Firebase 初始化未完成，將使用本機模式", e);
+}
+
+async function signInWithGoogle(){
+  if(!useCloud || !auth){
+    showToast('雲端服務尚未設定完成，暫時無法登入');
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try{
+    await auth.signInWithPopup(provider);
+    closeModal();
+    showToast('登入成功，正在同步雲端資料 ☁️');
+  }catch(e){
+    console.error('Google 登入失敗', e);
+    if(e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment'){
+      try{
+        await auth.signInWithRedirect(provider);
+      }catch(err){
+        showToast('登入失敗，請稍後再試');
+      }
+    } else if(e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request'){
+      // 使用者自行關閉登入視窗，不需要顯示錯誤
+    } else {
+      showToast('登入失敗：' + (e.message || '請稍後再試'));
+    }
+  }
+}
+
+async function signOutOfGoogle(){
+  if(!auth) return;
+  try{
+    await auth.signOut();
+    closeModal();
+    showToast('已登出，資料改為儲存在本機');
+  }catch(e){
+    console.error('登出失敗', e);
+    showToast('登出失敗，請稍後再試');
+  }
 }
 
 const LOCAL_PREFIX = 'oshiapp:';
@@ -860,6 +947,7 @@ const SCHEMAS = {
     {key:'group', label:'所屬團體', type:'text'},
     {key:'birthday', label:'生日', type:'date'},
     {key:'debutDate', label:'出道日', type:'date'},
+    {key:'fanSince', label:'入坑日期', type:'date', ph:'開始追這位藝人的日子'},
     {key:'photoUrl', label:'照片網址', type:'url'},
     {key:'isOshi', label:'設為本命', type:'select', options:['否','是']},
     {key:'bio', label:'簡介', type:'textarea'}
@@ -1071,6 +1159,14 @@ function renderProfile(){
   const label = currentUser ? (currentUser.displayName || '已登入雲端') : (state.profile.nickname ? state.profile.nickname : '登入 / 設定');
   document.getElementById('profileLabel').textContent = label;
   document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星手帳' : '我的追星手帳';
+  const dot = document.getElementById('profileDot');
+  if(currentUser && currentUser.photoURL){
+    dot.innerHTML = `<img src="${currentUser.photoURL}" alt="">`;
+  } else if(currentUser){
+    dot.innerHTML = '☁️';
+  } else {
+    dot.innerHTML = '🌸';
+  }
 }
 
 function updateStorageBanner(){
@@ -1159,6 +1255,25 @@ function todayStr(){
   const t = new Date();
   return t.toISOString().slice(0,10);
 }
+function fanDurationText(dateStr){
+  if(!dateStr) return '';
+  const start = new Date(dateStr+'T00:00:00');
+  const now = new Date();
+  if(isNaN(start.getTime()) || start>now) return '';
+  let years = now.getFullYear() - start.getFullYear();
+  let months = now.getMonth() - start.getMonth();
+  let days = now.getDate() - start.getDate();
+  if(days<0) months -= 1;
+  if(months<0){ years -= 1; months += 12; }
+  if(years<=0 && months<=0){
+    const diffDays = Math.max(0, Math.floor((now-start)/(1000*60*60*24)));
+    return diffDays<=0 ? '今天入坑' : diffDays+'天';
+  }
+  let parts = [];
+  if(years>0) parts.push(years+'年');
+  if(months>0) parts.push(months+'個月');
+  return parts.join('');
+}
 
 /* ================= Home ================= */
 function renderHome(){
@@ -1184,11 +1299,17 @@ function renderHome(){
   if(oshi){
     html += `
     <div class="oshi-banner">
-      ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
-      <div>
-        <div style="font-size:11px;color:var(--rose-deep);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
-        <div class="name">${esc(oshi.name)}</div>
-        <div class="grp">${esc(oshi.group||'')}</div>
+      <div class="oshi-top">
+        ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
+        <div>
+          <div style="font-size:11px;color:var(--rose-deep);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
+          <div class="name">${esc(oshi.name)}</div>
+        </div>
+      </div>
+      <div class="oshi-stats">
+        <div class="oshi-stat"><div class="v" title="${esc(oshi.group||'')}">${oshi.group? esc(oshi.group) : '—'}</div><div class="l">所屬團體</div></div>
+        <div class="oshi-stat"><div class="v">${oshi.debutDate? fanDurationText(oshi.debutDate) : '—'}</div><div class="l">出道年資</div></div>
+        <div class="oshi-stat"><div class="v">${oshi.fanSince? fanDurationText(oshi.fanSince) : '—'}</div><div class="l">入坑多久</div></div>
       </div>
     </div>`;
   }
@@ -1469,12 +1590,24 @@ function bindExpenseActions(){
   });
 }
 
+function expenseStatusColor(status){
+  const map = {
+    '未到貨': {bg:'#FADBD8', fg:'#C0392B'},
+    '已到貨': {bg:'#D8F3DC', fg:'#2F6B3F'},
+    '已取消': {bg:'#E6E6E6', fg:'#555555'},
+    '退換中': {bg:'#FFE3C2', fg:'#9C5A17'}
+  };
+  return map[status] || {bg:'#E6EEFA', fg:'#5F4E7A'};
+}
+
 function renderExpenseCard(item){
   const unit = parseFloat(item.unitPrice)||0;
   const qty = parseFloat(item.quantity)||1;
   const total = expenseAmount(item);
   const cover = (item.imageUrls||[])[0];
   const catIcon = EXPENSE_CATEGORY_ICON[item.category] || '💸';
+  const catColor = item.category ? chipColor(item.category) : null;
+  const statusColor = item.deliveryStatus ? expenseStatusColor(item.deliveryStatus) : null;
   const tags = (item.tags||[]);
   const footnoteParts = [];
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
@@ -1488,8 +1621,8 @@ function renderExpenseCard(item){
       </div>
       <div class="exp-info">
         <div class="exp-badges">
-          ${item.category ? `<span class="tag">${catIcon} ${esc(item.category)}</span>` : ''}
-          ${item.deliveryStatus ? `<span class="tag wisteria">${esc(item.deliveryStatus)}</span>` : ''}
+          ${item.category ? `<span class="tag" style="background:${catColor.bg};color:${catColor.fg};">${catIcon} ${esc(item.category)}</span>` : ''}
+          ${item.deliveryStatus ? `<span class="tag" style="background:${statusColor.bg};color:${statusColor.fg};">${esc(item.deliveryStatus)}</span>` : ''}
         </div>
         <div class="card-title exp-name">${esc(item.name||'（未命名）')}</div>
         ${tags.length ? `<div>${tags.map(t=>`<span class="tag gold">#${esc(t)}</span>`).join('')}</div>` : ''}
@@ -1963,6 +2096,7 @@ function renderArtists(){
             <div>
               ${a.birthday ? `<span class="tag">🎂 ${fmtDate(a.birthday)}</span>`:''}
               ${a.debutDate ? `<span class="tag matcha">出道 ${fmtDate(a.debutDate)}</span>`:''}
+              ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}</span>`:''}
             </div>
           </div>
         </div>
@@ -2003,6 +2137,7 @@ function openArtistDetail(id){
     <div style="margin-bottom:10px;">
       ${a.birthday ? `<span class="tag">🎂 ${fmtDate(a.birthday)}</span>`:''}
       ${a.debutDate ? `<span class="tag matcha">出道 ${fmtDate(a.debutDate)}</span>`:''}
+      ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}（${fmtDate(a.fanSince)}）</span>`:''}
     </div>
     ${a.bio ? `<div class="card-meta" style="white-space:pre-wrap;line-height:1.7;">${esc(a.bio)}</div>` : `<div class="card-meta" style="color:var(--ink-faint);">尚未填寫簡介</div>`}
     <div class="modal-actions" style="margin-top:18px;">
@@ -3426,10 +3561,38 @@ function bindFanlogReviewActions(){
 }
 
 /* ================= Common Helper Modals ================= */
+const GOOGLE_G_ICON = `<svg width="18" height="18" viewBox="0 0 48 48" style="flex-shrink:0;">
+  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/>
+  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+  <path fill="#4CAF50" d="M24 44c5.5 0 10.4-1.9 14.3-5.1l-6.6-5.6C29.7 35 27 36 24 36c-5.3 0-9.7-3.3-11.3-8l-6.6 5.1C9.6 39.7 16.3 44 24 44z"/>
+  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.5 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/>
+</svg>`;
+
 function openProfileForm(){
   const modal = document.getElementById('modal');
+  const accountHtml = currentUser ? `
+    <div class="account-box">
+      ${currentUser.photoURL ? `<img class="avatar" src="${currentUser.photoURL}" alt="">` : `<div class="avatar-ph">☁️</div>`}
+      <div>
+        <div class="name">${esc(currentUser.displayName||'已登入')}</div>
+        <div class="mail">${esc(currentUser.email||'')}</div>
+        <div class="synced">☁️ 資料已同步至雲端，換裝置登入同一帳號即可看到</div>
+      </div>
+    </div>
+    <div class="field">
+      <button type="button" class="btn ghost" id="logoutBtn" style="width:100%;">登出 Google 帳號</button>
+    </div>
+  ` : `
+    <div class="field">
+      <button type="button" class="btn google" id="googleLoginBtn" style="width:100%;">
+        ${GOOGLE_G_ICON}<span>使用 Google 帳號登入</span>
+      </button>
+      <div class="login-hint">登入後資料會自動存到雲端，之後不論換手機或電腦，只要用同一個 Google 帳號登入，就會直接看到目前的所有紀錄，不用重新輸入。</div>
+    </div>
+  `;
   modal.innerHTML = `
     <h3 class="maru">設定 / 登入</h3>
+    ${accountHtml}
     <div class="field"><label>暱稱</label><input type="text" id="profNickname" value="${esc(state.profile.nickname||'')}" placeholder="輸入你的名字"></div>
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
@@ -3453,6 +3616,22 @@ function openProfileForm(){
     render();
     showToast('已更新個人資料');
   });
+  const loginBtn = document.getElementById('googleLoginBtn');
+  if(loginBtn){
+    loginBtn.addEventListener('click', async ()=>{
+      loginBtn.disabled = true;
+      loginBtn.querySelector('span').textContent = '登入中...';
+      await signInWithGoogle();
+      if(document.body.contains(loginBtn)){
+        loginBtn.disabled = false;
+        loginBtn.querySelector('span').textContent = '使用 Google 帳號登入';
+      }
+    });
+  }
+  const logoutBtn = document.getElementById('logoutBtn');
+  if(logoutBtn){
+    logoutBtn.addEventListener('click', signOutOfGoogle);
+  }
   showModal();
 }
 
