@@ -3500,8 +3500,8 @@ function renderFanlogTab(){
 
   if(fanlogArtistFilter!=='__all__') filtered = filtered.filter(f=>f.artist===fanlogArtistFilter);
 
-  /* 依日期排序：離今天最近的排最前面（無論是過去或未來） */
-  filtered.sort((a,b)=> Math.abs(new Date(a.date)-new Date(today)) - Math.abs(new Date(b.date)-new Date(today)));
+  /* 依日期排序：日期新到舊排列 */
+  filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
   const filterLabel = fanlogMonthFilter ? `${fanlogMonthFilter.replace('-','/')}` : `${fanlogYearFilter}`;
   let listHtml = `<div class="cal-daylist-title">
