@@ -4,6 +4,20 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>推し手帳｜我的追星手帳</title>
+<script>
+/* 提早套用深色/淺色模式，避免畫面載入時閃爍 */
+(function(){
+  try{
+    var raw = window.localStorage.getItem('oshiapp:oshi-theme');
+    var theme = raw ? JSON.parse(raw) : null;
+    var mode = (theme && theme.mode) ? theme.mode : 'light';
+    if(mode==='system'){
+      mode = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    }
+    if(mode==='dark'){ document.documentElement.setAttribute('data-theme','dark'); }
+  }catch(e){}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <!-- 引入 Firebase SDK -->
@@ -31,15 +45,30 @@
     --shadow: 0 6px 20px rgba(42,143,199,0.12);
     --shadow-sm: 0 2px 8px rgba(42,143,199,0.10);
     --radius: 20px;
+    --blob-1: rgba(143,211,244,0.22);
+    --blob-2: rgba(127,168,217,0.16);
+  }
+  /* ===== 深色模式（底色／文字色，主題色由 JS 依使用者選擇的顏色套用） ===== */
+  [data-theme="dark"]{
+    --bg:#101720;
+    --bg-deep:#0A0F16;
+    --surface:#1B2530;
+    --surface-soft:#212C38;
+    --ink:#EAF1F8;
+    --ink-soft:#8FA3B5;
+    --ink-faint:#4F6273;
+    --shadow: 0 6px 20px rgba(0,0,0,0.45);
+    --shadow-sm: 0 2px 10px rgba(0,0,0,0.35);
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0; width:100%; min-height:100%;}
   body{
     font-family:'Noto Sans TC', sans-serif;
     background:
-      radial-gradient(circle at 15% 8%, rgba(143,211,244,0.22), transparent 40%),
-      radial-gradient(circle at 90% 15%, rgba(127,168,217,0.16), transparent 45%),
+      radial-gradient(circle at 15% 8%, var(--blob-1), transparent 40%),
+      radial-gradient(circle at 90% 15%, var(--blob-2), transparent 45%),
       var(--bg);
+    transition: background-color 0.2s ease;
     color:var(--ink);
     min-height:100vh;
   }
@@ -654,7 +683,7 @@
 
   .toast{
     position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-40px);
-    background:var(--ink); color:#fff; padding:9px 18px; border-radius:999px;
+    background:#2E4C5E; color:#fff; padding:9px 18px; border-radius:999px;
     font-size:12.5px; z-index:60; opacity:0; transition:0.25s;
     pointer-events:none;
   }
@@ -686,6 +715,61 @@
     cursor:pointer; font-size:13px; opacity:0.6; padding:4px;
   }
   .storage-warn-close:hover{ opacity:1; }
+
+  /* ===== 外觀主題設定（深色模式切換／主題色選擇） ===== */
+  .theme-swatch-grid{ display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+  .theme-swatch{
+    width:34px; height:34px; border-radius:50%; border:3px solid transparent;
+    cursor:pointer; padding:0; position:relative; flex-shrink:0;
+  }
+  .theme-swatch.active{ border-color:var(--ink); }
+  .theme-swatch.active::after{
+    content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:14px; text-shadow:0 1px 3px rgba(0,0,0,0.45); font-weight:700;
+  }
+  .theme-swatch.custom-swatch{
+    background:conic-gradient(from 180deg, #F5C0D2, #E6D091, #A9E0D2, #C9BEEA, #8FD3F4, #F5C0D2);
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+
+  /* ===== 年度追星總結 (home recap card + modal) ===== */
+  .recap-card{
+    background: linear-gradient(135deg, var(--rose-deep), var(--rose));
+    border-radius:var(--radius);
+    padding:18px 18px 16px;
+    color:#fff;
+    margin-bottom:22px;
+    box-shadow:var(--shadow);
+    position:relative;
+    overflow:hidden;
+  }
+  .recap-card::after{
+    content:''; position:absolute; right:-30px; top:-30px; width:130px; height:130px;
+    border-radius:50%; background:rgba(255,255,255,0.12); pointer-events:none;
+  }
+  .recap-head{ margin-bottom:14px; position:relative; z-index:1; }
+  .recap-title{ font-size:16px; font-weight:700; }
+  .recap-sub{ font-size:11.5px; opacity:0.88; margin-top:2px; }
+  .recap-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; position:relative; z-index:1; }
+  .recap-stat{ background:rgba(255,255,255,0.16); border-radius:14px; padding:10px 4px; text-align:center; }
+  .recap-stat .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:17px; }
+  .recap-stat .l{ font-size:9.5px; opacity:0.88; margin-top:3px; }
+  .recap-info-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; position:relative; z-index:1; }
+  .recap-info{ background:rgba(255,255,255,0.14); border-radius:14px; padding:9px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .recap-info .l{ font-size:10px; opacity:0.88; }
+  .recap-info .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .recap-btn{
+    width:100%; border:none; background:rgba(255,255,255,0.94); color:var(--rose-deep);
+    font-weight:700; padding:10px; border-radius:12px; cursor:pointer;
+    font-family:'Noto Sans TC'; font-size:13px; position:relative; z-index:1;
+  }
+  .recap-btn:hover{ background:#fff; }
+  .ys-cat-row{ margin-bottom:10px; }
+  .ys-cat-top{ display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:4px; }
+  .ys-cat-top span:first-child{ color:var(--ink); font-weight:500; }
+  .ys-cat-top span:last-child{ color:var(--ink-soft); }
+  .ys-cat-track{ width:100%; height:7px; background:var(--bg-deep); border-radius:5px; overflow:hidden; }
+  .ys-cat-fill{ height:100%; border-radius:5px; }
 
   /* ===== Final desktop overrides (kept at end of stylesheet so they win the cascade) ===== */
   @media (min-width:700px){
@@ -881,6 +965,59 @@ async function saveKey(key, value){
   }
 }
 
+/* ================= 外觀主題（深色模式 / 主題色） ================= */
+const THEME_PRESETS = [
+  {key:'sky', name:'天空藍（預設）', swatch:'#2A8FC7', vars:{'--rose-deep':'#2A8FC7','--rose':'#4FB8E8','--sakura':'#8FD3F4','--sakura-pale':'#DEF2FC'}},
+  {key:'pink', name:'櫻花粉', swatch:'#C4507B', vars:{'--rose-deep':'#C4507B','--rose':'#E58AA9','--sakura':'#F5C0D2','--sakura-pale':'#FCE6ED'}},
+  {key:'mint', name:'薄荷綠', swatch:'#2F8F7B', vars:{'--rose-deep':'#2F8F7B','--rose':'#5CBFAA','--sakura':'#A9E0D2','--sakura-pale':'#E1F5EF'}},
+  {key:'lavender', name:'薰衣草紫', swatch:'#6E5AA8', vars:{'--rose-deep':'#6E5AA8','--rose':'#9583C9','--sakura':'#C9BEEA','--sakura-pale':'#ECE6FA'}},
+  {key:'peach', name:'蜜桃橘', swatch:'#C97A3D', vars:{'--rose-deep':'#C97A3D','--rose':'#E7A468','--sakura':'#F5CFA0','--sakura-pale':'#FDEDDC'}},
+  {key:'gold', name:'香草金', swatch:'#A9832A', vars:{'--rose-deep':'#A9832A','--rose':'#CBA84C','--sakura':'#E6D091','--sakura-pale':'#FAF1DA'}}
+];
+const DEFAULT_THEME = { mode:'light', accent:'sky', customColor:'#4FB8E8' };
+
+function hexToRgb(hex){
+  hex = (hex||'#000000').replace('#','');
+  if(hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const num = parseInt(hex,16) || 0;
+  return { r:(num>>16)&255, g:(num>>8)&255, b:num&255 };
+}
+function rgbToHex(r,g,b){
+  return '#'+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join('');
+}
+function mixHex(hex, target, pct){
+  const c = hexToRgb(hex), t = hexToRgb(target);
+  return rgbToHex(c.r+(t.r-c.r)*pct, c.g+(t.g-c.g)*pct, c.b+(t.b-c.b)*pct);
+}
+function buildCustomThemeVars(base){
+  return {
+    '--rose-deep': mixHex(base, '#000000', 0.14),
+    '--rose': base,
+    '--sakura': mixHex(base, '#ffffff', 0.45),
+    '--sakura-pale': mixHex(base, '#ffffff', 0.80)
+  };
+}
+function resolveThemeMode(mode){
+  if(mode==='system'){
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+  return mode==='dark' ? 'dark' : 'light';
+}
+function applyTheme(theme){
+  if(!theme) theme = DEFAULT_THEME;
+  const root = document.documentElement;
+  root.setAttribute('data-theme', resolveThemeMode(theme.mode));
+  const preset = THEME_PRESETS.find(p=>p.key===theme.accent);
+  const vars = theme.accent==='custom'
+    ? buildCustomThemeVars(theme.customColor||DEFAULT_THEME.customColor)
+    : (preset ? preset.vars : THEME_PRESETS[0].vars);
+  Object.entries(vars).forEach(([k,v])=> root.style.setProperty(k, v));
+  const roseRgb = hexToRgb(vars['--rose']);
+  const deepRgb = hexToRgb(vars['--rose-deep']);
+  root.style.setProperty('--blob-1', `rgba(${roseRgb.r},${roseRgb.g},${roseRgb.b},0.22)`);
+  root.style.setProperty('--blob-2', `rgba(${deepRgb.r},${deepRgb.g},${deepRgb.b},0.16)`);
+}
+
 /* ================= App state ================= */
 const state = {
   tab:'home',
@@ -894,6 +1031,7 @@ const state = {
   magazine:[],
   movie:[],
   profile:{ nickname:'' },
+  theme:{ ...DEFAULT_THEME },
   customPcCategories:[],
   customEndorsementCategories:[],
   pcSeriesCovers:{},
@@ -1107,7 +1245,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1124,7 +1262,8 @@ async function loadAllData(){
     loadKey('oshi-magazine', []),
     loadKey('oshi-movie', []),
     loadKey('oshi-endorsement-categories', []),
-    loadKey('oshi-expense-categories', [])
+    loadKey('oshi-expense-categories', []),
+    loadKey('oshi-theme', DEFAULT_THEME)
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1138,6 +1277,7 @@ async function loadAllData(){
   state.movie = mo;
   state.customEndorsementCategories = enc;
   state.customExpenseCategories = exc;
+  state.theme = Object.assign({}, DEFAULT_THEME, th||{});
 }
 
 async function init(){
@@ -1146,6 +1286,7 @@ async function init(){
       currentUser = user;
       if(user){ await migrateLocalDataToCloudIfNeeded(); }
       await loadAllData();
+      applyTheme(state.theme);
       document.getElementById('loadingScreen').style.display='none';
       updateStorageBanner();
       renderProfile();
@@ -1153,10 +1294,16 @@ async function init(){
     });
   } else {
     await loadAllData();
+    applyTheme(state.theme);
     document.getElementById('loadingScreen').style.display='none';
     updateStorageBanner();
     renderProfile();
     render();
+  }
+  if(window.matchMedia){
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
+      if(state.theme && state.theme.mode==='system') applyTheme(state.theme);
+    });
   }
   spawnPetals();
   bindNav();
@@ -1282,6 +1429,110 @@ function fanDurationText(dateStr){
   return parts.join('');
 }
 
+/* ================= 年度追星總結 ================= */
+function computeYearSummary(year){
+  const yearFanlogs = state.fanlog.filter(f=> f.date && f.date.startsWith(year));
+  const concertCount = yearFanlogs.filter(f=> f.category==='演唱會').length;
+  const totalEventCount = yearFanlogs.length;
+
+  const yearExpenses = state.expense.filter(e=> e.date && e.date.startsWith(year));
+  const totalExpense = yearExpenses.reduce((sum,e)=> sum + (e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0)), 0);
+
+  const catMap = {};
+  yearExpenses.forEach(e=>{
+    const cat = e.category || '未分類';
+    const amt = e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0);
+    catMap[cat] = (catMap[cat]||0) + amt;
+  });
+  const categoryBreakdown = Object.entries(catMap).map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount);
+  const topCategory = categoryBreakdown[0] || null;
+
+  const photocardCount = state.photocards.filter(p=> p.owned && p.createdAt && p.createdAt.startsWith(year)).length;
+
+  const artistMap = {};
+  yearFanlogs.forEach(f=>{
+    if(!f.artist) return;
+    artistMap[f.artist] = (artistMap[f.artist]||0) + 1;
+  });
+  const topArtist = Object.entries(artistMap).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)[0] || null;
+
+  return { year, concertCount, totalEventCount, totalExpense, categoryBreakdown, topCategory, photocardCount, topArtist };
+}
+function availableSummaryYears(){
+  const years = new Set();
+  [...state.schedule, ...state.expense, ...state.fanlog].forEach(item=>{
+    if(item.date && item.date.length>=4) years.add(item.date.slice(0,4));
+  });
+  years.add(todayStr().slice(0,4));
+  return [...years].sort((a,b)=> b.localeCompare(a));
+}
+function renderYearRecapBlock(){
+  const year = todayStr().slice(0,4);
+  const s = computeYearSummary(year);
+  return `
+  <div class="recap-card">
+    <div class="recap-head">
+      <div class="recap-title maru">🎉 ${year} 年度追星總結</div>
+      <div class="recap-sub">今年到目前為止的追星足跡</div>
+    </div>
+    <div class="recap-grid">
+      <div class="recap-stat"><div class="v">${s.concertCount}</div><div class="l">演唱會場次</div></div>
+      <div class="recap-stat"><div class="v">${s.totalEventCount}</div><div class="l">總參戰次數</div></div>
+      <div class="recap-stat"><div class="v">${s.photocardCount}</div><div class="l">今年新增小卡</div></div>
+    </div>
+    <div class="recap-info-row">
+      <div class="recap-info"><span class="l">最常消費類別</span><span class="v">${s.topCategory? esc(s.topCategory.name): '—'}</span></div>
+      <div class="recap-info"><span class="l">總追星支出</span><span class="v">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span></div>
+    </div>
+    <button class="recap-btn" data-open-year-summary="${year}">查看完整年度總結 →</button>
+  </div>`;
+}
+function openYearSummaryModal(year){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `<div id="ysModalBody"></div>`;
+  renderYsModalBody(year);
+  showModal();
+}
+function renderYsModalBody(year){
+  const years = availableSummaryYears();
+  const s = computeYearSummary(year);
+  const body = document.getElementById('ysModalBody');
+  const catBarsHtml = s.categoryBreakdown.length ? s.categoryBreakdown.slice(0,6).map(c=>{
+    const pct = s.totalExpense>0 ? Math.round(c.amount/s.totalExpense*100) : 0;
+    const color = chipColor(c.name);
+    return `<div class="ys-cat-row">
+      <div class="ys-cat-top"><span>${esc(c.name)}</span><span>NT$ ${Math.round(c.amount).toLocaleString()}</span></div>
+      <div class="ys-cat-track"><div class="ys-cat-fill" style="width:${pct}%; background:${color.fg};"></div></div>
+    </div>`;
+  }).join('') : `<div class="empty" style="padding:24px 0;"><div class="msg" style="color:var(--ink-faint);">這年還沒有消費紀錄</div></div>`;
+
+  body.innerHTML = `
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px;">
+      <h3 class="maru" style="margin:0;">🎊 年度追星總結</h3>
+      <select id="ysYearSelect" style="width:auto; padding:8px 10px; border-radius:10px; border:1px solid var(--sakura-pale); background:var(--surface); color:var(--ink); font-family:'Noto Sans TC'; font-size:13px;">
+        ${years.map(y=>`<option value="${y}" ${y===year?'selected':''}>${y} 年</option>`).join('')}
+      </select>
+    </div>
+    <div class="stat-grid" style="margin-bottom:16px;">
+      <div class="stat-card"><div class="num">${s.concertCount}</div><div class="lbl">演唱會場次</div></div>
+      <div class="stat-card"><div class="num">${s.totalEventCount}</div><div class="lbl">總參戰次數</div></div>
+      <div class="stat-card"><div class="num">${s.photocardCount}</div><div class="lbl">新增小卡</div></div>
+    </div>
+    <div class="mini-row" style="margin-bottom:8px;">
+      <span class="l" style="font-weight:700;">💰 ${year} 年度總支出</span>
+      <span class="r" style="font-weight:700; color:var(--rose-deep); font-size:14px;">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span>
+    </div>
+    ${s.topArtist ? `<div class="mini-row" style="margin-bottom:18px;"><span class="l">👑 最常紀錄的藝人</span><span class="r">${esc(s.topArtist.name)}・${s.topArtist.count} 次</span></div>` : `<div style="margin-bottom:18px;"></div>`}
+    <div class="card-title" style="margin:0 2px 12px; font-size:14px;">消費類別分布</div>
+    ${catBarsHtml}
+    <div class="modal-actions">
+      <button class="btn ghost" id="ysCloseBtn">關閉</button>
+    </div>
+  `;
+  document.getElementById('ysYearSelect').addEventListener('change', (e)=>{ renderYsModalBody(e.target.value); });
+  document.getElementById('ysCloseBtn').addEventListener('click', closeModal);
+}
+
 /* ================= Home ================= */
 function nextOccurrenceInfo(dateStr){
   // 只看月/日，算出下一次的日期（今年還沒到就用今年，過了就用明年）
@@ -1323,6 +1574,8 @@ function renderHome(){
       <div class="stat-card"><div class="num">${state.photocards.length}</div><div class="lbl">小卡收藏</div></div>
       <div class="stat-card"><div class="num">${state.support.length}</div><div class="lbl">應援紀錄</div></div>
     </div>
+
+    ${renderYearRecapBlock()}
   `;
 
   if(oshi){
@@ -1386,6 +1639,9 @@ function renderHome(){
 function bindHomeLinks(){
   document.querySelectorAll('[data-goto]').forEach(a=>{
     a.addEventListener('click', ()=>{ state.tab = a.dataset.goto; render(); });
+  });
+  document.querySelectorAll('[data-open-year-summary]').forEach(btn=>{
+    btn.addEventListener('click', ()=> openYearSummaryModal(btn.dataset.openYearSummary));
   });
 }
 
@@ -4015,6 +4271,22 @@ function openProfileForm(){
     ${accountHtml}
     <div class="field"><label>暱稱</label><input type="text" id="profNickname" value="${esc(state.profile.nickname||'')}" placeholder="輸入你的名字"></div>
     <div class="field">
+      <label>外觀模式</label>
+      <div class="seg-toggle" id="themeModeToggle">
+        <button type="button" class="seg-btn ${state.theme.mode==='light'?'active':''}" data-mode="light">☀️ 淺色</button>
+        <button type="button" class="seg-btn ${state.theme.mode==='dark'?'active':''}" data-mode="dark">🌙 深色</button>
+        <button type="button" class="seg-btn ${state.theme.mode==='system'?'active':''}" data-mode="system">🖥️ 跟隨系統</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>主題顏色</label>
+      <div class="theme-swatch-grid" id="themeSwatchGrid">
+        ${THEME_PRESETS.map(p=>`<button type="button" class="theme-swatch ${state.theme.accent===p.key?'active':''}" data-accent="${p.key}" style="background:${p.swatch};" title="${esc(p.name)}"></button>`).join('')}
+        <button type="button" class="theme-swatch custom-swatch ${state.theme.accent==='custom'?'active':''}" data-accent="custom" title="自訂顏色">🎨</button>
+      </div>
+      <input type="color" id="themeCustomColor" value="${esc(state.theme.customColor||DEFAULT_THEME.customColor)}" style="margin-top:10px; width:100%; height:38px; border-radius:10px; border:1px solid var(--sakura-pale); padding:2px; cursor:pointer; display:${state.theme.accent==='custom'?'block':'none'};">
+    </div>
+    <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
     </div>
     <div class="field">
@@ -4036,6 +4308,30 @@ function openProfileForm(){
     closeModal();
     state.tab = 'artists';
     render();
+  });
+  document.getElementById('themeModeToggle').querySelectorAll('.seg-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.theme.mode = btn.dataset.mode;
+      document.getElementById('themeModeToggle').querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      applyTheme(state.theme);
+      await saveKey('oshi-theme', state.theme);
+    });
+  });
+  document.querySelectorAll('#themeSwatchGrid .theme-swatch').forEach(sw=>{
+    sw.addEventListener('click', async ()=>{
+      state.theme.accent = sw.dataset.accent;
+      document.querySelectorAll('#themeSwatchGrid .theme-swatch').forEach(s=>s.classList.toggle('active', s===sw));
+      document.getElementById('themeCustomColor').style.display = state.theme.accent==='custom' ? 'block' : 'none';
+      applyTheme(state.theme);
+      await saveKey('oshi-theme', state.theme);
+    });
+  });
+  document.getElementById('themeCustomColor').addEventListener('input', async (e)=>{
+    state.theme.customColor = e.target.value;
+    state.theme.accent = 'custom';
+    document.querySelectorAll('#themeSwatchGrid .theme-swatch').forEach(s=>s.classList.toggle('active', s.dataset.accent==='custom'));
+    applyTheme(state.theme);
+    await saveKey('oshi-theme', state.theme);
   });
   document.getElementById('exportBackupBtn').addEventListener('click', exportBackupData);
   document.getElementById('importBackupBtn').addEventListener('click', ()=>{
@@ -4085,6 +4381,7 @@ const BACKUP_FIELD_MAP = [
   ['magazine','oshi-magazine'],
   ['movie','oshi-movie'],
   ['profile','oshi-profile'],
+  ['theme','oshi-theme'],
   ['customPcCategories','oshi-pc-categories'],
   ['customEndorsementCategories','oshi-endorsement-categories'],
   ['pcSeriesCovers','oshi-pc-covers'],
