@@ -1005,9 +1005,9 @@ const FIXED_ENDORSEMENT_CATEGORIES = ['代言人','品牌大使','形象代言',
 function scheduleArtistOptions(){
   return [...new Set(state.artists.map(a=> (a.group && a.group.trim()) ? a.group.trim() : a.name))].filter(Boolean);
 }
-const EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
+const EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
 const EXPENSE_CATEGORY_ICON = {
-  '演唱會/見面會門票':'🎫', '專輯':'💿', '小卡':'🎴', '交通/住宿':'🚄',
+  '演唱會/見面會門票':'🎫', '專輯':'💿', '小卡':'🎴', '交通/住宿':'🚄', '餐飲':'🍴',
   '應援物/飯製商品':'📣', '周邊商品':'🛍️', '娃娃':'🧸', '會員費':'💳',
   '聯名商品':'🤝', '其他追星支出':'💸'
 };
