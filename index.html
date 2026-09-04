@@ -1283,6 +1283,22 @@ function fanDurationText(dateStr){
 }
 
 /* ================= Home ================= */
+function nextOccurrenceInfo(dateStr){
+  // 只看月/日，算出下一次的日期（今年還沒到就用今年，過了就用明年）
+  if(!dateStr || dateStr.length<10) return null;
+  const mm = dateStr.slice(5,7), dd = dateStr.slice(8,10);
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let year = today.getFullYear();
+  let next = new Date(`${year}-${mm}-${dd}T00:00:00`);
+  if(isNaN(next.getTime())) return null;
+  if(next < todayMid){
+    next = new Date(`${year+1}-${mm}-${dd}T00:00:00`);
+  }
+  const diffDays = Math.round((next - todayMid) / (1000*60*60*24));
+  return { mmdd: `${parseInt(mm,10)}/${parseInt(dd,10)}`, diffDays };
+}
+
 function renderHome(){
   const today = todayStr();
   const upcoming = [...state.schedule].filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
@@ -1291,6 +1307,12 @@ function renderHome(){
     .reduce((sum,e)=> sum + (e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0)), 0);
   const oshi = state.artists.find(a=>a.isOshi==='是') || state.artists[0];
   const recentLog = [...state.fanlog].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,2);
+  const upcomingBirthdays = state.artists
+    .filter(a=>a.birthday)
+    .map(a=> ({ artist:a, info: nextOccurrenceInfo(a.birthday) }))
+    .filter(x=>x.info)
+    .sort((a,b)=> a.info.diffDays - b.info.diffDays)
+    .slice(0,3);
 
   let html = `
     <div class="greet maru">${state.profile.nickname? '哈囉，'+esc(state.profile.nickname): '哈囉！'} 🌸</div>
@@ -1332,6 +1354,16 @@ function renderHome(){
     });
   }
   html += `</div>`;
+
+  if(upcomingBirthdays.length>0){
+    html += `<div class="home-block">
+      <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>`;
+    upcomingBirthdays.forEach(({artist, info})=>{
+      const label = info.diffDays===0 ? '🎉 就是今天！' : `還有 ${info.diffDays} 天`;
+      html += `<div class="mini-row"><span class="l">${esc(artist.name)}</span><span class="r">${info.mmdd}・${label}</span></div>`;
+    });
+    html += `</div>`;
+  }
 
   html += `<div class="home-block">
     <div class="block-head"><h3>💰 本月花費</h3><a data-goto="expense">查看全部</a></div>
@@ -2229,6 +2261,7 @@ function bindCalendarActions(){
 /* ================= Photocards ================= */
 let pcDrill = null;
 let pcArtistFilter = '__all__';
+let pcOwnedFilter = '__all__';
 
 function pcGroupKey(pc){
   return (pc.series && pc.series.trim()) || (pc.artist && pc.artist.trim()) || '未分類';
@@ -2306,6 +2339,11 @@ function renderPhotocards(){
     <button class="cal-filter-btn ${pcArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
     ${artistNames.map(n=>`<button class="cal-filter-btn ${pcArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
   </div>`;
+  html += `<div class="cal-filter-row" style="margin-top:8px;">
+    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='__all__'?'active':''}" data-owned="__all__">全部</button>
+    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
+    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
+  </div>`;
 
   const groups = pcGroups();
   const filteredItems = Object.values(groups).flat();
@@ -2319,10 +2357,20 @@ function renderPhotocards(){
   </div>
   `;
 
-  if(pcDrill && !groups[pcDrill]) pcDrill = null;
+  // 願望清單篩選：只影響下方顯示的圖鑑/清單，收藏進度總覽維持顯示全部
+  let displayGroups = groups;
+  if(pcOwnedFilter!=='__all__'){
+    displayGroups = {};
+    Object.keys(groups).forEach(key=>{
+      const filtered = groups[key].filter(pc=> pcOwnedFilter==='owned' ? pc.owned : !pc.owned);
+      if(filtered.length>0) displayGroups[key] = filtered;
+    });
+  }
+
+  if(pcDrill && !displayGroups[pcDrill]) pcDrill = null;
 
   if(pcDrill){
-    const items = groups[pcDrill];
+    const items = displayGroups[pcDrill];
     const drillOwned = items.filter(i=>i.owned).length;
     html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
     html += `<div class="card-title" style="margin:0 2px 12px;font-size:16px;">${esc(pcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
@@ -2332,10 +2380,15 @@ function renderPhotocards(){
     return html;
   }
 
-  const ordered = pcOrderedKeys(groups);
+  if(Object.keys(displayGroups).length===0){
+    html += `<div class="empty"><div class="big">🌟</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
+    return html;
+  }
+
+  const ordered = pcOrderedKeys(displayGroups);
   html += `<div class="pc-series-grid">`;
   ordered.forEach(key=>{
-    const items = groups[key];
+    const items = displayGroups[key];
     const ownedCount = items.filter(i=>i.owned).length;
     const pct = items.length>0 ? Math.round(ownedCount/items.length*100) : 0;
     const manualCover = state.pcSeriesCovers && state.pcSeriesCovers[key];
@@ -2508,7 +2561,8 @@ function renderSupportTab(){
         <div>
           ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
           ${isEnded ? `<span class="tag wisteria">已結束活動</span>` : ''}
-          ${s.isPaid ? `<span class="tag gold">💰 付費應援</span>` : ''}
+          ${s.isPaid ? `<span class="tag gold">💰 付費應援${s.paidAmount?('　NT$'+Number(s.paidAmount).toLocaleString()):''}</span>` : ''}
+          ${s.expenseLinkedId ? `<span class="tag matcha">🔗 已連動記帳本</span>` : ''}
         </div>
         ${s.condition ? `<div class="card-meta" style="margin-top:6px;">🎟️ 領取條件：${esc(s.condition)}</div>` : ''}
         ${s.content ? `<div class="card-meta" style="margin-top:4px;">${esc(s.content)}</div>` : ''}
@@ -2608,6 +2662,16 @@ function openSupportForm(id){
         付費應援
       </label>
     </div>
+    <div id="supPaidFields" style="display:${isPaid?'block':'none'};">
+      <div class="field"><label>花費金額</label><input type="number" id="supPaidAmount" value="${existing?esc(existing.paidAmount||''):''}" placeholder="0"></div>
+      <div class="field">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="supAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" checked>
+          同時加入記帳本
+        </label>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">會在記帳本自動建立/更新一筆對應花費（分類：應援物/飯製商品）</div>
+      </div>
+    </div>
     <div class="field"><label>展示圖片網址</label><input type="url" id="supImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>發放內容</label><textarea id="supContent" placeholder="發放的物品、數量、大家的反應...">${existing?esc(existing.content||''):''}</textarea></div>
     <div class="modal-actions">
@@ -2620,6 +2684,12 @@ function openSupportForm(id){
   const newArtistInput = document.getElementById('supNewArtistName');
   artistSelect.addEventListener('change', ()=>{
     newArtistInput.style.display = artistSelect.value==='__new__' ? 'block' : 'none';
+  });
+
+  const paidCheckbox = document.getElementById('supIsPaid');
+  const paidFields = document.getElementById('supPaidFields');
+  paidCheckbox.addEventListener('change', ()=>{
+    paidFields.style.display = paidCheckbox.checked ? 'block' : 'none';
   });
 
   const singleBtn = document.getElementById('supSingleDayBtn');
@@ -2665,6 +2735,10 @@ async function saveSupportForm(existing){
     date = document.getElementById('supDate').value.trim();
   }
 
+  const isPaid = document.getElementById('supIsPaid').checked;
+  const paidAmount = document.getElementById('supPaidAmount') ? document.getElementById('supPaidAmount').value.trim() : '';
+  const addToExpense = isPaid && document.getElementById('supAddToExpense') && document.getElementById('supAddToExpense').checked;
+
   const data = {
     title,
     artist,
@@ -2675,17 +2749,57 @@ async function saveSupportForm(existing){
     location: document.getElementById('supLocation').value.trim(),
     condition: document.getElementById('supCondition').value.trim(),
     articleUrl: document.getElementById('supArticleUrl').value.trim(),
-    isPaid: document.getElementById('supIsPaid').checked,
+    isPaid,
+    paidAmount,
     imageUrl: document.getElementById('supImageUrl').value.trim(),
     content: document.getElementById('supContent').value.trim()
   };
 
+  let targetSupport;
   if(existing){
     Object.assign(existing, data);
+    targetSupport = existing;
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state.support.push(data);
+    targetSupport = data;
   }
+
+  // 應援 ↔ 記帳本 串連：勾選「同時加入記帳本」時，自動建立/更新對應的花費紀錄
+  if(addToExpense){
+    const amt = parseFloat(paidAmount) || 0;
+    let linkedExpense = targetSupport.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(targetSupport.expenseLinkedId)) : null;
+    if(linkedExpense){
+      linkedExpense.name = title;
+      linkedExpense.artist = artist;
+      linkedExpense.unitPrice = amt;
+      linkedExpense.date = date;
+    } else {
+      const newExpense = {
+        id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000)+'e',
+        recordType: 'expense',
+        name: title,
+        artist,
+        unitPrice: amt,
+        quantity: '1',
+        shipping: '',
+        origCurrency: 'TWD',
+        origAmount: '',
+        category: '應援物/飯製商品',
+        date,
+        platform: '',
+        deliveryStatus: '',
+        paymentMethod: '',
+        tags: [],
+        note: '由應援牆自動建立',
+        imageUrls: []
+      };
+      state.expense.push(newExpense);
+      targetSupport.expenseLinkedId = newExpense.id;
+    }
+    await saveKey('oshi-expense', state.expense);
+  }
+
   await saveKey('oshi-support', state.support);
   closeModal();
   render();
@@ -3246,6 +3360,13 @@ function bindListActions(tab){
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
         pcArtistFilter = b.dataset.filter;
+        pcDrill = null;
+        render();
+      });
+    });
+    document.querySelectorAll('.pc-owned-filter-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        pcOwnedFilter = b.dataset.owned;
         pcDrill = null;
         render();
       });
