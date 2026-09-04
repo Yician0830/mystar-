@@ -423,6 +423,8 @@
     font-weight:700; font-size:12.5px; white-space:normal; overflow-wrap:break-word; line-height:1.35;
   }
   .pc-series-count{ font-size:11px; color:var(--ink-soft); margin-top:1px;}
+  .pc-series-progress-track{ width:100%; height:5px; background:var(--bg-deep); border-radius:4px; margin-top:5px; overflow:hidden;}
+  .pc-series-progress-fill{ height:100%; background:var(--rose); border-radius:4px;}
 
   .pc-back{
     display:inline-flex; align-items:center; gap:6px; cursor:pointer;
@@ -904,6 +906,7 @@ const state = {
 /* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
 let expViewMode = 'all';
 let expSearchQuery = '';
+let expArtistFilter = '__all__';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
@@ -1427,14 +1430,21 @@ function renderExpenseTab(){
     return html;
   }
 
-  // 搜尋（比對商品名稱、備註、標籤、平台、分類）
+  // 搜尋（比對商品名稱、備註、標籤、平台、分類、藝人）
   let items = allItems;
   const q = expSearchQuery.trim().toLowerCase();
   if(q){
-    items = allItems.filter(e=>{
-      const hay = [e.name, e.note, e.platform, e.category, ...(e.tags||[])].filter(Boolean).join(' ').toLowerCase();
+    items = items.filter(e=>{
+      const hay = [e.name, e.note, e.platform, e.category, e.artist, ...(e.tags||[])].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
+  }
+
+  // 藝人篩選
+  const expArtistNames = [...new Set(allItems.map(e=>e.artist).filter(Boolean))];
+  if(expArtistFilter!=='__all__' && !expArtistNames.includes(expArtistFilter)) expArtistFilter = '__all__';
+  if(expArtistFilter!=='__all__'){
+    items = items.filter(e=> e.artist===expArtistFilter);
   }
 
   const grandTotal = items.reduce((sum, e) => sum + expenseAmount(e), 0);
@@ -1447,13 +1457,18 @@ function renderExpenseTab(){
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='year'?'active':''}" data-view="year">📅 歷年花費</button>
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='stats'?'active':''}" data-view="stats">📊 統計圖表</button>
   </div>
+  ${expArtistNames.length>0 ? `
+  <div class="cal-filter-row" style="margin-bottom:14px;">
+    <button class="chip-filter-btn cal-filter-btn ${expArtistFilter==='__all__'?'active':''}" data-artist="__all__">👤 全部藝人</button>
+    ${expArtistNames.map(n=>`<button class="chip-filter-btn cal-filter-btn ${expArtistFilter===n?'active':''}" data-artist="${esc(n)}">${esc(n)}</button>`).join('')}
+  </div>` : ''}
   <div class="field" style="margin-bottom:14px;">
     <input type="text" id="expSearchInput" placeholder="🔍 搜尋商品名稱、備註、標籤、平台..." value="${esc(expSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>
   `;
 
   if(items.length===0){
-    html += `<div class="empty"><div class="big">🔍</div><div class="msg">找不到符合「${esc(expSearchQuery)}」的花費紀錄</div></div>`;
+    html += `<div class="empty"><div class="big">🔍</div><div class="msg">找不到符合條件的花費紀錄</div></div>`;
     return html;
   }
 
@@ -1676,6 +1691,12 @@ function bindExpenseActions(){
       render();
     });
   });
+  document.querySelectorAll('.chip-filter-btn[data-artist]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      expArtistFilter = btn.dataset.artist;
+      render();
+    });
+  });
   document.querySelectorAll('.chip-filter-btn[data-year]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       expYearFilter = btn.dataset.year;
@@ -1734,6 +1755,7 @@ function renderExpenseCard(item){
   const statusColor = item.deliveryStatus ? expenseStatusColor(item.deliveryStatus) : null;
   const tags = (item.tags||[]);
   const footnoteParts = [];
+  if(item.artist) footnoteParts.push('👤 '+item.artist);
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
@@ -1788,10 +1810,31 @@ function openExpenseForm(id, prefill){
     </select>
     <input type="text" id="expNewCategory" placeholder="輸入新的分類名稱" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
+  const artistOptions = [...new Set([
+    ...state.artists.map(a=>a.name),
+    ...state.expense.map(e=>e.artist).filter(Boolean)
+  ])];
+  const curArtist = src ? (src.artist||'') : '';
+  let artistFieldHtml = '';
+  if(artistOptions.length===0){
+    artistFieldHtml = `
+      <select id="expArtistSelect"><option value="">尚未新增藝人</option><option value="__new__">＋ 直接輸入藝人名稱</option></select>
+      <input type="text" id="expNewArtistName" placeholder="輸入藝人名稱" style="margin-top:8px;" value="${esc(curArtist)}">`;
+  } else {
+    artistFieldHtml = `
+      <select id="expArtistSelect">
+        <option value="">不指定</option>
+        ${artistOptions.map(n=>`<option value="${esc(n)}" ${curArtist===n?'selected':''}>${esc(n)}</option>`).join('')}
+        <option value="__new__" ${curArtist && !artistOptions.includes(curArtist)?'selected':''}>＋ 新增藝人</option>
+      </select>
+      <input type="text" id="expNewArtistName" placeholder="輸入新藝人名稱" style="margin-top:8px; display:${curArtist && !artistOptions.includes(curArtist)?'block':'none'};" value="${curArtist && !artistOptions.includes(curArtist)?esc(curArtist):''}">`;
+  }
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 記帳</h3>
     <div class="field"><label>商品名稱 *</label><input type="text" id="expName" value="${src?esc(src.name||''):''}" placeholder="例：815演唱會應援"></div>
+    <div class="field"><label>相關藝人</label>${artistFieldHtml}</div>
     <div style="display:flex; gap:10px;">
       <div class="field" style="flex:1;"><label>單價</label><input type="number" id="expUnitPrice" value="${src?esc(src.unitPrice||''):''}" placeholder="0"></div>
       <div class="field" style="flex:1;"><label>數量</label><input type="number" id="expQuantity" value="${src?esc(src.quantity||1):1}" min="1" placeholder="1"></div>
@@ -1869,6 +1912,12 @@ function openExpenseForm(id, prefill){
   const newCategoryInput = document.getElementById('expNewCategory');
   categorySelect.addEventListener('change', ()=>{
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
+  const artistSelect = document.getElementById('expArtistSelect');
+  const newArtistInput = document.getElementById('expNewArtistName');
+  artistSelect.addEventListener('change', ()=>{
+    newArtistInput.style.display = artistSelect.value==='__new__' ? 'block' : 'none';
   });
 
   renderExpTagChips();
@@ -1962,9 +2011,21 @@ async function saveExpenseForm(existing){
     }
   }
 
+  const artistSelect = document.getElementById('expArtistSelect');
+  let artist = artistSelect ? artistSelect.value : '';
+  if(artist==='__new__'){
+    const newName = document.getElementById('expNewArtistName').value.trim();
+    artist = newName;
+  }
+  if(artist && !state.artists.find(a=>a.name===artist)){
+    state.artists.push({ id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000), name:artist });
+    await saveKey('oshi-artists', state.artists);
+  }
+
   const data = {
     recordType,
     name,
+    artist,
     unitPrice: document.getElementById('expUnitPrice').value.trim(),
     quantity: document.getElementById('expQuantity').value.trim() || '1',
     shipping: document.getElementById('expShipping').value.trim(),
@@ -2185,13 +2246,24 @@ function renderPhotocards(){
   </div>`;
 
   const groups = pcGroups();
+  const filteredItems = Object.values(groups).flat();
+  const totalCount = filteredItems.length;
+  const totalOwned = filteredItems.filter(p=>p.owned).length;
+  const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
+  html += `
+  <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+    <span class="l" style="font-weight:700;">🎴 收藏進度</span>
+    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} 張（${totalPct}%）</span>
+  </div>
+  `;
 
   if(pcDrill && !groups[pcDrill]) pcDrill = null;
 
   if(pcDrill){
     const items = groups[pcDrill];
+    const drillOwned = items.filter(i=>i.owned).length;
     html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
-    html += `<div class="card-title" style="margin:0 2px 12px;font-size:16px;">${esc(pcDrill)} <span class="pc-count">(${items.length})</span></div>`;
+    html += `<div class="card-title" style="margin:0 2px 12px;font-size:16px;">${esc(pcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
     html += `<div class="pc-grid">`;
     items.forEach(pc=>{ html += renderPhotocardCard(pc); });
     html += `</div>`;
@@ -2202,6 +2274,8 @@ function renderPhotocards(){
   html += `<div class="pc-series-grid">`;
   ordered.forEach(key=>{
     const items = groups[key];
+    const ownedCount = items.filter(i=>i.owned).length;
+    const pct = items.length>0 ? Math.round(ownedCount/items.length*100) : 0;
     const manualCover = state.pcSeriesCovers && state.pcSeriesCovers[key];
     const autoCover = items.find(i=>i.imageUrl);
     const coverUrl = manualCover || (autoCover ? autoCover.imageUrl : '');
@@ -2212,7 +2286,8 @@ function renderPhotocards(){
                 : `<div class="pc-series-cover ph">🎴</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
-          <div class="pc-series-count">${items.length} 張</div>
+          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 張</div>
+          <div class="pc-series-progress-track"><div class="pc-series-progress-fill" style="width:${pct}%;"></div></div>
         </div>
       </button>
       <button class="pc-series-edit-cover" data-series="${esc(key)}" title="編輯封面圖片網址">✎</button>
@@ -2272,6 +2347,13 @@ function bindArtistCardActions(){
 function openArtistDetail(id){
   const a = state.artists.find(x=>String(x.id)===String(id));
   if(!a) return;
+
+  const totalSpent = state.expense.filter(e=>e.artist===a.name).reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
+  const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
+  const fanlogCount = state.fanlog.filter(f=>f.artist===a.name).length;
+  const supportCount = state.support.filter(s=>s.artist===a.name).length;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
@@ -2289,6 +2371,12 @@ function openArtistDetail(id){
       ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}（${fmtDate(a.fanSince)}）</span>`:''}
     </div>
     ${a.bio ? `<div class="card-meta" style="white-space:pre-wrap;line-height:1.7;">${esc(a.bio)}</div>` : `<div class="card-meta" style="color:var(--ink-faint);">尚未填寫簡介</div>`}
+    <div class="stat-grid" style="margin-top:14px;">
+      <div class="stat-card"><div class="num">NT$ ${totalSpent.toLocaleString()}</div><div class="lbl">累積花費</div></div>
+      <div class="stat-card"><div class="num">${pcOwnedCount}/${pcTotalCount}</div><div class="lbl">小卡收藏</div></div>
+      <div class="stat-card"><div class="num">${fanlogCount}</div><div class="lbl">追星紀錄</div></div>
+    </div>
+    ${supportCount>0 ? `<div class="card-meta" style="margin-top:8px;">📣 應援紀錄：${supportCount} 筆</div>` : ''}
     <div class="modal-actions" style="margin-top:18px;">
       <button class="btn ghost" id="cancelBtn">關閉</button>
       <button class="btn primary" id="artistDetailEditBtn">編輯</button>
