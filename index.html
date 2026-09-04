@@ -897,11 +897,13 @@ const state = {
   pcSeriesCovers:{},
   pcSeriesMeta:{},
   customFanlogCategories:[],
-  customScheduleCategories:[]
+  customScheduleCategories:[],
+  customExpenseCategories:[]
 };
 
-/* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細) */
+/* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
 let expViewMode = 'all';
+let expSearchQuery = '';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
@@ -1005,7 +1007,7 @@ const FIXED_ENDORSEMENT_CATEGORIES = ['代言人','品牌大使','形象代言',
 function scheduleArtistOptions(){
   return [...new Set(state.artists.map(a=> (a.group && a.group.trim()) ? a.group.trim() : a.name))].filter(Boolean);
 }
-const EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
+const FIXED_EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
 const EXPENSE_CATEGORY_ICON = {
   '演唱會/見面會門票':'🎫', '專輯':'💿', '小卡':'🎴', '交通/住宿':'🚄', '餐飲':'🍴',
   '應援物/飯製商品':'📣', '周邊商品':'🛍️', '娃娃':'🧸', '會員費':'💳',
@@ -1102,7 +1104,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1118,7 +1120,8 @@ async function loadAllData(){
     loadKey('oshi-endorsement', []),
     loadKey('oshi-magazine', []),
     loadKey('oshi-movie', []),
-    loadKey('oshi-endorsement-categories', [])
+    loadKey('oshi-endorsement-categories', []),
+    loadKey('oshi-expense-categories', [])
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1131,6 +1134,7 @@ async function loadAllData(){
   state.magazine = mg;
   state.movie = mo;
   state.customEndorsementCategories = enc;
+  state.customExpenseCategories = exc;
 }
 
 async function init(){
@@ -1417,10 +1421,20 @@ function renderExpenseTab(){
   const meta = TAB_META.expense;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
 
-  const items = [...state.expense].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  if(items.length===0){
+  const allItems = [...state.expense].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  if(allItems.length===0){
     html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」記一筆吧</div></div>`;
     return html;
+  }
+
+  // 搜尋（比對商品名稱、備註、標籤、平台、分類）
+  let items = allItems;
+  const q = expSearchQuery.trim().toLowerCase();
+  if(q){
+    items = allItems.filter(e=>{
+      const hay = [e.name, e.note, e.platform, e.category, ...(e.tags||[])].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
   }
 
   const grandTotal = items.reduce((sum, e) => sum + expenseAmount(e), 0);
@@ -1431,8 +1445,18 @@ function renderExpenseTab(){
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='all'?'active':''}" data-view="all">📋 全部明細</button>
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='category'?'active':''}" data-view="category">🏷️ 分類明細</button>
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='year'?'active':''}" data-view="year">📅 歷年花費</button>
+    <button class="exp-view-btn cal-filter-btn ${expViewMode==='stats'?'active':''}" data-view="stats">📊 統計圖表</button>
+  </div>
+  <div class="field" style="margin-bottom:14px;">
+    <input type="text" id="expSearchInput" placeholder="🔍 搜尋商品名稱、備註、標籤、平台..." value="${esc(expSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>
   `;
+
+  if(items.length===0){
+    html += `<div class="empty"><div class="big">🔍</div><div class="msg">找不到符合「${esc(expSearchQuery)}」的花費紀錄</div></div>`;
+    return html;
+  }
+
   if(expViewMode==='all'){
     // 依有紀錄的月份列出可篩選的月份（新到舊）
     const months = [...new Set(items.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
@@ -1492,9 +1516,10 @@ function renderExpenseTab(){
       catGroups[cat].push(item);
     });
 
+    const allExpCategories = [...FIXED_EXPENSE_CATEGORIES, ...state.customExpenseCategories];
     const categoryKeys = Object.keys(catGroups).sort((a,b)=>{
-      const idxA = EXPENSE_CATEGORIES.indexOf(a);
-      const idxB = EXPENSE_CATEGORIES.indexOf(b);
+      const idxA = allExpCategories.indexOf(a);
+      const idxB = allExpCategories.indexOf(b);
       if(idxA !== -1 && idxB !== -1) return idxA - idxB;
       if(idxA !== -1) return -1;
       if(idxB !== -1) return 1;
@@ -1558,9 +1583,84 @@ function renderExpenseTab(){
     `;
     yearItems.forEach(item=>{ html += renderExpenseCard(item); });
     html += `</div>`;
+  } else if(expViewMode==='stats'){
+    html += renderExpenseStats(items);
   }
 
   return html;
+}
+
+function renderExpenseStats(items){
+  if(items.length===0) return `<div class="empty"><div class="big">📊</div><div class="msg">沒有資料可供統計</div></div>`;
+
+  // 各分類佔比
+  const catTotals = {};
+  items.forEach(e=>{
+    const cat = e.category || '未分類';
+    catTotals[cat] = (catTotals[cat]||0) + expenseAmount(e);
+  });
+  const catEntries = Object.entries(catTotals).sort((a,b)=> b[1]-a[1]);
+  const catMax = catEntries.length ? catEntries[0][1] : 1;
+  const grandTotal = items.reduce((s,e)=> s+expenseAmount(e), 0);
+
+  const catBarsHtml = catEntries.map(([cat, amt])=>{
+    const pct = catMax>0 ? Math.max(4, Math.round(amt/catMax*100)) : 0;
+    const sharePct = grandTotal>0 ? (amt/grandTotal*100).toFixed(1) : '0.0';
+    const color = chipColor(cat);
+    const icon = EXPENSE_CATEGORY_ICON[cat] || '🏷️';
+    return `
+    <div style="margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;">
+        <span>${icon} ${esc(cat)}</span>
+        <span style="color:var(--ink-soft);">NT$ ${amt.toLocaleString()}（${sharePct}%）</span>
+      </div>
+      <div style="background:var(--bg-deep);border-radius:8px;height:14px;overflow:hidden;">
+        <div style="width:${pct}%;height:100%;background:${color.bg};border-left:4px solid ${color.fg};border-radius:8px;"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // 月度花費趨勢（依實際資料涵蓋的月份，最多近 12 個月，最新在右）
+  const monthTotals = {};
+  items.forEach(e=>{
+    if(!e.date) return;
+    const m = e.date.slice(0,7);
+    monthTotals[m] = (monthTotals[m]||0) + expenseAmount(e);
+  });
+  const monthKeys = Object.keys(monthTotals).sort().slice(-12);
+  const monthMax = monthKeys.length ? Math.max(...monthKeys.map(m=>monthTotals[m])) : 1;
+
+  const monthBarsHtml = monthKeys.length ? `
+    <div style="display:flex;align-items:flex-end;gap:8px;height:150px;padding:0 4px;overflow-x:auto;">
+      ${monthKeys.map(m=>{
+        const amt = monthTotals[m];
+        const h = monthMax>0 ? Math.max(6, Math.round(amt/monthMax*110)) : 6;
+        const [, mm] = m.split('-');
+        const label = amt>=10000 ? Math.round(amt/1000)+'k' : (amt>=1000 ? (amt/1000).toFixed(1)+'k' : amt);
+        return `
+        <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;min-width:36px;">
+          <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px;white-space:nowrap;">${label}</div>
+          <div style="width:22px;height:${h}px;background:var(--rose);border-radius:6px 6px 0 0;"></div>
+          <div style="font-size:10px;color:var(--ink-faint);margin-top:4px;">${parseInt(mm,10)}月</div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div class="empty" style="padding:20px 0;"><div class="msg">尚無月份資料</div></div>`;
+
+  return `
+  <div class="exp-group-header">
+    <div class="exp-group-title">🏷️ 各分類佔比</div>
+    <div class="exp-group-meta">共 NT$ ${grandTotal.toLocaleString()}</div>
+  </div>
+  <div style="background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);margin-bottom:20px;">
+    ${catBarsHtml}
+  </div>
+  <div class="exp-group-header">
+    <div class="exp-group-title">📈 月度花費趨勢</div>
+  </div>
+  <div style="background:var(--surface);border-radius:16px;padding:16px 8px;box-shadow:var(--shadow-sm);">
+    ${monthBarsHtml}
+  </div>
+  `;
 }
 
 function bindExpenseActions(){
@@ -1588,6 +1688,30 @@ function bindExpenseActions(){
       render();
     });
   });
+  document.querySelectorAll('.icon-btn.dup').forEach(btn=>{
+    btn.addEventListener('click', ()=> duplicateExpense(btn.dataset.id));
+  });
+  const searchInput = document.getElementById('expSearchInput');
+  if(searchInput){
+    searchInput.addEventListener('input', (e)=>{
+      expSearchQuery = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      render();
+      const newInput = document.getElementById('expSearchInput');
+      if(newInput){
+        newInput.focus();
+        newInput.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
+  }
+}
+
+function duplicateExpense(id){
+  const item = state.expense.find(e=>String(e.id)===String(id));
+  if(!item) return;
+  const prefill = JSON.parse(JSON.stringify(item));
+  delete prefill.id;
+  openExpenseForm(null, prefill);
 }
 
 function expenseStatusColor(status){
@@ -1635,6 +1759,7 @@ function renderExpenseCard(item){
       </div>
     </div>
     <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
+      <button class="icon-btn dup" data-tab="expense" data-id="${item.id}" title="複製這筆">📋</button>
       <button class="icon-btn edit" data-tab="expense" data-id="${item.id}">✎</button>
       <button class="icon-btn del" data-tab="expense" data-id="${item.id}">🗑</button>
     </div>
@@ -1644,60 +1769,67 @@ function renderExpenseCard(item){
 let expTags = [];
 let expImgUrls = [];
 
-function openExpenseForm(id){
+function openExpenseForm(id, prefill){
   const existing = id ? state.expense.find(e=>String(e.id)===String(id)) : null;
-  expTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
-  expImgUrls = existing && Array.isArray(existing.imageUrls) ? [...existing.imageUrls] : [];
+  const src = existing || prefill || null;
+  expTags = src && Array.isArray(src.tags) ? [...src.tags] : [];
+  expImgUrls = src && Array.isArray(src.imageUrls) ? [...src.imageUrls] : [];
 
   const platforms = [...new Set(state.expense.map(e=>e.platform).filter(Boolean))];
 
+  const categoryOptions = [...FIXED_EXPENSE_CATEGORIES, ...state.customExpenseCategories];
+  const curCategory = src ? (src.category||'') : '';
+  const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
+  const categoryFieldHtml = `
+    <select id="expCategorySelect">
+      <option value="">請選擇</option>
+      ${categoryOptions.map(c=>`<option value="${esc(c)}" ${curCategory===c?'selected':''}>${esc(c)}</option>`).join('')}
+      <option value="__other__" ${isCustomCategory?'selected':''}>＋ 自訂分類</option>
+    </select>
+    <input type="text" id="expNewCategory" placeholder="輸入新的分類名稱" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
-    <h3 class="maru">${existing? '編輯' : '新增'} · 記帳</h3>
-    <div class="field"><label>商品名稱 *</label><input type="text" id="expName" value="${existing?esc(existing.name||''):''}" placeholder="例：815演唱會應援"></div>
+    <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 記帳</h3>
+    <div class="field"><label>商品名稱 *</label><input type="text" id="expName" value="${src?esc(src.name||''):''}" placeholder="例：815演唱會應援"></div>
     <div style="display:flex; gap:10px;">
-      <div class="field" style="flex:1;"><label>單價</label><input type="number" id="expUnitPrice" value="${existing?esc(existing.unitPrice||''):''}" placeholder="0"></div>
-      <div class="field" style="flex:1;"><label>數量</label><input type="number" id="expQuantity" value="${existing?esc(existing.quantity||1):1}" min="1" placeholder="1"></div>
-      <div class="field" style="flex:1;"><label>運費/二補</label><input type="number" id="expShipping" value="${existing?esc(existing.shipping||''):''}" placeholder="0"></div>
+      <div class="field" style="flex:1;"><label>單價</label><input type="number" id="expUnitPrice" value="${src?esc(src.unitPrice||''):''}" placeholder="0"></div>
+      <div class="field" style="flex:1;"><label>數量</label><input type="number" id="expQuantity" value="${src?esc(src.quantity||1):1}" min="1" placeholder="1"></div>
+      <div class="field" style="flex:1;"><label>運費/二補</label><input type="number" id="expShipping" value="${src?esc(src.shipping||''):''}" placeholder="0"></div>
     </div>
     <div class="field">
       <label>原始幣值（選填，可換算台幣單價）</label>
       <div style="display:flex; gap:8px;">
         <select id="expCurrency" style="flex:0 0 92px;">
-          ${['CNY','JPY','KRW','USD','HKD','TWD'].map(c=>`<option value="${c}" ${existing&&existing.origCurrency===c?'selected':''}>${c}</option>`).join('')}
+          ${['CNY','JPY','KRW','USD','HKD','TWD'].map(c=>`<option value="${c}" ${src&&src.origCurrency===c?'selected':''}>${c}</option>`).join('')}
         </select>
-        <input type="number" id="expOrigAmount" value="${existing?esc(existing.origAmount||''):''}" placeholder="原始金額" style="flex:1;">
+        <input type="number" id="expOrigAmount" value="${src?esc(src.origAmount||''):''}" placeholder="原始金額" style="flex:1;">
         <button type="button" class="btn ghost" id="expConvertBtn" style="flex:0 0 auto;padding:10px 14px;">⇄ 換算</button>
       </div>
       <div id="expRateHint" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
     </div>
-    <div class="field"><label>分類</label>
-      <select id="expCategory">
-        <option value="">請選擇</option>
-        ${EXPENSE_CATEGORIES.map(c=>`<option value="${esc(c)}" ${existing&&existing.category===c?'selected':''}>${esc(c)}</option>`).join('')}
-      </select>
-    </div>
+    <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
-      <input type="text" id="expPlatform" list="expPlatformList" placeholder="例：蝦皮、代購..." value="${existing?esc(existing.platform||''):''}">
+      <input type="text" id="expPlatform" list="expPlatformList" placeholder="例：蝦皮、代購..." value="${src?esc(src.platform||''):''}">
       <datalist id="expPlatformList">${platforms.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
     </div>
     <div class="field"><label>到貨狀態</label>
       <select id="expDeliveryStatus">
         <option value="">請選擇</option>
-        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${existing&&existing.deliveryStatus===s?'selected':''}>${esc(s)}</option>`).join('')}
+        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${src&&src.deliveryStatus===s?'selected':''}>${esc(s)}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>付款方式</label>
       <select id="expPaymentMethod">
         <option value="">請選擇</option>
-        ${EXPENSE_PAYMENT.map(p=>`<option value="${esc(p)}" ${existing&&existing.paymentMethod===p?'selected':''}>${esc(p)}</option>`).join('')}
+        ${EXPENSE_PAYMENT.map(p=>`<option value="${esc(p)}" ${src&&src.paymentMethod===p?'selected':''}>${esc(p)}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>標籤</label>
       <div class="tag-input-box" id="expTagBox"></div>
     </div>
-    <div class="field"><label>備註</label><textarea id="expNote" placeholder="通路、oo代購、預計出貨日期等等">${existing?esc(existing.note||''):''}</textarea></div>
+    <div class="field"><label>備註</label><textarea id="expNote" placeholder="通路、oo代購、預計出貨日期等等">${src?esc(src.note||''):''}</textarea></div>
     <div class="field"><label>圖片網址（最多 3 筆，貼上連結即可辨識預覽）</label>
       <div id="expImgList"></div>
       <div style="display:flex; gap:8px; margin-top:6px;">
@@ -1731,6 +1863,12 @@ function openExpenseForm(id){
     }catch(err){
       hint.textContent = '換算失敗，請手動輸入台幣單價';
     }
+  });
+
+  const categorySelect = document.getElementById('expCategorySelect');
+  const newCategoryInput = document.getElementById('expNewCategory');
+  categorySelect.addEventListener('change', ()=>{
+    newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
   });
 
   renderExpTagChips();
@@ -1813,6 +1951,17 @@ async function saveExpenseForm(existing){
 
   const recordType = 'expense';
 
+  const categorySelect = document.getElementById('expCategorySelect');
+  let category = categorySelect.value;
+  if(category==='__other__'){
+    const newCat = document.getElementById('expNewCategory').value.trim();
+    category = newCat;
+    if(newCat && !FIXED_EXPENSE_CATEGORIES.includes(newCat) && !state.customExpenseCategories.includes(newCat)){
+      state.customExpenseCategories.push(newCat);
+      await saveKey('oshi-expense-categories', state.customExpenseCategories);
+    }
+  }
+
   const data = {
     recordType,
     name,
@@ -1821,7 +1970,7 @@ async function saveExpenseForm(existing){
     shipping: document.getElementById('expShipping').value.trim(),
     origCurrency: document.getElementById('expCurrency').value,
     origAmount: document.getElementById('expOrigAmount').value.trim(),
-    category: document.getElementById('expCategory').value,
+    category,
     date,
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
