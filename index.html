@@ -1237,7 +1237,7 @@ function render(){
   updateNavActive();
   const main = document.getElementById('mainContent');
   if(state.tab==='home'){ main.innerHTML = renderHome(); bindHomeLinks(); return; }
-  if(state.tab==='schedule'){ main.innerHTML = renderScheduleTab(); bindCalendarActions(); return; }
+  if(state.tab==='schedule'){ main.innerHTML = renderScheduleTab(); bindListActions('schedule'); bindCalendarActions(); return; }
   if(state.tab==='fanlog'){ main.innerHTML = renderFanlogTab(); bindListActions('fanlog'); bindFanlogReviewActions(); return; }
   if(state.tab==='photocards'){ main.innerHTML = renderPhotocards(); bindListActions('photocards'); return; }
   if(state.tab==='expense'){ main.innerHTML = renderExpenseTab(); bindListActions('expense'); bindExpenseActions(); return; }
@@ -2056,6 +2056,7 @@ async function saveExpenseForm(existing){
 /* ================= Schedule (calendar view) ================= */
 let calMonth = null;
 let scheduleArtistFilter = '__all__';
+let scheduleViewMode = 'calendar';
 
 function ensureCalMonth(){
   if(!calMonth) calMonth = todayStr().slice(0,7);
@@ -2074,6 +2075,22 @@ function renderScheduleTab(){
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
 
   const artistNames = [...new Set(state.schedule.map(s=>s.artist).filter(Boolean))];
+  const filteredSchedule = state.schedule.filter(s=> scheduleArtistFilter==='__all__' || s.artist===scheduleArtistFilter);
+
+  html += `<div class="cal-filter-row" style="margin-bottom:10px;">
+    <button class="sched-view-btn cal-filter-btn ${scheduleViewMode==='calendar'?'active':''}" data-view="calendar">📅 月曆檢視</button>
+    <button class="sched-view-btn cal-filter-btn ${scheduleViewMode==='list'?'active':''}" data-view="list">📋 清單檢視</button>
+  </div>`;
+
+  html += `<div class="cal-filter-row">
+    <button class="cal-filter-btn ${scheduleArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部行程</button>
+    ${artistNames.map(n=>`<button class="cal-filter-btn ${scheduleArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+  </div>`;
+
+  if(scheduleViewMode==='list'){
+    html += renderScheduleListBody(filteredSchedule);
+    return html;
+  }
 
   const [y,m] = calMonth.split('-').map(Number);
   const firstDay = new Date(y, m-1, 1);
@@ -2081,7 +2098,6 @@ function renderScheduleTab(){
   const daysInMonth = new Date(y, m, 0).getDate();
   const monthLabel = `${y}年${m}月`;
 
-  const filteredSchedule = state.schedule.filter(s=> scheduleArtistFilter==='__all__' || s.artist===scheduleArtistFilter);
   const eventsByDate = {};
   filteredSchedule.forEach(s=>{
     if(!s.date) return;
@@ -2099,11 +2115,6 @@ function renderScheduleTab(){
       (eventsByDate[s.date] = eventsByDate[s.date] || []).push(s);
     }
   });
-
-  html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn ${scheduleArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部行程</button>
-    ${artistNames.map(n=>`<button class="cal-filter-btn ${scheduleArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
-  </div>`;
 
   html += `<div class="cal-head">
     <button class="cal-nav-btn" data-nav="-1">‹</button>
@@ -2133,8 +2144,59 @@ function renderScheduleTab(){
   return html;
 }
 
+function renderScheduleListBody(filteredSchedule){
+  const today = todayStr();
+  const effectiveEnd = s=> (s.isMultiDay && s.endDate) ? s.endDate : s.date;
+  const dated = filteredSchedule.filter(s=>s.date);
+  const upcoming = dated.filter(s=> effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const past = dated.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  if(upcoming.length===0 && past.length===0){
+    return `<div class="empty"><div class="big">📅</div><div class="msg">還沒有安排任何行程<br>點右下角的「＋」新增一筆吧</div></div>`;
+  }
+
+  const renderRow = (s)=>{
+    const dateLabel = (s.isMultiDay && s.endDate && s.endDate!==s.date)
+      ? `${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}`
+      : fmtDate(s.date);
+    const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories])}">${esc(s.category)}</span>` : '';
+    return `
+    <div class="card">
+      <div class="card-row">
+        <div>
+          <div class="card-title">${esc(s.title)}</div>
+          <div class="card-meta">${[s.artist, s.location].filter(Boolean).join(' · ')}</div>
+          <div style="margin-top:6px;">${catBadge} <span class="tag">🗓️ ${dateLabel}</span></div>
+          ${s.note ? `<div class="card-meta" style="margin-top:6px;">${esc(s.note)}</div>` : ''}
+        </div>
+        <div class="card-actions">
+          <button class="icon-btn edit" data-tab="schedule" data-id="${s.id}">✎</button>
+          <button class="icon-btn del" data-tab="schedule" data-id="${s.id}">🗑</button>
+        </div>
+      </div>
+    </div>`;
+  };
+
+  let html = '';
+  if(upcoming.length>0){
+    html += `<div class="exp-group-header"><div class="exp-group-title">📌 即將到來 <span class="exp-group-count">(${upcoming.length} 筆)</span></div></div>
+    <div class="list-grid">${upcoming.map(renderRow).join('')}</div>`;
+  }
+  if(past.length>0){
+    html += `<div class="exp-group-header" style="margin-top:18px;"><div class="exp-group-title">✅ 已結束 <span class="exp-group-count">(${past.length} 筆)</span></div></div>
+    <div class="list-grid">${past.map(renderRow).join('')}</div>`;
+  }
+  return html;
+}
+
 function bindCalendarActions(){
-  document.querySelectorAll('.cal-filter-btn').forEach(b=>{
+  document.querySelectorAll('.sched-view-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      scheduleViewMode = btn.dataset.view;
+      render();
+    });
+  });
+  document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
       scheduleArtistFilter = b.dataset.filter;
       render();
@@ -3834,6 +3896,15 @@ function openProfileForm(){
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
     </div>
+    <div class="field">
+      <label>資料備份</label>
+      <div style="display:flex; gap:8px;">
+        <button type="button" class="btn ghost" id="exportBackupBtn" style="flex:1;">📤 匯出備份</button>
+        <button type="button" class="btn ghost" id="importBackupBtn" style="flex:1;">📥 匯入還原</button>
+      </div>
+      <input type="file" id="backupFileInput" accept="application/json" style="display:none;">
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">匯出成 JSON 檔存到手機或電腦，換裝置或想還原時可以匯入。匯入會覆蓋目前所有資料，請先確認。</div>
+    </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveProfBtn">儲存</button>
@@ -3844,6 +3915,15 @@ function openProfileForm(){
     closeModal();
     state.tab = 'artists';
     render();
+  });
+  document.getElementById('exportBackupBtn').addEventListener('click', exportBackupData);
+  document.getElementById('importBackupBtn').addEventListener('click', ()=>{
+    document.getElementById('backupFileInput').click();
+  });
+  document.getElementById('backupFileInput').addEventListener('change', (e)=>{
+    const file = e.target.files[0];
+    handleImportFile(file);
+    e.target.value = '';
   });
   document.getElementById('saveProfBtn').addEventListener('click', async ()=>{
     state.profile.nickname = document.getElementById('profNickname').value.trim();
@@ -3870,6 +3950,85 @@ function openProfileForm(){
     logoutBtn.addEventListener('click', signOutOfGoogle);
   }
   showModal();
+}
+
+/* ================= 資料備份匯出／匯入 ================= */
+const BACKUP_FIELD_MAP = [
+  ['schedule','oshi-schedule'],
+  ['expense','oshi-expense'],
+  ['photocards','oshi-photocards'],
+  ['support','oshi-support'],
+  ['fanlog','oshi-fanlog'],
+  ['artists','oshi-artists'],
+  ['endorsement','oshi-endorsement'],
+  ['magazine','oshi-magazine'],
+  ['movie','oshi-movie'],
+  ['profile','oshi-profile'],
+  ['customPcCategories','oshi-pc-categories'],
+  ['customEndorsementCategories','oshi-endorsement-categories'],
+  ['pcSeriesCovers','oshi-pc-covers'],
+  ['pcSeriesMeta','oshi-pc-series-meta'],
+  ['customFanlogCategories','oshi-fanlog-categories'],
+  ['customScheduleCategories','oshi-schedule-categories'],
+  ['customExpenseCategories','oshi-expense-categories']
+];
+
+function exportBackupData(){
+  const backup = { version: 1, exportedAt: new Date().toISOString() };
+  BACKUP_FIELD_MAP.forEach(([stateKey])=>{ backup[stateKey] = state[stateKey]; });
+
+  const blob = new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `推し手帳備份-${todayStr()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('已匯出備份檔');
+}
+
+async function handleImportFile(file){
+  if(!file) return;
+  try{
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if(!data || typeof data !== 'object'){ showToast('備份檔格式不正確'); return; }
+    confirmImportBackup(data);
+  }catch(err){
+    showToast('讀取備份檔失敗，請確認檔案格式');
+  }
+}
+
+function confirmImportBackup(data){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">確定要匯入這份備份嗎？</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn danger" id="importConfirmBtn">確定匯入並覆蓋</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('importConfirmBtn').addEventListener('click', async ()=>{
+    await applyImportedBackup(data);
+    closeModal();
+    renderProfile();
+    render();
+    showToast('已匯入備份資料');
+  });
+  showModal();
+}
+
+async function applyImportedBackup(data){
+  for(const [stateKey, storageKey] of BACKUP_FIELD_MAP){
+    if(data[stateKey] !== undefined){
+      state[stateKey] = data[stateKey];
+      await saveKey(storageKey, state[stateKey]);
+    }
+  }
 }
 
 function confirmDelete(tab, id){
