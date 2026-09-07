@@ -562,6 +562,9 @@
     max-height:88vh; overflow-y:auto;
     animation:slideup 0.22s ease-out;
   }
+  @media (min-width:700px){
+    .modal{ max-width:640px; }
+  }
   @keyframes slideup{ from{ transform:translateY(30px); opacity:0;} to{transform:translateY(0);opacity:1;} }
   .modal h3{ font-family:'Zen Maru Gothic'; margin:0 0 16px; font-size:17px;}
   .field{ margin-bottom:13px;}
