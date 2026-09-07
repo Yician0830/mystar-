@@ -2,8 +2,18 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>推し手帳｜我的追星手帳</title>
+
+<!-- PWA：加到主畫面後可像 App 一樣開啟 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2A8FC7">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="推し手帳">
 <script>
 /* 提早套用深色/淺色模式，避免畫面載入時閃爍 */
 (function(){
@@ -1337,6 +1347,7 @@ async function loadAllData(){
 }
 
 async function init(){
+  restoreCurrentTab();
   if(useCloud && auth){
     auth.onAuthStateChanged(async (user)=>{
       currentUser = user;
@@ -1435,8 +1446,20 @@ function updateNavActive(){
   document.getElementById('fabAdd').style.display = state.tab==='home' ? 'none' : 'flex';
 }
 
+/* 記住目前所在頁籤，重新整理後停留在同一畫面（只存在本機瀏覽器，不佔用雲端額度） */
+function persistCurrentTab(){
+  try{ window.localStorage.setItem(LOCAL_PREFIX+'current-tab', state.tab); }catch(e){}
+}
+function restoreCurrentTab(){
+  try{
+    const saved = window.localStorage.getItem(LOCAL_PREFIX+'current-tab');
+    if(saved && TAB_META[saved]) state.tab = saved;
+  }catch(e){}
+}
+
 /* ================= Render dispatcher ================= */
 function render(){
+  persistCurrentTab();
   updateNavActive();
   const main = document.getElementById('mainContent');
   if(state.tab==='home'){ main.innerHTML = renderHome(); bindHomeLinks(); return; }
@@ -2845,15 +2868,17 @@ function renderPhotocards(){
     return html;
   }
 
-  // 選了「已擁有」或「願望清單」時，直接列出符合條件的小卡本身，不再顯示圖鑑列表
+  // 選了「已擁有」或「願望清單」時，直接列出符合條件的小卡本身，並在每個圖鑑前顯示小計
   if(pcOwnedFilter !== '__all__'){
     const orderedFlat = pcOrderedKeys(displayGroups);
-    html += `<div class="pc-grid">`;
-    orderedFlat.forEach(key=>{
-      const showLabel = orderedFlat.length>1;
-      displayGroups[key].forEach(pc=>{ html += renderPhotocardCard(pc, showLabel ? key : null); });
+    orderedFlat.forEach((key, idx)=>{
+      const total = (groups[key]||[]).length;
+      const count = displayGroups[key].length;
+      html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} 張)</span></div>`;
+      html += `<div class="pc-grid">`;
+      displayGroups[key].forEach(pc=>{ html += renderPhotocardCard(pc); });
+      html += `</div>`;
     });
-    html += `</div>`;
     return html;
   }
 
@@ -4871,6 +4896,13 @@ function showToast(msg){
 
 /* 啟動應用程式 */
 window.addEventListener('DOMContentLoaded', init);
+
+/* 註冊 Service Worker，讓加到主畫面後能像 App 一樣開啟、離線也能打開已看過的頁面 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
