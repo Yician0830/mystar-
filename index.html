@@ -593,6 +593,7 @@
   .exp-badges{ display:flex; flex-wrap:wrap; gap:0; margin-bottom:2px; }
   .exp-name{ margin-top:2px; }
   .exp-price{ flex-shrink:0; text-align:right; }
+  .exp-date{ font-size:11px; color:var(--rose-deep); font-weight:700; margin-bottom:3px; white-space:nowrap; }
   .exp-unit{ font-size:11px; color:var(--ink-soft); }
   .exp-total{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:15.5px; margin-top:2px; }
 
@@ -1399,6 +1400,48 @@ function esc(s){
   if(s===undefined||s===null) return '';
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/* 將使用者從裝置選取的照片壓縮成較小的 dataURL，方便直接存進本機/雲端資料（不需另外的圖床） */
+function fileToCompressedDataUrl(file, maxDim=1000, quality=0.75){
+  return new Promise((resolve, reject)=>{
+    if(!file || !file.type || !file.type.startsWith('image/')){ reject(new Error('不是圖片檔')); return; }
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('讀取檔案失敗'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('圖片解析失敗'));
+      img.onload = ()=>{
+        let { width, height } = img;
+        if(width > maxDim || height > maxDim){
+          if(width >= height){ height = Math.round(height * maxDim / width); width = maxDim; }
+          else { width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+/* 處理多張照片檔案（依序壓縮並加入陣列），成功後呼叫 onDone 重新渲染縮圖清單 */
+async function addImageFilesToList(fileList, targetArrayGetter, targetArraySetter, maxCount, onDone){
+  const files = Array.from(fileList || []);
+  if(files.length===0) return;
+  let arr = targetArrayGetter();
+  for(const file of files){
+    if(arr.length >= maxCount){ showToast(`最多只能加入 ${maxCount} 張圖片`); break; }
+    try{
+      const dataUrl = await fileToCompressedDataUrl(file);
+      arr.push(dataUrl);
+    }catch(e){
+      showToast('有張照片讀取失敗，已略過');
+    }
+  }
+  targetArraySetter(arr);
+  onDone();
+}
 function fmtDate(d){
   if(!d) return '';
   const parts = d.split('-');
@@ -2064,6 +2107,7 @@ function renderExpenseCard(item){
         ${item.note ? `<div class="card-meta" style="margin-top:4px;">${esc(item.note)}</div>` : ''}
       </div>
       <div class="exp-price">
+        <div class="exp-date">${item.date? fmtDate(item.date) : '—'}</div>
         <div class="exp-unit">$${unit.toLocaleString()}×${qty}</div>
         <div class="exp-total">$${total.toLocaleString()}</div>
       </div>
@@ -2161,10 +2205,14 @@ function openExpenseForm(id, prefill){
       <div class="tag-input-box" id="expTagBox"></div>
     </div>
     <div class="field"><label>備註</label><textarea id="expNote" placeholder="通路、oo代購、預計出貨日期等等">${src?esc(src.note||''):''}</textarea></div>
-    <div class="field"><label>圖片網址（最多 3 筆，貼上連結即可辨識預覽）</label>
+    <div class="field"><label>圖片（最多 6 張，可從手機/電腦上傳照片，或貼上圖片連結）</label>
       <div id="expImgList"></div>
       <div style="display:flex; gap:8px; margin-top:6px;">
-        <input type="url" id="expImgNewUrl" placeholder="貼上圖片連結" style="flex:1;">
+        <button type="button" class="btn ghost" id="expImgUploadBtn" style="flex:0 0 auto;padding:10px 14px;">📷 上傳照片</button>
+        <input type="file" id="expImgFileInput" accept="image/*" multiple style="display:none;">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <input type="url" id="expImgNewUrl" placeholder="或貼上圖片連結" style="flex:1;">
         <button type="button" class="btn ghost" id="expImgAddBtn" style="flex:0 0 auto;padding:10px 14px;">＋新增</button>
       </div>
     </div>
@@ -2212,6 +2260,11 @@ function openExpenseForm(id, prefill){
   document.getElementById('expTagText') && bindExpTagInput();
   renderExpImgList();
   document.getElementById('expImgAddBtn').addEventListener('click', addExpImgUrl);
+  document.getElementById('expImgUploadBtn').addEventListener('click', ()=> document.getElementById('expImgFileInput').click());
+  document.getElementById('expImgFileInput').addEventListener('change', async (e)=>{
+    await addImageFilesToList(e.target.files, ()=>expImgUrls, (arr)=>{ expImgUrls = arr; }, 6, renderExpImgList);
+    e.target.value = '';
+  });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveExpenseForm(existing));
@@ -2275,7 +2328,7 @@ function addExpImgUrl(){
   const input = document.getElementById('expImgNewUrl');
   const url = input.value.trim();
   if(!url) return;
-  if(expImgUrls.length>=3){ showToast('最多只能加入 3 張圖片網址'); return; }
+  if(expImgUrls.length>=6){ showToast('最多只能加入 6 張圖片'); return; }
   expImgUrls.push(url);
   input.value = '';
   renderExpImgList();
@@ -2764,10 +2817,12 @@ function openArtistDetail(id){
 /* ================= Support wall (應援牆) ================= */
 let supportArtistFilter = '__all__';
 let supportYearFilter = '__all__';
+let supImgUrls = [];
 let endorsementArtistFilter = '__all__';
 let magazineArtistFilter = '__all__';
 let movieArtistFilter = '__all__';
 let mediaSubTab = 'endorsement';
+let mediaSearchQuery = '';
 
 function renderSupportTab(){
   const meta = TAB_META.support;
@@ -2806,11 +2861,16 @@ function renderSupportTab(){
     const dateLabel = (s.isMultiDay && s.endDate && s.endDate!==s.date)
       ? `${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}`
       : fmtDate(s.date);
+    const imgs = (s.imageUrls && s.imageUrls.length) ? s.imageUrls : (s.imageUrl ? [s.imageUrl] : []);
+    const cover = imgs[0];
     return `
     <div class="card support-card">
-      ${s.imageUrl
-        ? `<img class="support-cover" src="${esc(s.imageUrl)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
-        : `<div class="support-cover ph">📣</div>`}
+      <div style="position:relative;">
+        ${cover
+          ? `<img class="support-cover" src="${esc(cover)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
+          : `<div class="support-cover ph">📣</div>`}
+        ${imgs.length>1 ? `<span class="tag" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;">📷 ${imgs.length}</span>` : ''}
+      </div>
       <div class="support-body">
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-meta">${[s.artist, s.activity, s.location].filter(Boolean).join(' · ')}</div>
@@ -2863,6 +2923,7 @@ function bindSupportFilterActions(){
 
 function openSupportForm(id){
   const existing = id ? state.support.find(s=>String(s.id)===String(id)) : null;
+  supImgUrls = existing ? [...(existing.imageUrls && existing.imageUrls.length ? existing.imageUrls : (existing.imageUrl ? [existing.imageUrl] : []))] : [];
   const artistOptions = [...new Set([
     ...state.artists.map(a=>a.name),
     ...state.support.map(s=>s.artist).filter(Boolean)
@@ -2928,7 +2989,17 @@ function openSupportForm(id){
         <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">會在記帳本自動建立/更新一筆對應花費（分類：應援物/飯製商品）</div>
       </div>
     </div>
-    <div class="field"><label>展示圖片網址</label><input type="url" id="supImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>展示圖片（最多 6 張，可從手機/電腦上傳照片，或貼上圖片連結）</label>
+      <div id="supImgList"></div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <button type="button" class="btn ghost" id="supImgUploadBtn" style="flex:0 0 auto;padding:10px 14px;">📷 上傳照片</button>
+        <input type="file" id="supImgFileInput" accept="image/*" multiple style="display:none;">
+      </div>
+      <div style="display:flex; gap:8px; margin-top:6px;">
+        <input type="url" id="supImgNewUrl" placeholder="或貼上圖片連結" style="flex:1;">
+        <button type="button" class="btn ghost" id="supImgAddBtn" style="flex:0 0 auto;padding:10px 14px;">＋新增</button>
+      </div>
+    </div>
     <div class="field"><label>發放內容</label><textarea id="supContent" placeholder="發放的物品、數量、大家的反應...">${existing?esc(existing.content||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -2961,9 +3032,46 @@ function openSupportForm(id){
     multiFields.style.display = 'block'; singleField.style.display = 'none';
   });
 
+  renderSupImgList();
+  document.getElementById('supImgAddBtn').addEventListener('click', addSupImgUrl);
+  document.getElementById('supImgUploadBtn').addEventListener('click', ()=> document.getElementById('supImgFileInput').click());
+  document.getElementById('supImgFileInput').addEventListener('change', async (e)=>{
+    await addImageFilesToList(e.target.files, ()=>supImgUrls, (arr)=>{ supImgUrls = arr; }, 6, renderSupImgList);
+    e.target.value = '';
+  });
+
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveSupportForm(existing));
   showModal();
+}
+
+function renderSupImgList(){
+  const list = document.getElementById('supImgList');
+  if(!list) return;
+  if(supImgUrls.length===0){
+    list.innerHTML = `<div style="font-size:12px;color:var(--ink-faint);">尚未加入圖片</div>`;
+    return;
+  }
+  list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + supImgUrls.map((url,idx)=>`
+    <div style="position:relative; width:64px; height:64px;">
+      <img src="${esc(url)}" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <button type="button" data-idx="${idx}" class="sup-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
+    </div>`).join('') + `</div>`;
+  list.querySelectorAll('.sup-img-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      supImgUrls.splice(parseInt(btn.dataset.idx),1);
+      renderSupImgList();
+    });
+  });
+}
+function addSupImgUrl(){
+  const input = document.getElementById('supImgNewUrl');
+  const url = input.value.trim();
+  if(!url) return;
+  if(supImgUrls.length>=6){ showToast('最多只能加入 6 張圖片'); return; }
+  supImgUrls.push(url);
+  input.value = '';
+  renderSupImgList();
 }
 
 async function saveSupportForm(existing){
@@ -3007,7 +3115,7 @@ async function saveSupportForm(existing){
     articleUrl: document.getElementById('supArticleUrl').value.trim(),
     isPaid,
     paidAmount,
-    imageUrl: document.getElementById('supImageUrl').value.trim(),
+    imageUrls: [...supImgUrls],
     content: document.getElementById('supContent').value.trim()
   };
 
@@ -3071,11 +3179,21 @@ function renderMediaTab(){
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='endorsement'?'active':''}" data-sub="endorsement">🤝 代言</button>
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='magazine'?'active':''}" data-sub="magazine">📔 雜誌</button>
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='movie'?'active':''}" data-sub="movie">🎬 影視</button>
+  </div>
+  <div class="field" style="margin:12px 0;">
+    <input type="text" id="mediaSearchInput" placeholder="🔍 搜尋名稱、藝人、類型..." value="${esc(mediaSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>`;
   if(mediaSubTab==='magazine') html += renderMagazineBody();
   else if(mediaSubTab==='movie') html += renderMovieBody();
   else html += renderEndorsementBody();
   return html;
+}
+
+function mediaMatchesSearch(item, extraFields){
+  const q = mediaSearchQuery.trim().toLowerCase();
+  if(!q) return true;
+  const hay = [item.title, item.artist, item.category, ...(extraFields||[])].filter(Boolean).join(' ').toLowerCase();
+  return hay.includes(q);
 }
 
 function bindMediaTabActions(){
@@ -3088,6 +3206,20 @@ function bindMediaTabActions(){
   if(mediaSubTab==='magazine') bindMagazineFilterActions();
   else if(mediaSubTab==='movie') bindMovieFilterActions();
   else bindEndorsementFilterActions();
+
+  const searchInput = document.getElementById('mediaSearchInput');
+  if(searchInput){
+    searchInput.addEventListener('input', (e)=>{
+      mediaSearchQuery = e.target.value;
+      const cursorPos = e.target.selectionStart;
+      render();
+      const newInput = document.getElementById('mediaSearchInput');
+      if(newInput){
+        newInput.focus();
+        newInput.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
+  }
 }
 
 function renderEndorsementBody(){
@@ -3109,10 +3241,11 @@ function renderEndorsementBody(){
 
   const filtered = state.endorsement
     .filter(e=> endorsementArtistFilter==='__all__' || e.artist===endorsementArtistFilter)
+    .filter(e=> mediaMatchesSearch(e))
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這位藝人還沒有代言合作紀錄</div></div>`;
+    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的代言紀錄':'這位藝人還沒有代言合作紀錄'}</div></div>`;
     return html;
   }
 
@@ -3282,10 +3415,11 @@ function renderMagazineBody(){
 
   const filtered = state.magazine
     .filter(m=> magazineArtistFilter==='__all__' || m.artist===magazineArtistFilter)
+    .filter(m=> mediaMatchesSearch(m, [m.issue, m.note]))
     .sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這位藝人還沒有雜誌紀錄</div></div>`;
+    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的雜誌紀錄':'這位藝人還沒有雜誌紀錄'}</div></div>`;
     return html;
   }
 
@@ -3438,10 +3572,11 @@ function renderMovieBody(){
 
   const filtered = state.movie
     .filter(x=> movieArtistFilter==='__all__' || x.artist===movieArtistFilter)
+    .filter(x=> mediaMatchesSearch(x, [x.role, x.platform, x.note]))
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這位藝人還沒有影視作品紀錄</div></div>`;
+    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的影視紀錄':'這位藝人還沒有影視作品紀錄'}</div></div>`;
     return html;
   }
 
