@@ -874,7 +874,6 @@ try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     auth = firebase.auth();
-    storage = firebase.storage();
     useCloud = true;
     // 保持登入狀態：同一台裝置/瀏覽器重新整理後不需要再次登入
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.log('設定登入持久化失敗', e));
@@ -885,6 +884,17 @@ try {
   }
 } catch(e) {
   console.log("Firebase 初始化未完成，將使用本機模式", e);
+}
+
+// Storage 是額外的圖片雲端功能，獨立初始化：就算 Storage 還沒在後台啟用而失敗，
+// 也完全不影響上面的登入狀態與 Firestore 資料同步，圖片功能只是自動退回本機模式
+try {
+  if (useCloud) {
+    storage = firebase.storage();
+  }
+} catch(e) {
+  console.log("Firebase Storage 尚未啟用，圖片上傳將改用本機模式", e);
+  storage = null;
 }
 
 async function signInWithGoogle(){
