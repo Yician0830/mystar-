@@ -24,6 +24,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
 <style>
   :root{
     --bg:#EEF7FC;
@@ -864,6 +865,7 @@ const firebaseConfig = {
 
 let db = null;
 let auth = null;
+let storage = null;
 let currentUser = null;
 let useCloud = false;
 
@@ -872,6 +874,7 @@ try {
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
     auth = firebase.auth();
+    storage = firebase.storage();
     useCloud = true;
     // 保持登入狀態：同一台裝置/瀏覽器重新整理後不需要再次登入
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e=>console.log('設定登入持久化失敗', e));
@@ -1400,8 +1403,9 @@ function esc(s){
   if(s===undefined||s===null) return '';
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-/* 將使用者從裝置選取的照片壓縮成較小的 dataURL，方便直接存進本機/雲端資料（不需另外的圖床） */
-function fileToCompressedDataUrl(file, maxDim=1000, quality=0.75){
+/* 將使用者從裝置選取的照片壓縮成較小的檔案；已登入雲端帳號時會上傳到 Firebase Storage 取得可分享的雲端網址，
+   未登入（本機模式）時則轉成內嵌的 dataURL 直接存在本機資料裡 */
+function compressImageFile(file, maxDim=1400, quality=0.8){
   return new Promise((resolve, reject)=>{
     if(!file || !file.type || !file.type.startsWith('image/')){ reject(new Error('不是圖片檔')); return; }
     const reader = new FileReader();
@@ -1418,25 +1422,57 @@ function fileToCompressedDataUrl(file, maxDim=1000, quality=0.75){
         const canvas = document.createElement('canvas');
         canvas.width = width; canvas.height = height;
         canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        canvas.toBlob(blob=>{
+          if(blob) resolve(blob); else reject(new Error('壓縮失敗'));
+        }, 'image/jpeg', quality);
       };
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
   });
 }
-/* 處理多張照片檔案（依序壓縮並加入陣列），成功後呼叫 onDone 重新渲染縮圖清單 */
+function blobToDataUrl(blob){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result);
+    reader.onerror = ()=> reject(new Error('讀取失敗'));
+    reader.readAsDataURL(blob);
+  });
+}
+async function uploadBlobToStorage(blob){
+  const path = `users/${currentUser.uid}/images/${Date.now()}_${Math.floor(Math.random()*100000)}.jpg`;
+  const ref = storage.ref().child(path);
+  const snapshot = await ref.put(blob, { contentType: 'image/jpeg' });
+  return await snapshot.ref.getDownloadURL();
+}
+/* 單張照片：壓縮後視登入狀態決定上傳雲端或轉成本機 dataURL，回傳可直接當 <img src> 用的網址字串 */
+async function processImageFileToUrl(file){
+  const blob = await compressImageFile(file);
+  if(useCloud && storage && currentUser){
+    try{
+      return await uploadBlobToStorage(blob);
+    }catch(e){
+      console.error('雲端圖片上傳失敗，改存本機', e);
+    }
+  }
+  return await blobToDataUrl(blob);
+}
+/* 處理多張照片檔案（依序處理並加入陣列），成功後呼叫 onDone 重新渲染縮圖清單 */
 async function addImageFilesToList(fileList, targetArrayGetter, targetArraySetter, maxCount, onDone){
   const files = Array.from(fileList || []);
   if(files.length===0) return;
   let arr = targetArrayGetter();
-  for(const file of files){
-    if(arr.length >= maxCount){ showToast(`最多只能加入 ${maxCount} 張圖片`); break; }
+  const remaining = maxCount - arr.length;
+  if(remaining<=0){ showToast(`最多只能加入 ${maxCount} 張圖片`); return; }
+  const toProcess = files.slice(0, remaining);
+  if(files.length > toProcess.length){ showToast(`最多只能加入 ${maxCount} 張，已略過多的照片`); }
+  showToast(useCloud && currentUser ? '上傳中，請稍候…' : '處理中，請稍候…');
+  for(const file of toProcess){
     try{
-      const dataUrl = await fileToCompressedDataUrl(file);
-      arr.push(dataUrl);
+      const url = await processImageFileToUrl(file);
+      arr.push(url);
     }catch(e){
-      showToast('有張照片讀取失敗，已略過');
+      showToast('有張照片處理失敗，已略過');
     }
   }
   targetArraySetter(arr);
