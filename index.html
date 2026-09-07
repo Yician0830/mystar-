@@ -688,7 +688,7 @@
   .exp-grid{ display:grid; grid-template-columns:1fr; gap:14px; align-items:stretch; }
   @media (min-width:680px){ .exp-grid{ grid-template-columns:repeat(2,1fr); } }
   @media (min-width:1020px){ .exp-grid{ grid-template-columns:repeat(3,1fr); } }
-  .exp-card{ padding:14px 14px 10px; margin-bottom:0; display:flex; flex-direction:column; height:100%; }
+  .exp-card{ padding:14px 14px 10px; margin-bottom:0; display:flex; flex-direction:column; height:100%; border-left-width:4px; border-left-style:solid; }
   .exp-row{ display:flex; gap:12px; align-items:flex-start; }
   .exp-thumb{
     width:52px; height:52px; border-radius:12px; flex-shrink:0;
@@ -736,6 +736,29 @@
     color:var(--ink-soft);
     font-weight:400;
   }
+  /* 消費總計漸層卡 */
+  .exp-total-hero{
+    background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
+    border-radius:var(--radius); padding:18px 20px; margin-bottom:16px;
+    box-shadow:var(--shadow-sm); display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .exp-total-hero-label{ font-size:13px; color:var(--ink-soft); font-weight:700; }
+  .exp-total-hero-amount{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:26px; color:var(--rose-deep); margin-top:3px; }
+  @media (min-width:700px){ .exp-total-hero-amount{ font-size:30px; } }
+  /* 分類佔比橫條圖 */
+  .exp-cat-bar-wrap{
+    background:var(--surface); border-radius:16px; padding:14px 16px 12px; margin-bottom:16px;
+    box-shadow:var(--shadow-sm); border:1px solid var(--sakura-pale);
+  }
+  .exp-cat-bar-title{ font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:8px; }
+  .exp-cat-bar-track{
+    width:100%; height:14px; border-radius:999px; overflow:hidden;
+    display:flex; background:var(--bg-deep);
+  }
+  .exp-cat-bar-seg{ height:100%; }
+  .exp-cat-bar-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; }
+  .exp-cat-bar-legend-item{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); }
+  .exp-cat-bar-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 
   /* Segmented toggle (支出 / 售出) */
   .seg-toggle{
@@ -2277,16 +2300,20 @@ function renderExpenseTab(){
     const yearItems = yearFilteredItems;
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
 
-    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份
+    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份，並附上每個月的花費金額
     const months = [...new Set(yearItems.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
     if(expMonthFilter!=='__all__' && !months.includes(expMonthFilter)) expMonthFilter = '__all__';
+    const monthTotals = {};
+    months.forEach(m=>{
+      monthTotals[m] = yearItems.filter(e=> e.date && e.date.startsWith(m)).reduce((s,e)=> s+expenseAmount(e), 0);
+    });
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
       <button class="chip-filter-btn cal-filter-btn ${expMonthFilter==='__all__'?'active':''}" data-month="__all__">📆 全部</button>
       ${months.map(m=>{
         const [y,mm] = m.split('-');
         const active = expMonthFilter===m;
-        return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月</button>`;
+        return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月 · NT$${monthTotals[m].toLocaleString()}</button>`;
       }).join('')}
     </div>`;
 
@@ -2294,9 +2321,11 @@ function renderExpenseTab(){
 
     // 累積消費總計：只算今年
     html += `
-    <div class="mini-row" style="margin-bottom:16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-      <span class="l" style="font-weight:700;">💰 ${curYear} 年消費總計</span>
-      <span class="r" style="font-weight:700; font-size:16px; color:var(--rose-deep);">NT$ ${yearTotal.toLocaleString()}</span>
+    <div class="exp-total-hero">
+      <div>
+        <div class="exp-total-hero-label">💰 ${curYear} 年消費總計</div>
+        <div class="exp-total-hero-amount">NT$ ${yearTotal.toLocaleString()}</div>
+      </div>
     </div>
     `;
 
@@ -2361,6 +2390,34 @@ function renderExpenseTab(){
     </div>`;
 
     html += expSearchBoxHtml;
+
+    // 分類佔比橫條圖：只在「全部類別」時顯示整體分佈，選了特定分類後就不重複顯示
+    if(expCategoryFilter==='__all__'){
+      const catTotalsAll = categoryKeys.map(cat=>({
+        cat,
+        amt: catGroups[cat].reduce((s,e)=> s+expenseAmount(e), 0)
+      })).filter(c=>c.amt>0).sort((a,b)=> b.amt-a.amt);
+      const grandCatTotal = catTotalsAll.reduce((s,c)=> s+c.amt, 0);
+      if(grandCatTotal>0){
+        html += `<div class="exp-cat-bar-wrap">
+          <div class="exp-cat-bar-title">📊 ${curYear} 年分類佔比</div>
+          <div class="exp-cat-bar-track">
+            ${catTotalsAll.map(c=>{
+              const c2 = chipColor(c.cat);
+              const pct = (c.amt/grandCatTotal*100);
+              return `<div class="exp-cat-bar-seg" style="width:${pct}%;background:${c2.fg};" title="${esc(c.cat)} ${Math.round(pct)}%"></div>`;
+            }).join('')}
+          </div>
+          <div class="exp-cat-bar-legend">
+            ${catTotalsAll.map(c=>{
+              const c2 = chipColor(c.cat);
+              const pct = Math.round(c.amt/grandCatTotal*100);
+              return `<span class="exp-cat-bar-legend-item"><span class="exp-cat-bar-dot" style="background:${c2.fg};"></span>${esc(c.cat)} ${pct}%</span>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }
+    }
 
     const catItems = expCategoryFilter==='__all__' ? yearFilteredItems : (catGroups[expCategoryFilter] || []);
     const catTotal = catItems.reduce((sum, e) => sum + expenseAmount(e), 0);
@@ -2567,7 +2624,7 @@ function renderExpenseCard(item){
   const total = expenseAmount(item);
   const cover = (item.imageUrls||[])[0];
   const catIcon = EXPENSE_CATEGORY_ICON[item.category] || '💸';
-  const catColor = item.category ? chipColor(item.category) : null;
+  const catColor = chipColor(item.category);
   const statusColor = item.deliveryStatus ? expenseStatusColor(item.deliveryStatus) : null;
   const tags = (item.tags||[]);
   const footnoteParts = [];
@@ -2586,9 +2643,9 @@ function renderExpenseCard(item){
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
   return `
-  <div class="card exp-card">
+  <div class="card exp-card" style="border-left-color:${catColor.fg};">
     <div class="exp-row">
-      <div class="exp-thumb">
+      <div class="exp-thumb" style="background:linear-gradient(135deg, ${catColor.bg}, var(--wisteria-pale));">
         ${cover ? `<img src="${esc(cover)}" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
       </div>
       <div class="exp-info">
