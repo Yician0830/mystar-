@@ -1188,6 +1188,17 @@ function supportSpentAmount(s){
   if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
   return s.isPaid ? (parseFloat(s.paidAmount)||0) : 0;
 }
+/* 追星紀錄 ↔ 記帳本，用法與應援相同：一筆紀錄可以連結好幾筆記帳 */
+function linkedExpensesForFanlog(f){
+  return state.expense.filter(e=>
+    e.fanlogLinkedId===f.id || (f.expenseLinkedId && String(e.id)===String(f.expenseLinkedId))
+  );
+}
+function fanlogSpentAmount(f){
+  const linked = linkedExpensesForFanlog(f);
+  if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
+  return parseFloat(f.amount)||0;
+}
 const TAG_CLASSES = ['', 'matcha', 'wisteria', 'gold', 'rose', 'sky', 'peach', 'lavender', 'mint', 'coral', 'amber', 'slate'];
 function tagColorClass(text, categoryList){
   if(!text) return '';
@@ -1806,6 +1817,10 @@ function renderCard(tab, item){
     metaLine = fmtDate(item.date);
     if(item.artist) tags += `<span class="tag">${esc(item.artist)}</span>`;
     if(item.category) tags += `<span class="tag ${tagColorClass(item.category, [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories])}">${esc(item.category)}</span>`;
+    const flLinked = linkedExpensesForFanlog(item);
+    const flSpent = fanlogSpentAmount(item);
+    if(flSpent>0) tags += `<span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
+    if(flLinked.length>0) tags += `<span class="tag matcha">🔗 已連動 ${flLinked.length} 筆記帳</span>`;
   }
 
   return `
@@ -2166,6 +2181,10 @@ function renderExpenseCard(item){
     const linkedSupport = state.support.find(s=>s.id===item.supportLinkedId);
     if(linkedSupport) footnoteParts.push('🔗 應援: '+linkedSupport.title);
   }
+  if(item.fanlogLinkedId){
+    const linkedFanlog = state.fanlog.find(f=>f.id===item.fanlogLinkedId);
+    if(linkedFanlog) footnoteParts.push('🔗 紀錄: '+linkedFanlog.activity);
+  }
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
@@ -2269,6 +2288,13 @@ function openExpenseForm(id, prefill){
         ${[...state.support].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(s=>`<option value="${s.id}" ${src&&src.supportLinkedId===s.id?'selected':''}>${esc(fmtDate(s.date))} · ${esc(s.title)}</option>`).join('')}
       </select>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">一場應援可以連結好幾筆記帳（例如車票、周邊分開記），應援牆會自動加總</div>
+    </div>
+    <div class="field"><label>連結追星紀錄</label>
+      <select id="expFanlogLink">
+        <option value="">不連結</option>
+        ${[...state.fanlog].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(f=>`<option value="${f.id}" ${src&&src.fanlogLinkedId===f.id?'selected':''}>${esc(fmtDate(f.date))} · ${esc(f.activity)}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">同一場活動的花費可以連到同一筆紀錄，追星紀錄頁會自動加總</div>
     </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
@@ -2461,6 +2487,7 @@ async function saveExpenseForm(existing){
     category,
     date,
     supportLinkedId: document.getElementById('expSupportLink') ? document.getElementById('expSupportLink').value : '',
+    fanlogLinkedId: document.getElementById('expFanlogLink') ? document.getElementById('expFanlogLink').value : '',
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
@@ -4170,6 +4197,14 @@ function openFanlogForm(id){
     </div>
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):''}"></div>
     <div class="field"><label>活動性質</label>${categoryFieldHtml}</div>
+    <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="flAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" checked>
+        同時加入記帳本
+      </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填花費金額且勾選時，會自動建立/更新一筆對應花費（分類：其他追星支出）</div>
+    </div>
     <div class="field"><label>詳細內容</label><textarea id="flNote" placeholder="這天發生的事、心得...">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -4204,20 +4239,65 @@ async function saveFanlogForm(existing){
     }
   }
 
+  const amount = document.getElementById('flAmount').value.trim();
+  const addToExpense = document.getElementById('flAddToExpense') && document.getElementById('flAddToExpense').checked;
+
   const data = {
     activity,
     artist: document.getElementById('flArtist').value.trim(),
     date,
     category,
+    amount,
     note: document.getElementById('flNote').value.trim()
   };
 
+  let targetFanlog;
   if(existing){
     Object.assign(existing, data);
+    targetFanlog = existing;
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state.fanlog.push(data);
+    targetFanlog = data;
   }
+
+  // 追星紀錄 ↔ 記帳本 串連：有填花費金額且勾選時，自動建立/更新對應的花費紀錄
+  const amt = parseFloat(amount) || 0;
+  if(amt>0 && addToExpense){
+    let linkedExpense = targetFanlog.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(targetFanlog.expenseLinkedId)) : null;
+    if(linkedExpense){
+      linkedExpense.name = activity;
+      linkedExpense.artist = data.artist;
+      linkedExpense.unitPrice = amt;
+      linkedExpense.date = date;
+      linkedExpense.fanlogLinkedId = targetFanlog.id;
+    } else {
+      const newExpense = {
+        id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000)+'f',
+        recordType: 'expense',
+        name: activity,
+        artist: data.artist,
+        unitPrice: amt,
+        quantity: '1',
+        shipping: '',
+        origCurrency: 'TWD',
+        origAmount: '',
+        category: '其他追星支出',
+        date,
+        fanlogLinkedId: targetFanlog.id,
+        platform: '',
+        deliveryStatus: '',
+        paymentMethod: '',
+        tags: [],
+        note: '由追星紀錄自動建立',
+        imageUrls: []
+      };
+      state.expense.push(newExpense);
+      targetFanlog.expenseLinkedId = newExpense.id;
+    }
+    await saveKey('oshi-expense', state.expense);
+  }
+
   await saveKey('oshi-fanlog', state.fanlog);
   closeModal();
   render();
@@ -4441,6 +4521,14 @@ function renderFanlogTab(){
     listHtml += `<div class="cal-filter-row">
       <button class="cal-filter-btn ${fanlogArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
       ${artistNames.map(n=>`<button class="cal-filter-btn ${fanlogArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+    </div>`;
+  }
+
+  const fanlogPeriodTotal = filtered.reduce((sum,f)=> sum + fanlogSpentAmount(f), 0);
+  if(fanlogPeriodTotal>0){
+    listHtml += `<div class="mini-row" style="margin:10px 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+      <span class="l" style="font-weight:700;">💰 這段期間花費</span>
+      <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${fanlogPeriodTotal.toLocaleString()}</span>
     </div>`;
   }
 
