@@ -312,6 +312,8 @@
     .bday-card .date{ font-size:12px; }
     .bday-card .days{ font-size:13px; }
   }
+  .dday-card.onsale .days{ color:var(--matcha); }
+  .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -1117,6 +1119,7 @@ const SCHEMAS = {
     {key:'date', label:'日期', type:'date', required:true},
     {key:'location', label:'地點', type:'text', ph:'例：台北小巨蛋'},
     {key:'category', label:'類型', type:'select', options:['演唱會','見面會','生放送','應援','簽唱會','簽售會','商演','站台','校唱','夜店','其他']},
+    {key:'onSaleDate', label:'開賣日期（選填）', type:'date', ph:'門票／預售開賣日期，設定後會出現在首頁倒數'},
     {key:'note', label:'備註', type:'textarea', ph:'集合時間、票券資訊...'}
   ],
   expense:[
@@ -1209,6 +1212,8 @@ function scheduleArtistOptions(){
   return [...new Set(state.artists.map(a=> (a.group && a.group.trim()) ? a.group.trim() : a.name))].filter(Boolean);
 }
 const FIXED_EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
+/* 花費 vs 收藏 比例圖：哪些分類算是「換得到實體收藏」，哪些算是「體驗／消耗型支出」 */
+const COLLECTIBLE_EXPENSE_CATEGORIES = ['專輯','小卡','應援物/飯製商品','周邊商品','娃娃','聯名商品'];
 const EXPENSE_CATEGORY_ICON = {
   '演唱會/見面會門票':'🎫', '專輯':'💿', '小卡':'🎴', '交通/住宿':'🚄', '餐飲':'🍴',
   '應援物/飯製商品':'📣', '周邊商品':'🛍️', '娃娃':'🧸', '會員費':'💳',
@@ -1777,10 +1782,18 @@ function nextOccurrenceInfo(dateStr){
   const diffDays = Math.round((next - todayMid) / (1000*60*60*24));
   return { mmdd: `${parseInt(mm,10)}/${parseInt(dd,10)}`, diffDays };
 }
+/* 計算距離某個固定日期（非每年循環，例如演唱會日期／開賣日期）還有幾天，過去的日期回傳負數 */
+function daysUntilDate(dateStr){
+  if(!dateStr || dateStr.length<10) return null;
+  const target = new Date(dateStr+'T00:00:00');
+  if(isNaN(target.getTime())) return null;
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((target - todayMid) / (1000*60*60*24));
+}
 
 function renderHome(){
   const today = todayStr();
-  const upcoming = [...state.schedule].filter(s=>s.date>=today).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,3);
   const thisMonth = today.slice(0,7);
   const monthTotal = state.expense.filter(e=>e.date && e.date.startsWith(thisMonth))
     .reduce((sum,e)=> sum + (e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0)), 0);
@@ -1824,15 +1837,38 @@ function renderHome(){
     </div>`;
   }
 
+  // 倒數計時：合併「即將到來的行程」與「開賣日期」，依日期近到遠排序
+  const ddayItems = [];
+  state.schedule.forEach(s=>{
+    if(s.date){
+      const d = daysUntilDate(s.date);
+      if(d!==null && d>=0) ddayItems.push({type:'event', title:s.title, date:s.date, days:d, category:s.category});
+    }
+    if(s.onSaleDate){
+      const d2 = daysUntilDate(s.onSaleDate);
+      if(d2!==null && d2>=0) ddayItems.push({type:'onsale', title:s.title, date:s.onSaleDate, days:d2, category:s.category});
+    }
+  });
+  ddayItems.sort((a,b)=> a.days-b.days);
+  const topDdayItems = ddayItems.slice(0,6);
+
   html += `<div class="home-block">
-    <div class="block-head"><h3>📅 即將到來的行程</h3><a data-goto="schedule">查看全部</a></div>`;
-  if(upcoming.length===0){
+    <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule">查看全部</a></div>`;
+  if(topDdayItems.length===0){
     html += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">目前沒有排定行程</span></div>`;
   } else {
-    upcoming.forEach(s=>{
-      const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories])}" style="margin:0 8px 0 0;flex-shrink:0;">${esc(s.category)}</span>` : '';
-      html += `<div class="mini-row"><span class="l" style="display:flex;align-items:center;">${catBadge}${esc(s.title)}</span><span class="r">${fmtDate(s.date)}</span></div>`;
+    html += `<div class="bday-grid">`;
+    topDdayItems.forEach(it=>{
+      const isToday = it.days===0;
+      const icon = it.type==='onsale' ? '🎫' : '🎤';
+      const label = isToday ? (it.type==='onsale' ? '🎉 開賣就是今天！' : '🎉 就是今天！') : `還有 ${it.days} 天`;
+      html += `<div class="dday-card bday-card ${isToday?'today':''} ${it.type==='onsale'?'onsale':''}">
+        <div class="name">${icon} ${esc(it.title)}</div>
+        <div class="date">${it.type==='onsale'?'開賣 ':''}${fmtDate(it.date)}</div>
+        <div class="days">${label}</div>
+      </div>`;
     });
+    html += `</div>`;
   }
   html += `</div>`;
 
@@ -1914,6 +1950,11 @@ function renderCard(tab, item){
     metaLine = [dateLabel, item.location].filter(Boolean).join(' · ');
     if(item.artist) tags += `<span class="tag">${esc(item.artist)}</span>`;
     if(item.category) tags += `<span class="tag matcha">${esc(item.category)}</span>`;
+    if(item.onSaleDate){
+      const osDays = daysUntilDate(item.onSaleDate);
+      const osLabel = osDays===null ? '' : (osDays>0 ? `（還有${osDays}天）` : (osDays===0 ? '（今天！）' : ''));
+      tags += `<span class="tag gold">🎫 開賣 ${fmtDate(item.onSaleDate)}${osLabel}</span>`;
+    }
   } else if(tab==='expense'){
     metaLine = fmtDate(item.date);
     tags += `<span class="tag gold">NT$ ${(parseFloat(item.amount)||0).toLocaleString()}</span>`;
@@ -3039,11 +3080,34 @@ function openArtistDetail(id){
   const a = state.artists.find(x=>String(x.id)===String(id));
   if(!a) return;
 
-  const totalSpent = state.expense.filter(e=>e.artist===a.name).reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const artistExpenses = state.expense.filter(e=>e.artist===a.name);
+  const totalSpent = artistExpenses.reduce((sum,e)=> sum + expenseAmount(e), 0);
   const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
   const fanlogCount = state.fanlog.filter(f=>f.artist===a.name).length;
   const supportCount = state.support.filter(s=>s.artist===a.name).length;
+
+  // 花費 vs 收藏 比例：換得到實體收藏（專輯/小卡/周邊等）的花費，跟體驗／消耗型花費（門票/交通/餐飲等）的佔比
+  const collectibleSpent = artistExpenses.filter(e=> COLLECTIBLE_EXPENSE_CATEGORIES.includes(e.category)).reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const experienceSpent = totalSpent - collectibleSpent;
+  const collectiblePct = totalSpent>0 ? Math.round(collectibleSpent/totalSpent*100) : 0;
+  const experiencePct = totalSpent>0 ? 100 - collectiblePct : 0;
+  const avgPerPc = pcOwnedCount>0 ? Math.round(collectibleSpent/pcOwnedCount) : null;
+  const ratioChartHtml = totalSpent>0 ? `
+    <div style="background:var(--surface);border-radius:16px;padding:14px 16px;margin-top:14px;box-shadow:var(--shadow-sm);">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:8px;">💰 花費 vs 🎴 收藏 比例</div>
+      <div style="display:flex;height:16px;border-radius:8px;overflow:hidden;background:var(--bg-deep);">
+        ${collectiblePct>0 ? `<div style="width:${collectiblePct}%;background:var(--rose);"></div>` : ''}
+        ${experiencePct>0 ? `<div style="width:${experiencePct}%;background:var(--wisteria);"></div>` : ''}
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-top:8px;">
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--rose);margin-right:4px;"></span>換得收藏（專輯/小卡/周邊等）NT$ ${collectibleSpent.toLocaleString()}（${collectiblePct}%）</span>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--wisteria);margin-right:4px;"></span>體驗／其他支出（門票/交通/餐飲等）NT$ ${experienceSpent.toLocaleString()}（${experiencePct}%）
+      </div>
+      ${avgPerPc!==null ? `<div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--ink-faint);padding-top:8px;">平均每張擁有的小卡花費約 NT$ ${avgPerPc.toLocaleString()}</div>` : ''}
+    </div>` : '';
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
@@ -3068,6 +3132,7 @@ function openArtistDetail(id){
       <div class="stat-card"><div class="num">${pcOwnedCount}/${pcTotalCount}</div><div class="lbl">小卡收藏</div></div>
       <div class="stat-card"><div class="num">${fanlogCount}</div><div class="lbl">追星紀錄</div></div>
     </div>
+    ${ratioChartHtml}
     ${supportCount>0 ? `<div class="card-meta" style="margin-top:8px;">📣 應援紀錄：${supportCount} 筆</div>` : ''}
     <div class="modal-actions" style="margin-top:18px;">
       <button class="btn ghost" id="cancelBtn">關閉</button>
@@ -4507,6 +4572,7 @@ function openScheduleForm(id, prefill){
     </div>
     <div class="field"><label>地點</label><input type="text" id="schLocation" value="${existing?esc(existing.location||''):''}" placeholder="例：台北小巨蛋"></div>
     <div class="field"><label>類型</label>${categoryFieldHtml}</div>
+    <div class="field"><label>開賣日期（選填）</label><input type="date" id="schOnSaleDate" value="${existing?esc(existing.onSaleDate||''):''}"><div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">門票／預售開賣日期，設定後會出現在首頁倒數計時</div></div>
     <div class="field"><label>備註</label><textarea id="schNote" placeholder="集合時間、票券資訊...">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -4574,6 +4640,7 @@ async function saveScheduleForm(existing){
     endDate: isMultiDay ? endDate : '',
     location: document.getElementById('schLocation').value.trim(),
     category,
+    onSaleDate: document.getElementById('schOnSaleDate').value.trim(),
     note: document.getElementById('schNote').value.trim()
   };
 
