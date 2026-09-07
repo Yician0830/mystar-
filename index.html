@@ -33,9 +33,6 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
-<!-- 追星地圖用的地圖套件（免費，不需要 API 金鑰） -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- 引入 Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -317,18 +314,6 @@
   }
   .dday-card.onsale .days{ color:var(--matcha); }
   .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
-  /* ===== 追星地圖 ===== */
-  .fanmap-container{ width:100%; height:320px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); margin-bottom:16px; background:var(--surface-soft); }
-  .fanmap-picker{ width:100%; height:260px; border-radius:14px; overflow:hidden; margin:6px 0 4px; }
-  .venue-row{
-    display:flex; justify-content:space-between; align-items:center; gap:10px;
-    background:var(--surface); border-radius:14px; padding:12px 14px; margin-bottom:8px;
-    box-shadow:var(--shadow-sm);
-  }
-  .venue-row .venue-name{ font-weight:700; font-size:13.5px; }
-  .venue-row .venue-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
-  .venue-row .venue-badge{ font-size:11px; padding:3px 10px; border-radius:999px; background:var(--matcha-pale); color:#3F6B45; white-space:nowrap; }
-  .venue-row .venue-badge.unset{ background:var(--sakura-pale); color:var(--rose-deep); }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -498,7 +483,7 @@
     background:var(--sakura-pale); display:block; flex-shrink:0;
   }
   .pc-series-cover.ph{ display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--ink-faint);}
-  .pc-series-edit-cover{
+  .pc-series-edit-cover, .mc-series-edit-cover{
     position:absolute; bottom:9px; right:9px; width:26px; height:26px; border-radius:50%;
     border:none; background:rgba(255,255,255,0.92); color:var(--rose-deep); font-size:12px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--shadow-sm);
@@ -856,7 +841,7 @@
       padding:24px 10px; gap:6px;
       border-top:none; border-right:1px solid var(--sakura-pale);
     }
-    nav.bottom .nav-btn{ flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px; border-radius:14px; max-width:none; }
+    nav.bottom .nav-btn{ width:auto; flex:none; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px; border-radius:14px; max-width:none; }
     nav.bottom .nav-btn .lbl{ font-size:13px; }
     nav.bottom .nav-btn.active{ background:var(--sakura-pale); }
   }
@@ -901,13 +886,10 @@
   <nav class="bottom" id="bottomNav">
     <button class="nav-btn" data-tab="home"><div class="stamp maru">首</div><div class="lbl">首頁</div></button>
     <button class="nav-btn" data-tab="schedule"><div class="stamp maru">程</div><div class="lbl">行程</div></button>
-    <button class="nav-btn" data-tab="map"><div class="stamp maru">圖</div><div class="lbl">地圖</div></button>
     <button class="nav-btn" data-tab="expense"><div class="stamp maru">帳</div><div class="lbl">記帳</div></button>
     <button class="nav-btn" data-tab="photocards"><div class="stamp maru">卡</div><div class="lbl">小卡</div></button>
-    <button class="nav-btn" data-tab="merch"><div class="stamp maru">周</div><div class="lbl">周邊</div></button>
     <button class="nav-btn" data-tab="support"><div class="stamp maru">援</div><div class="lbl">應援</div></button>
-    <button class="nav-btn" data-tab="fanlog"><div class="stamp maru">記</div><div class="lbl">紀錄</div></button>
-    <button class="nav-btn" data-tab="media"><div class="stamp maru">媒</div><div class="lbl">媒體</div></button>
+    <button class="nav-btn" data-tab="__more__"><div class="stamp maru">多</div><div class="lbl">更多</div></button>
   </nav>
 </div>
 
@@ -1119,7 +1101,6 @@ const state = {
   pcSeriesMeta:{},
   merchSeriesCovers:{},
   merchSeriesMeta:{},
-  venueCoords:{},
   customFanlogCategories:[],
   customScheduleCategories:[],
   customExpenseCategories:[]
@@ -1233,8 +1214,7 @@ const TAB_META = {
   magazine:{ label:'雜誌寫真', stamp:'誌', empty:'還沒有收藏任何雜誌', emptyIcon:'📔' },
   movie:{ label:'影視作品', stamp:'影', empty:'還沒有紀錄任何影視作品', emptyIcon:'🎬' },
   media:{ label:'媒體', stamp:'媒' },
-  merch:{ label:'周邊圖鑑', stamp:'周', empty:'圖鑑裡還沒有周邊/專輯', emptyIcon:'🛍️' },
-  map:{ label:'追星地圖', stamp:'圖' }
+  merch:{ label:'周邊圖鑑', stamp:'周', empty:'圖鑑裡還沒有周邊/專輯', emptyIcon:'🛍️' }
 };
 
 let editingId = null; 
@@ -1291,6 +1271,13 @@ function linkedExpensesForPcSeries(seriesKey){
 }
 function pcSeriesSpentAmount(seriesKey){
   return linkedExpensesForPcSeries(seriesKey).reduce((sum,e)=> sum + expenseAmount(e), 0);
+}
+/* 周邊系列 ↔ 記帳本，用法與小卡系列相同 */
+function linkedExpensesForMcSeries(seriesKey){
+  return state.expense.filter(e=> e.mcSeriesLinkedId===seriesKey);
+}
+function mcSeriesSpentAmount(seriesKey){
+  return linkedExpensesForMcSeries(seriesKey).reduce((sum,e)=> sum + expenseAmount(e), 0);
 }
 const TAG_CLASSES = ['', 'matcha', 'wisteria', 'gold', 'rose', 'sky', 'peach', 'lavender', 'mint', 'coral', 'amber', 'slate'];
 function tagColorClass(text, categoryList){
@@ -1375,7 +1362,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, vcoord] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1397,8 +1384,7 @@ async function loadAllData(){
     loadKey('oshi-merch', []),
     loadKey('oshi-merch-categories', []),
     loadKey('oshi-merch-covers', {}),
-    loadKey('oshi-merch-series-meta', {}),
-    loadKey('oshi-venue-coords', {})
+    loadKey('oshi-merch-series-meta', {})
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1417,7 +1403,6 @@ async function loadAllData(){
   state.customMerchCategories = mcc || [];
   state.merchSeriesCovers = mccov || {};
   state.merchSeriesMeta = mcmeta || {};
-  state.venueCoords = vcoord || {};
 }
 
 async function init(){
@@ -1486,6 +1471,7 @@ function spawnPetals(){
 function bindNav(){
   document.querySelectorAll('.nav-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.tab==='__more__'){ openMoreMenu(); return; }
       state.tab = btn.dataset.tab;
       render();
     });
@@ -1515,11 +1501,43 @@ function bindNav(){
   });
 }
 
+/* 導覽列收在「更多」裡的分頁：點開一個小選單，選了就切換過去 */
+const NAV_MORE_TABS = [
+  {tab:'merch', stamp:'周', label:'周邊圖鑑'},
+  {tab:'fanlog', stamp:'記', label:'追星紀錄'},
+  {tab:'media', stamp:'媒', label:'媒體'}
+];
+function openMoreMenu(){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:14px;">更多</h3>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      ${NAV_MORE_TABS.map(it=>`
+        <button class="more-menu-item" data-tab="${it.tab}" style="display:flex; align-items:center; gap:12px; width:100%; text-align:left; background:var(--surface); border:none; border-radius:14px; padding:12px 14px; cursor:pointer; font-family:'Noto Sans TC'; font-size:14.5px; color:var(--ink); box-shadow:var(--shadow-sm);">
+          <span style="width:32px;height:32px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;background:var(--bg-deep);color:var(--ink-soft);border-radius:50%;font-family:'Zen Maru Gothic';font-weight:700;font-size:13px;">${it.stamp}</span>
+          ${esc(it.label)}
+        </button>`).join('')}
+    </div>
+  `;
+  document.querySelectorAll('.more-menu-item').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      state.tab = b.dataset.tab;
+      closeModal();
+      render();
+    });
+  });
+  showModal();
+}
+
 function updateNavActive(){
   document.querySelectorAll('.nav-btn').forEach(b=>{
-    b.classList.toggle('active', b.dataset.tab===state.tab);
+    if(b.dataset.tab==='__more__'){
+      b.classList.toggle('active', NAV_MORE_TABS.some(it=>it.tab===state.tab));
+    } else {
+      b.classList.toggle('active', b.dataset.tab===state.tab);
+    }
   });
-  document.getElementById('fabAdd').style.display = (state.tab==='home' || state.tab==='map') ? 'none' : 'flex';
+  document.getElementById('fabAdd').style.display = (state.tab==='home') ? 'none' : 'flex';
 }
 
 /* 記住目前所在頁籤，重新整理後停留在同一畫面（只存在本機瀏覽器，不佔用雲端額度） */
@@ -1538,7 +1556,7 @@ function persistUiFilters(){
   try{
     const filters = {
       scheduleArtistFilter, expArtistFilter,
-      pcArtistFilter, pcOwnedFilter, pcDrill,
+      pcArtistFilter, pcOwnedFilter, pcDrill, pcCategoryFilter,
       mcArtistFilter, mcOwnedFilter, mcDrill,
       supportArtistFilter, fanlogArtistFilter,
       mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter
@@ -1556,6 +1574,7 @@ function restoreUiFilters(){
     if(typeof f.pcArtistFilter==='string') pcArtistFilter = f.pcArtistFilter;
     if(typeof f.pcOwnedFilter==='string') pcOwnedFilter = f.pcOwnedFilter;
     if(typeof f.pcDrill==='string' || f.pcDrill===null) pcDrill = f.pcDrill;
+    if(typeof f.pcCategoryFilter==='string') pcCategoryFilter = f.pcCategoryFilter;
     if(typeof f.mcArtistFilter==='string') mcArtistFilter = f.mcArtistFilter;
     if(typeof f.mcOwnedFilter==='string') mcOwnedFilter = f.mcOwnedFilter;
     if(typeof f.mcDrill==='string' || f.mcDrill===null) mcDrill = f.mcDrill;
@@ -1583,7 +1602,6 @@ function render(){
   if(state.tab==='support'){ main.innerHTML = renderSupportTab(); bindListActions('support'); bindSupportFilterActions(); return; }
   if(state.tab==='media'){ main.innerHTML = renderMediaTab(); bindListActions('media'); bindMediaTabActions(); return; }
   if(state.tab==='merch'){ main.innerHTML = renderMerchTab(); bindListActions('merch'); return; }
-  if(state.tab==='map'){ main.innerHTML = renderMapTab(); bindMapActions(); return; }
   main.innerHTML = renderGenericList(state.tab);
   bindListActions(state.tab);
 }
@@ -2395,6 +2413,7 @@ function renderExpenseCard(item){
     if(linkedFanlog) footnoteParts.push('🔗 紀錄: '+linkedFanlog.activity);
   }
   if(item.pcSeriesLinkedId) footnoteParts.push('🔗 小卡: '+item.pcSeriesLinkedId);
+  if(item.mcSeriesLinkedId) footnoteParts.push('🔗 周邊: '+item.mcSeriesLinkedId);
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
@@ -2512,6 +2531,13 @@ function openExpenseForm(id, prefill){
         ${[...new Set(state.photocards.map(p=>pcGroupKey(p)))].sort().map(key=>`<option value="${esc(key)}" ${src&&src.pcSeriesLinkedId===key?'selected':''}>${esc(key)}</option>`).join('')}
       </select>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">小卡通常整批購入，連結到系列後，小卡圖庫會自動加總這個系列花了多少錢</div>
+    </div>
+    <div class="field"><label>連結周邊系列</label>
+      <select id="expMerchSeriesLink">
+        <option value="">不連結</option>
+        ${[...new Set(state.merch.map(mc=>mcGroupKey(mc)))].sort().map(key=>`<option value="${esc(key)}" ${src&&src.mcSeriesLinkedId===key?'selected':''}>${esc(key)}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">連結到周邊系列後，周邊圖鑑會自動加總這個系列花了多少錢</div>
     </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
@@ -2706,6 +2732,7 @@ async function saveExpenseForm(existing){
     supportLinkedId: document.getElementById('expSupportLink') ? document.getElementById('expSupportLink').value : '',
     fanlogLinkedId: document.getElementById('expFanlogLink') ? document.getElementById('expFanlogLink').value : '',
     pcSeriesLinkedId: document.getElementById('expPcSeriesLink') ? document.getElementById('expPcSeriesLink').value : '',
+    mcSeriesLinkedId: document.getElementById('expMerchSeriesLink') ? document.getElementById('expMerchSeriesLink').value : '',
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
@@ -2903,6 +2930,7 @@ function bindCalendarActions(){
 let pcDrill = null;
 let pcArtistFilter = '__all__';
 let pcOwnedFilter = '__all__';
+let pcCategoryFilter = '__all__';
 
 function pcGroupKey(pc){
   return (pc.series && pc.series.trim()) || (pc.artist && pc.artist.trim()) || '未分類';
@@ -2911,13 +2939,18 @@ function pcGroups(){
   const groups = {};
   state.photocards
     .filter(pc=> pcArtistFilter==='__all__' || pc.artist===pcArtistFilter)
+    .filter(pc=> pcCategoryFilter==='__all__' || pc.category===pcCategoryFilter)
     .forEach(pc=>{
       const key = pcGroupKey(pc);
       (groups[key] = groups[key] || []).push(pc);
     });
-  // 圖鑑內以建立時間排序，越靠近今天排越前面
+  // 已擁有排前面，同樣擁有狀態下再依建立時間排序，越靠近今天排越前面
   Object.keys(groups).forEach(key=>{
-    groups[key].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+    groups[key].sort((a,b)=>{
+      const ownedDiff = (b.owned?1:0) - (a.owned?1:0);
+      if(ownedDiff!==0) return ownedDiff;
+      return (b.createdAt||'').localeCompare(a.createdAt||'');
+    });
   });
   return groups;
 }
@@ -2947,11 +2980,15 @@ function pcOrderedKeys(groups){
 function renderPhotocardCard(pc, seriesLabel){
   const catClass = tagColorClass(pc.category, [...FIXED_PC_CATEGORIES, ...state.customPcCategories]);
   const owned = !!pc.owned;
+  const wished = !!pc.wished;
   return `
   <div class="pc-card">
-    ${pc.imageUrl
-      ? `<img class="pc-img" src="${esc(pc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
-      : `<div class="pc-img ph">🎴</div>`}
+    <div style="position:relative;">
+      ${pc.imageUrl
+        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
+        : `<div class="pc-img ph">🎴</div>`}
+      <button class="pc-wish-btn" data-id="${pc.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
+    </div>
     <div class="pc-body">
       ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
       <div class="pc-name">${esc(pc.name)}</div>
@@ -2987,6 +3024,14 @@ function renderPhotocards(){
     <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
     <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
   </div>`;
+  const pcCategoryOptions = [...new Set(state.photocards.map(p=>p.category).filter(Boolean))];
+  if(pcCategoryFilter!=='__all__' && !pcCategoryOptions.includes(pcCategoryFilter)) pcCategoryFilter = '__all__';
+  if(pcCategoryOptions.length>0){
+    html += `<div class="cal-filter-row" style="margin-top:8px;">
+      <button class="pc-category-filter-btn cal-filter-btn ${pcCategoryFilter==='__all__'?'active':''}" data-category="__all__">全部卡別</button>
+      ${pcCategoryOptions.map(c=>`<button class="pc-category-filter-btn cal-filter-btn ${pcCategoryFilter===c?'active':''}" data-category="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>`;
+  }
 
   const groups = pcGroups();
   const filteredItems = Object.values(groups).flat();
@@ -3008,7 +3053,7 @@ function renderPhotocards(){
   if(pcOwnedFilter!=='__all__'){
     displayGroups = {};
     Object.keys(groups).forEach(key=>{
-      const filtered = groups[key].filter(pc=> pcOwnedFilter==='owned' ? pc.owned : !pc.owned);
+      const filtered = groups[key].filter(pc=> pcOwnedFilter==='owned' ? pc.owned : !!pc.wished);
       if(filtered.length>0) displayGroups[key] = filtered;
     });
   }
@@ -3170,13 +3215,14 @@ function renderMerchTab(){
   const totalCount = filteredItems.length;
   const totalOwned = filteredItems.filter(p=>p.owned).length;
   const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
-  const totalSpentAmt = filteredItems.filter(p=>p.owned).reduce((sum,p)=> sum + (parseFloat(p.price)||0), 0);
+  const filteredSeriesKeys = [...new Set(filteredItems.map(mc=>mcGroupKey(mc)))];
+  const totalMcSpent = filteredSeriesKeys.reduce((sum,key)=> sum + mcSeriesSpentAmount(key), 0);
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">🛍️ 收藏進度</span>
     <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} 件（${totalPct}%）</span>
   </div>
-  ${totalSpentAmt>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已擁有品項合計 NT$ ${totalSpentAmt.toLocaleString()}</div>` : ''}
+  ${totalMcSpent>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalMcSpent.toLocaleString()}</div>` : ''}
   `;
 
   let displayGroups = groups;
@@ -3193,8 +3239,13 @@ function renderMerchTab(){
   if(mcDrill){
     const items = displayGroups[mcDrill];
     const drillOwned = items.filter(i=>i.owned).length;
+    const drillSpent = mcSeriesSpentAmount(mcDrill);
+    const drillLinked = linkedExpensesForMcSeries(mcDrill);
     html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
     html += `<div class="card-title" style="margin:0 2px 4px;font-size:16px;">${esc(mcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
+    if(drillSpent>0){
+      html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
+    }
     html += `<div class="pc-grid">`;
     items.forEach(mc=>{ html += renderMerchCard(mc); });
     html += `</div>`;
@@ -3228,14 +3279,15 @@ function renderMerchTab(){
     const manualCover = state.merchSeriesCovers && state.merchSeriesCovers[key];
     const autoCover = items.find(i=>i.imageUrl);
     const coverUrl = manualCover || (autoCover ? autoCover.imageUrl : '');
+    const seriesSpent = mcSeriesSpentAmount(key);
     html += `
     <div class="pc-series-card-wrap">
-      <button class="mc-series-card" data-series="${esc(key)}">
+      <button class="pc-series-card mc-series-card" data-series="${esc(key)}">
         ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
                 : `<div class="pc-series-cover ph">🛍️</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
-          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 件</div>
+          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 件${seriesSpent>0?`　💰 NT$${seriesSpent.toLocaleString()}`:''}</div>
           <div class="pc-series-progress-track"><div class="pc-series-progress-fill" style="width:${pct}%;"></div></div>
         </div>
       </button>
@@ -3244,136 +3296,6 @@ function renderMerchTab(){
   });
   html += `</div>`;
   return html;
-}
-
-/* ================= 追星地圖 ================= */
-function fanMapVenues(){
-  const map = {};
-  state.schedule.forEach(s=>{
-    const loc = (s.location||'').trim();
-    if(!loc) return;
-    if(!map[loc]) map[loc] = { name:loc, count:0, items:[], lastDate:'' };
-    map[loc].count++;
-    map[loc].items.push({title:s.title, date:s.date});
-    if(!map[loc].lastDate || (s.date||'') > map[loc].lastDate) map[loc].lastDate = s.date||'';
-  });
-  return Object.values(map).sort((a,b)=> b.count-a.count || (b.lastDate||'').localeCompare(a.lastDate||''));
-}
-
-function renderMapTab(){
-  const meta = TAB_META.map;
-  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
-  const venues = fanMapVenues();
-  if(venues.length===0){
-    html += `<div class="empty"><div class="big">🗺️</div><div class="msg">還沒有任何有地點的行程<br>到「行程」新增地點後，這裡就會出現踩點地圖</div></div>`;
-    return html;
-  }
-  const withCoords = venues.filter(v=> state.venueCoords && state.venueCoords[v.name]);
-  html += `<div class="fanmap-container" id="fanMapContainer"></div>`;
-  if(withCoords.length===0){
-    html += `<div style="font-size:11.5px;color:var(--ink-soft);margin:-10px 2px 16px;">尚未設定任何地點的座標，幫下面的地點設定座標後就會顯示在地圖上</div>`;
-  }
-  html += `<div class="card-title" style="margin:4px 2px 10px;font-size:14px;">📍 踩點清單（共 ${venues.length} 個地點）</div>`;
-  venues.forEach(v=>{
-    const has = state.venueCoords && state.venueCoords[v.name];
-    html += `<div class="venue-row">
-      <div>
-        <div class="venue-name">${esc(v.name)}</div>
-        <div class="venue-meta">去過 ${v.count} 次${v.lastDate?`　最近一次 ${fmtDate(v.lastDate)}`:''}</div>
-      </div>
-      <button class="venue-badge ${has?'':'unset'} venue-coord-btn" data-venue="${esc(v.name)}">${has?'✎ 編輯座標':'📍 設定座標'}</button>
-    </div>`;
-  });
-  return html;
-}
-
-function bindMapActions(){
-  document.querySelectorAll('.venue-coord-btn').forEach(b=>{
-    b.addEventListener('click', ()=> openVenueCoordPicker(b.dataset.venue));
-  });
-  const mapEl = document.getElementById('fanMapContainer');
-  if(!mapEl) return;
-  if(typeof L === 'undefined'){
-    mapEl.innerHTML = `<div class="empty" style="padding:30px 0;"><div class="msg">地圖載入失敗，請確認網路連線</div></div>`;
-    return;
-  }
-  const venues = fanMapVenues().filter(v=> state.venueCoords && state.venueCoords[v.name]);
-  const center = venues.length>0
-    ? [state.venueCoords[venues[0].name].lat, state.venueCoords[venues[0].name].lng]
-    : [23.7, 121.0];
-  const map = L.map('fanMapContainer', { scrollWheelZoom:false }).setView(center, venues.length>0 ? 6 : 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OpenStreetMap contributors',
-    maxZoom: 19
-  }).addTo(map);
-  const bounds = [];
-  venues.forEach(v=>{
-    const c = state.venueCoords[v.name];
-    const marker = L.marker([c.lat, c.lng]).addTo(map);
-    const recentTitles = v.items.slice(0,3).map(i=>esc(i.title)).join('、');
-    marker.bindPopup(`<b>${esc(v.name)}</b><br>去過 ${v.count} 次<br>${recentTitles}`);
-    bounds.push([c.lat, c.lng]);
-  });
-  if(bounds.length>1){ map.fitBounds(bounds, {padding:[30,30]}); }
-  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 150);
-}
-
-function openVenueCoordPicker(venueName){
-  const modal = document.getElementById('modal');
-  const current = (state.venueCoords && state.venueCoords[venueName]) || null;
-  modal.innerHTML = `
-    <h3 class="maru">設定座標</h3>
-    <p style="font-size:13px;color:var(--ink-soft);margin:-8px 0 10px;">${esc(venueName)}</p>
-    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 6px;">在地圖上點選這個地點的位置（可縮放、拖曳）</p>
-    <div class="fanmap-picker" id="venuePickerMap"></div>
-    <div style="font-size:11.5px;color:var(--ink-soft);margin:4px 2px 0;" id="pickerCoordLabel">${current?`已選擇：${current.lat.toFixed(4)}, ${current.lng.toFixed(4)}`:'尚未選擇位置'}</div>
-    <div class="modal-actions">
-      <button class="btn ghost" id="cancelBtn">取消</button>
-      ${current ? `<button class="btn ghost" id="clearCoordBtn" style="color:#C0392B;">清除座標</button>` : ''}
-      <button class="btn primary" id="saveCoordBtn">儲存</button>
-    </div>
-  `;
-  document.getElementById('cancelBtn').addEventListener('click', closeModal);
-  showModal();
-
-  let picked = current ? {lat:current.lat, lng:current.lng} : null;
-  if(typeof L === 'undefined'){
-    document.getElementById('venuePickerMap').innerHTML = `<div class="empty" style="padding:20px 0;"><div class="msg">地圖載入失敗，請確認網路連線</div></div>`;
-  } else {
-    const startCenter = picked ? [picked.lat, picked.lng] : [23.7, 121.0];
-    const pmap = L.map('venuePickerMap', { scrollWheelZoom:true }).setView(startCenter, picked ? 13 : 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
-    }).addTo(pmap);
-    let marker = picked ? L.marker([picked.lat, picked.lng]).addTo(pmap) : null;
-    pmap.on('click', (e)=>{
-      picked = { lat: e.latlng.lat, lng: e.latlng.lng };
-      if(marker){ marker.setLatLng(e.latlng); } else { marker = L.marker(e.latlng).addTo(pmap); }
-      const lbl = document.getElementById('pickerCoordLabel');
-      if(lbl) lbl.textContent = `已選擇：${picked.lat.toFixed(4)}, ${picked.lng.toFixed(4)}`;
-    });
-    setTimeout(()=>{ try{ pmap.invalidateSize(); }catch(e){} }, 100);
-  }
-
-  document.getElementById('saveCoordBtn').addEventListener('click', async ()=>{
-    if(!picked){ showToast('請先在地圖上點選位置'); return; }
-    state.venueCoords = state.venueCoords || {};
-    state.venueCoords[venueName] = picked;
-    await saveKey('oshi-venue-coords', state.venueCoords);
-    closeModal();
-    render();
-    showToast('已儲存座標');
-  });
-  const clearBtn = document.getElementById('clearCoordBtn');
-  if(clearBtn){
-    clearBtn.addEventListener('click', async ()=>{
-      if(state.venueCoords) delete state.venueCoords[venueName];
-      await saveKey('oshi-venue-coords', state.venueCoords);
-      closeModal();
-      render();
-      showToast('已清除座標');
-    });
-  }
 }
 
 /* ================= Artists ================= */
@@ -4448,6 +4370,18 @@ function bindListActions(tab){
         }
       });
     });
+    document.querySelectorAll('.pc-wish-btn').forEach(b=>{
+      b.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const item = state.photocards.find(p=>String(p.id)===String(b.dataset.id));
+        if(item){
+          item.wished = !item.wished;
+          await saveKey('oshi-photocards', state.photocards);
+          showToast(item.wished ? '已加入願望清單' : '已從願望清單移除');
+          render();
+        }
+      });
+    });
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
         pcArtistFilter = b.dataset.filter;
@@ -4458,6 +4392,13 @@ function bindListActions(tab){
     document.querySelectorAll('.pc-owned-filter-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
         pcOwnedFilter = b.dataset.owned;
+        render();
+      });
+    });
+    document.querySelectorAll('.pc-category-filter-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        pcCategoryFilter = b.dataset.category;
+        pcDrill = null;
         render();
       });
     });
@@ -5521,8 +5462,7 @@ const BACKUP_FIELD_MAP = [
   ['merch','oshi-merch'],
   ['customMerchCategories','oshi-merch-categories'],
   ['merchSeriesCovers','oshi-merch-covers'],
-  ['merchSeriesMeta','oshi-merch-series-meta'],
-  ['venueCoords','oshi-venue-coords']
+  ['merchSeriesMeta','oshi-merch-series-meta']
 ];
 
 function exportBackupData(){
@@ -5557,7 +5497,7 @@ function confirmImportBackup(data){
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">確定要匯入這份備份嗎？</h3>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、應援、紀錄、藝人、地圖座標等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn danger" id="importConfirmBtn">確定匯入並覆蓋</button>
