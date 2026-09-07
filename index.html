@@ -1106,7 +1106,7 @@ const SCHEMAS = {
     {key:'debutDate', label:'出道日', type:'date'},
     {key:'fanSince', label:'入坑日期', type:'date', ph:'開始追這位藝人的日子'},
     {key:'photoUrl', label:'照片網址', type:'url'},
-    {key:'isOshi', label:'設為本命', type:'select', options:['否','是']},
+    {key:'oshiLevel', label:'喜愛程度', type:'select', options:['本命','二推','三推','均愛(箱推)']},
     {key:'bio', label:'簡介', type:'textarea'}
   ],
   endorsement:[
@@ -1413,6 +1413,23 @@ function esc(s){
   if(s===undefined||s===null) return '';
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+/* 藝人喜愛程度（本命／二推／三推／均愛）。舊資料只有 是/否 的「設為本命」欄位，這裡自動換算相容 */
+function artistOshiLevel(a){
+  if(a.oshiLevel) return a.oshiLevel;
+  if(a.isOshi==='是') return '本命';
+  return '';
+}
+const OSHI_LEVEL_STYLE = {
+  '本命': {icon:'♡', cls:'rose'},
+  '二推': {icon:'②', cls:'sky'},
+  '三推': {icon:'③', cls:'lavender'},
+  '均愛(箱推)': {icon:'📦', cls:'matcha'}
+};
+function oshiLevelTag(level){
+  if(!level) return '';
+  const s = OSHI_LEVEL_STYLE[level] || {icon:'♡', cls:'rose'};
+  return `<span class="tag ${s.cls}">${s.icon} ${esc(level)}</span>`;
+}
 /* 將使用者從裝置選取的照片壓縮成較小的檔案；已登入雲端帳號時會上傳到 Firebase Storage 取得可分享的雲端網址，
    未登入（本機模式）時則轉成內嵌的 dataURL 直接存在本機資料裡 */
 function compressImageFile(file, maxDim=1400, quality=0.8){
@@ -1645,7 +1662,7 @@ function renderHome(){
   const thisMonth = today.slice(0,7);
   const monthTotal = state.expense.filter(e=>e.date && e.date.startsWith(thisMonth))
     .reduce((sum,e)=> sum + (e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0)), 0);
-  const oshi = state.artists.find(a=>a.isOshi==='是') || state.artists[0];
+  const oshi = state.artists.find(a=>artistOshiLevel(a)==='本命') || state.artists[0];
   const recentLog = [...state.fanlog].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,2);
   const upcomingBirthdays = state.artists
     .filter(a=>a.birthday)
@@ -2776,7 +2793,9 @@ function renderArtists(){
     return html;
   }
   html += `<div class="list-grid">`;
-  state.artists.forEach(a=>{
+  const OSHI_ORDER = {'本命':0, '二推':1, '三推':2, '均愛(箱推)':3, '':4};
+  const sortedArtists = [...state.artists].sort((a,b)=> (OSHI_ORDER[artistOshiLevel(a)] ?? 4) - (OSHI_ORDER[artistOshiLevel(b)] ?? 4));
+  sortedArtists.forEach(a=>{
     html += `
     <div class="card artist-card" data-id="${a.id}" style="cursor:pointer;">
       <div class="card-row">
@@ -2785,9 +2804,10 @@ function renderArtists(){
             ? `<img src="${esc(a.photoUrl)}" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
             : `<div style="width:52px;height:52px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>`}
           <div>
-            <div class="card-title">${esc(a.name)} ${a.isOshi==='是' ? '<span style="color:var(--rose-deep)">♡</span>':''}</div>
+            <div class="card-title">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</div>
             <div class="card-meta">${esc(a.group||'')}</div>
             <div>
+              ${oshiLevelTag(artistOshiLevel(a))}
               ${a.birthday ? `<span class="tag">🎂 ${fmtDate(a.birthday)}</span>`:''}
               ${a.debutDate ? `<span class="tag matcha">出道 ${fmtDate(a.debutDate)}</span>`:''}
               ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}</span>`:''}
@@ -2831,11 +2851,12 @@ function openArtistDetail(id){
         ? `<img src="${esc(a.photoUrl)}" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
         : `<div style="width:64px;height:64px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">✨</div>`}
       <div>
-        <h3 class="maru" style="margin:0;">${esc(a.name)} ${a.isOshi==='是' ? '<span style="color:var(--rose-deep)">♡</span>':''}</h3>
+        <h3 class="maru" style="margin:0;">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</h3>
         <div class="card-meta">${esc(a.group||'')}</div>
       </div>
     </div>
     <div style="margin-bottom:10px;">
+      ${oshiLevelTag(artistOshiLevel(a))}
       ${a.birthday ? `<span class="tag">🎂 ${fmtDate(a.birthday)}</span>`:''}
       ${a.debutDate ? `<span class="tag matcha">出道 ${fmtDate(a.debutDate)}</span>`:''}
       ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}（${fmtDate(a.fanSince)}）</span>`:''}
@@ -3931,6 +3952,16 @@ async function saveForm(tab, schema, existing){
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state[tab].push(data);
+  }
+  // 本命只能有一位：設定新的本命時，自動取消其他藝人身上的本命標記
+  if(tab==='artists' && data.oshiLevel==='本命'){
+    const savedId = existing ? existing.id : data.id;
+    state.artists.forEach(a=>{
+      if(String(a.id)!==String(savedId) && artistOshiLevel(a)==='本命'){
+        a.oshiLevel = '';
+        a.isOshi = '否';
+      }
+    });
   }
   await saveKey('oshi-'+tab, state[tab]);
   closeModal();
