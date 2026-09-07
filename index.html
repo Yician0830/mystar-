@@ -288,6 +288,27 @@
     .oshi-stat .v{ font-size:15px; }
     .oshi-stat .l{ font-size:11px; }
   }
+  .bday-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
+  }
+  .bday-card{
+    background:var(--surface); border-radius:16px; padding:14px 8px;
+    text-align:center; box-shadow:var(--shadow-sm);
+    display:flex; flex-direction:column; gap:4px; min-width:0;
+  }
+  .bday-card .name{
+    font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;
+    color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .bday-card .date{ font-size:11.5px; color:var(--ink-soft); }
+  .bday-card .days{ font-size:12px; font-weight:700; color:var(--rose-deep); }
+  .bday-card.today{ background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale)); }
+  @media (min-width:700px){
+    .bday-card{ padding:16px 10px; }
+    .bday-card .name{ font-size:14px; }
+    .bday-card .date{ font-size:12px; }
+    .bday-card .days{ font-size:13px; }
+  }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -1814,12 +1835,18 @@ function renderHome(){
 
   if(upcomingBirthdays.length>0){
     html += `<div class="home-block">
-      <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>`;
+      <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>
+      <div class="bday-grid">`;
     upcomingBirthdays.forEach(({artist, info})=>{
-      const label = info.diffDays===0 ? '🎉 就是今天！' : `還有 ${info.diffDays} 天`;
-      html += `<div class="mini-row"><span class="l">${esc(artist.name)}</span><span class="r">${info.mmdd}・${label}</span></div>`;
+      const isToday = info.diffDays===0;
+      const label = isToday ? '🎉 就是今天！' : `還有 ${info.diffDays} 天`;
+      html += `<div class="bday-card ${isToday?'today':''}">
+        <div class="name">${esc(artist.name)}</div>
+        <div class="date">🎂 ${info.mmdd}</div>
+        <div class="days">${label}</div>
+      </div>`;
     });
-    html += `</div>`;
+    html += `</div></div>`;
   }
 
   html += `<div class="home-block">
@@ -1958,12 +1985,16 @@ function renderExpenseTab(){
     <button class="chip-filter-btn cal-filter-btn ${expArtistFilter==='__all__'?'active':''}" data-artist="__all__">👤 全部藝人</button>
     ${expArtistNames.map(n=>`<button class="chip-filter-btn cal-filter-btn ${expArtistFilter===n?'active':''}" data-artist="${esc(n)}">${esc(n)}</button>`).join('')}
   </div>` : ''}
+  `;
+
+  const expSearchBoxHtml = `
   <div class="field" style="margin-bottom:14px;">
     <input type="text" id="expSearchInput" placeholder="🔍 搜尋商品名稱、備註、標籤、平台..." value="${esc(expSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>
   `;
 
   if(items.length===0){
+    html += expSearchBoxHtml;
     html += `<div class="empty"><div class="big">🔍</div><div class="msg">找不到符合條件的花費紀錄</div></div>`;
     return html;
   }
@@ -1981,6 +2012,8 @@ function renderExpenseTab(){
         return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月</button>`;
       }).join('')}
     </div>`;
+
+    html += expSearchBoxHtml;
 
     // 累積消費總計：放在篩選列下方、月份明細上方
     html += `
@@ -2049,6 +2082,8 @@ function renderExpenseTab(){
       }).join('')}
     </div>`;
 
+    html += expSearchBoxHtml;
+
     const catItems = expCategoryFilter==='__all__' ? items : catGroups[expCategoryFilter];
     const catTotal = catItems.reduce((sum, e) => sum + expenseAmount(e), 0);
     const catLabel = expCategoryFilter==='__all__' ? '全部類別' : expCategoryFilter;
@@ -2081,6 +2116,8 @@ function renderExpenseTab(){
       ${yearKeys.map(y=>`<button class="chip-filter-btn cal-filter-btn ${expYearFilter===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
     </div>`;
 
+    html += expSearchBoxHtml;
+
     const yearItems = expYearFilter==='__all__' ? items : yearGroups[expYearFilter];
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
     const yearLabel = expYearFilter==='__all__' ? '全部年份' : `${expYearFilter} 年`;
@@ -2095,6 +2132,7 @@ function renderExpenseTab(){
     yearItems.forEach(item=>{ html += renderExpenseCard(item); });
     html += `</div>`;
   } else if(expViewMode==='stats'){
+    html += expSearchBoxHtml;
     html += renderExpenseStats(items);
   }
 
