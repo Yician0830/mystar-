@@ -755,7 +755,8 @@
     width:100%; height:14px; border-radius:999px; overflow:hidden;
     display:flex; background:var(--bg-deep);
   }
-  .exp-cat-bar-seg{ height:100%; }
+  .exp-cat-bar-seg{ height:100%; box-sizing:border-box; border-right:2px solid var(--surface); }
+  .exp-cat-bar-seg:last-child{ border-right:none; }
   .exp-cat-bar-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; }
   .exp-cat-bar-legend-item{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); }
   .exp-cat-bar-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -1412,6 +1413,14 @@ function tagColorClass(text, categoryList){
 }
 
 /* Richer pastel palette for category "chip" filter buttons (e.g. expense categories) */
+// 圖表專用的高飽和配色（跟標籤用的柔和 CHIP_PALETTE 分開，比例橫條圖需要顏色彼此明顯區隔）
+const CHART_PALETTE = [
+  '#E24C6B', '#3A7BD5', '#F2A93B', '#2FAE6E', '#8E4FD6',
+  '#00B2A9', '#E0663F', '#4C6FE8', '#D6428E', '#6BAF2A',
+  '#C4941C', '#5F5FBF'
+];
+function chartColorAt(i){ return CHART_PALETTE[i % CHART_PALETTE.length]; }
+
 const CHIP_PALETTE = [
   {bg:'#FDE0E8', fg:'#B23A5C'},
   {bg:'#E4D9FF', fg:'#5B3FA0'},
@@ -2300,20 +2309,16 @@ function renderExpenseTab(){
     const yearItems = yearFilteredItems;
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
 
-    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份，並附上每個月的花費金額
+    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份
     const months = [...new Set(yearItems.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
     if(expMonthFilter!=='__all__' && !months.includes(expMonthFilter)) expMonthFilter = '__all__';
-    const monthTotals = {};
-    months.forEach(m=>{
-      monthTotals[m] = yearItems.filter(e=> e.date && e.date.startsWith(m)).reduce((s,e)=> s+expenseAmount(e), 0);
-    });
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
       <button class="chip-filter-btn cal-filter-btn ${expMonthFilter==='__all__'?'active':''}" data-month="__all__">📆 全部</button>
       ${months.map(m=>{
         const [y,mm] = m.split('-');
         const active = expMonthFilter===m;
-        return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月 · NT$${monthTotals[m].toLocaleString()}</button>`;
+        return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月</button>`;
       }).join('')}
     </div>`;
 
@@ -2402,17 +2407,17 @@ function renderExpenseTab(){
         html += `<div class="exp-cat-bar-wrap">
           <div class="exp-cat-bar-title">📊 ${curYear} 年分類佔比</div>
           <div class="exp-cat-bar-track">
-            ${catTotalsAll.map(c=>{
-              const c2 = chipColor(c.cat);
+            ${catTotalsAll.map((c,i)=>{
+              const color = chartColorAt(i);
               const pct = (c.amt/grandCatTotal*100);
-              return `<div class="exp-cat-bar-seg" style="width:${pct}%;background:${c2.fg};" title="${esc(c.cat)} ${Math.round(pct)}%"></div>`;
+              return `<div class="exp-cat-bar-seg" style="width:${pct}%;background:${color};" title="${esc(c.cat)} ${Math.round(pct)}%"></div>`;
             }).join('')}
           </div>
           <div class="exp-cat-bar-legend">
-            ${catTotalsAll.map(c=>{
-              const c2 = chipColor(c.cat);
+            ${catTotalsAll.map((c,i)=>{
+              const color = chartColorAt(i);
               const pct = Math.round(c.amt/grandCatTotal*100);
-              return `<span class="exp-cat-bar-legend-item"><span class="exp-cat-bar-dot" style="background:${c2.fg};"></span>${esc(c.cat)} ${pct}%</span>`;
+              return `<span class="exp-cat-bar-legend-item"><span class="exp-cat-bar-dot" style="background:${color};"></span>${esc(c.cat)} ${pct}%</span>`;
             }).join('')}
           </div>
         </div>`;
