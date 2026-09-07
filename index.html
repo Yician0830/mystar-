@@ -243,6 +243,45 @@
   .empty .msg{ font-size:13.5px; }
 
   /* Home dashboard */
+  .home-dashboard{ display:block; }
+  .home-main, .home-side{ min-width:0; }
+  @media (min-width:1100px){
+    .home-dashboard{ display:grid; grid-template-columns:1.5fr 1fr; gap:24px; align-items:start; }
+  }
+  .greet-card{
+    display:flex; align-items:center; gap:14px;
+    background:var(--surface); border-radius:var(--radius);
+    padding:14px 18px; margin-bottom:18px; box-shadow:var(--shadow-sm);
+  }
+  .greet-card-icon{
+    width:46px;height:46px;border-radius:50%;
+    background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
+    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+  }
+  .greet-card-text{ min-width:0; }
+  .greet-card .greet{ margin:0; }
+  .greet-card .greet-date{ margin:2px 0 0; }
+  .home-thumb-card{
+    display:flex; align-items:center; gap:10px;
+    background:var(--surface); border-radius:14px; padding:9px 12px;
+    margin-bottom:8px; box-shadow:var(--shadow-sm);
+  }
+  .home-thumb-pic{
+    width:40px;height:40px;border-radius:10px;flex-shrink:0;
+    background:var(--sakura-pale); overflow:hidden;
+    display:flex;align-items:center;justify-content:center;font-size:18px;
+  }
+  .home-thumb-pic img{ width:100%;height:100%;object-fit:cover; }
+  .home-thumb-info{ flex:1; min-width:0; }
+  .home-thumb-title{
+    font-size:13px; color:var(--ink); font-weight:600;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .home-thumb-meta{
+    font-size:11px; color:var(--ink-soft); margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .home-thumb-amt{ font-size:12.5px; font-weight:700; color:var(--rose-deep); flex-shrink:0; }
   .greet{
     font-family:'Zen Maru Gothic';
     font-size:17px;
@@ -878,7 +917,7 @@
       padding:24px 10px; gap:6px;
       border-top:none; border-right:1px solid var(--sakura-pale);
     }
-    nav.bottom .nav-btn{ width:auto; flex:none; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px; border-radius:14px; max-width:none; }
+    nav.bottom .nav-btn{ width:auto; flex:1; flex-direction:row; justify-content:flex-start; align-items:center; gap:12px; padding:10px 12px; border-radius:14px; max-width:none; }
     nav.bottom .nav-btn.nav-more-only{ display:flex; }
     nav.bottom .nav-btn.nav-more-btn{ display:none; }
     nav.bottom .nav-btn .lbl{ font-size:13px; }
@@ -1158,7 +1197,7 @@ let expArtistFilter = '__all__';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
-let expAllViewYear = null; /* 「全部明細」檢視用的年度篩選；null 代表尚未決定，會自動選最近一次有紀錄的年度 */
+
 
 /* ================= Schemas ================= */
 const SCHEMAS = {
@@ -1909,13 +1948,57 @@ function daysUntilDate(dateStr){
   return Math.round((target - todayMid) / (1000*60*60*24));
 }
 
+const FANLOG_CATEGORY_ICON = {
+  '演唱會':'🎤','見面會':'🤝','簽唱會':'✍️','商演':'🎪','站台':'📸',
+  '頒獎':'🏆','夜店':'🌃','跨年':'🎆','時裝周':'👗','校唱':'🎶','其他':'📖'
+};
+function greetingTimeInfo(){
+  const h = new Date().getHours();
+  if(h>=5 && h<11) return {text:'早安', icon:'🌅'};
+  if(h>=11 && h<14) return {text:'午安', icon:'☀️'};
+  if(h>=14 && h<18) return {text:'下午好', icon:'🌤️'};
+  if(h>=18 && h<22) return {text:'晚安', icon:'🌆'};
+  return {text:'夜深了', icon:'🌙'};
+}
+function homeExpenseAmount(e){
+  return e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0);
+}
+function renderHomeExpenseThumb(item){
+  const cover = (item.imageUrls||[])[0];
+  const catIcon = EXPENSE_CATEGORY_ICON[item.category] || '💸';
+  const amt = homeExpenseAmount(item);
+  const title = item.name || item.item || '（未命名）';
+  return `
+  <div class="home-thumb-card">
+    <div class="home-thumb-pic">${cover ? `<img src="${esc(cover)}" onerror="this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
+    <div class="home-thumb-info">
+      <div class="home-thumb-title">${esc(title)}</div>
+      <div class="home-thumb-meta">${fmtDate(item.date)}${item.category ? ' · '+esc(item.category) : ''}</div>
+    </div>
+    <div class="home-thumb-amt">NT$ ${amt.toLocaleString()}</div>
+  </div>`;
+}
+function renderHomeFanlogThumb(item){
+  const icon = FANLOG_CATEGORY_ICON[item.category] || '📖';
+  const c = chipColor(item.category || '其他');
+  return `
+  <div class="home-thumb-card">
+    <div class="home-thumb-pic" style="background:${c.bg};color:${c.fg};">${icon}</div>
+    <div class="home-thumb-info">
+      <div class="home-thumb-title">${esc(item.activity)}</div>
+      <div class="home-thumb-meta">${fmtDate(item.date)}${item.artist ? ' · '+esc(item.artist) : ''}</div>
+    </div>
+  </div>`;
+}
+
 function renderHome(){
   const today = todayStr();
   const thisMonth = today.slice(0,7);
-  const monthTotal = state.expense.filter(e=>e.date && e.date.startsWith(thisMonth))
-    .reduce((sum,e)=> sum + (e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0)), 0);
+  const monthItemsAll = state.expense.filter(e=>e.date && e.date.startsWith(thisMonth));
+  const monthTotal = monthItemsAll.reduce((sum,e)=> sum + homeExpenseAmount(e), 0);
+  const monthItemsTop = [...monthItemsAll].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,3);
   const oshi = state.artists.find(a=>artistOshiLevel(a)==='本命') || state.artists[0];
-  const recentLog = [...state.fanlog].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,2);
+  const recentLog = [...state.fanlog].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,3);
   const upcomingBirthdays = state.artists
     .filter(a=>a.birthday)
     .map(a=> ({ artist:a, info: nextOccurrenceInfo(a.birthday) }))
@@ -1923,9 +2006,16 @@ function renderHome(){
     .sort((a,b)=> a.info.diffDays - b.info.diffDays)
     .slice(0,3);
 
-  let html = `
-    <div class="greet maru">${state.profile.nickname? '哈囉，'+esc(state.profile.nickname): '哈囉！'} 🌸</div>
-    <div class="greet-date">今天是 ${fmtDate(today)}, 繼續好好追星吧</div>
+  const {text:greetTime, icon:greetIcon} = greetingTimeInfo();
+
+  let main = `
+    <div class="greet-card">
+      <div class="greet-card-icon">${greetIcon}</div>
+      <div class="greet-card-text">
+        <div class="greet maru">${greetTime}${state.profile.nickname ? '，'+esc(state.profile.nickname) : ''}</div>
+        <div class="greet-date">今天是 ${fmtDate(today)}，繼續好好追星吧</div>
+      </div>
+    </div>
 
     <div class="stat-grid">
       <div class="stat-card"><div class="num">${state.schedule.length}</div><div class="lbl">總行程</div></div>
@@ -1937,7 +2027,7 @@ function renderHome(){
   `;
 
   if(oshi){
-    html += `
+    main += `
     <div class="oshi-banner">
       <div class="oshi-top">
         ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
@@ -1969,59 +2059,61 @@ function renderHome(){
   ddayItems.sort((a,b)=> a.days-b.days);
   const topDdayItems = ddayItems.slice(0,3);
 
-  html += `<div class="home-block">
+  main += `<div class="home-block">
     <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule">查看全部</a></div>`;
   if(topDdayItems.length===0){
-    html += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">目前沒有排定行程</span></div>`;
+    main += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">目前沒有排定行程</span></div>`;
   } else {
-    html += `<div class="bday-grid">`;
+    main += `<div class="bday-grid">`;
     topDdayItems.forEach(it=>{
       const isToday = it.days===0;
       const icon = it.type==='onsale' ? '🎫' : '🎤';
       const label = isToday ? (it.type==='onsale' ? '🎉 開賣就是今天！' : '🎉 就是今天！') : `還有 ${it.days} 天`;
-      html += `<div class="dday-card bday-card ${isToday?'today':''} ${it.type==='onsale'?'onsale':''}">
+      main += `<div class="dday-card bday-card ${isToday?'today':''} ${it.type==='onsale'?'onsale':''}">
         <div class="name">${icon} ${esc(it.title)}</div>
         <div class="date">${it.type==='onsale'?'開賣 ':''}${fmtDate(it.date)}</div>
         <div class="days">${label}</div>
       </div>`;
     });
-    html += `</div>`;
+    main += `</div>`;
   }
-  html += `</div>`;
+  main += `</div>`;
 
+  let side = '';
   if(upcomingBirthdays.length>0){
-    html += `<div class="home-block">
+    side += `<div class="home-block">
       <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>
       <div class="bday-grid">`;
     upcomingBirthdays.forEach(({artist, info})=>{
       const isToday = info.diffDays===0;
       const label = isToday ? '🎉 就是今天！' : `還有 ${info.diffDays} 天`;
-      html += `<div class="bday-card ${isToday?'today':''}">
+      side += `<div class="bday-card ${isToday?'today':''}">
         <div class="name">${esc(artist.name)}</div>
         <div class="date">🎂 ${info.mmdd}</div>
         <div class="days">${label}</div>
       </div>`;
     });
-    html += `</div></div>`;
+    side += `</div></div>`;
   }
 
-  html += `<div class="home-block">
+  side += `<div class="home-block">
     <div class="block-head"><h3>💰 本月花費</h3><a data-goto="expense">查看全部</a></div>
-    <div class="mini-row"><span class="l">${thisMonth.replace('-','年')}月 消費總計</span><span class="r" style="font-weight:700;color:var(--rose-deep)">NT$ ${monthTotal.toLocaleString()}</span></div>
-  </div>`;
+    <div class="mini-row"><span class="l">${thisMonth.replace('-','年')}月 消費總計</span><span class="r" style="font-weight:700;color:var(--rose-deep)">NT$ ${monthTotal.toLocaleString()}</span></div>`;
+  if(monthItemsTop.length>0){
+    monthItemsTop.forEach(item=>{ side += renderHomeExpenseThumb(item); });
+  }
+  side += `</div>`;
 
-  html += `<div class="home-block">
+  side += `<div class="home-block">
     <div class="block-head"><h3>📖 最新追星紀錄</h3><a data-goto="fanlog">查看全部</a></div>`;
   if(recentLog.length===0){
-    html += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">還沒有寫下任何紀錄</span></div>`;
+    side += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">還沒有寫下任何紀錄</span></div>`;
   } else {
-    recentLog.forEach(f=>{
-      html += `<div class="mini-row"><span class="l">${esc(f.activity)}</span><span class="r">${fmtDate(f.date)}</span></div>`;
-    });
+    recentLog.forEach(f=>{ side += renderHomeFanlogThumb(f); });
   }
-  html += `</div>`;
+  side += `</div>`;
 
-  return html;
+  return `<div class="home-dashboard"><div class="home-main">${main}</div><div class="home-side">${side}</div></div>`;
 }
 function bindHomeLinks(){
   document.querySelectorAll('[data-goto]').forEach(a=>{
@@ -2133,6 +2225,11 @@ function renderExpenseTab(){
 
   const grandTotal = items.reduce((sum, e) => sum + expenseAmount(e), 0);
 
+  // 「全部明細」與「分類明細」永遠只算今年的資料，不提供切換其他年份
+  // （要看以前的花費請去「歷年花費」頁籤）。
+  const curYear = todayStr().slice(0,4);
+  const yearFilteredItems = items.filter(e=> e.date && e.date.startsWith(curYear));
+
   // 切換按鈕（累積消費總計僅在「全部明細」顯示，分類明細/歷年花費各自已有小計，不重複列出總計）
   html += `
   <div class="cal-filter-row" style="margin-bottom:14px;">
@@ -2161,25 +2258,11 @@ function renderExpenseTab(){
   }
 
   if(expViewMode==='all'){
-    // 年度篩選：月份清單與累積消費總計都只反映選到的年度
-    const expYears = [...new Set(items.filter(e=>e.date).map(e=>e.date.slice(0,4)))].sort((a,b)=> b.localeCompare(a));
-    if(expAllViewYear===null){
-      const curYear = todayStr().slice(0,4);
-      expAllViewYear = expYears.includes(curYear) ? curYear : (expYears[0] || '__all__');
-    }
-    if(expAllViewYear!=='__all__' && !expYears.includes(expAllViewYear)) expAllViewYear = expYears[0] || '__all__';
-
-    const yearItems = expAllViewYear==='__all__' ? items : items.filter(e=> e.date && e.date.startsWith(expAllViewYear));
+    // 月份清單與累積消費總計都只反映今年（不提供切換年份）
+    const yearItems = yearFilteredItems;
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
 
-    if(expYears.length>1){
-      html += `<div class="cal-filter-row" style="margin-bottom:10px;">
-        <button class="chip-filter-btn cal-filter-btn ${expAllViewYear==='__all__'?'active':''}" data-allyear="__all__">📅 全部年份</button>
-        ${expYears.map(y=>`<button class="chip-filter-btn cal-filter-btn ${expAllViewYear===y?'active':''}" data-allyear="${esc(y)}">${esc(y)} 年</button>`).join('')}
-      </div>`;
-    }
-
-    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出目前選定年度內的月份
+    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份
     const months = [...new Set(yearItems.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
     if(expMonthFilter!=='__all__' && !months.includes(expMonthFilter)) expMonthFilter = '__all__';
 
@@ -2194,10 +2277,10 @@ function renderExpenseTab(){
 
     html += expSearchBoxHtml;
 
-    // 累積消費總計：只反映目前選定的年度（選「全部年份」時才是全期間總計）
+    // 累積消費總計：只算今年
     html += `
     <div class="mini-row" style="margin-bottom:16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-      <span class="l" style="font-weight:700;">💰 ${expAllViewYear==='__all__'?'累積消費總計':expAllViewYear+' 年消費總計'}</span>
+      <span class="l" style="font-weight:700;">💰 ${curYear} 年消費總計</span>
       <span class="r" style="font-weight:700; font-size:16px; color:var(--rose-deep);">NT$ ${yearTotal.toLocaleString()}</span>
     </div>
     `;
@@ -2226,15 +2309,15 @@ function renderExpenseTab(){
 
   if(expViewMode==='all'){
     if(expMonthFilter==='__all__'){
-      const yearItemsForGrid = expAllViewYear==='__all__' ? items : items.filter(e=> e.date && e.date.startsWith(expAllViewYear));
+      const yearItemsForGrid = yearFilteredItems;
       html += `<div class="exp-grid">`;
       yearItemsForGrid.forEach(item=>{ html += renderExpenseCard(item); });
       html += `</div>`;
     }
   } else if(expViewMode==='category'){
-    // 依分類分組
+    // 依分類分組：只用今年的資料分組與加總
     const catGroups = {};
-    items.forEach(item=>{
+    yearFilteredItems.forEach(item=>{
       const cat = item.category || '未分類';
       if(!catGroups[cat]) catGroups[cat] = [];
       catGroups[cat].push(item);
@@ -2264,9 +2347,9 @@ function renderExpenseTab(){
 
     html += expSearchBoxHtml;
 
-    const catItems = expCategoryFilter==='__all__' ? items : catGroups[expCategoryFilter];
+    const catItems = expCategoryFilter==='__all__' ? yearFilteredItems : (catGroups[expCategoryFilter] || []);
     const catTotal = catItems.reduce((sum, e) => sum + expenseAmount(e), 0);
-    const catLabel = expCategoryFilter==='__all__' ? '全部類別' : expCategoryFilter;
+    const catLabel = (expCategoryFilter==='__all__' ? '全部類別' : expCategoryFilter) + `・${curYear}年`;
 
     html += `
     <div class="exp-group-header">
@@ -2275,7 +2358,11 @@ function renderExpenseTab(){
     </div>
     <div class="exp-grid">
     `;
-    catItems.forEach(item=>{ html += renderExpenseCard(item); });
+    if(catItems.length===0){
+      html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這個年度還沒有這個分類的花費紀錄</div></div>`;
+    } else {
+      catItems.forEach(item=>{ html += renderExpenseCard(item); });
+    }
     html += `</div>`;
   } else if(expViewMode==='year'){
     // 依年份分組
@@ -2313,14 +2400,14 @@ function renderExpenseTab(){
     html += `</div>`;
   } else if(expViewMode==='stats'){
     html += expSearchBoxHtml;
-    html += renderExpenseStats(items);
+    html += renderExpenseStats(yearFilteredItems, curYear);
   }
 
   return html;
 }
 
-function renderExpenseStats(items){
-  if(items.length===0) return `<div class="empty"><div class="big">📊</div><div class="msg">沒有資料可供統計</div></div>`;
+function renderExpenseStats(items, statsYear){
+  if(items.length===0) return `<div class="empty"><div class="big">📊</div><div class="msg">${statsYear?statsYear+' 年還':''}沒有資料可供統計</div></div>`;
 
   // 各分類佔比
   const catTotals = {};
@@ -2377,14 +2464,14 @@ function renderExpenseStats(items){
 
   return `
   <div class="exp-group-header">
-    <div class="exp-group-title">🏷️ 各分類佔比</div>
+    <div class="exp-group-title">🏷️ 各分類佔比${statsYear?`・${statsYear}年`:''}</div>
     <div class="exp-group-meta">共 NT$ ${grandTotal.toLocaleString()}</div>
   </div>
   <div style="background:var(--surface);border-radius:16px;padding:16px;box-shadow:var(--shadow-sm);margin-bottom:20px;">
     ${catBarsHtml}
   </div>
   <div class="exp-group-header">
-    <div class="exp-group-title">📈 月度花費趨勢</div>
+    <div class="exp-group-title">📈 月度花費趨勢${statsYear?`・${statsYear}年`:''}</div>
   </div>
   <div style="background:var(--surface);border-radius:16px;padding:16px 8px;box-shadow:var(--shadow-sm);">
     ${monthBarsHtml}
@@ -2414,13 +2501,6 @@ function bindExpenseActions(){
   document.querySelectorAll('.chip-filter-btn[data-year]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       expYearFilter = btn.dataset.year;
-      render();
-    });
-  });
-  document.querySelectorAll('.chip-filter-btn[data-allyear]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      expAllViewYear = btn.dataset.allyear;
-      expMonthFilter = '__all__';
       render();
     });
   });
