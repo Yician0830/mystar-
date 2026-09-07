@@ -122,6 +122,13 @@
     100%{ transform: translateY(160px) rotate(200deg); opacity:0;}
   }
   .top-row{ display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1;}
+  .top-row-actions{ display:flex; align-items:center; gap:8px; }
+  .header-search-btn{
+    width:38px; height:38px; border-radius:50%;
+    background:var(--surface); border:1px solid var(--sakura-pale);
+    box-shadow:var(--shadow-sm); font-size:16px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand-mark{
     width:40px;height:40px;border-radius:50%;
@@ -562,6 +569,7 @@
   }
 
   /* Bottom nav (becomes a left sidebar at >=900px, see breakpoint above) */
+  .nav-more-only{ display:none; }
   nav.bottom{
     position:fixed; bottom:0; left:0;
     width:100%; max-width:100%;
@@ -704,6 +712,35 @@
     flex:1; min-width:120px; border:none; outline:none; background:transparent;
     font-family:'Noto Sans TC'; font-size:13.5px; color:var(--ink); padding:4px 0;
   }
+  /* Checklist（行程待辦清單） */
+  .checklist-box{
+    border:1px solid var(--sakura-pale); border-radius:12px; padding:8px 10px; background:var(--surface);
+  }
+  .checklist-item{ display:flex; align-items:center; gap:8px; padding:5px 2px; }
+  .checklist-item .checklist-check{ width:16px; height:16px; accent-color:var(--rose-deep); flex-shrink:0; }
+  .checklist-item .checklist-text{ flex:1; font-size:13.5px; color:var(--ink); }
+  .checklist-item .checklist-text.done{ text-decoration:line-through; color:var(--ink-faint); }
+  .checklist-item .checklist-x{ cursor:pointer; color:var(--ink-faint); padding:0 4px; font-size:14px; flex-shrink:0; }
+  .checklist-box input#schChecklistInput{
+    width:100%; border:none; outline:none; background:transparent;
+    font-family:'Noto Sans TC'; font-size:13.5px; color:var(--ink); padding:6px 2px;
+  }
+  .checklist-progress-track{ width:100%; height:5px; background:var(--bg-deep); border-radius:4px; margin-top:5px; overflow:hidden; }
+  .checklist-progress-fill{ height:100%; background:var(--rose); border-radius:4px; }
+  /* 站內全域搜尋 */
+  .global-search-result{
+    display:flex; align-items:center; gap:12px; width:100%; text-align:left;
+    background:var(--surface); border:1px solid rgba(0,0,0,0.03); border-radius:14px;
+    padding:11px 14px; margin-bottom:8px; cursor:pointer; box-shadow:var(--shadow-sm);
+    font-family:'Noto Sans TC';
+  }
+  .global-search-result .gsr-icon{
+    width:34px; height:34px; border-radius:50%; flex-shrink:0;
+    background:var(--bg-deep); display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .global-search-result .gsr-body{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+  .global-search-result .gsr-title{ font-weight:700; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .global-search-result .gsr-meta{ font-size:11.5px; color:var(--ink-soft); }
   .btn{
     flex:1; padding:12px; border-radius:14px; border:none;
     font-family:'Noto Sans TC'; font-weight:700; font-size:14px; cursor:pointer;
@@ -842,6 +879,8 @@
       border-top:none; border-right:1px solid var(--sakura-pale);
     }
     nav.bottom .nav-btn{ width:auto; flex:none; flex-direction:row; justify-content:flex-start; gap:12px; padding:10px 12px; border-radius:14px; max-width:none; }
+    nav.bottom .nav-btn.nav-more-only{ display:flex; }
+    nav.bottom .nav-btn.nav-more-btn{ display:none; }
     nav.bottom .nav-btn .lbl{ font-size:13px; }
     nav.bottom .nav-btn.active{ background:var(--sakura-pale); }
   }
@@ -872,9 +911,12 @@
           <div class="sub" id="headerSub">我的追星手帳</div>
         </div>
       </div>
-      <div class="profile-chip" id="profileChip">
-        <div class="dot" id="profileDot">🌸</div>
-        <span id="profileLabel">設定 / 登入</span>
+      <div class="top-row-actions">
+        <button class="icon-btn header-search-btn" id="globalSearchBtn" title="搜尋">🔍</button>
+        <div class="profile-chip" id="profileChip">
+          <div class="dot" id="profileDot">🌸</div>
+          <span id="profileLabel">設定 / 登入</span>
+        </div>
       </div>
     </div>
   </header>
@@ -889,7 +931,10 @@
     <button class="nav-btn" data-tab="expense"><div class="stamp maru">帳</div><div class="lbl">記帳</div></button>
     <button class="nav-btn" data-tab="photocards"><div class="stamp maru">卡</div><div class="lbl">小卡</div></button>
     <button class="nav-btn" data-tab="support"><div class="stamp maru">援</div><div class="lbl">應援</div></button>
-    <button class="nav-btn" data-tab="__more__"><div class="stamp maru">多</div><div class="lbl">更多</div></button>
+    <button class="nav-btn nav-more-only" data-tab="merch"><div class="stamp maru">周</div><div class="lbl">周邊</div></button>
+    <button class="nav-btn nav-more-only" data-tab="fanlog"><div class="stamp maru">記</div><div class="lbl">紀錄</div></button>
+    <button class="nav-btn nav-more-only" data-tab="media"><div class="stamp maru">媒</div><div class="lbl">媒體</div></button>
+    <button class="nav-btn nav-more-btn" data-tab="__more__"><div class="stamp maru">多</div><div class="lbl">更多</div></button>
   </nav>
 </div>
 
@@ -1113,6 +1158,7 @@ let expArtistFilter = '__all__';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
+let expAllViewYear = null; /* 「全部明細」檢視用的年度篩選；null 代表尚未決定，會自動選最近一次有紀錄的年度 */
 
 /* ================= Schemas ================= */
 const SCHEMAS = {
@@ -1493,6 +1539,7 @@ function bindNav(){
     openForm(state.tab, null);
   });
   document.getElementById('profileChip').addEventListener('click', openProfileForm);
+  document.getElementById('globalSearchBtn').addEventListener('click', openGlobalSearch);
   document.getElementById('storageWarningClose').addEventListener('click', ()=>{
     document.getElementById('storageWarning').style.display = 'none';
   });
@@ -2114,8 +2161,26 @@ function renderExpenseTab(){
   }
 
   if(expViewMode==='all'){
-    // 依有紀錄的月份列出可篩選的月份（新到舊）
-    const months = [...new Set(items.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
+    // 年度篩選：月份清單與累積消費總計都只反映選到的年度
+    const expYears = [...new Set(items.filter(e=>e.date).map(e=>e.date.slice(0,4)))].sort((a,b)=> b.localeCompare(a));
+    if(expAllViewYear===null){
+      const curYear = todayStr().slice(0,4);
+      expAllViewYear = expYears.includes(curYear) ? curYear : (expYears[0] || '__all__');
+    }
+    if(expAllViewYear!=='__all__' && !expYears.includes(expAllViewYear)) expAllViewYear = expYears[0] || '__all__';
+
+    const yearItems = expAllViewYear==='__all__' ? items : items.filter(e=> e.date && e.date.startsWith(expAllViewYear));
+    const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
+
+    if(expYears.length>1){
+      html += `<div class="cal-filter-row" style="margin-bottom:10px;">
+        <button class="chip-filter-btn cal-filter-btn ${expAllViewYear==='__all__'?'active':''}" data-allyear="__all__">📅 全部年份</button>
+        ${expYears.map(y=>`<button class="chip-filter-btn cal-filter-btn ${expAllViewYear===y?'active':''}" data-allyear="${esc(y)}">${esc(y)} 年</button>`).join('')}
+      </div>`;
+    }
+
+    // 依有紀錄的月份列出可篩選的月份（新到舊），只列出目前選定年度內的月份
+    const months = [...new Set(yearItems.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
     if(expMonthFilter!=='__all__' && !months.includes(expMonthFilter)) expMonthFilter = '__all__';
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
@@ -2129,17 +2194,17 @@ function renderExpenseTab(){
 
     html += expSearchBoxHtml;
 
-    // 累積消費總計：放在篩選列下方、月份明細上方
+    // 累積消費總計：只反映目前選定的年度（選「全部年份」時才是全期間總計）
     html += `
     <div class="mini-row" style="margin-bottom:16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-      <span class="l" style="font-weight:700;">💰 累積消費總計</span>
-      <span class="r" style="font-weight:700; font-size:16px; color:var(--rose-deep);">NT$ ${grandTotal.toLocaleString()}</span>
+      <span class="l" style="font-weight:700;">💰 ${expAllViewYear==='__all__'?'累積消費總計':expAllViewYear+' 年消費總計'}</span>
+      <span class="r" style="font-weight:700; font-size:16px; color:var(--rose-deep);">NT$ ${yearTotal.toLocaleString()}</span>
     </div>
     `;
 
     // 選擇特定月份時，顯示該月明細
     if(expMonthFilter!=='__all__'){
-      const monthItems = items.filter(e=> e.date && e.date.startsWith(expMonthFilter));
+      const monthItems = yearItems.filter(e=> e.date && e.date.startsWith(expMonthFilter));
       const monthTotal = monthItems.reduce((sum,e)=> sum + expenseAmount(e), 0);
       const [my, mm] = expMonthFilter.split('-');
 
@@ -2161,8 +2226,9 @@ function renderExpenseTab(){
 
   if(expViewMode==='all'){
     if(expMonthFilter==='__all__'){
+      const yearItemsForGrid = expAllViewYear==='__all__' ? items : items.filter(e=> e.date && e.date.startsWith(expAllViewYear));
       html += `<div class="exp-grid">`;
-      items.forEach(item=>{ html += renderExpenseCard(item); });
+      yearItemsForGrid.forEach(item=>{ html += renderExpenseCard(item); });
       html += `</div>`;
     }
   } else if(expViewMode==='category'){
@@ -2351,6 +2417,13 @@ function bindExpenseActions(){
       render();
     });
   });
+  document.querySelectorAll('.chip-filter-btn[data-allyear]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      expAllViewYear = btn.dataset.allyear;
+      expMonthFilter = '__all__';
+      render();
+    });
+  });
   document.querySelectorAll('.chip-filter-btn[data-month]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       expMonthFilter = btn.dataset.month;
@@ -2448,6 +2521,48 @@ function renderExpenseCard(item){
 }
 
 let expTags = [];
+let schChecklist = [];
+const SCH_CHECKLIST_TEMPLATE = ['購買門票','安排交通','預訂住宿','準備應援物','確認集合時間/地點','列印票券或證件'];
+function renderSchChecklist(){
+  const box = document.getElementById('schChecklistBox');
+  if(!box) return;
+  box.innerHTML = schChecklist.map((it,i)=>`
+    <div class="checklist-item" data-idx="${i}">
+      <input type="checkbox" class="checklist-check" data-idx="${i}" ${it.done?'checked':''}>
+      <span class="checklist-text ${it.done?'done':''}">${esc(it.text)}</span>
+      <span class="checklist-x" data-idx="${i}">×</span>
+    </div>`).join('') +
+    `<input type="text" id="schChecklistInput" placeholder="輸入待辦事項後按 Enter 新增">`;
+  box.querySelectorAll('.checklist-check').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      schChecklist[+cb.dataset.idx].done = cb.checked;
+      renderSchChecklist();
+    });
+  });
+  box.querySelectorAll('.checklist-x').forEach(x=>{
+    x.addEventListener('click', ()=>{
+      schChecklist.splice(+x.dataset.idx, 1);
+      renderSchChecklist();
+    });
+  });
+  bindSchChecklistInput();
+}
+function bindSchChecklistInput(){
+  const input = document.getElementById('schChecklistInput');
+  if(!input) return;
+  input.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){
+      e.preventDefault();
+      const val = input.value.trim();
+      if(val){
+        schChecklist.push({text:val, done:false});
+        renderSchChecklist();
+        const newInput = document.getElementById('schChecklistInput');
+        if(newInput) newInput.focus();
+      }
+    }
+  });
+}
 let expImgUrls = [];
 
 function openExpenseForm(id, prefill){
@@ -2860,6 +2975,10 @@ function renderScheduleListBody(filteredSchedule){
       ? `${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}`
       : fmtDate(s.date);
     const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories])}">${esc(s.category)}</span>` : '';
+    const checklist = Array.isArray(s.checklist) ? s.checklist : [];
+    const doneCount = checklist.filter(it=>it.done).length;
+    const checklistHtml = checklist.length>0 ? `
+      <div class="card-meta" style="margin-top:6px;">✅ 待辦 ${doneCount}/${checklist.length} 完成</div>` : '';
     return `
     <div class="card">
       <div class="card-row">
@@ -2868,6 +2987,7 @@ function renderScheduleListBody(filteredSchedule){
           <div class="card-meta">${[s.artist, s.location].filter(Boolean).join(' · ')}</div>
           <div style="margin-top:6px;">${catBadge} <span class="tag">🗓️ ${dateLabel}</span></div>
           ${s.note ? `<div class="card-meta" style="margin-top:6px;">${esc(s.note)}</div>` : ''}
+          ${checklistHtml}
         </div>
         <div class="card-actions">
           <button class="icon-btn edit" data-tab="schedule" data-id="${s.id}">✎</button>
@@ -3070,6 +3190,14 @@ function renderPhotocards(){
     if(drillSpent>0){
       html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
     }
+    const relatedMerch = state.merch.filter(mc=> mcGroupKey(mc)===pcDrill);
+    if(relatedMerch.length>0){
+      html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🛍️ 相關周邊（${relatedMerch.length}）</div>`;
+      html += `<div class="pc-grid">`;
+      relatedMerch.forEach(mc=>{ html += renderMerchCard(mc); });
+      html += `</div>`;
+      html += `<div class="card-title" style="margin:18px 2px 8px;font-size:14px;">🎴 這個系列的小卡</div>`;
+    }
     html += `<div class="pc-grid">`;
     items.forEach(pc=>{ html += renderPhotocardCard(pc); });
     html += `</div>`;
@@ -3246,6 +3374,14 @@ function renderMerchTab(){
     if(drillSpent>0){
       html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
     }
+    const relatedPc = state.photocards.filter(pc=> pcGroupKey(pc)===mcDrill);
+    if(relatedPc.length>0){
+      html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🎴 相關小卡（${relatedPc.length}）</div>`;
+      html += `<div class="pc-grid">`;
+      relatedPc.forEach(pc=>{ html += renderPhotocardCard(pc); });
+      html += `</div>`;
+      html += `<div class="card-title" style="margin:18px 2px 8px;font-size:14px;">🛍️ 這個系列的周邊</div>`;
+    }
     html += `<div class="pc-grid">`;
     items.forEach(mc=>{ html += renderMerchCard(mc); });
     html += `</div>`;
@@ -3346,6 +3482,78 @@ function bindArtistCardActions(){
       openArtistDetail(card.dataset.id);
     });
   });
+}
+
+/* ================= 站內全域搜尋 ================= */
+const GLOBAL_SEARCH_CONFIG = [
+  { tab:'schedule', icon:'📅', label:'行程', fields:['title','artist','location','note','category'], titleField:'title', openFn:(id)=>{ state.tab='schedule'; render(); openScheduleForm(id); } },
+  { tab:'expense', icon:'💰', label:'記帳', fields:['name','note','platform','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='expense'; render(); openExpenseForm(id); } },
+  { tab:'photocards', icon:'🎴', label:'小卡', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='photocards'; render(); openPhotocardForm(id); } },
+  { tab:'merch', icon:'🛍️', label:'周邊', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='merch'; render(); openMerchForm(id); } },
+  { tab:'support', icon:'📣', label:'應援', fields:['title','artist','activity','location','content'], titleField:'title', openFn:(id)=>{ state.tab='support'; render(); openSupportForm(id); } },
+  { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','note','category'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
+  { tab:'artists', icon:'✨', label:'藝人', fields:['name','group','bio'], titleField:'name', openFn:(id)=>{ openArtistDetail(id); } },
+  { tab:'endorsement', icon:'🤝', label:'代言', fields:['title','artist','category'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='endorsement'; render(); openEndorsementForm(id); } },
+  { tab:'magazine', icon:'📔', label:'雜誌', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='magazine'; render(); openMagazineForm(id); } },
+  { tab:'movie', icon:'🎬', label:'影視', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='movie'; render(); openMovieForm(id); } }
+];
+function globalSearch(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const results = [];
+  GLOBAL_SEARCH_CONFIG.forEach(cfg=>{
+    const items = state[cfg.tab] || [];
+    items.forEach(item=>{
+      const hay = cfg.fields.map(f=>item[f]).filter(Boolean).join(' ').toLowerCase();
+      if(hay.includes(q)) results.push({ cfg, item });
+    });
+  });
+  return results;
+}
+function openGlobalSearch(){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:14px;">🔍 搜尋全站</h3>
+    <div class="field">
+      <input type="text" id="globalSearchInput" placeholder="搜尋行程、記帳、小卡、周邊、應援、紀錄、藝人、媒體..." style="width:100%;box-sizing:border-box;">
+    </div>
+    <div id="globalSearchResults" style="margin-top:14px;max-height:60vh;overflow-y:auto;"></div>
+  `;
+  const input = document.getElementById('globalSearchInput');
+  const resultsBox = document.getElementById('globalSearchResults');
+  const renderResults = (q)=>{
+    if(!q.trim()){
+      resultsBox.innerHTML = `<div style="text-align:center;color:var(--ink-faint);padding:24px 0;font-size:13px;">輸入關鍵字開始搜尋</div>`;
+      return;
+    }
+    const results = globalSearch(q).slice(0,40);
+    if(results.length===0){
+      resultsBox.innerHTML = `<div style="text-align:center;color:var(--ink-faint);padding:24px 0;font-size:13px;">找不到符合「${esc(q)}」的結果</div>`;
+      return;
+    }
+    resultsBox.innerHTML = results.map(({cfg,item})=>{
+      const title = item[cfg.titleField] || '未命名';
+      const subParts = [item.artist, item.date?fmtDate(item.date):'', item.category].filter(Boolean);
+      return `
+      <button class="global-search-result" data-tab="${cfg.tab}" data-id="${item.id}">
+        <span class="gsr-icon">${cfg.icon}</span>
+        <span class="gsr-body">
+          <span class="gsr-title">${esc(title)}</span>
+          <span class="gsr-meta">${cfg.label}${subParts.length?' · '+esc(subParts.join(' · ')):''}</span>
+        </span>
+      </button>`;
+    }).join('');
+    resultsBox.querySelectorAll('.global-search-result').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const cfg = GLOBAL_SEARCH_CONFIG.find(c=>c.tab===btn.dataset.tab);
+        if(cfg) cfg.openFn(btn.dataset.id);
+      });
+    });
+  };
+  renderResults('');
+  input.addEventListener('input', ()=> renderResults(input.value));
+  showModal();
+  setTimeout(()=> input.focus(), 60);
 }
 
 function openArtistDetail(id){
@@ -4359,17 +4567,29 @@ function bindListActions(tab){
   document.querySelectorAll('.icon-btn.del').forEach(b=>{
     b.addEventListener('click', ()=> confirmDelete(b.dataset.tab, b.dataset.id));
   });
-  if(tab==='photocards'){
-    document.querySelectorAll('.pc-owned-input').forEach(inp=>{
-      inp.addEventListener('change', async ()=>{
-        const item = state.photocards.find(p=>String(p.id)===String(inp.dataset.id));
-        if(item){
-          item.owned = inp.checked;
-          await saveKey('oshi-photocards', state.photocards);
-          showToast(item.owned ? '已標記為擁有' : '已取消擁有標記');
-        }
-      });
+  /* 這兩個「已擁有」勾選框拉到條件外綁定：小卡/周邊圖鑑互相連動顯示時，
+     不管目前在哪個分頁，卡片上的勾選框都要能正常運作 */
+  document.querySelectorAll('.pc-owned-input').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const item = state.photocards.find(p=>String(p.id)===String(inp.dataset.id));
+      if(item){
+        item.owned = inp.checked;
+        await saveKey('oshi-photocards', state.photocards);
+        showToast(item.owned ? '已標記為擁有' : '已取消擁有標記');
+      }
     });
+  });
+  document.querySelectorAll('.mc-owned-input').forEach(inp=>{
+    inp.addEventListener('change', async ()=>{
+      const item = state.merch.find(p=>String(p.id)===String(inp.dataset.id));
+      if(item){
+        item.owned = inp.checked;
+        await saveKey('oshi-merch', state.merch);
+        showToast(item.owned ? '已標記為擁有' : '已取消擁有標記');
+      }
+    });
+  });
+  if(tab==='photocards'){
     document.querySelectorAll('.pc-wish-btn').forEach(b=>{
       b.addEventListener('click', async (e)=>{
         e.stopPropagation();
@@ -4423,16 +4643,6 @@ function bindListActions(tab){
     }
   }
   if(tab==='merch'){
-    document.querySelectorAll('.mc-owned-input').forEach(inp=>{
-      inp.addEventListener('change', async ()=>{
-        const item = state.merch.find(p=>String(p.id)===String(inp.dataset.id));
-        if(item){
-          item.owned = inp.checked;
-          await saveKey('oshi-merch', state.merch);
-          showToast(item.owned ? '已標記為擁有' : '已取消擁有標記');
-        }
-      });
-    });
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
         mcArtistFilter = b.dataset.filter;
@@ -5035,6 +5245,7 @@ async function saveFanlogForm(existing){
 /* ================= Schedule form ================= */
 function openScheduleForm(id, prefill){
   const existing = id ? state.schedule.find(s=>String(s.id)===String(id)) : null;
+  schChecklist = existing && Array.isArray(existing.checklist) ? existing.checklist.map(it=>({...it})) : [];
 
   const artistOptions = scheduleArtistOptions();
   const curArtist = existing ? (existing.artist||'') : '';
@@ -5087,6 +5298,11 @@ function openScheduleForm(id, prefill){
     <div class="field"><label>地點</label><input type="text" id="schLocation" value="${existing?esc(existing.location||''):''}" placeholder="例：台北小巨蛋"></div>
     <div class="field"><label>類型</label>${categoryFieldHtml}</div>
     <div class="field"><label>開賣日期（選填）</label><input type="date" id="schOnSaleDate" value="${existing?esc(existing.onSaleDate||''):''}"><div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">門票／預售開賣日期，設定後會出現在首頁倒數計時</div></div>
+    <div class="field">
+      <label>待辦清單（選填）</label>
+      <div class="checklist-box" id="schChecklistBox"></div>
+      <button type="button" class="btn ghost" id="schChecklistTemplateBtn" style="width:100%;margin-top:8px;padding:9px;font-size:12.5px;">✨ 套用演唱會/見面會常見待辦</button>
+    </div>
     <div class="field"><label>備註</label><textarea id="schNote" placeholder="集合時間、票券資訊...">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -5111,6 +5327,14 @@ function openScheduleForm(id, prefill){
   const newCategoryInput = document.getElementById('schNewCategory');
   categorySelect.addEventListener('change', ()=>{
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
+  renderSchChecklist();
+  document.getElementById('schChecklistTemplateBtn').addEventListener('click', ()=>{
+    SCH_CHECKLIST_TEMPLATE.forEach(text=>{
+      if(!schChecklist.some(it=>it.text===text)) schChecklist.push({text, done:false});
+    });
+    renderSchChecklist();
   });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
@@ -5155,6 +5379,7 @@ async function saveScheduleForm(existing){
     location: document.getElementById('schLocation').value.trim(),
     category,
     onSaleDate: document.getElementById('schOnSaleDate').value.trim(),
+    checklist: schChecklist,
     note: document.getElementById('schNote').value.trim()
   };
 
