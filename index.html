@@ -2754,7 +2754,7 @@ function pcOrderedKeys(groups){
   return ordered;
 }
 
-function renderPhotocardCard(pc){
+function renderPhotocardCard(pc, seriesLabel){
   const catClass = tagColorClass(pc.category, [...FIXED_PC_CATEGORIES, ...state.customPcCategories]);
   const owned = !!pc.owned;
   return `
@@ -2763,6 +2763,7 @@ function renderPhotocardCard(pc){
       ? `<img class="pc-img" src="${esc(pc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
       : `<div class="pc-img ph">🎴</div>`}
     <div class="pc-body">
+      ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
       <div class="pc-name">${esc(pc.name)}</div>
       <label class="pc-owned">
         <input type="checkbox" class="pc-owned-input" data-id="${pc.id}" ${owned?'checked':''}>
@@ -2841,6 +2842,18 @@ function renderPhotocards(){
 
   if(Object.keys(displayGroups).length===0){
     html += `<div class="empty"><div class="big">🌟</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
+    return html;
+  }
+
+  // 選了「已擁有」或「願望清單」時，直接列出符合條件的小卡本身，不再顯示圖鑑列表
+  if(pcOwnedFilter !== '__all__'){
+    const orderedFlat = pcOrderedKeys(displayGroups);
+    html += `<div class="pc-grid">`;
+    orderedFlat.forEach(key=>{
+      const showLabel = orderedFlat.length>1;
+      displayGroups[key].forEach(pc=>{ html += renderPhotocardCard(pc, showLabel ? key : null); });
+    });
+    html += `</div>`;
     return html;
   }
 
