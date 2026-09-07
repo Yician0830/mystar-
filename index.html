@@ -1348,6 +1348,7 @@ async function loadAllData(){
 
 async function init(){
   restoreCurrentTab();
+  restoreUiFilters();
   if(useCloud && auth){
     auth.onAuthStateChanged(async (user)=>{
       currentUser = user;
@@ -1457,9 +1458,41 @@ function restoreCurrentTab(){
   }catch(e){}
 }
 
+/* 記住各頁面目前選的篩選條件（藝人／已擁有等），重新整理後不用重新點一次 */
+function persistUiFilters(){
+  try{
+    const filters = {
+      scheduleArtistFilter, expArtistFilter,
+      pcArtistFilter, pcOwnedFilter, pcDrill,
+      supportArtistFilter, fanlogArtistFilter,
+      mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter
+    };
+    window.localStorage.setItem(LOCAL_PREFIX+'ui-filters', JSON.stringify(filters));
+  }catch(e){}
+}
+function restoreUiFilters(){
+  try{
+    const raw = window.localStorage.getItem(LOCAL_PREFIX+'ui-filters');
+    if(!raw) return;
+    const f = JSON.parse(raw);
+    if(typeof f.scheduleArtistFilter==='string') scheduleArtistFilter = f.scheduleArtistFilter;
+    if(typeof f.expArtistFilter==='string') expArtistFilter = f.expArtistFilter;
+    if(typeof f.pcArtistFilter==='string') pcArtistFilter = f.pcArtistFilter;
+    if(typeof f.pcOwnedFilter==='string') pcOwnedFilter = f.pcOwnedFilter;
+    if(typeof f.pcDrill==='string' || f.pcDrill===null) pcDrill = f.pcDrill;
+    if(typeof f.supportArtistFilter==='string') supportArtistFilter = f.supportArtistFilter;
+    if(typeof f.fanlogArtistFilter==='string') fanlogArtistFilter = f.fanlogArtistFilter;
+    if(typeof f.mediaSubTab==='string') mediaSubTab = f.mediaSubTab;
+    if(typeof f.endorsementArtistFilter==='string') endorsementArtistFilter = f.endorsementArtistFilter;
+    if(typeof f.magazineArtistFilter==='string') magazineArtistFilter = f.magazineArtistFilter;
+    if(typeof f.movieArtistFilter==='string') movieArtistFilter = f.movieArtistFilter;
+  }catch(e){}
+}
+
 /* ================= Render dispatcher ================= */
 function render(){
   persistCurrentTab();
+  persistUiFilters();
   updateNavActive();
   const main = document.getElementById('mainContent');
   if(state.tab==='home'){ main.innerHTML = renderHome(); bindHomeLinks(); return; }
