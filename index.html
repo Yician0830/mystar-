@@ -241,6 +241,21 @@
   }
   .empty .big{ font-size:34px; margin-bottom:8px;}
   .empty .msg{ font-size:13.5px; }
+  .empty .stamp-big{
+    width:72px; height:72px;
+    margin:0 auto 16px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Zen Maru Gothic'; font-weight:700; font-size:26px;
+    color:var(--rose-deep);
+    border:2px solid currentColor;
+    outline:1.5px solid currentColor;
+    outline-offset:5px;
+    opacity:0.45;
+    transform:rotate(-6deg);
+    mix-blend-mode:multiply;
+  }
+  [data-theme="dark"] .empty .stamp-big{ mix-blend-mode:normal; opacity:0.65; }
 
   /* Home dashboard */
   .home-dashboard{ display:block; }
@@ -1002,11 +1017,11 @@
   <nav class="bottom" id="bottomNav">
     <button class="nav-btn" data-tab="home"><div class="stamp maru">首</div><div class="lbl">首頁</div></button>
     <button class="nav-btn" data-tab="schedule"><div class="stamp maru">程</div><div class="lbl">行程</div></button>
-    <button class="nav-btn" data-tab="expense"><div class="stamp maru">帳</div><div class="lbl">記帳</div></button>
-    <button class="nav-btn" data-tab="photocards"><div class="stamp maru">卡</div><div class="lbl">小卡</div></button>
-    <button class="nav-btn" data-tab="support"><div class="stamp maru">援</div><div class="lbl">應援</div></button>
-    <button class="nav-btn nav-more-only" data-tab="merch"><div class="stamp maru">周</div><div class="lbl">周邊</div></button>
     <button class="nav-btn nav-more-only" data-tab="fanlog"><div class="stamp maru">記</div><div class="lbl">紀錄</div></button>
+    <button class="nav-btn" data-tab="expense"><div class="stamp maru">帳</div><div class="lbl">記帳</div></button>
+    <button class="nav-btn" data-tab="support"><div class="stamp maru">援</div><div class="lbl">應援</div></button>
+    <button class="nav-btn" data-tab="photocards"><div class="stamp maru">卡</div><div class="lbl">小卡</div></button>
+    <button class="nav-btn nav-more-only" data-tab="merch"><div class="stamp maru">周</div><div class="lbl">周邊</div></button>
     <button class="nav-btn nav-more-only" data-tab="media"><div class="stamp maru">媒</div><div class="lbl">媒體</div></button>
     <button class="nav-btn nav-more-btn" data-tab="__more__"><div class="stamp maru">多</div><div class="lbl">更多</div></button>
   </nav>
@@ -1632,8 +1647,8 @@ function bindNav(){
 
 /* 導覽列收在「更多」裡的分頁：點開一個小選單，選了就切換過去 */
 const NAV_MORE_TABS = [
-  {tab:'merch', stamp:'周', label:'周邊圖鑑'},
   {tab:'fanlog', stamp:'記', label:'追星紀錄'},
+  {tab:'merch', stamp:'周', label:'周邊圖鑑'},
   {tab:'media', stamp:'媒', label:'媒體'}
 ];
 function openMoreMenu(){
@@ -2180,7 +2195,7 @@ function renderGenericList(tab){
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
 
   if(items.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
@@ -2249,7 +2264,7 @@ function renderExpenseTab(){
 
   const allItems = [...state.expense].sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   if(allItems.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」記一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」記一筆吧</div></div>`;
     return html;
   }
 
@@ -2300,7 +2315,7 @@ function renderExpenseTab(){
 
   if(items.length===0){
     html += expSearchBoxHtml;
-    html += `<div class="empty"><div class="big">🔍</div><div class="msg">找不到符合條件的花費紀錄</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">查</div><div class="msg">找不到符合條件的花費紀錄</div></div>`;
     return html;
   }
 
@@ -2348,7 +2363,7 @@ function renderExpenseTab(){
       <div class="exp-grid">
       `;
       if(monthItems.length===0){
-        html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這個月還沒有花費紀錄</div></div>`;
+        html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">這個月還沒有花費紀錄</div></div>`;
       } else {
         monthItems.forEach(item=>{ html += renderExpenseCard(item); });
       }
@@ -2436,7 +2451,7 @@ function renderExpenseTab(){
     <div class="exp-grid">
     `;
     if(catItems.length===0){
-      html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這個年度還沒有這個分類的花費紀錄</div></div>`;
+      html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">這個年度還沒有這個分類的花費紀錄</div></div>`;
     } else {
       catItems.forEach(item=>{ html += renderExpenseCard(item); });
     }
@@ -2484,7 +2499,7 @@ function renderExpenseTab(){
 }
 
 function renderExpenseStats(items, statsYear){
-  if(items.length===0) return `<div class="empty"><div class="big">📊</div><div class="msg">${statsYear?statsYear+' 年還':''}沒有資料可供統計</div></div>`;
+  if(items.length===0) return `<div class="empty"><div class="stamp-big maru">計</div><div class="msg">${statsYear?statsYear+' 年還':''}沒有資料可供統計</div></div>`;
 
   // 各分類佔比
   const catTotals = {};
@@ -3124,7 +3139,7 @@ function renderScheduleListBody(filteredSchedule){
   const past = dated.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
   if(upcoming.length===0 && past.length===0){
-    return `<div class="empty"><div class="big">📅</div><div class="msg">還沒有安排任何行程<br>點右下角的「＋」新增一筆吧</div></div>`;
+    return `<div class="empty"><div class="stamp-big maru">程</div><div class="msg">還沒有安排任何行程<br>點右下角的「＋」新增一筆吧</div></div>`;
   }
 
   const renderRow = (s)=>{
@@ -3290,7 +3305,7 @@ function renderPhotocards(){
   const meta = TAB_META.photocards;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   if(state.photocards.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一張吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一張吧</div></div>`;
     return html;
   }
 
@@ -3375,7 +3390,7 @@ function renderPhotocards(){
   }
 
   if(Object.keys(displayGroups).length===0){
-    html += `<div class="empty"><div class="big">🌟</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">卡</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
     return html;
   }
 
@@ -3492,7 +3507,7 @@ function renderMerchTab(){
   const meta = TAB_META.merch;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   if(state.merch.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一件吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一件吧</div></div>`;
     return html;
   }
 
@@ -3559,7 +3574,7 @@ function renderMerchTab(){
   }
 
   if(Object.keys(displayGroups).length===0){
-    html += `<div class="empty"><div class="big">🌟</div><div class="msg">目前沒有符合條件的品項</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">周</div><div class="msg">目前沒有符合條件的品項</div></div>`;
     return html;
   }
 
@@ -3609,7 +3624,7 @@ function renderArtists(){
   const meta = TAB_META.artists;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   if(state.artists.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增藝人吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增藝人吧</div></div>`;
     return html;
   }
   html += `<div class="list-grid">`;
@@ -3811,7 +3826,7 @@ function renderSupportTab(){
   const meta = TAB_META.support;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   if(state.support.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」放上你的應援吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」放上你的應援吧</div></div>`;
     return html;
   }
 
@@ -4225,7 +4240,7 @@ function renderEndorsementBody(){
   const meta = TAB_META.endorsement;
   let html = '';
   if(state.endorsement.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
@@ -4244,7 +4259,7 @@ function renderEndorsementBody(){
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的代言紀錄':'這位藝人還沒有代言合作紀錄'}</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${mediaSearchQuery.trim()?'查':meta.stamp}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的代言紀錄':'這位藝人還沒有代言合作紀錄'}</div></div>`;
     return html;
   }
 
@@ -4399,7 +4414,7 @@ function renderMagazineBody(){
   const meta = TAB_META.magazine;
   let html = '';
   if(state.magazine.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
@@ -4418,7 +4433,7 @@ function renderMagazineBody(){
     .sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的雜誌紀錄':'這位藝人還沒有雜誌紀錄'}</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${mediaSearchQuery.trim()?'查':meta.stamp}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的雜誌紀錄':'這位藝人還沒有雜誌紀錄'}</div></div>`;
     return html;
   }
 
@@ -4556,7 +4571,7 @@ function renderMovieBody(){
   const meta = TAB_META.movie;
   let html = '';
   if(state.movie.length===0){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
@@ -4575,7 +4590,7 @@ function renderMovieBody(){
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
   if(filtered.length===0){
-    html += `<div class="empty"><div class="big">${mediaSearchQuery.trim()?'🔍':meta.emptyIcon}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的影視紀錄':'這位藝人還沒有影視作品紀錄'}</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${mediaSearchQuery.trim()?'查':meta.stamp}</div><div class="msg">${mediaSearchQuery.trim()?'找不到符合條件的影視紀錄':'這位藝人還沒有影視作品紀錄'}</div></div>`;
     return html;
   }
 
@@ -5594,7 +5609,7 @@ function renderFanlogTab(){
   const dated = state.fanlog.filter(f=>f.date);
 
   if(dated.length===0 && !fanlogYearFilter){
-    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
@@ -5675,7 +5690,7 @@ function renderFanlogTab(){
   }
 
   if(filtered.length===0){
-    listHtml += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">這段時間還沒有紀錄<br>點右下角的「＋」新增一筆吧</div></div>`;
+    listHtml += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">這段時間還沒有紀錄<br>點右下角的「＋」新增一筆吧</div></div>`;
   } else {
     listHtml += `<div class="list-grid">`;
     filtered.forEach(item=>{ listHtml += renderCard('fanlog', item); });
