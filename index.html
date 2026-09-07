@@ -1176,6 +1176,18 @@ function expenseAmount(item){
   const shipping = parseFloat(item.shipping)||0;
   return unit*qty + shipping;
 }
+/* 找出所有連結到某筆應援的記帳紀錄：一筆應援可以連到多筆記帳（新版 supportLinkedId），
+   也相容舊版由應援表單自動建立、只記在 support.expenseLinkedId 的單筆連結 */
+function linkedExpensesForSupport(s){
+  return state.expense.filter(e=>
+    e.supportLinkedId===s.id || (s.expenseLinkedId && String(e.id)===String(s.expenseLinkedId))
+  );
+}
+function supportSpentAmount(s){
+  const linked = linkedExpensesForSupport(s);
+  if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
+  return s.isPaid ? (parseFloat(s.paidAmount)||0) : 0;
+}
 const TAG_CLASSES = ['', 'matcha', 'wisteria', 'gold', 'rose', 'sky', 'peach', 'lavender', 'mint', 'coral', 'amber', 'slate'];
 function tagColorClass(text, categoryList){
   if(!text) return '';
@@ -2150,6 +2162,10 @@ function renderExpenseCard(item){
   const tags = (item.tags||[]);
   const footnoteParts = [];
   if(item.artist) footnoteParts.push('👤 '+item.artist);
+  if(item.supportLinkedId){
+    const linkedSupport = state.support.find(s=>s.id===item.supportLinkedId);
+    if(linkedSupport) footnoteParts.push('🔗 應援: '+linkedSupport.title);
+  }
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
@@ -2247,6 +2263,13 @@ function openExpenseForm(id, prefill){
       <div id="expRateHint" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
+    <div class="field"><label>連結應援</label>
+      <select id="expSupportLink">
+        <option value="">不連結</option>
+        ${[...state.support].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(s=>`<option value="${s.id}" ${src&&src.supportLinkedId===s.id?'selected':''}>${esc(fmtDate(s.date))} · ${esc(s.title)}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">一場應援可以連結好幾筆記帳（例如車票、周邊分開記），應援牆會自動加總</div>
+    </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
       <input type="text" id="expPlatform" list="expPlatformList" placeholder="例：蝦皮、代購..." value="${src?esc(src.platform||''):''}">
@@ -2437,6 +2460,7 @@ async function saveExpenseForm(existing){
     origAmount: document.getElementById('expOrigAmount').value.trim(),
     category,
     date,
+    supportLinkedId: document.getElementById('expSupportLink') ? document.getElementById('expSupportLink').value : '',
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
@@ -2924,15 +2948,16 @@ function renderSupportTab(){
   const upcoming = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
   const past = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
-  const paidInScope = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && s.isPaid);
-  const totalSpent = paidInScope.reduce((sum,s)=> sum + (parseFloat(s.paidAmount)||0), 0);
-  const linkedCount = paidInScope.filter(s=>s.expenseLinkedId).length;
+  const scopedSupport = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s));
+  const totalSpent = scopedSupport.reduce((sum,s)=> sum + supportSpentAmount(s), 0);
+  const linkedEventCount = scopedSupport.filter(s=> linkedExpensesForSupport(s).length>0).length;
+  const totalLinkedEntries = scopedSupport.reduce((sum,s)=> sum + linkedExpensesForSupport(s).length, 0);
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">💰 應援花費總計</span>
     <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${totalSpent.toLocaleString()}</span>
   </div>
-  ${paidInScope.length>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">共 ${paidInScope.length} 筆付費應援，其中 ${linkedCount} 筆已連動記帳本</div>` : ''}
+  ${totalLinkedEntries>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">共 ${linkedEventCount} 場應援已連動記帳本，合計 ${totalLinkedEntries} 筆花費紀錄</div>` : ''}
   `;
 
   const renderSupportCard = (s, isEnded)=>{
@@ -2941,6 +2966,8 @@ function renderSupportTab(){
       : fmtDate(s.date);
     const imgs = (s.imageUrls && s.imageUrls.length) ? s.imageUrls : (s.imageUrl ? [s.imageUrl] : []);
     const cover = imgs[0];
+    const linked = linkedExpensesForSupport(s);
+    const spentAmt = supportSpentAmount(s);
     return `
     <div class="card support-card">
       <div style="position:relative;">
@@ -2955,8 +2982,8 @@ function renderSupportTab(){
         <div>
           ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
           ${isEnded ? `<span class="tag wisteria">已結束活動</span>` : ''}
-          ${s.isPaid ? `<span class="tag gold">💰 付費應援${s.paidAmount?('　NT$'+Number(s.paidAmount).toLocaleString()):''}</span>` : ''}
-          ${s.expenseLinkedId ? `<span class="tag matcha">🔗 已連動記帳本</span>` : ''}
+          ${(s.isPaid || spentAmt>0) ? `<span class="tag gold">💰 付費應援${spentAmt?('　NT$'+spentAmt.toLocaleString()):''}</span>` : ''}
+          ${linked.length>0 ? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>` : ''}
         </div>
         ${s.condition ? `<div class="card-meta" style="margin-top:6px;">🎟️ 領取條件：${esc(s.condition)}</div>` : ''}
         ${s.content ? `<div class="card-meta" style="margin-top:4px;">${esc(s.content)}</div>` : ''}
@@ -3216,6 +3243,7 @@ async function saveSupportForm(existing){
       linkedExpense.artist = artist;
       linkedExpense.unitPrice = amt;
       linkedExpense.date = date;
+      linkedExpense.supportLinkedId = targetSupport.id;
     } else {
       const newExpense = {
         id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000)+'e',
@@ -3229,6 +3257,7 @@ async function saveSupportForm(existing){
         origAmount: '',
         category: '應援物/飯製商品',
         date,
+        supportLinkedId: targetSupport.id,
         platform: '',
         deliveryStatus: '',
         paymentMethod: '',
