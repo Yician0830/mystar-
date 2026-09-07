@@ -389,6 +389,17 @@
   .cal-filter-row::-webkit-scrollbar-track{ background:transparent; }
   .cal-filter-row::-webkit-scrollbar-thumb{ background:var(--sakura-pale); border-radius:999px; }
   .cal-filter-row::-webkit-scrollbar-thumb:hover{ background:var(--rose); }
+  /* 年度回顧：固定 4 欄換行，不橫向捲動 */
+  .year-review-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 2px 16px;
+  }
+  .year-review-grid .year-filter-btn{ width:100%; box-sizing:border-box; text-align:center; padding:7px 4px; }
+  .year-review-more-btn{
+    width:100%; box-sizing:border-box; padding:7px 6px; border-radius:999px;
+    border:1px dashed var(--sakura-pale); background:transparent; color:var(--ink-soft);
+    font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:500;
+  }
+  .year-review-more-btn:hover{ background:var(--sakura-pale); color:var(--rose-deep); }
   .month-trend-scroll{ scrollbar-width:thin; scrollbar-color:var(--sakura-pale) transparent; }
   .month-trend-scroll::-webkit-scrollbar{ height:5px; }
   .month-trend-scroll::-webkit-scrollbar-track{ background:transparent; }
@@ -3136,6 +3147,10 @@ let pcArtistFilter = '__all__';
 let pcOwnedFilter = '__all__';
 let pcCategoryFilter = '__all__';
 
+function normalizeSeriesKey(k){
+  return (k||'').trim().toLowerCase().replace(/\s+/g,'');
+}
+
 function pcGroupKey(pc){
   return (pc.series && pc.series.trim()) || (pc.artist && pc.artist.trim()) || '未分類';
 }
@@ -3244,6 +3259,15 @@ function renderPhotocards(){
   const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
   const filteredSeriesKeys = [...new Set(filteredItems.map(p=>pcGroupKey(p)))];
   const totalPcSpent = filteredSeriesKeys.reduce((sum,key)=> sum + pcSeriesSpentAmount(key), 0);
+
+  // 每個系列的完整張數（只套用藝人篩選，不受卡別/已擁有篩選影響），讓 flat 清單裡的小計能顯示「該系列共幾張」
+  const seriesFullTotals = {};
+  state.photocards
+    .filter(pc=> pcArtistFilter==='__all__' || pc.artist===pcArtistFilter)
+    .forEach(pc=>{
+      const key = pcGroupKey(pc);
+      seriesFullTotals[key] = (seriesFullTotals[key]||0) + 1;
+    });
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">🎴 收藏進度</span>
@@ -3274,7 +3298,7 @@ function renderPhotocards(){
     if(drillSpent>0){
       html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
     }
-    const relatedMerch = state.merch.filter(mc=> mcGroupKey(mc)===pcDrill);
+    const relatedMerch = state.merch.filter(mc=> normalizeSeriesKey(mcGroupKey(mc))===normalizeSeriesKey(pcDrill));
     if(relatedMerch.length>0){
       html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🛍️ 相關周邊（${relatedMerch.length}）</div>`;
       html += `<div class="pc-grid">`;
@@ -3293,11 +3317,11 @@ function renderPhotocards(){
     return html;
   }
 
-  // 選了「已擁有」或「願望清單」時，直接列出符合條件的小卡本身，並在每個圖鑑前顯示小計
-  if(pcOwnedFilter !== '__all__'){
+  // 選了「已擁有」「願望清單」或指定卡別時，直接列出符合條件的小卡本身，並在每個圖鑑前顯示小計
+  if(pcOwnedFilter !== '__all__' || pcCategoryFilter !== '__all__'){
     const orderedFlat = pcOrderedKeys(displayGroups);
     orderedFlat.forEach((key, idx)=>{
-      const total = (groups[key]||[]).length;
+      const total = seriesFullTotals[key] || (groups[key]||[]).length;
       const count = displayGroups[key].length;
       html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} 張)</span></div>`;
       html += `<div class="pc-grid">`;
@@ -3458,7 +3482,7 @@ function renderMerchTab(){
     if(drillSpent>0){
       html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
     }
-    const relatedPc = state.photocards.filter(pc=> pcGroupKey(pc)===mcDrill);
+    const relatedPc = state.photocards.filter(pc=> normalizeSeriesKey(pcGroupKey(pc))===normalizeSeriesKey(mcDrill));
     if(relatedPc.length>0){
       html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🎴 相關小卡（${relatedPc.length}）</div>`;
       html += `<div class="pc-grid">`;
@@ -4957,7 +4981,11 @@ function openPhotocardForm(id){
     </select>
     <input type="text" id="pcNewCategory" placeholder="輸入新的小卡類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
-  const seriesOptions = [...new Set(state.photocards.map(p=>p.series).filter(Boolean))];
+  // 系列建議清單同時納入小卡、周邊兩邊已存在的系列名稱，方便輸入完全一致的名字讓兩邊圖鑑互相連動
+  const seriesOptions = [...new Set([
+    ...state.photocards.map(p=>p.series),
+    ...state.merch.map(m=>m.series)
+  ].filter(Boolean))].sort();
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
@@ -4967,6 +4995,7 @@ function openPhotocardForm(id){
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
       <input type="text" id="pcSeries" list="pcSeriesList" placeholder="例：4Reasons、U:NFOLD..." value="${existing?esc(existing.series||''):''}">
       <datalist id="pcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟周邊圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>小卡類別</label>${categoryFieldHtml}</div>
     <div class="field"><label>通路</label>
@@ -5088,7 +5117,11 @@ function openMerchForm(id){
     </select>
     <input type="text" id="mcNewCategory" placeholder="輸入新的周邊類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
-  const seriesOptions = [...new Set(state.merch.map(p=>p.series).filter(Boolean))];
+  // 系列建議清單同時納入小卡、周邊兩邊已存在的系列名稱，方便輸入完全一致的名字讓兩邊圖鑑互相連動
+  const seriesOptions = [...new Set([
+    ...state.merch.map(p=>p.series),
+    ...state.photocards.map(p=>p.series)
+  ].filter(Boolean))].sort();
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
@@ -5098,6 +5131,7 @@ function openMerchForm(id){
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
       <input type="text" id="mcSeries" list="mcSeriesList" placeholder="例：Proof、BE..." value="${existing?esc(existing.series||''):''}">
       <datalist id="mcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟小卡圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
@@ -5483,9 +5517,11 @@ async function saveScheduleForm(existing){
 let fanlogYearFilter = null;
 let fanlogMonthFilter = null;
 let fanlogArtistFilter = '__all__';
+let fanlogYearsExpanded = false;
 
 const FANLOG_YEAR_QUALIFY_COUNT = 8;
 const FANLOG_MONTH_HAPPY_COUNT = 3;
+const FANLOG_YEAR_ROW_MAX = 7;
 
 function renderFanlogTab(){
   const meta = TAB_META.fanlog;
@@ -5506,14 +5542,19 @@ function renderFanlogTab(){
   }
   if(fanlogMonthFilter && !fanlogMonthFilter.startsWith(fanlogYearFilter)) fanlogMonthFilter = null;
 
-  /* ---- 年度回顧 ---- */
-  let yearListHtml = years.map(y=>{
+  /* ---- 年度回顧：最多顯示 7 個年份，超過的用「更多」按鈕展開，固定 4 欄換行不橫向捲動 ---- */
+  const showAllYears = fanlogYearsExpanded || years.length <= FANLOG_YEAR_ROW_MAX;
+  const visibleYears = showAllYears ? years : years.slice(0, FANLOG_YEAR_ROW_MAX);
+  let yearListHtml = visibleYears.map(y=>{
     const count = dated.filter(f=>f.date.slice(0,4)===y).length;
     const isThisYear = y===thisYear;
     const qualify = !isThisYear && count>=FANLOG_YEAR_QUALIFY_COUNT;
     const active = y===fanlogYearFilter ? 'active' : '';
     return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場</button>`;
   }).join('');
+  if(!showAllYears){
+    yearListHtml += `<button class="year-review-more-btn" id="fanlogYearsMoreBtn">更多 +${years.length - FANLOG_YEAR_ROW_MAX}</button>`;
+  }
 
   /* ---- 月份回顧（依所選年度） ---- */
   let monthListHtml = '';
@@ -5532,7 +5573,7 @@ function renderFanlogTab(){
   const reviewHtml = `
     <div class="review-block">
       <div class="review-head maru">📆 年度回顧</div>
-      <div class="cal-filter-row" style="margin:0 2px;">${yearListHtml}</div>
+      <div class="year-review-grid">${yearListHtml}</div>
     </div>
     <div class="review-block">
       <div class="review-head maru">🗓️ 月份回顧</div>
@@ -5613,6 +5654,13 @@ function bindFanlogReviewActions(){
       render();
     });
   });
+  const yearsMoreBtn = document.getElementById('fanlogYearsMoreBtn');
+  if(yearsMoreBtn){
+    yearsMoreBtn.addEventListener('click', ()=>{
+      fanlogYearsExpanded = true;
+      render();
+    });
+  }
 }
 
 /* ================= Common Helper Modals ================= */
