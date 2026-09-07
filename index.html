@@ -2810,6 +2810,7 @@ function renderPhotocards(){
   }
 
   const artistNames = [...new Set(state.photocards.map(p=>p.artist).filter(Boolean))];
+  if(pcArtistFilter!=='__all__' && !artistNames.includes(pcArtistFilter)) pcArtistFilter = '__all__';
   html += `<div class="cal-filter-row">
     <button class="cal-filter-btn ${pcArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
     ${artistNames.map(n=>`<button class="cal-filter-btn ${pcArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
