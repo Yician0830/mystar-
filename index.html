@@ -3942,7 +3942,6 @@ function bindListActions(tab){
     document.querySelectorAll('.pc-owned-filter-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
         pcOwnedFilter = b.dataset.owned;
-        pcDrill = null;
         render();
       });
     });
