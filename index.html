@@ -1998,7 +1998,11 @@ function renderHome(){
   const monthTotal = monthItemsAll.reduce((sum,e)=> sum + homeExpenseAmount(e), 0);
   const monthItemsTop = [...monthItemsAll].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,3);
   const oshi = state.artists.find(a=>artistOshiLevel(a)==='本命') || state.artists[0];
-  const recentLog = [...state.fanlog].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,3);
+  const oneMonthAgoStr = (()=>{ const d=new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,10); })();
+  const recentLog = [...state.fanlog]
+    .filter(f=> f.date && f.date<=today && f.date>=oneMonthAgoStr)
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''))
+    .slice(0,3);
   const upcomingBirthdays = state.artists
     .filter(a=>a.birthday)
     .map(a=> ({ artist:a, info: nextOccurrenceInfo(a.birthday) }))
@@ -2107,7 +2111,7 @@ function renderHome(){
   side += `<div class="home-block">
     <div class="block-head"><h3>📖 最新追星紀錄</h3><a data-goto="fanlog">查看全部</a></div>`;
   if(recentLog.length===0){
-    side += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">還沒有寫下任何紀錄</span></div>`;
+    side += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">最近一個月還沒有寫下任何紀錄</span></div>`;
   } else {
     recentLog.forEach(f=>{ side += renderHomeFanlogThumb(f); });
   }
