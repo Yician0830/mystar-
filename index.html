@@ -33,6 +33,9 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- 追星地圖用的地圖套件（免費，不需要 API 金鑰） -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <!-- 引入 Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
@@ -314,6 +317,18 @@
   }
   .dday-card.onsale .days{ color:var(--matcha); }
   .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
+  /* ===== 追星地圖 ===== */
+  .fanmap-container{ width:100%; height:320px; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow-sm); margin-bottom:16px; background:var(--surface-soft); }
+  .fanmap-picker{ width:100%; height:260px; border-radius:14px; overflow:hidden; margin:6px 0 4px; }
+  .venue-row{
+    display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:var(--surface); border-radius:14px; padding:12px 14px; margin-bottom:8px;
+    box-shadow:var(--shadow-sm);
+  }
+  .venue-row .venue-name{ font-weight:700; font-size:13.5px; }
+  .venue-row .venue-meta{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .venue-row .venue-badge{ font-size:11px; padding:3px 10px; border-radius:999px; background:var(--matcha-pale); color:#3F6B45; white-space:nowrap; }
+  .venue-row .venue-badge.unset{ background:var(--sakura-pale); color:var(--rose-deep); }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -886,8 +901,10 @@
   <nav class="bottom" id="bottomNav">
     <button class="nav-btn" data-tab="home"><div class="stamp maru">首</div><div class="lbl">首頁</div></button>
     <button class="nav-btn" data-tab="schedule"><div class="stamp maru">程</div><div class="lbl">行程</div></button>
+    <button class="nav-btn" data-tab="map"><div class="stamp maru">圖</div><div class="lbl">地圖</div></button>
     <button class="nav-btn" data-tab="expense"><div class="stamp maru">帳</div><div class="lbl">記帳</div></button>
     <button class="nav-btn" data-tab="photocards"><div class="stamp maru">卡</div><div class="lbl">小卡</div></button>
+    <button class="nav-btn" data-tab="merch"><div class="stamp maru">周</div><div class="lbl">周邊</div></button>
     <button class="nav-btn" data-tab="support"><div class="stamp maru">援</div><div class="lbl">應援</div></button>
     <button class="nav-btn" data-tab="fanlog"><div class="stamp maru">記</div><div class="lbl">紀錄</div></button>
     <button class="nav-btn" data-tab="media"><div class="stamp maru">媒</div><div class="lbl">媒體</div></button>
@@ -1092,12 +1109,17 @@ const state = {
   endorsement:[],
   magazine:[],
   movie:[],
+  merch:[],
   profile:{ nickname:'' },
   theme:{ ...DEFAULT_THEME },
   customPcCategories:[],
   customEndorsementCategories:[],
+  customMerchCategories:[],
   pcSeriesCovers:{},
   pcSeriesMeta:{},
+  merchSeriesCovers:{},
+  merchSeriesMeta:{},
+  venueCoords:{},
   customFanlogCategories:[],
   customScheduleCategories:[],
   customExpenseCategories:[]
@@ -1186,6 +1208,16 @@ const SCHEMAS = {
     {key:'articleUrl', label:'觀看/相關連結', type:'url'},
     {key:'imageUrl', label:'海報圖片網址', type:'url'},
     {key:'note', label:'備註', type:'textarea'}
+  ],
+  merch:[
+    {key:'name', label:'名稱', type:'text', required:true, ph:'例：Butter 專輯 / 應援手燈'},
+    {key:'artist', label:'相關藝人', type:'text'},
+    {key:'series', label:'系列/專輯（大圖鑑分組用）', type:'text', ph:'例：Proof、BE...'},
+    {key:'category', label:'分類', type:'select', options:['專輯','應援小物','服飾','包包','文具','生活用品','公仔玩偶','海報','其他周邊']},
+    {key:'channel', label:'購入通路', type:'text', ph:'例：官方商城、演唱會現場、代購...'},
+    {key:'price', label:'價格 (NT$)', type:'number'},
+    {key:'imageUrl', label:'圖片網址', type:'url'},
+    {key:'note', label:'備註', type:'textarea'}
   ]
 };
 
@@ -1200,7 +1232,9 @@ const TAB_META = {
   endorsement:{ label:'代言合作', stamp:'代', empty:'還沒有紀錄任何代言合作', emptyIcon:'🤝' },
   magazine:{ label:'雜誌寫真', stamp:'誌', empty:'還沒有收藏任何雜誌', emptyIcon:'📔' },
   movie:{ label:'影視作品', stamp:'影', empty:'還沒有紀錄任何影視作品', emptyIcon:'🎬' },
-  media:{ label:'媒體', stamp:'媒' }
+  media:{ label:'媒體', stamp:'媒' },
+  merch:{ label:'周邊圖鑑', stamp:'周', empty:'圖鑑裡還沒有周邊/專輯', emptyIcon:'🛍️' },
+  map:{ label:'追星地圖', stamp:'圖' }
 };
 
 let editingId = null; 
@@ -1208,6 +1242,7 @@ const FIXED_PC_CATEGORIES = ['專輯卡','特典卡','打歌卡','抽選卡','�
 const FIXED_FANLOG_CATEGORIES = ['演唱會','見面會','簽唱會','商演','站台','頒獎','夜店','跨年','時裝周','校唱'];
 const FIXED_SCHEDULE_CATEGORIES = ['演唱會','見面會','生放送','應援','簽唱會','簽售會','商演','站台','校唱','夜店'];
 const FIXED_ENDORSEMENT_CATEGORIES = ['代言人','品牌大使','形象代言','合作商品','聯名商品'];
+const FIXED_MERCH_CATEGORIES = ['專輯','應援小物','服飾','包包','文具','生活用品','公仔玩偶','海報','其他周邊'];
 function scheduleArtistOptions(){
   return [...new Set(state.artists.map(a=> (a.group && a.group.trim()) ? a.group.trim() : a.name))].filter(Boolean);
 }
@@ -1340,7 +1375,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, vcoord] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1358,7 +1393,12 @@ async function loadAllData(){
     loadKey('oshi-movie', []),
     loadKey('oshi-endorsement-categories', []),
     loadKey('oshi-expense-categories', []),
-    loadKey('oshi-theme', DEFAULT_THEME)
+    loadKey('oshi-theme', DEFAULT_THEME),
+    loadKey('oshi-merch', []),
+    loadKey('oshi-merch-categories', []),
+    loadKey('oshi-merch-covers', {}),
+    loadKey('oshi-merch-series-meta', {}),
+    loadKey('oshi-venue-coords', {})
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1373,6 +1413,11 @@ async function loadAllData(){
   state.customEndorsementCategories = enc;
   state.customExpenseCategories = exc;
   state.theme = Object.assign({}, DEFAULT_THEME, th||{});
+  state.merch = mc || [];
+  state.customMerchCategories = mcc || [];
+  state.merchSeriesCovers = mccov || {};
+  state.merchSeriesMeta = mcmeta || {};
+  state.venueCoords = vcoord || {};
 }
 
 async function init(){
@@ -1452,6 +1497,7 @@ function bindNav(){
     if(state.tab==='fanlog'){ openFanlogForm(null); return; }
     if(state.tab==='schedule'){ openScheduleForm(null); return; }
     if(state.tab==='support'){ openSupportForm(null); return; }
+    if(state.tab==='merch'){ openMerchForm(null); return; }
     if(state.tab==='media'){
       if(mediaSubTab==='endorsement'){ openEndorsementForm(null); }
       else if(mediaSubTab==='magazine'){ openMagazineForm(null); }
@@ -1473,7 +1519,7 @@ function updateNavActive(){
   document.querySelectorAll('.nav-btn').forEach(b=>{
     b.classList.toggle('active', b.dataset.tab===state.tab);
   });
-  document.getElementById('fabAdd').style.display = state.tab==='home' ? 'none' : 'flex';
+  document.getElementById('fabAdd').style.display = (state.tab==='home' || state.tab==='map') ? 'none' : 'flex';
 }
 
 /* 記住目前所在頁籤，重新整理後停留在同一畫面（只存在本機瀏覽器，不佔用雲端額度） */
@@ -1493,6 +1539,7 @@ function persistUiFilters(){
     const filters = {
       scheduleArtistFilter, expArtistFilter,
       pcArtistFilter, pcOwnedFilter, pcDrill,
+      mcArtistFilter, mcOwnedFilter, mcDrill,
       supportArtistFilter, fanlogArtistFilter,
       mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter
     };
@@ -1509,6 +1556,9 @@ function restoreUiFilters(){
     if(typeof f.pcArtistFilter==='string') pcArtistFilter = f.pcArtistFilter;
     if(typeof f.pcOwnedFilter==='string') pcOwnedFilter = f.pcOwnedFilter;
     if(typeof f.pcDrill==='string' || f.pcDrill===null) pcDrill = f.pcDrill;
+    if(typeof f.mcArtistFilter==='string') mcArtistFilter = f.mcArtistFilter;
+    if(typeof f.mcOwnedFilter==='string') mcOwnedFilter = f.mcOwnedFilter;
+    if(typeof f.mcDrill==='string' || f.mcDrill===null) mcDrill = f.mcDrill;
     if(typeof f.supportArtistFilter==='string') supportArtistFilter = f.supportArtistFilter;
     if(typeof f.fanlogArtistFilter==='string') fanlogArtistFilter = f.fanlogArtistFilter;
     if(typeof f.mediaSubTab==='string') mediaSubTab = f.mediaSubTab;
@@ -1532,6 +1582,8 @@ function render(){
   if(state.tab==='artists'){ main.innerHTML = renderArtists(); bindListActions('artists'); bindArtistCardActions(); return; }
   if(state.tab==='support'){ main.innerHTML = renderSupportTab(); bindListActions('support'); bindSupportFilterActions(); return; }
   if(state.tab==='media'){ main.innerHTML = renderMediaTab(); bindListActions('media'); bindMediaTabActions(); return; }
+  if(state.tab==='merch'){ main.innerHTML = renderMerchTab(); bindListActions('merch'); return; }
+  if(state.tab==='map'){ main.innerHTML = renderMapTab(); bindMapActions(); return; }
   main.innerHTML = renderGenericList(state.tab);
   bindListActions(state.tab);
 }
@@ -1850,7 +1902,7 @@ function renderHome(){
     }
   });
   ddayItems.sort((a,b)=> a.days-b.days);
-  const topDdayItems = ddayItems.slice(0,6);
+  const topDdayItems = ddayItems.slice(0,3);
 
   html += `<div class="home-block">
     <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule">查看全部</a></div>`;
@@ -3026,6 +3078,304 @@ function renderPhotocards(){
   return html;
 }
 
+/* ================= 周邊/專輯圖鑑 (Merch) ================= */
+let mcDrill = null;
+let mcArtistFilter = '__all__';
+let mcOwnedFilter = '__all__';
+
+function mcGroupKey(mc){
+  return (mc.series && mc.series.trim()) || (mc.artist && mc.artist.trim()) || '未分類';
+}
+function mcGroups(){
+  const groups = {};
+  state.merch
+    .filter(mc=> mcArtistFilter==='__all__' || mc.artist===mcArtistFilter)
+    .forEach(mc=>{
+      const key = mcGroupKey(mc);
+      (groups[key] = groups[key] || []).push(mc);
+    });
+  Object.keys(groups).forEach(key=>{
+    groups[key].sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||''));
+  });
+  return groups;
+}
+function mcSeriesCreatedAt(key){
+  return (state.merchSeriesMeta && state.merchSeriesMeta[key] && state.merchSeriesMeta[key].createdAt) || '';
+}
+function mcOrderedKeys(groups){
+  const preferredOrder = [...state.artists.map(a=>a.name)];
+  const allKeys = Object.keys(groups);
+  const seriesKeys = allKeys.filter(k=>!preferredOrder.includes(k) && k!=='未分類');
+  seriesKeys.sort((a,b)=>{
+    const da = mcSeriesCreatedAt(a), db = mcSeriesCreatedAt(b);
+    if(da && db) return db.localeCompare(da);
+    if(da && !db) return -1;
+    if(!da && db) return 1;
+    return a.localeCompare(b);
+  });
+  const ordered = [
+    ...preferredOrder.filter(k=>groups[k]),
+    ...seriesKeys,
+  ];
+  if(groups['未分類']) ordered.push('未分類');
+  return ordered;
+}
+
+function renderMerchCard(mc, seriesLabel){
+  const catClass = tagColorClass(mc.category, [...FIXED_MERCH_CATEGORIES, ...state.customMerchCategories]);
+  const owned = !!mc.owned;
+  return `
+  <div class="pc-card">
+    ${mc.imageUrl
+      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
+      : `<div class="pc-img ph">🛍️</div>`}
+    <div class="pc-body">
+      ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
+      <div class="pc-name">${esc(mc.name)}</div>
+      <label class="pc-owned">
+        <input type="checkbox" class="mc-owned-input" data-id="${mc.id}" ${owned?'checked':''}>
+        已擁有
+      </label>
+      ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : ''}
+      <div class="pc-actions">
+        <button class="icon-btn edit" data-tab="merch" data-id="${mc.id}">✎</button>
+        <button class="icon-btn del" data-tab="merch" data-id="${mc.id}">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderMerchTab(){
+  const meta = TAB_META.merch;
+  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
+  if(state.merch.length===0){
+    html += `<div class="empty"><div class="big">${meta.emptyIcon}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一件吧</div></div>`;
+    return html;
+  }
+
+  const artistNames = [...new Set(state.merch.map(p=>p.artist).filter(Boolean))];
+  if(mcArtistFilter!=='__all__' && !artistNames.includes(mcArtistFilter)) mcArtistFilter = '__all__';
+  html += `<div class="cal-filter-row">
+    <button class="cal-filter-btn ${mcArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+    ${artistNames.map(n=>`<button class="cal-filter-btn ${mcArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+  </div>`;
+  html += `<div class="cal-filter-row" style="margin-top:8px;">
+    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='__all__'?'active':''}" data-owned="__all__">全部</button>
+    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
+    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
+  </div>`;
+
+  const groups = mcGroups();
+  const filteredItems = Object.values(groups).flat();
+  const totalCount = filteredItems.length;
+  const totalOwned = filteredItems.filter(p=>p.owned).length;
+  const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
+  const totalSpentAmt = filteredItems.filter(p=>p.owned).reduce((sum,p)=> sum + (parseFloat(p.price)||0), 0);
+  html += `
+  <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+    <span class="l" style="font-weight:700;">🛍️ 收藏進度</span>
+    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} 件（${totalPct}%）</span>
+  </div>
+  ${totalSpentAmt>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已擁有品項合計 NT$ ${totalSpentAmt.toLocaleString()}</div>` : ''}
+  `;
+
+  let displayGroups = groups;
+  if(mcOwnedFilter!=='__all__'){
+    displayGroups = {};
+    Object.keys(groups).forEach(key=>{
+      const filtered = groups[key].filter(mc=> mcOwnedFilter==='owned' ? mc.owned : !mc.owned);
+      if(filtered.length>0) displayGroups[key] = filtered;
+    });
+  }
+
+  if(mcDrill && !displayGroups[mcDrill]) mcDrill = null;
+
+  if(mcDrill){
+    const items = displayGroups[mcDrill];
+    const drillOwned = items.filter(i=>i.owned).length;
+    html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
+    html += `<div class="card-title" style="margin:0 2px 4px;font-size:16px;">${esc(mcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
+    html += `<div class="pc-grid">`;
+    items.forEach(mc=>{ html += renderMerchCard(mc); });
+    html += `</div>`;
+    return html;
+  }
+
+  if(Object.keys(displayGroups).length===0){
+    html += `<div class="empty"><div class="big">🌟</div><div class="msg">目前沒有符合條件的品項</div></div>`;
+    return html;
+  }
+
+  if(mcOwnedFilter !== '__all__'){
+    const orderedFlat = mcOrderedKeys(displayGroups);
+    orderedFlat.forEach((key, idx)=>{
+      const total = (groups[key]||[]).length;
+      const count = displayGroups[key].length;
+      html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} 件)</span></div>`;
+      html += `<div class="pc-grid">`;
+      displayGroups[key].forEach(mc=>{ html += renderMerchCard(mc); });
+      html += `</div>`;
+    });
+    return html;
+  }
+
+  const ordered = mcOrderedKeys(displayGroups);
+  html += `<div class="pc-series-grid">`;
+  ordered.forEach(key=>{
+    const items = displayGroups[key];
+    const ownedCount = items.filter(i=>i.owned).length;
+    const pct = items.length>0 ? Math.round(ownedCount/items.length*100) : 0;
+    const manualCover = state.merchSeriesCovers && state.merchSeriesCovers[key];
+    const autoCover = items.find(i=>i.imageUrl);
+    const coverUrl = manualCover || (autoCover ? autoCover.imageUrl : '');
+    html += `
+    <div class="pc-series-card-wrap">
+      <button class="mc-series-card" data-series="${esc(key)}">
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
+                : `<div class="pc-series-cover ph">🛍️</div>`}
+        <div class="pc-series-body">
+          <div class="pc-series-name">${esc(key)}</div>
+          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 件</div>
+          <div class="pc-series-progress-track"><div class="pc-series-progress-fill" style="width:${pct}%;"></div></div>
+        </div>
+      </button>
+      <button class="mc-series-edit-cover" data-series="${esc(key)}" title="編輯封面圖片網址">✎</button>
+    </div>`;
+  });
+  html += `</div>`;
+  return html;
+}
+
+/* ================= 追星地圖 ================= */
+function fanMapVenues(){
+  const map = {};
+  state.schedule.forEach(s=>{
+    const loc = (s.location||'').trim();
+    if(!loc) return;
+    if(!map[loc]) map[loc] = { name:loc, count:0, items:[], lastDate:'' };
+    map[loc].count++;
+    map[loc].items.push({title:s.title, date:s.date});
+    if(!map[loc].lastDate || (s.date||'') > map[loc].lastDate) map[loc].lastDate = s.date||'';
+  });
+  return Object.values(map).sort((a,b)=> b.count-a.count || (b.lastDate||'').localeCompare(a.lastDate||''));
+}
+
+function renderMapTab(){
+  const meta = TAB_META.map;
+  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
+  const venues = fanMapVenues();
+  if(venues.length===0){
+    html += `<div class="empty"><div class="big">🗺️</div><div class="msg">還沒有任何有地點的行程<br>到「行程」新增地點後，這裡就會出現踩點地圖</div></div>`;
+    return html;
+  }
+  const withCoords = venues.filter(v=> state.venueCoords && state.venueCoords[v.name]);
+  html += `<div class="fanmap-container" id="fanMapContainer"></div>`;
+  if(withCoords.length===0){
+    html += `<div style="font-size:11.5px;color:var(--ink-soft);margin:-10px 2px 16px;">尚未設定任何地點的座標，幫下面的地點設定座標後就會顯示在地圖上</div>`;
+  }
+  html += `<div class="card-title" style="margin:4px 2px 10px;font-size:14px;">📍 踩點清單（共 ${venues.length} 個地點）</div>`;
+  venues.forEach(v=>{
+    const has = state.venueCoords && state.venueCoords[v.name];
+    html += `<div class="venue-row">
+      <div>
+        <div class="venue-name">${esc(v.name)}</div>
+        <div class="venue-meta">去過 ${v.count} 次${v.lastDate?`　最近一次 ${fmtDate(v.lastDate)}`:''}</div>
+      </div>
+      <button class="venue-badge ${has?'':'unset'} venue-coord-btn" data-venue="${esc(v.name)}">${has?'✎ 編輯座標':'📍 設定座標'}</button>
+    </div>`;
+  });
+  return html;
+}
+
+function bindMapActions(){
+  document.querySelectorAll('.venue-coord-btn').forEach(b=>{
+    b.addEventListener('click', ()=> openVenueCoordPicker(b.dataset.venue));
+  });
+  const mapEl = document.getElementById('fanMapContainer');
+  if(!mapEl) return;
+  if(typeof L === 'undefined'){
+    mapEl.innerHTML = `<div class="empty" style="padding:30px 0;"><div class="msg">地圖載入失敗，請確認網路連線</div></div>`;
+    return;
+  }
+  const venues = fanMapVenues().filter(v=> state.venueCoords && state.venueCoords[v.name]);
+  const center = venues.length>0
+    ? [state.venueCoords[venues[0].name].lat, state.venueCoords[venues[0].name].lng]
+    : [23.7, 121.0];
+  const map = L.map('fanMapContainer', { scrollWheelZoom:false }).setView(center, venues.length>0 ? 6 : 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+  const bounds = [];
+  venues.forEach(v=>{
+    const c = state.venueCoords[v.name];
+    const marker = L.marker([c.lat, c.lng]).addTo(map);
+    const recentTitles = v.items.slice(0,3).map(i=>esc(i.title)).join('、');
+    marker.bindPopup(`<b>${esc(v.name)}</b><br>去過 ${v.count} 次<br>${recentTitles}`);
+    bounds.push([c.lat, c.lng]);
+  });
+  if(bounds.length>1){ map.fitBounds(bounds, {padding:[30,30]}); }
+  setTimeout(()=>{ try{ map.invalidateSize(); }catch(e){} }, 150);
+}
+
+function openVenueCoordPicker(venueName){
+  const modal = document.getElementById('modal');
+  const current = (state.venueCoords && state.venueCoords[venueName]) || null;
+  modal.innerHTML = `
+    <h3 class="maru">設定座標</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:-8px 0 10px;">${esc(venueName)}</p>
+    <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 6px;">在地圖上點選這個地點的位置（可縮放、拖曳）</p>
+    <div class="fanmap-picker" id="venuePickerMap"></div>
+    <div style="font-size:11.5px;color:var(--ink-soft);margin:4px 2px 0;" id="pickerCoordLabel">${current?`已選擇：${current.lat.toFixed(4)}, ${current.lng.toFixed(4)}`:'尚未選擇位置'}</div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      ${current ? `<button class="btn ghost" id="clearCoordBtn" style="color:#C0392B;">清除座標</button>` : ''}
+      <button class="btn primary" id="saveCoordBtn">儲存</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  showModal();
+
+  let picked = current ? {lat:current.lat, lng:current.lng} : null;
+  if(typeof L === 'undefined'){
+    document.getElementById('venuePickerMap').innerHTML = `<div class="empty" style="padding:20px 0;"><div class="msg">地圖載入失敗，請確認網路連線</div></div>`;
+  } else {
+    const startCenter = picked ? [picked.lat, picked.lng] : [23.7, 121.0];
+    const pmap = L.map('venuePickerMap', { scrollWheelZoom:true }).setView(startCenter, picked ? 13 : 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
+    }).addTo(pmap);
+    let marker = picked ? L.marker([picked.lat, picked.lng]).addTo(pmap) : null;
+    pmap.on('click', (e)=>{
+      picked = { lat: e.latlng.lat, lng: e.latlng.lng };
+      if(marker){ marker.setLatLng(e.latlng); } else { marker = L.marker(e.latlng).addTo(pmap); }
+      const lbl = document.getElementById('pickerCoordLabel');
+      if(lbl) lbl.textContent = `已選擇：${picked.lat.toFixed(4)}, ${picked.lng.toFixed(4)}`;
+    });
+    setTimeout(()=>{ try{ pmap.invalidateSize(); }catch(e){} }, 100);
+  }
+
+  document.getElementById('saveCoordBtn').addEventListener('click', async ()=>{
+    if(!picked){ showToast('請先在地圖上點選位置'); return; }
+    state.venueCoords = state.venueCoords || {};
+    state.venueCoords[venueName] = picked;
+    await saveKey('oshi-venue-coords', state.venueCoords);
+    closeModal();
+    render();
+    showToast('已儲存座標');
+  });
+  const clearBtn = document.getElementById('clearCoordBtn');
+  if(clearBtn){
+    clearBtn.addEventListener('click', async ()=>{
+      if(state.venueCoords) delete state.venueCoords[venueName];
+      await saveKey('oshi-venue-coords', state.venueCoords);
+      closeModal();
+      render();
+      showToast('已清除座標');
+    });
+  }
+}
+
 /* ================= Artists ================= */
 function renderArtists(){
   const meta = TAB_META.artists;
@@ -4080,6 +4430,7 @@ function bindListActions(tab){
       else if(b.dataset.tab==='endorsement') openEndorsementForm(b.dataset.id);
       else if(b.dataset.tab==='magazine') openMagazineForm(b.dataset.id);
       else if(b.dataset.tab==='movie') openMovieForm(b.dataset.id);
+      else if(b.dataset.tab==='merch') openMerchForm(b.dataset.id);
       else openForm(b.dataset.tab, b.dataset.id);
     });
   });
@@ -4130,6 +4481,50 @@ function bindListActions(tab){
       });
     }
   }
+  if(tab==='merch'){
+    document.querySelectorAll('.mc-owned-input').forEach(inp=>{
+      inp.addEventListener('change', async ()=>{
+        const item = state.merch.find(p=>String(p.id)===String(inp.dataset.id));
+        if(item){
+          item.owned = inp.checked;
+          await saveKey('oshi-merch', state.merch);
+          showToast(item.owned ? '已標記為擁有' : '已取消擁有標記');
+        }
+      });
+    });
+    document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        mcArtistFilter = b.dataset.filter;
+        mcDrill = null;
+        render();
+      });
+    });
+    document.querySelectorAll('.mc-owned-filter-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        mcOwnedFilter = b.dataset.owned;
+        render();
+      });
+    });
+    document.querySelectorAll('.mc-series-edit-cover').forEach(b=>{
+      b.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        openMerchSeriesCoverForm(b.dataset.series);
+      });
+    });
+    document.querySelectorAll('.mc-series-card').forEach(c=>{
+      c.addEventListener('click', ()=>{
+        mcDrill = c.dataset.series;
+        render();
+      });
+    });
+    const mcBackBtn = document.querySelector('.pc-back');
+    if(mcBackBtn){
+      mcBackBtn.addEventListener('click', ()=>{
+        mcDrill = null;
+        render();
+      });
+    }
+  }
 }
 
 function openSeriesCoverForm(seriesKey){
@@ -4167,6 +4562,49 @@ function openSeriesCoverForm(seriesKey){
       if(Object.keys(state.pcSeriesMeta[seriesKey]).length===0) delete state.pcSeriesMeta[seriesKey];
     }
     await saveKey('oshi-pc-series-meta', state.pcSeriesMeta);
+
+    closeModal();
+    render();
+    showToast('已更新圖鑑');
+  });
+  showModal();
+}
+
+function openMerchSeriesCoverForm(seriesKey){
+  const modal = document.getElementById('modal');
+  const current = (state.merchSeriesCovers && state.merchSeriesCovers[seriesKey]) || '';
+  const currentDate = mcSeriesCreatedAt(seriesKey);
+  modal.innerHTML = `
+    <h3 class="maru">編輯圖鑑</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin:-8px 0 14px;">${esc(seriesKey)}</p>
+    <div class="field"><label>圖片網址</label><input type="url" id="coverUrlInput" value="${esc(current)}" placeholder="貼上圖片連結"></div>
+    <div class="field">
+      <label>圖鑑建立日期</label>
+      <input type="date" id="seriesDateInput" value="${esc(currentDate)}">
+      <p style="font-size:11.5px;color:var(--ink-soft);margin:4px 2px 0;">用來排序圖鑑顯示順序，跟裡面每件品項各自的建立日期是分開的。</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn primary" id="saveCoverBtn">儲存</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('saveCoverBtn').addEventListener('click', async ()=>{
+    const url = document.getElementById('coverUrlInput').value.trim();
+    const dateVal = document.getElementById('seriesDateInput').value;
+    state.merchSeriesCovers = state.merchSeriesCovers || {};
+    if(url) state.merchSeriesCovers[seriesKey] = url;
+    else delete state.merchSeriesCovers[seriesKey];
+    await saveKey('oshi-merch-covers', state.merchSeriesCovers);
+
+    state.merchSeriesMeta = state.merchSeriesMeta || {};
+    if(dateVal){
+      state.merchSeriesMeta[seriesKey] = { ...(state.merchSeriesMeta[seriesKey]||{}), createdAt: dateVal };
+    } else if(state.merchSeriesMeta[seriesKey]){
+      delete state.merchSeriesMeta[seriesKey].createdAt;
+      if(Object.keys(state.merchSeriesMeta[seriesKey]).length===0) delete state.merchSeriesMeta[seriesKey];
+    }
+    await saveKey('oshi-merch-series-meta', state.merchSeriesMeta);
 
     closeModal();
     render();
@@ -4375,6 +4813,141 @@ async function savePhotocardForm(existing){
     state.photocards.push(data);
   }
   await saveKey('oshi-photocards', state.photocards);
+  closeModal();
+  render();
+  showToast(existing? '已更新' : '已新增');
+}
+
+/* ================= Merch (周邊/專輯) form ================= */
+function openMerchForm(id){
+  const existing = id ? state.merch.find(p=>String(p.id)===String(id)) : null;
+
+  const artistOptions = state.artists.map(a=>a.name);
+  const categoryOptions = [...FIXED_MERCH_CATEGORIES, ...state.customMerchCategories];
+  const channels = [...new Set(state.merch.map(p=>p.channel).filter(Boolean))];
+
+  const curArtist = existing ? existing.artist : '';
+  const curCategory = existing ? existing.category : '';
+  const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
+
+  let artistFieldHtml = '';
+  if(artistOptions.length===0){
+    artistFieldHtml = `
+      <select id="mcArtistSelect"><option value="">尚未新增藝人</option><option value="__new__">＋ 直接輸入藝人名稱</option></select>
+      <input type="text" id="mcNewArtistName" placeholder="輸入藝人名稱" style="margin-top:8px;" value="${esc(curArtist)}">`;
+  } else {
+    artistFieldHtml = `
+      <select id="mcArtistSelect">
+        <option value="">請選擇</option>
+        ${artistOptions.map(n=>`<option value="${esc(n)}" ${curArtist===n?'selected':''}>${esc(n)}</option>`).join('')}
+        <option value="__new__" ${curArtist && !artistOptions.includes(curArtist)?'selected':''}>＋ 新增藝人</option>
+      </select>
+      <input type="text" id="mcNewArtistName" placeholder="輸入新藝人名稱" style="margin-top:8px; display:${curArtist && !artistOptions.includes(curArtist)?'block':'none'};" value="${curArtist && !artistOptions.includes(curArtist)?esc(curArtist):''}">`;
+  }
+
+  const categoryFieldHtml = `
+    <select id="mcCategorySelect">
+      <option value="">請選擇</option>
+      ${categoryOptions.map(c=>`<option value="${esc(c)}" ${curCategory===c?'selected':''}>${esc(c)}</option>`).join('')}
+      <option value="__other__" ${isCustomCategory?'selected':''}>其他（自行輸入）</option>
+    </select>
+    <input type="text" id="mcNewCategory" placeholder="輸入新的周邊類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
+
+  const seriesOptions = [...new Set(state.merch.map(p=>p.series).filter(Boolean))];
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">${existing? '編輯' : '新增'} · 周邊/專輯</h3>
+    <div class="field"><label>名稱 *</label><input type="text" id="mcName" value="${existing?esc(existing.name):''}" placeholder="例：Butter 專輯 / 應援手燈"></div>
+    <div class="field"><label>藝人</label>${artistFieldHtml}</div>
+    <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
+      <input type="text" id="mcSeries" list="mcSeriesList" placeholder="例：Proof、BE..." value="${existing?esc(existing.series||''):''}">
+      <datalist id="mcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+    </div>
+    <div class="field"><label>分類</label>${categoryFieldHtml}</div>
+    <div class="field"><label>購入通路</label>
+      <input type="text" id="mcChannel" list="mcChannelList" placeholder="例：官方商城、演唱會現場、代購..." value="${existing?esc(existing.channel||''):''}">
+      <datalist id="mcChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+    </div>
+    <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填"></div>
+    <div class="field"><label>圖片網址</label><input type="url" id="mcImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>建立時間</label><input type="date" id="mcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
+    <div class="field"><label>備註</label><textarea id="mcNote" placeholder="選填">${existing?esc(existing.note||''):''}</textarea></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="mcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing&&existing.owned?'checked':''}>
+        已擁有這件周邊
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn primary" id="saveBtn">儲存</button>
+    </div>
+  `;
+
+  const artistSelect = document.getElementById('mcArtistSelect');
+  const newArtistInput = document.getElementById('mcNewArtistName');
+  artistSelect.addEventListener('change', ()=>{
+    newArtistInput.style.display = artistSelect.value==='__new__' ? 'block' : 'none';
+  });
+
+  const categorySelect = document.getElementById('mcCategorySelect');
+  const newCategoryInput = document.getElementById('mcNewCategory');
+  categorySelect.addEventListener('change', ()=>{
+    newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('saveBtn').addEventListener('click', ()=> saveMerchForm(existing));
+  showModal();
+}
+
+async function saveMerchForm(existing){
+  const name = document.getElementById('mcName').value.trim();
+  if(!name){ showToast('請填寫名稱'); return; }
+
+  const artistSelect = document.getElementById('mcArtistSelect');
+  let artist = artistSelect ? artistSelect.value : '';
+  if(artist==='__new__' || (state.artists.length===0 && artistSelect && artistSelect.value==='__new__')){
+    const newName = document.getElementById('mcNewArtistName').value.trim();
+    artist = newName;
+    if(newName && !state.artists.find(a=>a.name===newName)){
+      state.artists.push({ id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000), name:newName });
+      await saveKey('oshi-artists', state.artists);
+    }
+  }
+
+  const categorySelect = document.getElementById('mcCategorySelect');
+  let category = categorySelect.value;
+  if(category==='__other__'){
+    const newCat = document.getElementById('mcNewCategory').value.trim();
+    category = newCat;
+    if(newCat && !FIXED_MERCH_CATEGORIES.includes(newCat) && !state.customMerchCategories.includes(newCat)){
+      state.customMerchCategories.push(newCat);
+      await saveKey('oshi-merch-categories', state.customMerchCategories);
+    }
+  }
+
+  const data = {
+    name,
+    artist,
+    series: document.getElementById('mcSeries').value.trim(),
+    category,
+    channel: document.getElementById('mcChannel').value.trim(),
+    price: document.getElementById('mcPrice').value ? parseFloat(document.getElementById('mcPrice').value) : '',
+    imageUrl: document.getElementById('mcImageUrl').value.trim(),
+    createdAt: document.getElementById('mcCreatedAt').value || todayStr(),
+    note: document.getElementById('mcNote').value.trim(),
+    owned: document.getElementById('mcOwned').checked
+  };
+
+  if(existing){
+    Object.assign(existing, data);
+  } else {
+    data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
+    state.merch.push(data);
+  }
+  await saveKey('oshi-merch', state.merch);
   closeModal();
   render();
   showToast(existing? '已更新' : '已新增');
@@ -4944,7 +5517,12 @@ const BACKUP_FIELD_MAP = [
   ['pcSeriesMeta','oshi-pc-series-meta'],
   ['customFanlogCategories','oshi-fanlog-categories'],
   ['customScheduleCategories','oshi-schedule-categories'],
-  ['customExpenseCategories','oshi-expense-categories']
+  ['customExpenseCategories','oshi-expense-categories'],
+  ['merch','oshi-merch'],
+  ['customMerchCategories','oshi-merch-categories'],
+  ['merchSeriesCovers','oshi-merch-covers'],
+  ['merchSeriesMeta','oshi-merch-series-meta'],
+  ['venueCoords','oshi-venue-coords']
 ];
 
 function exportBackupData(){
@@ -4979,7 +5557,7 @@ function confirmImportBackup(data){
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">確定要匯入這份備份嗎？</h3>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、應援、紀錄、藝人、地圖座標等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn danger" id="importConfirmBtn">確定匯入並覆蓋</button>
