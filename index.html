@@ -4005,7 +4005,7 @@ function renderSupportTab(){
         <div>
           ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
           ${isEnded ? `<span class="tag wisteria">已結束活動</span>` : ''}
-          ${(s.isPaid || spentAmt>0) ? `<span class="tag gold">💰 付費應援${spentAmt?('　NT$'+spentAmt.toLocaleString()):''}</span>` : ''}
+          ${(s.isPaid || spentAmt>0) ? `<div style="width:100%;"></div><span class="tag gold">💰 付費應援${spentAmt?('　NT$'+spentAmt.toLocaleString()):''}</span>` : ''}
           ${linked.length>0 ? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>` : ''}
         </div>
         ${s.condition ? `<div class="card-meta" style="margin-top:6px;">🎟️ 領取條件：${esc(s.condition)}</div>` : ''}
@@ -4396,7 +4396,7 @@ function renderEndorsementCard(e){
         ${e.startDate ? `<span class="tag">${fmtDate(e.startDate)}</span>` : ''}
         ${e.category ? `<span class="tag matcha">${esc(e.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('endorsement',e); const linked=linkedExpensesForMedia('endorsement',e.id);
-          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="endorsement" data-id="${e.id}">✎</button>
@@ -4589,7 +4589,7 @@ function renderMagazineCard(m){
         ${m.issueDate ? `<span class="tag">${fmtDate(m.issueDate)}</span>` : ''}
         ${m.category ? `<span class="tag matcha">${esc(m.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('magazine',m); const linked=linkedExpensesForMedia('magazine',m.id);
-          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="magazine" data-id="${m.id}">✎</button>
@@ -4764,7 +4764,7 @@ function renderMovieCard(x){
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
-          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
