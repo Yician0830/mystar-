@@ -1361,7 +1361,7 @@ const FIXED_MERCH_CATEGORIES = ['專輯','應援小物','服飾','包包','文�
 function scheduleArtistOptions(){
   return [...new Set(state.artists.map(a=> (a.group && a.group.trim()) ? a.group.trim() : a.name))].filter(Boolean);
 }
-const FIXED_EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','其他追星支出'];
+const FIXED_EXPENSE_CATEGORIES = ['演唱會/見面會門票','專輯','小卡','交通/住宿','餐飲','應援物/飯製商品','周邊商品','娃娃','會員費','聯名商品','雜誌寫真','電影/影視','代言周邊支出','其他追星支出'];
 /* 花費 vs 收藏 比例圖：哪些分類算是「換得到實體收藏」，哪些算是「體驗／消耗型支出」 */
 const COLLECTIBLE_EXPENSE_CATEGORIES = ['專輯','小卡','應援物/飯製商品','周邊商品','娃娃','聯名商品'];
 const EXPENSE_CATEGORY_ICON = {
@@ -1413,6 +1413,57 @@ function linkedExpensesForMcSeries(seriesKey){
 }
 function mcSeriesSpentAmount(seriesKey){
   return linkedExpensesForMcSeries(seriesKey).reduce((sum,e)=> sum + expenseAmount(e), 0);
+}
+/* 媒體（代言／雜誌／影視）↔ 記帳本：用法跟應援、追星紀錄一樣，一筆媒體項目可以連到好幾筆記帳，
+   type 是 'endorsement' | 'magazine' | 'movie' */
+function linkedExpensesForMedia(type, id){
+  return state.expense.filter(e=> e.mediaType===type && String(e.mediaLinkedId)===String(id));
+}
+function mediaSpentAmount(type, item){
+  const linked = linkedExpensesForMedia(type, item.id);
+  if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
+  return parseFloat(item.amount)||0;
+}
+/* 媒體表單共用：有填金額且勾選「同時加入記帳本」時，自動建立/更新一筆對應的記帳紀錄
+   （沿用追星紀錄/應援已有的 expenseLinkedId 單筆自動連結寫法） */
+async function syncMediaExpense(type, item, name, artist, date, amount, addToExpense, category){
+  const amt = parseFloat(amount) || 0;
+  if(!(amt>0 && addToExpense)) return;
+
+  let linkedExpense = item.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(item.expenseLinkedId)) : null;
+  if(linkedExpense){
+    linkedExpense.name = name;
+    linkedExpense.artist = artist || '';
+    linkedExpense.unitPrice = amt;
+    linkedExpense.date = date || todayStr();
+    linkedExpense.mediaType = type;
+    linkedExpense.mediaLinkedId = item.id;
+  } else {
+    const newExpense = {
+      id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000)+'m',
+      recordType: 'expense',
+      name,
+      artist: artist || '',
+      unitPrice: amt,
+      quantity: '1',
+      shipping: '',
+      origCurrency: 'TWD',
+      origAmount: '',
+      category,
+      date: date || todayStr(),
+      mediaType: type,
+      mediaLinkedId: item.id,
+      platform: '',
+      deliveryStatus: '',
+      paymentMethod: '',
+      tags: [],
+      note: '由媒體紀錄自動建立',
+      imageUrls: []
+    };
+    state.expense.push(newExpense);
+    item.expenseLinkedId = newExpense.id;
+  }
+  await saveKey('oshi-expense', state.expense);
 }
 const TAG_CLASSES = ['', 'matcha', 'wisteria', 'gold', 'rose', 'sky', 'peach', 'lavender', 'mint', 'coral', 'amber', 'slate'];
 function tagColorClass(text, categoryList){
@@ -2826,6 +2877,21 @@ function openExpenseForm(id, prefill){
       </select>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">連結到周邊系列後，周邊圖鑑會自動加總這個系列花了多少錢</div>
     </div>
+    <div class="field"><label>連結媒體項目（代言／雜誌／影視）</label>
+      <select id="expMediaLink">
+        <option value="">不連結</option>
+        <optgroup label="🤝 代言合作">
+          ${[...state.endorsement].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).map(e=>`<option value="endorsement::${e.id}" ${src&&src.mediaType==='endorsement'&&src.mediaLinkedId===e.id?'selected':''}>${esc(e.title)}</option>`).join('')}
+        </optgroup>
+        <optgroup label="📔 雜誌寫真">
+          ${[...state.magazine].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')).map(m=>`<option value="magazine::${m.id}" ${src&&src.mediaType==='magazine'&&src.mediaLinkedId===m.id?'selected':''}>${esc(m.title)}</option>`).join('')}
+        </optgroup>
+        <optgroup label="🎬 影視作品">
+          ${[...state.movie].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).map(x=>`<option value="movie::${x.id}" ${src&&src.mediaType==='movie'&&src.mediaLinkedId===x.id?'selected':''}>${esc(x.title)}</option>`).join('')}
+        </optgroup>
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">同一個代言／雜誌／影視作品的花費可以連到同一筆項目，媒體頁會自動加總這筆花了多少錢</div>
+    </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
       <input type="text" id="expPlatform" list="expPlatformList" placeholder="例：蝦皮、代購..." value="${src?esc(src.platform||''):''}">
@@ -3020,6 +3086,8 @@ async function saveExpenseForm(existing){
     fanlogLinkedId: document.getElementById('expFanlogLink') ? document.getElementById('expFanlogLink').value : '',
     pcSeriesLinkedId: document.getElementById('expPcSeriesLink') ? document.getElementById('expPcSeriesLink').value : '',
     mcSeriesLinkedId: document.getElementById('expMerchSeriesLink') ? document.getElementById('expMerchSeriesLink').value : '',
+    mediaType: document.getElementById('expMediaLink') && document.getElementById('expMediaLink').value ? document.getElementById('expMediaLink').value.split('::')[0] : '',
+    mediaLinkedId: document.getElementById('expMediaLink') && document.getElementById('expMediaLink').value ? document.getElementById('expMediaLink').value.split('::')[1] : '',
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
@@ -4279,6 +4347,8 @@ function renderEndorsementCard(e){
       <div>
         ${e.startDate ? `<span class="tag">${fmtDate(e.startDate)}</span>` : ''}
         ${e.category ? `<span class="tag matcha">${esc(e.category)}</span>` : ''}
+        ${(()=>{ const spent=mediaSpentAmount('endorsement',e); const linked=linkedExpensesForMedia('endorsement',e.id);
+          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="endorsement" data-id="${e.id}">✎</button>
@@ -4339,6 +4409,14 @@ function openEndorsementForm(id){
     <div class="field"><label>類型</label>${categoryFieldHtml}</div>
     <div class="field"><label>開始日期</label><input type="date" id="endStartDate" value="${existing?esc(existing.startDate||''):''}"></div>
     <div class="field"><label>展示圖片網址</label><input type="url" id="endImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>為了支持花的錢（選填）</label><input type="number" id="endAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="endAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" checked>
+        同時加入記帳本
+      </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：代言周邊支出）</div>
+    </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
@@ -4388,21 +4466,30 @@ async function saveEndorsementForm(existing){
   }
 
   const startDate = document.getElementById('endStartDate').value.trim();
+  const amount = document.getElementById('endAmount').value.trim();
+  const addToExpense = document.getElementById('endAddToExpense') && document.getElementById('endAddToExpense').checked;
 
   const data = {
     title,
     artist,
     category,
     startDate,
-    imageUrl: document.getElementById('endImageUrl').value.trim()
+    imageUrl: document.getElementById('endImageUrl').value.trim(),
+    amount
   };
 
+  let targetEndorsement;
   if(existing){
     Object.assign(existing, data);
+    targetEndorsement = existing;
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state.endorsement.push(data);
+    targetEndorsement = data;
   }
+
+  await syncMediaExpense('endorsement', targetEndorsement, title, artist, startDate, amount, addToExpense, '代言周邊支出');
+
   await saveKey('oshi-endorsement', state.endorsement);
   closeModal();
   render();
@@ -4453,6 +4540,8 @@ function renderMagazineCard(m){
       <div>
         ${m.issueDate ? `<span class="tag">${fmtDate(m.issueDate)}</span>` : ''}
         ${m.category ? `<span class="tag matcha">${esc(m.category)}</span>` : ''}
+        ${(()=>{ const spent=mediaSpentAmount('magazine',m); const linked=linkedExpensesForMedia('magazine',m.id);
+          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
       ${m.note ? `<div class="card-meta" style="margin-top:6px;">${esc(m.note)}</div>` : ''}
       ${m.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(m.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看連結</a></div>` : ''}
@@ -4511,6 +4600,14 @@ function openMagazineForm(id){
     <div class="field"><label>發售日期</label><input type="date" id="magIssueDate" value="${existing?esc(existing.issueDate||''):''}"></div>
     <div class="field"><label>封面圖片網址</label><input type="url" id="magImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>購買/相關連結</label><input type="url" id="magArticleUrl" value="${existing?esc(existing.articleUrl||''):''}" placeholder="貼上相關連結"></div>
+    <div class="field"><label>購買花費（選填）</label><input type="number" id="magAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="magAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" checked>
+        同時加入記帳本
+      </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：雜誌寫真）</div>
+    </div>
     <div class="field"><label>備註</label><textarea id="magNote">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -4543,23 +4640,34 @@ async function saveMagazineForm(existing){
     await saveKey('oshi-artists', state.artists);
   }
 
+  const issueDate = document.getElementById('magIssueDate').value.trim();
+  const amount = document.getElementById('magAmount').value.trim();
+  const addToExpense = document.getElementById('magAddToExpense') && document.getElementById('magAddToExpense').checked;
+
   const data = {
     title,
     artist,
     issue: document.getElementById('magIssue').value.trim(),
     category: document.getElementById('magCategory').value,
-    issueDate: document.getElementById('magIssueDate').value.trim(),
+    issueDate,
     imageUrl: document.getElementById('magImageUrl').value.trim(),
     articleUrl: document.getElementById('magArticleUrl').value.trim(),
-    note: document.getElementById('magNote').value.trim()
+    note: document.getElementById('magNote').value.trim(),
+    amount
   };
 
+  let targetMagazine;
   if(existing){
     Object.assign(existing, data);
+    targetMagazine = existing;
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state.magazine.push(data);
+    targetMagazine = data;
   }
+
+  await syncMediaExpense('magazine', targetMagazine, title, artist, issueDate, amount, addToExpense, '雜誌寫真');
+
   await saveKey('oshi-magazine', state.magazine);
   closeModal();
   render();
@@ -4613,6 +4721,8 @@ function renderMovieCard(x){
       <div>
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
+        ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id);
+          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
       ${x.note ? `<div class="card-meta" style="margin-top:6px;">${esc(x.note)}</div>` : ''}
       ${x.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(x.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看連結</a></div>` : ''}
@@ -4673,6 +4783,14 @@ function openMovieForm(id){
     <div class="field"><label>完結日期</label><input type="date" id="movEndDate" value="${existing?esc(existing.endDate||''):''}"></div>
     <div class="field"><label>觀看/相關連結</label><input type="url" id="movArticleUrl" value="${existing?esc(existing.articleUrl||''):''}" placeholder="貼上相關連結"></div>
     <div class="field"><label>海報圖片網址</label><input type="url" id="movImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>相關花費（選填，例如電影票、訂閱費）</label><input type="number" id="movAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="movAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" checked>
+        同時加入記帳本
+      </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：電影/影視）</div>
+    </div>
     <div class="field"><label>備註</label><textarea id="movNote">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -4709,6 +4827,9 @@ async function saveMovieForm(existing){
   const endDate = document.getElementById('movEndDate').value.trim();
   if(startDate && endDate && endDate < startDate){ showToast('完結日期不能早於開播日期'); return; }
 
+  const amount = document.getElementById('movAmount').value.trim();
+  const addToExpense = document.getElementById('movAddToExpense') && document.getElementById('movAddToExpense').checked;
+
   const data = {
     title,
     artist,
@@ -4719,15 +4840,22 @@ async function saveMovieForm(existing){
     endDate,
     articleUrl: document.getElementById('movArticleUrl').value.trim(),
     imageUrl: document.getElementById('movImageUrl').value.trim(),
-    note: document.getElementById('movNote').value.trim()
+    note: document.getElementById('movNote').value.trim(),
+    amount
   };
 
+  let targetMovie;
   if(existing){
     Object.assign(existing, data);
+    targetMovie = existing;
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
     state.movie.push(data);
+    targetMovie = data;
   }
+
+  await syncMediaExpense('movie', targetMovie, title, artist, startDate, amount, addToExpense, '電影/影視');
+
   await saveKey('oshi-movie', state.movie);
   closeModal();
   render();
