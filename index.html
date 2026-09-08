@@ -218,6 +218,8 @@
   .tag.rose{ background:#FDE0E8; color:#B23A5C;}
   .tag.sky{ background:#D9EEFB; color:#2A6F99;}
   .tag.peach{ background:#FFE3C2; color:#9C5A17;}
+  .linked-expense-tag{ cursor:pointer; }
+  .linked-expense-tag:hover{ filter:brightness(0.95); }
   .tag.lavender{ background:#E4D9FF; color:#5B3FA0;}
   .tag.mint{ background:#D8F3DC; color:#2F6B3F;}
   .tag.coral{ background:#FBD9F0; color:#9C3D82;}
@@ -1444,6 +1446,57 @@ function mediaSpentAmount(type, item){
   if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
   return parseFloat(item.amount)||0;
 }
+/* 依「連結類型＋連結對象 id」找出對應的已連動記帳紀錄，給「🔗 已連動 N 筆記帳」標籤點擊查看用 */
+function getLinkedExpensesByRef(type, id){
+  if(type==='fanlog'){
+    const item = state.fanlog.find(f=>String(f.id)===String(id));
+    return item ? linkedExpensesForFanlog(item) : [];
+  }
+  if(type==='support'){
+    const item = state.support.find(s=>String(s.id)===String(id));
+    return item ? linkedExpensesForSupport(item) : [];
+  }
+  if(type==='endorsement' || type==='magazine' || type==='movie'){
+    return linkedExpensesForMedia(type, id);
+  }
+  return [];
+}
+function linkedExpenseTagHtml(type, id, label, count){
+  if(!count || count<=0) return '';
+  return `<span class="tag matcha linked-expense-tag" data-linked-type="${esc(type)}" data-linked-id="${esc(String(id))}" data-linked-label="${esc(label)}">🔗 已連動 ${count} 筆記帳</span>`;
+}
+function openLinkedExpensesModal(type, id, label){
+  const linked = getLinkedExpensesByRef(type, id).slice().sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const total = linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">🔗 ${esc(label||'已連動記帳')}</h3>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">共 ${linked.length} 筆記帳，合計 NT$ ${total.toLocaleString()}</div>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">
+      ${linked.length===0 ? `<div style="font-size:13px;color:var(--ink-soft);">目前沒有連動的記帳紀錄</div>` : linked.map(e=>`
+        <div class="card" style="margin-bottom:0;padding:12px 14px;cursor:pointer;" data-open-expense-id="${esc(e.id)}">
+          <div class="card-row">
+            <div>
+              <div class="card-title" style="font-size:14px;">${esc(e.name||'（未命名）')}</div>
+              <div class="card-meta">${fmtDate(e.date)}${e.category?' · '+esc(e.category):''}</div>
+            </div>
+            <div class="tag gold" style="margin-top:2px;white-space:nowrap;">NT$ ${expenseAmount(e).toLocaleString()}</div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">關閉</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  modal.querySelectorAll('[data-open-expense-id]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      closeModal();
+      openExpenseForm(row.dataset.openExpenseId);
+    });
+  });
+  showModal();
+}
 /* 媒體表單共用：有填金額且勾選「同時加入記帳本」時，自動建立/更新一筆對應的記帳紀錄
    （沿用追星紀錄/應援已有的 expenseLinkedId 單筆自動連結寫法） */
 async function syncMediaExpense(type, item, name, artist, date, amount, addToExpense, category){
@@ -2508,7 +2561,7 @@ function renderCard(tab, item){
     const flLinked = linkedExpensesForFanlog(item);
     const flSpent = fanlogSpentAmount(item);
     if(flSpent>0) tags += `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
-    if(flLinked.length>0) tags += `<span class="tag matcha">🔗 已連動 ${flLinked.length} 筆記帳</span>`;
+    tags += linkedExpenseTagHtml('fanlog', item.id, item.activity, flLinked.length);
     if(item.movieLinkedId){
       const linkedMovie = state.movie.find(m=>String(m.id)===String(item.movieLinkedId));
       if(linkedMovie) tags += `<span class="tag matcha">🎬 ${esc(linkedMovie.title)}</span>`;
@@ -4232,7 +4285,7 @@ function renderSupportTab(){
           ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
           ${isEnded ? `<span class="tag wisteria">已結束活動</span>` : ''}
           ${(s.isPaid || spentAmt>0) ? `<div style="width:100%;"></div><span class="tag gold">💰 付費應援${spentAmt?('　NT$'+spentAmt.toLocaleString()):''}</span>` : ''}
-          ${linked.length>0 ? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>` : ''}
+          ${linked.length>0 ? linkedExpenseTagHtml('support', s.id, s.title, linked.length) : ''}
         </div>
         ${s.condition ? `<div class="card-meta" style="margin-top:6px;">🎟️ 領取條件：${esc(s.condition)}</div>` : ''}
         ${s.content ? `<div class="card-meta" style="margin-top:4px;">${esc(s.content)}</div>` : ''}
@@ -4633,7 +4686,7 @@ function renderEndorsementCard(e){
         ${e.startDate ? `<span class="tag">${fmtDate(e.startDate)}</span>` : ''}
         ${e.category ? `<span class="tag matcha">${esc(e.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('endorsement',e); const linked=linkedExpensesForMedia('endorsement',e.id);
-          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('endorsement', e.id, e.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="endorsement" data-id="${e.id}">✎</button>
@@ -4826,7 +4879,7 @@ function renderMagazineCard(m){
         ${m.issueDate ? `<span class="tag">${fmtDate(m.issueDate)}</span>` : ''}
         ${m.category ? `<span class="tag matcha">${esc(m.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('magazine',m); const linked=linkedExpensesForMedia('magazine',m.id);
-          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('magazine', m.id, m.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="magazine" data-id="${m.id}">✎</button>
@@ -5001,7 +5054,7 @@ function renderMovieCard(x){
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
-          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('movie', x.id, x.title, linked.length) + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
@@ -5152,6 +5205,12 @@ function bindListActions(tab){
   });
   document.querySelectorAll('.icon-btn.del').forEach(b=>{
     b.addEventListener('click', ()=> confirmDelete(b.dataset.tab, b.dataset.id));
+  });
+  document.querySelectorAll('.linked-expense-tag').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openLinkedExpensesModal(el.dataset.linkedType, el.dataset.linkedId, el.dataset.linkedLabel);
+    });
   });
   document.querySelectorAll('.icon-btn.dup').forEach(b=>{
     if(b.dataset.tab==='fanlog') b.addEventListener('click', ()=> duplicateFanlog(b.dataset.id));
