@@ -635,6 +635,7 @@
 
   /* Bottom nav (becomes a left sidebar at >=900px, see breakpoint above) */
   .nav-more-only{ display:none; }
+  .nav-btn.nav-more-btn{ display:none; }
   nav.bottom{
     position:fixed; bottom:0; left:0;
     width:100%; max-width:100%;
@@ -957,7 +958,7 @@
   @media (min-width:900px){
     body{ display:block; }
     header.top{ padding-left:40px; padding-right:40px; margin-left:220px; }
-    main#mainContent{ padding-left:40px; padding-right:40px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
+    main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:40px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
     .storage-warn{ margin-left:220px; }
     .fab{ right:48px; }
     nav.bottom{
@@ -1257,8 +1258,7 @@ const SCHEMAS = {
     {key:'date', label:'日期', type:'date', required:true},
     {key:'location', label:'地點', type:'text', ph:'例：台北小巨蛋'},
     {key:'category', label:'類型', type:'select', options:['演唱會','見面會','生放送','應援','簽唱會','簽售會','商演','站台','校唱','夜店','其他']},
-    {key:'onSaleDate', label:'開賣日期（選填）', type:'date', ph:'門票／預售開賣日期，設定後會出現在首頁倒數'},
-    {key:'note', label:'備註', type:'textarea', ph:'集合時間、票券資訊...'}
+    {key:'onSaleDate', label:'開賣日期（選填）', type:'date', ph:'門票／預售開賣日期，設定後會出現在首頁倒數'}
   ],
   expense:[
     {key:'date', label:'日期', type:'date', required:true},
@@ -1283,8 +1283,7 @@ const SCHEMAS = {
     {key:'date', label:'日期', type:'date', required:true},
     {key:'activity', label:'活動名稱', type:'text', required:true, ph:'例：BTS WORLD TOUR / 生日應援'},
     {key:'artist', label:'相關藝人', type:'text', ph:'例：○○'},
-    {key:'category', label:'活動性質', type:'select', options:['演唱會','見面會','簽唱會','商演','站台','頒獎','夜店','跨年','時裝周','校唱','其他']},
-    {key:'note', label:'詳細內容', type:'textarea'}
+    {key:'category', label:'活動性質', type:'select', options:['演唱會','見面會','簽唱會','商演','站台','頒獎','夜店','跨年','時裝周','校唱','其他']}
   ],
   artists:[
     {key:'name', label:'藝人名稱', type:'text', required:true},
@@ -1309,9 +1308,7 @@ const SCHEMAS = {
     {key:'issue', label:'期數/版本', type:'text', ph:'例：2025年8月號'},
     {key:'category', label:'類型', type:'select', options:['封面','內頁專訪','廣告合作','其他']},
     {key:'issueDate', label:'發售日期', type:'date'},
-    {key:'articleUrl', label:'購買/相關連結', type:'url'},
-    {key:'imageUrl', label:'封面圖片網址', type:'url'},
-    {key:'note', label:'備註', type:'textarea'}
+    {key:'imageUrl', label:'封面圖片網址', type:'url'}
   ],
   movie:[
     {key:'title', label:'作品名稱', type:'text', required:true, ph:'例：某某電視劇'},
@@ -1321,9 +1318,7 @@ const SCHEMAS = {
     {key:'platform', label:'播出平台', type:'text', ph:'例：Netflix、台視、YouTube'},
     {key:'startDate', label:'開播/上映日期', type:'date'},
     {key:'endDate', label:'完結日期', type:'date'},
-    {key:'articleUrl', label:'觀看/相關連結', type:'url'},
-    {key:'imageUrl', label:'海報圖片網址', type:'url'},
-    {key:'note', label:'備註', type:'textarea'}
+    {key:'imageUrl', label:'海報圖片網址', type:'url'}
   ],
   merch:[
     {key:'name', label:'名稱', type:'text', required:true, ph:'例：Butter 專輯 / 應援手燈'},
@@ -1332,8 +1327,7 @@ const SCHEMAS = {
     {key:'category', label:'分類', type:'select', options:['專輯','應援小物','服飾','包包','文具','生活用品','公仔玩偶','海報','其他周邊']},
     {key:'channel', label:'購入通路', type:'text', ph:'例：官方商城、演唱會現場、代購...'},
     {key:'price', label:'價格 (NT$)', type:'number'},
-    {key:'imageUrl', label:'圖片網址', type:'url'},
-    {key:'note', label:'備註', type:'textarea'}
+    {key:'imageUrl', label:'圖片網址', type:'url'}
   ]
 };
 
@@ -1377,11 +1371,24 @@ function expenseAmount(item){
   const shipping = parseFloat(item.shipping)||0;
   return unit*qty + shipping;
 }
-/* 找出所有連結到某筆應援的記帳紀錄：一筆應援可以連到多筆記帳（新版 supportLinkedId），
+/* 一筆記帳現在可以同時連到好幾個項目（應援、追星紀錄、小卡系列、周邊系列、代言/雜誌/影視都可以混搭），
+   新資料存在 e.links = [{type,id}, ...]；舊資料只有單一連結欄位，這裡統一轉成同樣的陣列格式方便共用比對邏輯 */
+function expenseLinksArray(e){
+  if(Array.isArray(e.links) && e.links.length) return e.links;
+  const legacy = [];
+  if(e.supportLinkedId) legacy.push({type:'support', id:e.supportLinkedId});
+  if(e.fanlogLinkedId) legacy.push({type:'fanlog', id:e.fanlogLinkedId});
+  if(e.pcSeriesLinkedId) legacy.push({type:'pcSeries', id:e.pcSeriesLinkedId});
+  if(e.mcSeriesLinkedId) legacy.push({type:'mcSeries', id:e.mcSeriesLinkedId});
+  if(e.mediaType && e.mediaLinkedId) legacy.push({type:e.mediaType, id:e.mediaLinkedId});
+  return legacy;
+}
+/* 找出所有連結到某筆應援的記帳紀錄：一筆應援可以連到多筆記帳（新版 links 陣列），
    也相容舊版由應援表單自動建立、只記在 support.expenseLinkedId 的單筆連結 */
 function linkedExpensesForSupport(s){
   return state.expense.filter(e=>
-    e.supportLinkedId===s.id || (s.expenseLinkedId && String(e.id)===String(s.expenseLinkedId))
+    expenseLinksArray(e).some(l=>l.type==='support' && String(l.id)===String(s.id)) ||
+    (s.expenseLinkedId && String(e.id)===String(s.expenseLinkedId))
   );
 }
 function supportSpentAmount(s){
@@ -1392,7 +1399,8 @@ function supportSpentAmount(s){
 /* 追星紀錄 ↔ 記帳本，用法與應援相同：一筆紀錄可以連結好幾筆記帳 */
 function linkedExpensesForFanlog(f){
   return state.expense.filter(e=>
-    e.fanlogLinkedId===f.id || (f.expenseLinkedId && String(e.id)===String(f.expenseLinkedId))
+    expenseLinksArray(e).some(l=>l.type==='fanlog' && String(l.id)===String(f.id)) ||
+    (f.expenseLinkedId && String(e.id)===String(f.expenseLinkedId))
   );
 }
 function fanlogSpentAmount(f){
@@ -1400,16 +1408,20 @@ function fanlogSpentAmount(f){
   if(linked.length>0) return linked.reduce((sum,e)=> sum + expenseAmount(e), 0);
   return parseFloat(f.amount)||0;
 }
+/* 追星紀錄 ↔ 影視作品：一筆紀錄可以連結到「媒體」分頁裡已存在的一部影視作品，方便互相對照 */
+function linkedFanlogsForMovie(movieId){
+  return state.fanlog.filter(f => f.movieLinkedId && String(f.movieLinkedId)===String(movieId));
+}
 /* 小卡系列 ↔ 記帳本：小卡通常是整批/整組購入，所以連結的對象是「系列」而不是單張小卡 */
 function linkedExpensesForPcSeries(seriesKey){
-  return state.expense.filter(e=> e.pcSeriesLinkedId===seriesKey);
+  return state.expense.filter(e=> expenseLinksArray(e).some(l=>l.type==='pcSeries' && String(l.id)===String(seriesKey)));
 }
 function pcSeriesSpentAmount(seriesKey){
   return linkedExpensesForPcSeries(seriesKey).reduce((sum,e)=> sum + expenseAmount(e), 0);
 }
 /* 周邊系列 ↔ 記帳本，用法與小卡系列相同 */
 function linkedExpensesForMcSeries(seriesKey){
-  return state.expense.filter(e=> e.mcSeriesLinkedId===seriesKey);
+  return state.expense.filter(e=> expenseLinksArray(e).some(l=>l.type==='mcSeries' && String(l.id)===String(seriesKey)));
 }
 function mcSeriesSpentAmount(seriesKey){
   return linkedExpensesForMcSeries(seriesKey).reduce((sum,e)=> sum + expenseAmount(e), 0);
@@ -1417,7 +1429,7 @@ function mcSeriesSpentAmount(seriesKey){
 /* 媒體（代言／雜誌／影視）↔ 記帳本：用法跟應援、追星紀錄一樣，一筆媒體項目可以連到好幾筆記帳，
    type 是 'endorsement' | 'magazine' | 'movie' */
 function linkedExpensesForMedia(type, id){
-  return state.expense.filter(e=> e.mediaType===type && String(e.mediaLinkedId)===String(id));
+  return state.expense.filter(e=> expenseLinksArray(e).some(l=>l.type===type && String(l.id)===String(id)));
 }
 function mediaSpentAmount(type, item){
   const linked = linkedExpensesForMedia(type, item.id);
@@ -2289,6 +2301,10 @@ function renderCard(tab, item){
     const flSpent = fanlogSpentAmount(item);
     if(flSpent>0) tags += `<span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
     if(flLinked.length>0) tags += `<span class="tag matcha">🔗 已連動 ${flLinked.length} 筆記帳</span>`;
+    if(item.movieLinkedId){
+      const linkedMovie = state.movie.find(m=>String(m.id)===String(item.movieLinkedId));
+      if(linkedMovie) tags += `<span class="tag matcha">🎬 ${esc(linkedMovie.title)}</span>`;
+    }
   }
 
   return `
@@ -2689,6 +2705,17 @@ function expenseStatusColor(status){
   return map[status] || {bg:'#E6EEFA', fg:'#5F4E7A'};
 }
 
+function describeExpenseLink(l){
+  if(l.type==='support'){ const s=state.support.find(x=>x.id===l.id); return s? '🔗 應援: '+s.title : null; }
+  if(l.type==='fanlog'){ const f=state.fanlog.find(x=>x.id===l.id); return f? '🔗 紀錄: '+f.activity : null; }
+  if(l.type==='pcSeries') return '🔗 小卡: '+l.id;
+  if(l.type==='mcSeries') return '🔗 周邊: '+l.id;
+  if(l.type==='endorsement'){ const e=state.endorsement.find(x=>x.id===l.id); return e? '🔗 代言: '+e.title : null; }
+  if(l.type==='magazine'){ const m=state.magazine.find(x=>x.id===l.id); return m? '🔗 雜誌: '+m.title : null; }
+  if(l.type==='movie'){ const mv=state.movie.find(x=>x.id===l.id); return mv? '🔗 影視: '+mv.title : null; }
+  return null;
+}
+
 function renderExpenseCard(item){
   const unit = parseFloat(item.unitPrice)||0;
   const qty = parseFloat(item.quantity)||1;
@@ -2700,16 +2727,10 @@ function renderExpenseCard(item){
   const tags = (item.tags||[]);
   const footnoteParts = [];
   if(item.artist) footnoteParts.push('👤 '+item.artist);
-  if(item.supportLinkedId){
-    const linkedSupport = state.support.find(s=>s.id===item.supportLinkedId);
-    if(linkedSupport) footnoteParts.push('🔗 應援: '+linkedSupport.title);
-  }
-  if(item.fanlogLinkedId){
-    const linkedFanlog = state.fanlog.find(f=>f.id===item.fanlogLinkedId);
-    if(linkedFanlog) footnoteParts.push('🔗 紀錄: '+linkedFanlog.activity);
-  }
-  if(item.pcSeriesLinkedId) footnoteParts.push('🔗 小卡: '+item.pcSeriesLinkedId);
-  if(item.mcSeriesLinkedId) footnoteParts.push('🔗 周邊: '+item.mcSeriesLinkedId);
+  expenseLinksArray(item).forEach(l=>{
+    const label = describeExpenseLink(l);
+    if(label) footnoteParts.push(label);
+  });
   if(item.paymentMethod) footnoteParts.push('付款: '+item.paymentMethod);
   if(item.platform) footnoteParts.push('購自'+item.platform);
 
@@ -2786,7 +2807,63 @@ function bindSchChecklistInput(){
     }
   });
 }
+function buildExpLinkOptions(){
+  const opts = [];
+  [...state.support].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(s=>
+    opts.push({ type:'support', id:s.id, label:`🎤 ${fmtDate(s.date)} · ${s.title}` }));
+  [...state.fanlog].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).forEach(f=>
+    opts.push({ type:'fanlog', id:f.id, label:`📝 ${fmtDate(f.date)} · ${f.activity}` }));
+  [...new Set(state.photocards.map(p=>pcGroupKey(p)))].sort().forEach(key=>
+    opts.push({ type:'pcSeries', id:key, label:`🎴 小卡・${key}` }));
+  [...new Set(state.merch.map(mc=>mcGroupKey(mc)))].sort().forEach(key=>
+    opts.push({ type:'mcSeries', id:key, label:`🛍️ 周邊・${key}` }));
+  [...state.endorsement].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).forEach(e=>
+    opts.push({ type:'endorsement', id:e.id, label:`🤝 代言・${e.title}` }));
+  [...state.magazine].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')).forEach(m=>
+    opts.push({ type:'magazine', id:m.id, label:`📔 雜誌・${m.title}` }));
+  [...state.movie].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).forEach(x=>
+    opts.push({ type:'movie', id:x.id, label:`🎬 影視・${x.title}` }));
+  return opts;
+}
+function expLinkCurrentItems(src, opts){
+  if(!src) return [];
+  return expenseLinksArray(src)
+    .map(l=> opts.find(o=>o.type===l.type && String(o.id)===String(l.id)))
+    .filter(Boolean);
+}
 let expImgUrls = [];
+let currentExpLinkOpts = [];
+let expLinks = [];
+
+function renderExpLinkChips(){
+  const box = document.getElementById('expLinkBox');
+  if(!box) return;
+  box.innerHTML = expLinks.map(l=>
+    `<span class="tag-chip">${esc(l.label)} <span class="tag-chip-x" data-remove="${esc(l.type)}::${esc(String(l.id))}">×</span></span>`
+  ).join('') + `<input type="text" id="expLinkText" list="expLinkDatalist" autocomplete="off" placeholder="輸入關鍵字搜尋，選到項目後自動加入">`;
+  box.querySelectorAll('.tag-chip-x').forEach(x=>{
+    x.addEventListener('click', ()=>{
+      const key = x.dataset.remove;
+      expLinks = expLinks.filter(l=> `${l.type}::${String(l.id)}` !== key);
+      renderExpLinkChips();
+    });
+  });
+  bindExpLinkInput();
+}
+function bindExpLinkInput(){
+  const input = document.getElementById('expLinkText');
+  if(!input) return;
+  input.addEventListener('input', ()=>{
+    const val = input.value.trim();
+    const matched = currentExpLinkOpts.find(o=>o.label===val);
+    if(matched && !expLinks.some(l=>l.type===matched.type && String(l.id)===String(matched.id))){
+      expLinks.push(matched);
+      renderExpLinkChips();
+      const newInput = document.getElementById('expLinkText');
+      if(newInput) newInput.focus();
+    }
+  });
+}
 
 function openExpenseForm(id, prefill){
   const existing = id ? state.expense.find(e=>String(e.id)===String(id)) : null;
@@ -2827,6 +2904,10 @@ function openExpenseForm(id, prefill){
       <input type="text" id="expNewArtistName" placeholder="輸入新藝人名稱" style="margin-top:8px; display:${curArtist && !artistOptions.includes(curArtist)?'block':'none'};" value="${curArtist && !artistOptions.includes(curArtist)?esc(curArtist):''}">`;
   }
 
+  const expLinkOpts = buildExpLinkOptions();
+  currentExpLinkOpts = expLinkOpts;
+  expLinks = expLinkCurrentItems(src, expLinkOpts);
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 記帳</h3>
@@ -2849,48 +2930,12 @@ function openExpenseForm(id, prefill){
       <div id="expRateHint" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
-    <div class="field"><label>連結應援</label>
-      <select id="expSupportLink">
-        <option value="">不連結</option>
-        ${[...state.support].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(s=>`<option value="${s.id}" ${src&&src.supportLinkedId===s.id?'selected':''}>${esc(fmtDate(s.date))} · ${esc(s.title)}</option>`).join('')}
-      </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">一場應援可以連結好幾筆記帳（例如車票、周邊分開記），應援牆會自動加總</div>
-    </div>
-    <div class="field"><label>連結追星紀錄</label>
-      <select id="expFanlogLink">
-        <option value="">不連結</option>
-        ${[...state.fanlog].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(f=>`<option value="${f.id}" ${src&&src.fanlogLinkedId===f.id?'selected':''}>${esc(fmtDate(f.date))} · ${esc(f.activity)}</option>`).join('')}
-      </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">同一場活動的花費可以連到同一筆紀錄，追星紀錄頁會自動加總</div>
-    </div>
-    <div class="field"><label>連結小卡系列</label>
-      <select id="expPcSeriesLink">
-        <option value="">不連結</option>
-        ${[...new Set(state.photocards.map(p=>pcGroupKey(p)))].sort().map(key=>`<option value="${esc(key)}" ${src&&src.pcSeriesLinkedId===key?'selected':''}>${esc(key)}</option>`).join('')}
-      </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">小卡通常整批購入，連結到系列後，小卡圖庫會自動加總這個系列花了多少錢</div>
-    </div>
-    <div class="field"><label>連結周邊系列</label>
-      <select id="expMerchSeriesLink">
-        <option value="">不連結</option>
-        ${[...new Set(state.merch.map(mc=>mcGroupKey(mc)))].sort().map(key=>`<option value="${esc(key)}" ${src&&src.mcSeriesLinkedId===key?'selected':''}>${esc(key)}</option>`).join('')}
-      </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">連結到周邊系列後，周邊圖鑑會自動加總這個系列花了多少錢</div>
-    </div>
-    <div class="field"><label>連結媒體項目（代言／雜誌／影視）</label>
-      <select id="expMediaLink">
-        <option value="">不連結</option>
-        <optgroup label="🤝 代言合作">
-          ${[...state.endorsement].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).map(e=>`<option value="endorsement::${e.id}" ${src&&src.mediaType==='endorsement'&&src.mediaLinkedId===e.id?'selected':''}>${esc(e.title)}</option>`).join('')}
-        </optgroup>
-        <optgroup label="📔 雜誌寫真">
-          ${[...state.magazine].sort((a,b)=>(b.issueDate||'').localeCompare(a.issueDate||'')).map(m=>`<option value="magazine::${m.id}" ${src&&src.mediaType==='magazine'&&src.mediaLinkedId===m.id?'selected':''}>${esc(m.title)}</option>`).join('')}
-        </optgroup>
-        <optgroup label="🎬 影視作品">
-          ${[...state.movie].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'')).map(x=>`<option value="movie::${x.id}" ${src&&src.mediaType==='movie'&&src.mediaLinkedId===x.id?'selected':''}>${esc(x.title)}</option>`).join('')}
-        </optgroup>
-      </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">同一個代言／雜誌／影視作品的花費可以連到同一筆項目，媒體頁會自動加總這筆花了多少錢</div>
+    <div class="field"><label>連結到（可以連結好幾個項目）</label>
+      <div class="tag-input-box" id="expLinkBox"></div>
+      <datalist id="expLinkDatalist">
+        ${expLinkOpts.map(o=>`<option value="${esc(o.label)}">`).join('')}
+      </datalist>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">輸入關鍵字搜尋應援／紀錄／系列／代言／雜誌／影視，從建議清單點選後會自動加入，一筆記帳可以連好幾個；同一場活動/系列/項目的花費也可以連到同一筆，對應頁面會自動加總花了多少錢</div>
     </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
@@ -2966,6 +3011,7 @@ function openExpenseForm(id, prefill){
 
   renderExpTagChips();
   document.getElementById('expTagText') && bindExpTagInput();
+  renderExpLinkChips();
   renderExpImgList();
   document.getElementById('expImgAddBtn').addEventListener('click', addExpImgUrl);
   document.getElementById('expImgUploadBtn').addEventListener('click', ()=> document.getElementById('expImgFileInput').click());
@@ -3082,12 +3128,13 @@ async function saveExpenseForm(existing){
     origAmount: document.getElementById('expOrigAmount').value.trim(),
     category,
     date,
-    supportLinkedId: document.getElementById('expSupportLink') ? document.getElementById('expSupportLink').value : '',
-    fanlogLinkedId: document.getElementById('expFanlogLink') ? document.getElementById('expFanlogLink').value : '',
-    pcSeriesLinkedId: document.getElementById('expPcSeriesLink') ? document.getElementById('expPcSeriesLink').value : '',
-    mcSeriesLinkedId: document.getElementById('expMerchSeriesLink') ? document.getElementById('expMerchSeriesLink').value : '',
-    mediaType: document.getElementById('expMediaLink') && document.getElementById('expMediaLink').value ? document.getElementById('expMediaLink').value.split('::')[0] : '',
-    mediaLinkedId: document.getElementById('expMediaLink') && document.getElementById('expMediaLink').value ? document.getElementById('expMediaLink').value.split('::')[1] : '',
+    links: expLinks.map(l=>({ type:l.type, id:l.id })),
+    supportLinkedId: '',
+    fanlogLinkedId: '',
+    pcSeriesLinkedId: '',
+    mcSeriesLinkedId: '',
+    mediaType: '',
+    mediaLinkedId: '',
     platform: document.getElementById('expPlatform').value.trim(),
     deliveryStatus: document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
@@ -3739,12 +3786,12 @@ function bindArtistCardActions(){
 
 /* ================= 站內全域搜尋 ================= */
 const GLOBAL_SEARCH_CONFIG = [
-  { tab:'schedule', icon:'📅', label:'行程', fields:['title','artist','location','note','category'], titleField:'title', openFn:(id)=>{ state.tab='schedule'; render(); openScheduleForm(id); } },
+  { tab:'schedule', icon:'📅', label:'行程', fields:['title','artist','location','category'], titleField:'title', openFn:(id)=>{ state.tab='schedule'; render(); openScheduleForm(id); } },
   { tab:'expense', icon:'💰', label:'記帳', fields:['name','note','platform','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='expense'; render(); openExpenseForm(id); } },
   { tab:'photocards', icon:'🎴', label:'小卡', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='photocards'; render(); openPhotocardForm(id); } },
   { tab:'merch', icon:'🛍️', label:'周邊', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='merch'; render(); openMerchForm(id); } },
   { tab:'support', icon:'📣', label:'應援', fields:['title','artist','activity','location','content'], titleField:'title', openFn:(id)=>{ state.tab='support'; render(); openSupportForm(id); } },
-  { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','note','category'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
+  { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','category'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
   { tab:'artists', icon:'✨', label:'藝人', fields:['name','group','bio'], titleField:'name', openFn:(id)=>{ openArtistDetail(id); } },
   { tab:'endorsement', icon:'🤝', label:'代言', fields:['title','artist','category'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='endorsement'; render(); openEndorsementForm(id); } },
   { tab:'magazine', icon:'📔', label:'雜誌', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='magazine'; render(); openMagazineForm(id); } },
@@ -4543,8 +4590,6 @@ function renderMagazineCard(m){
         ${(()=>{ const spent=mediaSpentAmount('magazine',m); const linked=linkedExpensesForMedia('magazine',m.id);
           return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
-      ${m.note ? `<div class="card-meta" style="margin-top:6px;">${esc(m.note)}</div>` : ''}
-      ${m.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(m.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看連結</a></div>` : ''}
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="magazine" data-id="${m.id}">✎</button>
         <button class="icon-btn del" data-tab="magazine" data-id="${m.id}">🗑</button>
@@ -4599,7 +4644,6 @@ function openMagazineForm(id){
     </div>
     <div class="field"><label>發售日期</label><input type="date" id="magIssueDate" value="${existing?esc(existing.issueDate||''):''}"></div>
     <div class="field"><label>封面圖片網址</label><input type="url" id="magImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
-    <div class="field"><label>購買/相關連結</label><input type="url" id="magArticleUrl" value="${existing?esc(existing.articleUrl||''):''}" placeholder="貼上相關連結"></div>
     <div class="field"><label>購買花費（選填）</label><input type="number" id="magAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -4608,7 +4652,6 @@ function openMagazineForm(id){
       </label>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：雜誌寫真）</div>
     </div>
-    <div class="field"><label>備註</label><textarea id="magNote">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
@@ -4651,8 +4694,6 @@ async function saveMagazineForm(existing){
     category: document.getElementById('magCategory').value,
     issueDate,
     imageUrl: document.getElementById('magImageUrl').value.trim(),
-    articleUrl: document.getElementById('magArticleUrl').value.trim(),
-    note: document.getElementById('magNote').value.trim(),
     amount
   };
 
@@ -4721,11 +4762,9 @@ function renderMovieCard(x){
       <div>
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
-        ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id);
-          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
+        ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
+          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 ${linkedLogs.length} 筆紀錄</span>`:''); })()}
       </div>
-      ${x.note ? `<div class="card-meta" style="margin-top:6px;">${esc(x.note)}</div>` : ''}
-      ${x.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(x.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看連結</a></div>` : ''}
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
         <button class="icon-btn del" data-tab="movie" data-id="${x.id}">🗑</button>
@@ -4781,7 +4820,6 @@ function openMovieForm(id){
     <div class="field"><label>播出平台</label><input type="text" id="movPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="例：Netflix、台視、YouTube"></div>
     <div class="field"><label>開播/上映日期</label><input type="date" id="movStartDate" value="${existing?esc(existing.startDate||''):''}"></div>
     <div class="field"><label>完結日期</label><input type="date" id="movEndDate" value="${existing?esc(existing.endDate||''):''}"></div>
-    <div class="field"><label>觀看/相關連結</label><input type="url" id="movArticleUrl" value="${existing?esc(existing.articleUrl||''):''}" placeholder="貼上相關連結"></div>
     <div class="field"><label>海報圖片網址</label><input type="url" id="movImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>相關花費（選填，例如電影票、訂閱費）</label><input type="number" id="movAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
     <div class="field">
@@ -4791,7 +4829,6 @@ function openMovieForm(id){
       </label>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：電影/影視）</div>
     </div>
-    <div class="field"><label>備註</label><textarea id="movNote">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
@@ -4838,9 +4875,7 @@ async function saveMovieForm(existing){
     platform: document.getElementById('movPlatform').value.trim(),
     startDate,
     endDate,
-    articleUrl: document.getElementById('movArticleUrl').value.trim(),
     imageUrl: document.getElementById('movImageUrl').value.trim(),
-    note: document.getElementById('movNote').value.trim(),
     amount
   };
 
@@ -5346,7 +5381,6 @@ function openMerchForm(id){
     <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填"></div>
     <div class="field"><label>圖片網址</label><input type="url" id="mcImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>建立時間</label><input type="date" id="mcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
-    <div class="field"><label>備註</label><textarea id="mcNote" placeholder="選填">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="mcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing&&existing.owned?'checked':''}>
@@ -5411,7 +5445,6 @@ async function saveMerchForm(existing){
     price: document.getElementById('mcPrice').value ? parseFloat(document.getElementById('mcPrice').value) : '',
     imageUrl: document.getElementById('mcImageUrl').value.trim(),
     createdAt: document.getElementById('mcCreatedAt').value || todayStr(),
-    note: document.getElementById('mcNote').value.trim(),
     owned: document.getElementById('mcOwned').checked
   };
 
@@ -5448,6 +5481,15 @@ function openFanlogForm(id){
     </select>
     <input type="text" id="flNewCategory" placeholder="輸入新的活動性質" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
+  const movieOptions = [...state.movie].sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
+  const curMovieId = existing ? (existing.movieLinkedId||'') : '';
+  const movieFieldHtml = movieOptions.length ? `
+    <select id="flMovieSelect">
+      <option value="">不連結</option>
+      ${movieOptions.map(m=>`<option value="${esc(m.id)}" ${curMovieId===m.id?'selected':''}>${esc(m.title)}${m.artist?'（'+esc(m.artist)+'）':''}</option>`).join('')}
+    </select>`
+    : `<div style="font-size:12px;color:var(--ink-soft);">「媒體」分頁的影視作品還是空的，先去新增一筆再回來連結吧</div>`;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 追星紀錄</h3>
@@ -5458,6 +5500,7 @@ function openFanlogForm(id){
     </div>
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):''}"></div>
     <div class="field"><label>活動性質</label>${categoryFieldHtml}</div>
+    <div class="field"><label>相關影視作品（選填）</label>${movieFieldHtml}</div>
     <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -5466,7 +5509,6 @@ function openFanlogForm(id){
       </label>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填花費金額且勾選時，會自動建立/更新一筆對應花費（分類：其他追星支出）</div>
     </div>
-    <div class="field"><label>詳細內容</label><textarea id="flNote" placeholder="這天發生的事、心得...">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
@@ -5502,6 +5544,8 @@ async function saveFanlogForm(existing){
 
   const amount = document.getElementById('flAmount').value.trim();
   const addToExpense = document.getElementById('flAddToExpense') && document.getElementById('flAddToExpense').checked;
+  const flMovieSelect = document.getElementById('flMovieSelect');
+  const movieLinkedId = flMovieSelect ? flMovieSelect.value : '';
 
   const data = {
     activity,
@@ -5509,7 +5553,7 @@ async function saveFanlogForm(existing){
     date,
     category,
     amount,
-    note: document.getElementById('flNote').value.trim()
+    movieLinkedId
   };
 
   let targetFanlog;
@@ -5626,7 +5670,6 @@ function openScheduleForm(id, prefill){
       <div class="checklist-box" id="schChecklistBox"></div>
       <button type="button" class="btn ghost" id="schChecklistTemplateBtn" style="width:100%;margin-top:8px;padding:9px;font-size:12.5px;">✨ 套用演唱會/見面會常見待辦</button>
     </div>
-    <div class="field"><label>備註</label><textarea id="schNote" placeholder="集合時間、票券資訊...">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
@@ -5702,8 +5745,7 @@ async function saveScheduleForm(existing){
     location: document.getElementById('schLocation').value.trim(),
     category,
     onSaleDate: document.getElementById('schOnSaleDate').value.trim(),
-    checklist: schChecklist,
-    note: document.getElementById('schNote').value.trim()
+    checklist: schChecklist
   };
 
   if(existing){
