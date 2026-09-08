@@ -1228,7 +1228,7 @@ const state = {
   magazine:[],
   movie:[],
   merch:[],
-  profile:{ nickname:'' },
+  profile:{ nickname:'', dailyReminder:true },
   theme:{ ...DEFAULT_THEME },
   customPcCategories:[],
   customEndorsementCategories:[],
@@ -1249,6 +1249,8 @@ let expArtistFilter = '__all__';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
+/* 首頁「追星總覽」花費排行要看本月還是本年 */
+let homeSpendScope = 'month';
 
 
 /* ================= Schemas ================= */
@@ -1576,7 +1578,7 @@ async function loadAllData(){
     loadKey('oshi-support', []),
     loadKey('oshi-fanlog', []),
     loadKey('oshi-artists', []),
-    loadKey('oshi-profile', {nickname:''}),
+    loadKey('oshi-profile', {nickname:'', dailyReminder:true}),
     loadKey('oshi-pc-categories', []),
     loadKey('oshi-pc-covers', {}),
     loadKey('oshi-pc-series-meta', {}),
@@ -1625,6 +1627,7 @@ async function init(){
       updateStorageBanner();
       renderProfile();
       render();
+      maybeShowDailyReminder();
     });
   } else {
     await loadAllData();
@@ -1633,6 +1636,7 @@ async function init(){
     updateStorageBanner();
     renderProfile();
     render();
+    maybeShowDailyReminder();
   }
   if(window.matchMedia){
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', ()=>{
@@ -2120,6 +2124,80 @@ function daysUntilDate(dateStr){
   return Math.round((target - todayMid) / (1000*60*60*24));
 }
 
+/* ================= 每日開啟提醒彈窗 ================= */
+const REMINDER_SHOWN_KEY = LOCAL_PREFIX + 'reminder-shown-date';
+
+/* 蒐集「今天」與「明天」跟行程有關的重要事項：行程本身、開賣日、藝人生日 */
+function computeTodayReminderItems(){
+  const today = todayStr();
+  const tomorrow = (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })();
+  const items = [];
+
+  state.schedule.forEach(s=>{
+    if(!s.date) return;
+    const start = s.date;
+    const end = (s.isMultiDay && s.endDate) ? s.endDate : s.date;
+    const isTodayEvent = today>=start && today<=end;
+    const isTomorrowEvent = !isTodayEvent && tomorrow>=start && tomorrow<=end;
+    if(isTodayEvent){
+      items.push({ icon:'🎤', when:'today', text:`今天是「${s.title}」的日子`, tab:'schedule' });
+    } else if(isTomorrowEvent){
+      items.push({ icon:'🎤', when:'tomorrow', text:`明天是「${s.title}」的日子`, tab:'schedule' });
+    }
+    if(s.onSaleDate===today){
+      items.push({ icon:'🎫', when:'today', text:`「${s.title}」今天開賣！`, tab:'schedule' });
+    } else if(s.onSaleDate===tomorrow){
+      items.push({ icon:'🎫', when:'tomorrow', text:`「${s.title}」明天開賣，記得設鬧鐘`, tab:'schedule' });
+    }
+  });
+
+  state.artists.forEach(a=>{
+    if(!a.birthday) return;
+    const info = nextOccurrenceInfo(a.birthday);
+    if(info && info.diffDays===0){
+      items.push({ icon:'🎂', when:'today', text:`今天是 ${a.name} 的生日！`, tab:'artists' });
+    }
+  });
+
+  // 今天的事優先排在前面
+  items.sort((a,b)=> (a.when==='today'?0:1) - (b.when==='today'?0:1));
+  return items;
+}
+
+function maybeShowDailyReminder(){
+  if(state.profile && state.profile.dailyReminder===false) return;
+  const today = todayStr();
+  let lastShown = null;
+  try{ lastShown = window.localStorage.getItem(REMINDER_SHOWN_KEY); }catch(e){}
+  if(lastShown===today) return;
+
+  const items = computeTodayReminderItems();
+  if(items.length===0) return;
+
+  try{ window.localStorage.setItem(REMINDER_SHOWN_KEY, today); }catch(e){}
+  showDailyReminderModal(items);
+}
+
+function showDailyReminderModal(items){
+  const modal = document.getElementById('modal');
+  const rows = items.map(it=>`
+    <div class="mini-row" style="margin-bottom:8px; ${it.when==='today' ? 'border:1px solid var(--sakura);' : ''}">
+      <span class="l">${it.icon} ${esc(it.text)}</span>
+      <span class="r" style="font-weight:700; color:${it.when==='today' ? 'var(--rose-deep)' : 'var(--ink-soft)'};">${it.when==='today' ? '今天' : '明天'}</span>
+    </div>
+  `).join('');
+  modal.innerHTML = `
+    <h3 class="maru">☀️ 今日提醒</h3>
+    <p style="font-size:13px; color:var(--ink-soft); margin:-8px 2px 16px;">打開手帳的時候，順便看看有沒有要注意的事</p>
+    ${rows}
+    <div class="modal-actions">
+      <button class="btn primary" id="reminderCloseBtn" style="width:100%;">知道了</button>
+    </div>
+  `;
+  document.getElementById('reminderCloseBtn').addEventListener('click', closeModal);
+  showModal();
+}
+
 const FANLOG_CATEGORY_ICON = {
   '演唱會':'🎤','見面會':'🤝','簽唱會':'✍️','商演':'🎪','站台':'📸',
   '頒獎':'🏆','夜店':'🌃','跨年':'🎆','時裝周':'👗','校唱':'🎶','其他':'📖'
@@ -2134,6 +2212,66 @@ function greetingTimeInfo(){
 }
 function homeExpenseAmount(e){
   return e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0);
+}
+/* 依藝人加總花費，由高到低排序 */
+function artistSpendBreakdown(items){
+  const map = {};
+  items.forEach(e=>{
+    const name = (e.artist && e.artist.trim()) ? e.artist.trim() : '未指定藝人';
+    map[name] = (map[name]||0) + homeExpenseAmount(e);
+  });
+  return Object.entries(map).map(([name,amount])=>({name,amount})).sort((a,b)=> b.amount-a.amount);
+}
+/* 首頁「本月追星總覽」：本月參戰次數、本月/本年花費，以及本月/本年花費最高的藝人排行 */
+function computeMonthOshiOverview(){
+  const today = todayStr();
+  const thisMonth = today.slice(0,7);
+  const thisYear = today.slice(0,4);
+  const monthExpenses = state.expense.filter(e=> e.date && e.date.startsWith(thisMonth));
+  const yearExpenses = state.expense.filter(e=> e.date && e.date.startsWith(thisYear));
+  const monthEventCount = state.fanlog.filter(f=> f.date && f.date.startsWith(thisMonth)).length;
+  const monthTotal = monthExpenses.reduce((sum,e)=> sum + homeExpenseAmount(e), 0);
+  const yearTotal = yearExpenses.reduce((sum,e)=> sum + homeExpenseAmount(e), 0);
+  const monthArtistTotals = artistSpendBreakdown(monthExpenses);
+  const yearArtistTotals = artistSpendBreakdown(yearExpenses);
+  return {
+    month: thisMonth, year: thisYear,
+    monthEventCount, monthTotal, yearTotal,
+    monthArtistTotals, yearArtistTotals
+  };
+}
+function renderHomeOverviewBlock(){
+  const o = computeMonthOshiOverview();
+  const scopeIsMonth = homeSpendScope==='month';
+  const total = scopeIsMonth ? o.monthTotal : o.yearTotal;
+  const artistTotals = (scopeIsMonth ? o.monthArtistTotals : o.yearArtistTotals).slice(0,3);
+  const scopeLabel = scopeIsMonth ? `${o.month.replace('-','年')}月` : `${o.year}年`;
+
+  const barsHtml = artistTotals.length===0
+    ? `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">${scopeLabel}還沒有花費紀錄</span></div>`
+    : artistTotals.map(a=>{
+        const pct = total>0 ? Math.round(a.amount/total*100) : 0;
+        const color = chipColor(a.name);
+        return `<div class="ys-cat-row">
+          <div class="ys-cat-top"><span>${esc(a.name)}</span><span>NT$ ${Math.round(a.amount).toLocaleString()}</span></div>
+          <div class="ys-cat-track"><div class="ys-cat-fill" style="width:${pct}%; background:${color.fg};"></div></div>
+        </div>`;
+      }).join('');
+
+  return `
+  <div class="home-block">
+    <div class="block-head"><h3>📊 ${scopeLabel} 追星總覽</h3></div>
+    <div class="stat-grid" style="margin-bottom:12px;">
+      <div class="stat-card"><div class="num">${o.monthEventCount}</div><div class="lbl">本月參戰</div></div>
+      <div class="stat-card"><div class="num" style="font-size:15px;">NT$ ${Math.round(total).toLocaleString()}</div><div class="lbl">${scopeIsMonth?'本月':'本年'}花費</div></div>
+      <div class="stat-card"><div class="num" style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${artistTotals[0]?esc(artistTotals[0].name):''}">${artistTotals[0]? esc(artistTotals[0].name) : '—'}</div><div class="lbl">花費最高藝人</div></div>
+    </div>
+    <div class="seg-toggle" id="homeSpendScopeToggle" style="margin-bottom:12px;">
+      <button type="button" class="seg-btn ${scopeIsMonth?'active':''}" data-scope="month">本月花費排行</button>
+      <button type="button" class="seg-btn ${!scopeIsMonth?'active':''}" data-scope="year">本年花費排行</button>
+    </div>
+    ${barsHtml}
+  </div>`;
 }
 function renderHomeExpenseThumb(item){
   const cover = (item.imageUrls||[])[0];
@@ -2255,7 +2393,7 @@ function renderHome(){
   }
   main += `</div>`;
 
-  let side = '';
+  let side = renderHomeOverviewBlock();
   if(upcomingBirthdays.length>0){
     side += `<div class="home-block">
       <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>
@@ -2298,6 +2436,15 @@ function bindHomeLinks(){
   document.querySelectorAll('[data-open-year-summary]').forEach(btn=>{
     btn.addEventListener('click', ()=> openYearSummaryModal(btn.dataset.openYearSummary));
   });
+  const scopeToggle = document.getElementById('homeSpendScopeToggle');
+  if(scopeToggle){
+    scopeToggle.querySelectorAll('.seg-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        homeSpendScope = btn.dataset.scope;
+        render();
+      });
+    });
+  }
 }
 
 /* ================= Generic list ================= */
@@ -6043,6 +6190,14 @@ function openProfileForm(){
       <input type="color" id="themeCustomColor" value="${esc(state.theme.customColor||DEFAULT_THEME.customColor)}" style="margin-top:10px; width:100%; height:38px; border-radius:10px; border:1px solid var(--sakura-pale); padding:2px; cursor:pointer; display:${state.theme.accent==='custom'?'block':'none'};">
     </div>
     <div class="field">
+      <label>開啟提醒</label>
+      <div class="seg-toggle" id="reminderToggle">
+        <button type="button" class="seg-btn ${state.profile.dailyReminder!==false?'active':''}" data-val="on">🔔 開啟</button>
+        <button type="button" class="seg-btn ${state.profile.dailyReminder===false?'active':''}" data-val="off">🔕 關閉</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
+    </div>
+    <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
     </div>
     <div class="field">
@@ -6060,6 +6215,13 @@ function openProfileForm(){
     </div>
   `;
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  let pendingDailyReminder = state.profile.dailyReminder!==false;
+  document.getElementById('reminderToggle').querySelectorAll('.seg-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      pendingDailyReminder = btn.dataset.val==='on';
+      document.getElementById('reminderToggle').querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+    });
+  });
   document.getElementById('goArtistsBtn').addEventListener('click', ()=>{
     closeModal();
     state.tab = 'artists';
@@ -6100,6 +6262,7 @@ function openProfileForm(){
   });
   document.getElementById('saveProfBtn').addEventListener('click', async ()=>{
     state.profile.nickname = document.getElementById('profNickname').value.trim();
+    state.profile.dailyReminder = pendingDailyReminder;
     await saveKey('oshi-profile', state.profile);
     closeModal();
     renderProfile();
