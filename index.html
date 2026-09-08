@@ -958,7 +958,7 @@
   @media (min-width:900px){
     body{ display:block; }
     header.top{ padding-left:40px; padding-right:40px; margin-left:220px; }
-    main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:20px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
+    main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:40px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
     .storage-warn{ margin-left:220px; }
     .fab{ right:48px; }
     nav.bottom{
@@ -2315,6 +2315,7 @@ function renderCard(tab, item){
         <div class="card-meta">${esc(metaLine)}</div>
         <div>${tags}</div>
         ${item.note ? `<div class="card-meta" style="margin-top:6px;">${esc(item.note)}</div>` : ''}
+        ${tab==='fanlog' && item.albumUrl ? `<div style="margin-top:6px;"><a href="${esc(item.albumUrl)}" target="_blank" rel="noopener" class="tag matcha" style="text-decoration:none;">📷 查看拍攝紀錄</a></div>` : ''}
       </div>
       <div class="card-actions">
         <button class="icon-btn edit" data-tab="${tab}" data-id="${item.id}">✎</button>
@@ -5501,6 +5502,7 @@ function openFanlogForm(id){
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):''}"></div>
     <div class="field"><label>活動性質</label>${categoryFieldHtml}</div>
     <div class="field"><label>相關影視作品（選填）</label>${movieFieldHtml}</div>
+    <div class="field"><label>拍攝相簿連結（選填）</label><input type="url" id="flAlbumUrl" value="${existing?esc(existing.albumUrl||''):''}" placeholder="貼上這場的拍攝相簿網址"></div>
     <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -5546,6 +5548,7 @@ async function saveFanlogForm(existing){
   const addToExpense = document.getElementById('flAddToExpense') && document.getElementById('flAddToExpense').checked;
   const flMovieSelect = document.getElementById('flMovieSelect');
   const movieLinkedId = flMovieSelect ? flMovieSelect.value : '';
+  const albumUrl = document.getElementById('flAlbumUrl').value.trim();
 
   const data = {
     activity,
@@ -5553,7 +5556,8 @@ async function saveFanlogForm(existing){
     date,
     category,
     amount,
-    movieLinkedId
+    movieLinkedId,
+    albumUrl
   };
 
   let targetFanlog;
