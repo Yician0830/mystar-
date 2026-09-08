@@ -1128,7 +1128,7 @@ try {
    VAPID 金鑰：到 Firebase 主控台 →「專案設定」→「Cloud Messaging」→
    「Web Push 憑證」產生金鑰對後，把公鑰貼在下面取代 YOUR_VAPID_KEY。
    沒填的話，推播開關會自動顯示為「尚未設定」，不影響其他功能。 */
-const FCM_VAPID_KEY = 'BAPuT-Q1ZBiDe5E08y0fqRDUWf3lV2Xx6fnZiex8C71zkycrZ65dj7fit4wmKjh1HLrfpXuRxQItlz7VrtPKxSE';
+const FCM_VAPID_KEY = 'YOUR_VAPID_KEY';
 let messaging = null;
 try {
   if (useCloud && firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()) {
