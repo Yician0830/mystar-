@@ -428,6 +428,13 @@
   .cal-filter-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700;}
   .cal-filter-btn.qualify{ background:var(--matcha-pale); border-color:var(--matcha-pale); color:#3F6B45; font-weight:700;}
   .cal-filter-btn.qualify.active{ background:var(--rose-deep); border-color:var(--rose-deep); color:#fff;}
+  .artist-multiselect{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px; }
+  .artist-toggle-btn{
+    padding:7px 14px; border-radius:999px;
+    border:1px solid var(--sakura-pale); background:var(--surface); color:var(--ink-soft);
+    font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:500;
+  }
+  .artist-toggle-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700;}
   .chip-filter-btn{
     flex-shrink:0; padding:7px 14px; border-radius:999px; border:2px solid transparent;
     font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:600;
@@ -1244,7 +1251,6 @@ const state = {
 /* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
 let expViewMode = 'all';
 let expSearchQuery = '';
-let expArtistFilter = '__all__';
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
@@ -1766,7 +1772,7 @@ function restoreCurrentTab(){
 function persistUiFilters(){
   try{
     const filters = {
-      scheduleArtistFilter, expArtistFilter,
+      scheduleArtistFilter,
       pcArtistFilter, pcOwnedFilter, pcDrill, pcCategoryFilter,
       mcArtistFilter, mcOwnedFilter, mcDrill,
       supportArtistFilter, fanlogArtistFilter,
@@ -1781,7 +1787,6 @@ function restoreUiFilters(){
     if(!raw) return;
     const f = JSON.parse(raw);
     if(typeof f.scheduleArtistFilter==='string') scheduleArtistFilter = f.scheduleArtistFilter;
-    if(typeof f.expArtistFilter==='string') expArtistFilter = f.expArtistFilter;
     if(typeof f.pcArtistFilter==='string') pcArtistFilter = f.pcArtistFilter;
     if(typeof f.pcOwnedFilter==='string') pcOwnedFilter = f.pcOwnedFilter;
     if(typeof f.pcDrill==='string' || f.pcDrill===null) pcDrill = f.pcDrill;
@@ -1969,6 +1974,11 @@ function fmtDate(d){
   if(parts.length!==3) return d;
   return `${parts[0]}/${parts[1]}/${parts[2]}`;
 }
+/* 追星紀錄的「相關藝人」支援同時選多位，內部以「、」串接成字串儲存以維持相容，這裡拆回陣列 */
+function splitArtistNames(str){
+  if(!str) return [];
+  return String(str).split(/[、,，]/).map(s=>s.trim()).filter(Boolean);
+}
 function todayStr(){
   const t = new Date();
   return t.toISOString().slice(0,10);
@@ -2015,8 +2025,9 @@ function computeYearSummary(year){
 
   const artistMap = {};
   yearFanlogs.forEach(f=>{
-    if(!f.artist) return;
-    artistMap[f.artist] = (artistMap[f.artist]||0) + 1;
+    splitArtistNames(f.artist).forEach(name=>{
+      artistMap[name] = (artistMap[name]||0) + 1;
+    });
   });
   const topArtist = Object.entries(artistMap).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)[0] || null;
 
@@ -2544,13 +2555,6 @@ function renderExpenseTab(){
     });
   }
 
-  // 藝人篩選
-  const expArtistNames = [...new Set(allItems.map(e=>e.artist).filter(Boolean))];
-  if(expArtistFilter!=='__all__' && !expArtistNames.includes(expArtistFilter)) expArtistFilter = '__all__';
-  if(expArtistFilter!=='__all__'){
-    items = items.filter(e=> e.artist===expArtistFilter);
-  }
-
   const grandTotal = items.reduce((sum, e) => sum + expenseAmount(e), 0);
 
   // 「全部明細」與「分類明細」永遠只算今年的資料，不提供切換其他年份
@@ -2566,13 +2570,7 @@ function renderExpenseTab(){
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='year'?'active':''}" data-view="year">📅 歷年花費</button>
     <button class="exp-view-btn cal-filter-btn ${expViewMode==='stats'?'active':''}" data-view="stats">📊 統計圖表</button>
   </div>
-  ${expArtistNames.length>0 ? `
-  <div class="cal-filter-row" style="margin-bottom:14px;">
-    <button class="chip-filter-btn cal-filter-btn ${expArtistFilter==='__all__'?'active':''}" data-artist="__all__">👤 全部藝人</button>
-    ${expArtistNames.map(n=>`<button class="chip-filter-btn cal-filter-btn ${expArtistFilter===n?'active':''}" data-artist="${esc(n)}">${esc(n)}</button>`).join('')}
-  </div>` : ''}
   `;
-
   const expSearchBoxHtml = `
   <div class="field" style="margin-bottom:14px;">
     <input type="text" id="expSearchInput" placeholder="🔍 搜尋商品名稱、備註、標籤、平台..." value="${esc(expSearchQuery)}" style="width:100%;box-sizing:border-box;">
@@ -2847,12 +2845,6 @@ function bindExpenseActions(){
   document.querySelectorAll('.chip-filter-btn[data-cat]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       expCategoryFilter = btn.dataset.cat;
-      render();
-    });
-  });
-  document.querySelectorAll('.chip-filter-btn[data-artist]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      expArtistFilter = btn.dataset.artist;
       render();
     });
   });
@@ -4099,7 +4091,7 @@ function openArtistDetail(id){
   const totalSpent = artistExpenses.reduce((sum,e)=> sum + expenseAmount(e), 0);
   const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
-  const fanlogCount = state.fanlog.filter(f=>f.artist===a.name).length;
+  const fanlogCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name)).length;
   const supportCount = state.support.filter(s=>s.artist===a.name).length;
 
   // 花費 vs 收藏 比例：換得到實體收藏（專輯/小卡/周邊等）的花費，跟體驗／消耗型花費（門票/交通/餐飲等）的佔比
@@ -5712,14 +5704,17 @@ async function saveMerchForm(existing){
 }
 
 /* ================= Fanlog form ================= */
+let flArtists = [];
 function openFanlogForm(id, prefill){
   const existing = id ? state.fanlog.find(f=>String(f.id)===String(id)) : null;
   const src = existing || prefill || null;
 
   const artistNames = [...new Set([
     ...state.artists.map(a=>a.name),
-    ...state.fanlog.map(f=>f.artist).filter(Boolean)
+    ...state.fanlog.flatMap(f=>splitArtistNames(f.artist))
   ])];
+
+  flArtists = src ? splitArtistNames(src.artist) : [];
 
   const categoryOptions = [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories];
   const curCategory = src ? src.category : '';
@@ -5746,8 +5741,12 @@ function openFanlogForm(id, prefill){
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 追星紀錄</h3>
     <div class="field"><label>活動名稱 *</label><input type="text" id="flTitle" value="${src?esc(src.activity||''):''}" placeholder="例：BTS WORLD TOUR / 生日應援"></div>
-    <div class="field"><label>相關藝人</label>
-      <input type="text" id="flArtist" list="flArtistList" placeholder="例：○○" value="${src?esc(src.artist||''):''}">
+    <div class="field"><label>相關藝人（可複選）</label>
+      ${artistNames.length ? `<div class="artist-multiselect" id="flArtistToggleGroup">
+        ${artistNames.map(n=>`<button type="button" class="artist-toggle-btn ${flArtists.includes(n)?'active':''}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}
+      </div>` : ''}
+      <div id="flArtistChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      <input type="text" id="flArtistText" list="flArtistList" placeholder="或輸入其他藝人名稱，按 Enter 加入">
       <datalist id="flArtistList">${artistNames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     </div>
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
@@ -5774,9 +5773,61 @@ function openFanlogForm(id, prefill){
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
   });
 
+  const toggleGroup = document.getElementById('flArtistToggleGroup');
+  if(toggleGroup){
+    toggleGroup.querySelectorAll('.artist-toggle-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const name = btn.dataset.name;
+        if(flArtists.includes(name)){
+          flArtists = flArtists.filter(n=>n!==name);
+        } else {
+          flArtists.push(name);
+        }
+        btn.classList.toggle('active', flArtists.includes(name));
+        renderFlArtistChips();
+      });
+    });
+  }
+  renderFlArtistChips();
+  bindFlArtistTextInput();
+
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveFanlogForm(existing));
   showModal();
+}
+
+function renderFlArtistChips(){
+  const box = document.getElementById('flArtistChips');
+  if(!box) return;
+  box.innerHTML = flArtists.map(n=>
+    `<span class="tag-chip">${esc(n)} <span class="tag-chip-x" data-remove="${esc(n)}">×</span></span>`
+  ).join('');
+  box.querySelectorAll('.tag-chip-x').forEach(x=>{
+    x.addEventListener('click', ()=>{
+      const name = x.dataset.remove;
+      flArtists = flArtists.filter(n=>n!==name);
+      const toggleBtn = document.querySelector(`#flArtistToggleGroup .artist-toggle-btn[data-name="${CSS.escape(name)}"]`);
+      if(toggleBtn) toggleBtn.classList.remove('active');
+      renderFlArtistChips();
+    });
+  });
+}
+function bindFlArtistTextInput(){
+  const input = document.getElementById('flArtistText');
+  if(!input) return;
+  input.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter' || e.key===','){
+      e.preventDefault();
+      const val = input.value.trim();
+      if(val && !flArtists.includes(val)){
+        flArtists.push(val);
+        const toggleBtn = document.querySelector(`#flArtistToggleGroup .artist-toggle-btn[data-name="${CSS.escape(val)}"]`);
+        if(toggleBtn) toggleBtn.classList.add('active');
+        renderFlArtistChips();
+      }
+      input.value = '';
+    }
+  });
 }
 
 async function saveFanlogForm(existing){
@@ -5803,7 +5854,7 @@ async function saveFanlogForm(existing){
 
   const data = {
     activity,
-    artist: document.getElementById('flArtist').value.trim(),
+    artist: flArtists.join('、'),
     date,
     category,
     amount,
@@ -6094,10 +6145,12 @@ function renderFanlogTab(){
   /* ---- 詳細內容（右側列表） ---- */
   let filtered = dated.filter(f=>f.date.startsWith(fanlogMonthFilter || fanlogYearFilter));
 
-  const artistNames = [...new Set(filtered.map(f=>f.artist).filter(Boolean))];
+  const artistCountMap = {};
+  filtered.forEach(f=> splitArtistNames(f.artist).forEach(n=>{ artistCountMap[n] = (artistCountMap[n]||0) + 1; }));
+  const artistNames = Object.keys(artistCountMap).sort((a,b)=> artistCountMap[b]-artistCountMap[a] || a.localeCompare(b,'zh-Hant'));
   if(fanlogArtistFilter!=='__all__' && !artistNames.includes(fanlogArtistFilter)) fanlogArtistFilter = '__all__';
 
-  if(fanlogArtistFilter!=='__all__') filtered = filtered.filter(f=>f.artist===fanlogArtistFilter);
+  if(fanlogArtistFilter!=='__all__') filtered = filtered.filter(f=>splitArtistNames(f.artist).includes(fanlogArtistFilter));
 
   /* 依日期排序：日期新到舊排列 */
   filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
