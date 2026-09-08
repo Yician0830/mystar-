@@ -1091,6 +1091,9 @@ let auth = null;
 let storage = null;
 let currentUser = null;
 let useCloud = false;
+let cloudUnsubscribe = null;      // Firestore 即時監聽的取消訂閱函式
+let cloudSyncDebounceTimer = null; // 避免一次收到多筆變更時重複刷新畫面
+let storageToStateKeyMap = null;   // storageKey -> stateKey 的對照表（延遲建立，避免用到還沒宣告的 BACKUP_FIELD_MAP）
 
 try {
   if (firebaseConfig.apiKey !== "YOUR_API_KEY") {
@@ -1199,6 +1202,65 @@ async function saveKey(key, value){
       console.error(e);
     }
     return;
+  }
+}
+
+/* ================= 即時雲端同步（跨裝置） ================= */
+function getStorageToStateKeyMap(){
+  // BACKUP_FIELD_MAP 在檔案後段才宣告，但這個函式要等到使用者登入後才會被呼叫，
+  // 屆時整份 script 已經執行過一次、BACKUP_FIELD_MAP 早已就緒，所以這裡延遲建立沒問題。
+  if(!storageToStateKeyMap){
+    storageToStateKeyMap = {};
+    BACKUP_FIELD_MAP.forEach(([stateKey, storageKey])=>{ storageToStateKeyMap[storageKey] = stateKey; });
+  }
+  return storageToStateKeyMap;
+}
+
+function attachCloudListener(){
+  if(!useCloud || !db || !currentUser) return;
+  detachCloudListener();
+  const map = getStorageToStateKeyMap();
+  const colRef = db.collection('users').doc(currentUser.uid).collection('data');
+  let isFirstSnapshot = true;
+  cloudUnsubscribe = colRef.onSnapshot((snapshot)=>{
+    const isInitialLoad = isFirstSnapshot;
+    isFirstSnapshot = false;
+    let changed = false;
+    snapshot.docChanges().forEach(change=>{
+      // 自己這台裝置剛寫入、還在等待伺服器確認的變更，資料早已套用在畫面上，跳過即可避免閃爍
+      if(change.doc.metadata.hasPendingWrites) return;
+      if(change.type === 'removed') return;
+      const storageKey = change.doc.id;
+      const stateKey = map[storageKey];
+      if(!stateKey) return;
+      const data = change.doc.data();
+      if(!data || data.value === undefined) return;
+      state[stateKey] = data.value;
+      changed = true;
+      if(stateKey === 'theme'){
+        state.theme = Object.assign({}, DEFAULT_THEME, state.theme || {});
+        applyTheme(state.theme);
+      }
+    });
+    if(changed && !isInitialLoad){
+      // 短暫延遲合併多筆同時到達的變更，避免畫面被重複刷新
+      clearTimeout(cloudSyncDebounceTimer);
+      cloudSyncDebounceTimer = setTimeout(()=>{
+        renderProfile();
+        render();
+        updatePendingUploadsBanner();
+        showToast('已從其他裝置同步最新資料 ☁️');
+      }, 300);
+    }
+  }, (err)=>{
+    console.error('雲端即時同步監聽失敗', err);
+  });
+}
+
+function detachCloudListener(){
+  if(cloudUnsubscribe){
+    cloudUnsubscribe();
+    cloudUnsubscribe = null;
   }
 }
 
@@ -1715,6 +1777,7 @@ async function init(){
   if(useCloud && auth){
     auth.onAuthStateChanged(async (user)=>{
       currentUser = user;
+      detachCloudListener();
       if(user){ await migrateLocalDataToCloudIfNeeded(); }
       await loadAllData();
       lastBackupAt = await loadKey('oshi-last-backup', null);
@@ -1726,6 +1789,7 @@ async function init(){
       renderProfile();
       render();
       maybeShowDailyReminder();
+      if(user){ attachCloudListener(); }
     });
   } else {
     await loadAllData();
