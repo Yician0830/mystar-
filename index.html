@@ -460,11 +460,6 @@
     color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     cursor:pointer;
   }
-  .event-pill.ec0{ background:var(--rose-deep); }
-  .event-pill.ec1{ background:#7DA687; }
-  .event-pill.ec2{ background:#8B7CB6; }
-  .event-pill.ec3{ background:#C99A45; }
-  .event-pill.ec4{ background:#C97B84; }
   .event-more{ font-size:9.5px; color:var(--ink-soft); padding:1px 6px; }
   /* 跨天行程橫條：用負邊距把左右兩側的格線縫隙填滿，接上鄰居格子看起來像同一條連續色塊 */
   .event-pill.event-bar{ font-weight:700; }
@@ -3368,11 +3363,13 @@ function ensureCalMonth(){
   if(!calMonth) calMonth = todayStr().slice(0,7);
 }
 
-function eventColorClass(key){
-  if(!key) return 'ec0';
-  let h = 0;
-  for(let i=0;i<key.length;i++) h = (h*31 + key.charCodeAt(i)) % 997;
-  return 'ec' + (h % 5);
+/* 月曆行程配色改成「依藝人」— 同一位藝人在月曆、清單、記帳圖表都用同一個顏色（跟花費排行的 chipColor 共用同一份色票），
+   沒有填藝人的行程統一用中性灰，不會硬湊一個看起來有意義、其實沒意義的顏色 */
+const SCHEDULE_NEUTRAL_COLOR = '#8C98A4';
+function scheduleEventColor(ev){
+  const name = (ev.artist && ev.artist.trim()) ? ev.artist.trim() : '';
+  if(!name) return SCHEDULE_NEUTRAL_COLOR;
+  return chipColor(name).fg;
 }
 
 function renderScheduleTab(){
@@ -3450,20 +3447,20 @@ function renderScheduleTab(){
     const shown = dayEvents.slice(0, MAX_PILLS);
     const extra = dayEvents.length - shown.length;
     const pillsHtml = shown.map(ev=>{
+      const color = scheduleEventColor(ev);
       if(!isMultiDaySchedule(ev)){
-        return `<span class="event-pill ${eventColorClass(ev.artist||ev.title)}" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
+        return `<span class="event-pill" style="background:${color};" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
       }
       // 跨天行程：算出這一天是「這場活動」或「這一週」的開頭／結尾，決定橫條哪一側要接上鄰居、哪一側要收圓角
       const isEventStart = dateStr===ev.date;
       const isEventEnd = dateStr===ev.endDate;
       const capLeft = isEventStart || weekday===0;
       const capRight = isEventEnd || weekday===6;
-      let cls = `event-pill event-bar ${eventColorClass(ev.artist||ev.title)}`;
+      let cls = 'event-pill event-bar';
       if(!capLeft) cls += ' bridge-left';
       if(!capRight) cls += ' bridge-right';
-      // 標題文字只在活動開始那天／每週第一格顯示一次，其餘天數就是純色橫條，看起來像同一條連續色塊
-      const label = capLeft ? esc(ev.title) : '';
-      return `<span class="${cls}" data-id="${ev.id}" title="${esc(ev.title)}">${label}</span>`;
+      // 每一天都完整顯示活動名稱，不只是開頭那天——避免中間幾天只剩一條細線看不出是什麼行程
+      return `<span class="${cls}" style="background:${color};" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
     }).join('');
     html += `<div class="cal-day ${isToday?'today':''}" data-date="${dateStr}">
       <span class="daynum">${d}</span>
