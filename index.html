@@ -448,11 +448,11 @@
     position:relative; min-height:78px; border-radius:12px; background:var(--surface);
     display:flex; flex-direction:column; align-items:stretch;
     cursor:pointer; box-shadow:var(--shadow-sm); padding:6px 5px; gap:2px;
-    overflow:hidden;
+    overflow-x:visible; overflow-y:hidden;
   }
   .cal-day .daynum{ font-size:12px; font-weight:700; color:var(--ink); align-self:flex-start; }
   .cal-day.empty{ background:transparent; box-shadow:none; cursor:default;}
-  .cal-day.today{ border:2px solid var(--rose-deep);}
+  .cal-day.today{ border:2px solid var(--rose-deep); background:var(--sakura-pale);}
   .cal-day.today .daynum{ color:var(--rose-deep); }
   .event-pill{
     display:block; width:100%; box-sizing:border-box;
@@ -466,6 +466,10 @@
   .event-pill.ec3{ background:#C99A45; }
   .event-pill.ec4{ background:#C97B84; }
   .event-more{ font-size:9.5px; color:var(--ink-soft); padding:1px 6px; }
+  /* 跨天行程橫條：用負邊距把左右兩側的格線縫隙填滿，接上鄰居格子看起來像同一條連續色塊 */
+  .event-pill.event-bar{ font-weight:700; }
+  .event-pill.event-bar.bridge-left{ margin-left:-6px; padding-left:8px; border-top-left-radius:0; border-bottom-left-radius:0; }
+  .event-pill.event-bar.bridge-right{ margin-right:-6px; border-top-right-radius:0; border-bottom-right-radius:0; }
   @media (min-width:700px){
     .cal-day{ min-height:120px; padding:8px 7px; }
     .cal-day .daynum{ font-size:13.5px; }
@@ -3399,23 +3403,29 @@ function renderScheduleTab(){
   const startWeekday = firstDay.getDay();
   const daysInMonth = new Date(y, m, 0).getDate();
   const monthLabel = `${y}年${m}月`;
+  const today = todayStr();
+
+  /* 跨天行程排在最前面（依開始日期、id 穩定排序），確保同一場跨天行程在每一天的堆疊順序一致，
+     這樣橫條才能在視覺上對齊、連成一條線；單日行程排在後面 */
+  const isMultiDaySchedule = s=> s.date && s.isMultiDay && s.endDate && s.endDate > s.date;
+  const multiDayEvents = filteredSchedule.filter(isMultiDaySchedule)
+    .sort((a,b)=> (a.date||'').localeCompare(b.date||'') || String(a.id).localeCompare(String(b.id)));
+  const singleDayEvents = filteredSchedule.filter(s=> s.date && !isMultiDaySchedule(s));
 
   const eventsByDate = {};
-  filteredSchedule.forEach(s=>{
-    if(!s.date) return;
-    if(s.isMultiDay && s.endDate && s.endDate > s.date){
-      let cur = new Date(s.date+'T00:00:00');
-      const end = new Date(s.endDate+'T00:00:00');
-      let guard = 0;
-      while(cur <= end && guard < 366){
-        const ds = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
-        (eventsByDate[ds] = eventsByDate[ds] || []).push(s);
-        cur.setDate(cur.getDate()+1);
-        guard++;
-      }
-    } else {
-      (eventsByDate[s.date] = eventsByDate[s.date] || []).push(s);
+  multiDayEvents.forEach(s=>{
+    let cur = new Date(s.date+'T00:00:00');
+    const end = new Date(s.endDate+'T00:00:00');
+    let guard = 0;
+    while(cur <= end && guard < 366){
+      const ds = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}-${String(cur.getDate()).padStart(2,'0')}`;
+      (eventsByDate[ds] = eventsByDate[ds] || []).push(s);
+      cur.setDate(cur.getDate()+1);
+      guard++;
     }
+  });
+  singleDayEvents.forEach(s=>{
+    (eventsByDate[s.date] = eventsByDate[s.date] || []).push(s);
   });
 
   html += `<div class="cal-head">
@@ -3423,22 +3433,41 @@ function renderScheduleTab(){
     <div class="cal-title maru">${monthLabel}</div>
     <button class="cal-nav-btn" data-nav="1">›</button>
   </div>`;
+  if(calMonth !== today.slice(0,7)){
+    html += `<div style="text-align:center; margin:-8px 0 14px;"><button class="chip-clear" id="calGoTodayBtn">📍 回到今天</button></div>`;
+  }
 
   const dows = ['日','一','二','三','四','五','六'];
   html += `<div class="cal-grid">`;
   dows.forEach(d=> html += `<div class="cal-dow">${d}</div>`);
   for(let i=0;i<startWeekday;i++) html += `<div class="cal-day empty"></div>`;
-  const today = todayStr();
   const MAX_PILLS = 3;
   for(let d=1; d<=daysInMonth; d++){
     const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday = dateStr===today;
+    const weekday = (startWeekday + d - 1) % 7;
     const dayEvents = eventsByDate[dateStr] || [];
     const shown = dayEvents.slice(0, MAX_PILLS);
     const extra = dayEvents.length - shown.length;
+    const pillsHtml = shown.map(ev=>{
+      if(!isMultiDaySchedule(ev)){
+        return `<span class="event-pill ${eventColorClass(ev.artist||ev.title)}" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
+      }
+      // 跨天行程：算出這一天是「這場活動」或「這一週」的開頭／結尾，決定橫條哪一側要接上鄰居、哪一側要收圓角
+      const isEventStart = dateStr===ev.date;
+      const isEventEnd = dateStr===ev.endDate;
+      const capLeft = isEventStart || weekday===0;
+      const capRight = isEventEnd || weekday===6;
+      let cls = `event-pill event-bar ${eventColorClass(ev.artist||ev.title)}`;
+      if(!capLeft) cls += ' bridge-left';
+      if(!capRight) cls += ' bridge-right';
+      // 標題文字只在活動開始那天／每週第一格顯示一次，其餘天數就是純色橫條，看起來像同一條連續色塊
+      const label = capLeft ? esc(ev.title) : '';
+      return `<span class="${cls}" data-id="${ev.id}" title="${esc(ev.title)}">${label}</span>`;
+    }).join('');
     html += `<div class="cal-day ${isToday?'today':''}" data-date="${dateStr}">
       <span class="daynum">${d}</span>
-      ${shown.map(ev=>`<span class="event-pill ${eventColorClass(ev.artist||ev.title)}" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`).join('')}
+      ${pillsHtml}
       ${extra>0 ? `<span class="event-more">+${extra} 更多</span>` : ''}
     </div>`;
   }
@@ -3464,8 +3493,10 @@ function renderScheduleListBody(filteredSchedule){
     const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories])}">${esc(s.category)}</span>` : '';
     const checklist = Array.isArray(s.checklist) ? s.checklist : [];
     const doneCount = checklist.filter(it=>it.done).length;
+    const checklistPct = checklist.length>0 ? Math.round(doneCount/checklist.length*100) : 0;
     const checklistHtml = checklist.length>0 ? `
-      <div class="card-meta" style="margin-top:6px;">✅ 待辦 ${doneCount}/${checklist.length} 完成</div>` : '';
+      <div class="card-meta" style="margin-top:6px;">✅ 待辦 ${doneCount}/${checklist.length} 完成</div>
+      <div class="pc-series-progress-track" style="margin-top:4px;"><div class="pc-series-progress-fill" style="width:${checklistPct}%;"></div></div>` : '';
     return `
     <div class="card">
       <div class="card-row">
@@ -3509,6 +3540,13 @@ function bindCalendarActions(){
       render();
     });
   });
+  const goTodayBtn = document.getElementById('calGoTodayBtn');
+  if(goTodayBtn){
+    goTodayBtn.addEventListener('click', ()=>{
+      calMonth = todayStr().slice(0,7);
+      render();
+    });
+  }
   document.querySelectorAll('.cal-nav-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
       const [y,m] = calMonth.split('-').map(Number);
