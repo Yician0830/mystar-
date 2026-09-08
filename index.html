@@ -616,7 +616,8 @@
   .support-card{ padding:0; overflow:hidden; display:flex; flex-direction:column; }
   .support-cover{ width:100%; aspect-ratio:4/3; object-fit:contain; background:var(--sakura-pale); display:block; }
   .support-cover.ph{ display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--ink-faint); }
-  .support-body{ padding:14px 16px 16px; }
+  .support-body{ padding:14px 16px 16px; flex:1; display:flex; flex-direction:column; }
+  .support-body .card-actions{ margin-top:auto; padding-top:8px; }
 
   /* Floating add button */
   .fab{
@@ -4062,7 +4063,7 @@ function renderSupportTab(){
         ${s.condition ? `<div class="card-meta" style="margin-top:6px;">🎟️ 領取條件：${esc(s.condition)}</div>` : ''}
         ${s.content ? `<div class="card-meta" style="margin-top:4px;">${esc(s.content)}</div>` : ''}
         ${s.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(s.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看文章</a></div>` : ''}
-        <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
+        <div class="card-actions" style="justify-content:flex-end;">
           <button class="icon-btn dup" data-tab="support" data-id="${s.id}" title="複製這筆">📋</button>
           <button class="icon-btn edit" data-tab="support" data-id="${s.id}">✎</button>
           <button class="icon-btn del" data-tab="support" data-id="${s.id}">🗑</button>
@@ -4460,7 +4461,7 @@ function renderEndorsementCard(e){
         ${(()=>{ const spent=mediaSpentAmount('endorsement',e); const linked=linkedExpensesForMedia('endorsement',e.id);
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
-      <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
+      <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="endorsement" data-id="${e.id}">✎</button>
         <button class="icon-btn del" data-tab="endorsement" data-id="${e.id}">🗑</button>
       </div>
@@ -4653,7 +4654,7 @@ function renderMagazineCard(m){
         ${(()=>{ const spent=mediaSpentAmount('magazine',m); const linked=linkedExpensesForMedia('magazine',m.id);
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:''); })()}
       </div>
-      <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
+      <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="magazine" data-id="${m.id}">✎</button>
         <button class="icon-btn del" data-tab="magazine" data-id="${m.id}">🗑</button>
       </div>
@@ -4828,7 +4829,7 @@ function renderMovieCard(x){
         ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
       </div>
-      <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
+      <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
         <button class="icon-btn del" data-tab="movie" data-id="${x.id}">🗑</button>
       </div>
