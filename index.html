@@ -38,6 +38,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 <style>
   :root{
     --bg:#EEF7FC;
@@ -1121,6 +1122,68 @@ try {
 } catch(e) {
   console.log("Firebase Storage 尚未啟用，圖片上傳將改用本機模式", e);
   storage = null;
+}
+
+/* ================= 推播通知（Firebase Cloud Messaging） =================
+   VAPID 金鑰：到 Firebase 主控台 →「專案設定」→「Cloud Messaging」→
+   「Web Push 憑證」產生金鑰對後，把公鑰貼在下面取代 YOUR_VAPID_KEY。
+   沒填的話，推播開關會自動顯示為「尚未設定」，不影響其他功能。 */
+const FCM_VAPID_KEY = 'YOUR_VAPID_KEY';
+let messaging = null;
+try {
+  if (useCloud && firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported()) {
+    messaging = firebase.messaging();
+    // App 開著的時候收到推播，改用站內 Toast 提示，不用跳系統通知（避免同一則訊息重複打擾）
+    messaging.onMessage((payload)=>{
+      const title = (payload.notification && payload.notification.title) || '☀️ 今日提醒';
+      const body = (payload.notification && payload.notification.body) || '';
+      showToast(`🔔 ${title}${body ? '：' + body : ''}`);
+    });
+  }
+} catch(e) {
+  console.log("此瀏覽器不支援推播通知", e);
+  messaging = null;
+}
+
+async function enablePushNotifications(){
+  if(!messaging){ showToast('這個瀏覽器或裝置不支援推播通知'); return false; }
+  if(!currentUser){ showToast('請先登入雲端帳號才能開啟推播通知'); return false; }
+  if(FCM_VAPID_KEY === 'YOUR_VAPID_KEY'){ showToast('尚未設定推播金鑰，請聯絡開發者完成設定'); return false; }
+  try{
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){ showToast('沒有通知權限，無法開啟推播提醒'); return false; }
+    const swReg = await navigator.serviceWorker.ready;
+    messaging.useServiceWorker(swReg);
+    const token = await messaging.getToken({ vapidKey: FCM_VAPID_KEY });
+    if(!token){ showToast('取得推播權杖失敗，請稍後再試'); return false; }
+    await db.collection('users').doc(currentUser.uid).collection('fcmTokens').doc(token).set({
+      token,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      userAgent: navigator.userAgent
+    });
+    state.profile.pushEnabled = true;
+    state.profile.pushToken = token;
+    await saveKey('oshi-profile', state.profile);
+    showToast('已開啟手機推播通知 🔔');
+    return true;
+  }catch(e){
+    console.error('開啟推播通知失敗', e);
+    showToast('開啟推播通知失敗，請稍後再試');
+    return false;
+  }
+}
+
+async function disablePushNotifications(){
+  try{
+    if(messaging && currentUser && state.profile.pushToken){
+      await db.collection('users').doc(currentUser.uid).collection('fcmTokens').doc(state.profile.pushToken).delete().catch(()=>{});
+      await messaging.deleteToken().catch(()=>{});
+    }
+  }catch(e){ console.error('關閉推播通知失敗', e); }
+  state.profile.pushEnabled = false;
+  state.profile.pushToken = '';
+  await saveKey('oshi-profile', state.profile);
+  showToast('已關閉手機推播通知');
 }
 
 async function signInWithGoogle(){
@@ -2238,6 +2301,36 @@ async function uploadBlobToStorage(blob){
     throw e;
   }
 }
+/* ================= 雲端圖片清理（刪除資料或移除圖片時，一併清掉 Storage 裡的檔案） ================= */
+/* 只有真正上傳到 Firebase Storage 的圖片（網址以 firebasestorage.googleapis.com 開頭）才需要、也才能夠清理；
+   使用者自己貼上的外部連結、或尚未同步成功而暫存的本機 dataURL，都不屬於我們的 Storage，不能也不應該去刪 */
+function isFirebaseStorageUrl(url){
+  return typeof url==='string' && url.startsWith('https://firebasestorage.googleapis.com/');
+}
+async function deleteStorageImageByUrl(url){
+  if(!useCloud || !storage) return;
+  if(!isFirebaseStorageUrl(url)) return;
+  try{
+    await storage.refFromURL(url).delete();
+  }catch(e){
+    // 檔案本來就不存在（例如已經被清過）或權限問題都不應該擋住刪除/編輯流程，安靜記錄就好
+    console.error('清理雲端圖片失敗', e);
+  }
+}
+/* 比對編輯前後的圖片網址陣列，把「編輯後被拿掉」的舊圖片從 Storage 刪除 */
+async function deleteRemovedStorageImages(oldUrls, newUrls){
+  const removed = (oldUrls||[]).filter(u=> !(newUrls||[]).includes(u));
+  if(removed.length===0) return;
+  await Promise.all(removed.map(deleteStorageImageByUrl));
+}
+/* 刪除整筆資料時，把它底下所有圖片一起從 Storage 清掉 */
+async function deleteAllStorageImages(item){
+  if(!item) return;
+  const urls = Array.isArray(item.imageUrls) ? item.imageUrls : (item.imageUrl ? [item.imageUrl] : []);
+  if(urls.length===0) return;
+  await Promise.all(urls.map(deleteStorageImageByUrl));
+}
+
 /* 單張照片：壓縮後視登入狀態決定上傳雲端或轉成本機 dataURL。
    回傳 { url, cloud } —— cloud 為 true 代表成功同步到雲端，false 代表因逾時/失敗退回本機儲存（呼叫端可據此提醒使用者）。
    雲端上傳若逾時或失敗，會自動改存本機 dataURL，避免畫面卡住轉圈不動 */
@@ -3654,6 +3747,7 @@ async function saveExpenseForm(existing){
   };
 
   if(existing){
+    await deleteRemovedStorageImages(existing.imageUrls, data.imageUrls);
     Object.assign(existing, data);
   } else {
     data.id = 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000);
@@ -4806,6 +4900,7 @@ async function saveSupportForm(existing){
 
   let targetSupport;
   if(existing){
+    await deleteRemovedStorageImages(existing.imageUrls, data.imageUrls);
     Object.assign(existing, data);
     targetSupport = existing;
   } else {
@@ -6313,6 +6408,7 @@ function openScheduleForm(id, prefill){
       <button type="button" class="btn ghost" id="schChecklistTemplateBtn" style="width:100%;margin-top:8px;padding:9px;font-size:12.5px;">✨ 套用演唱會/見面會常見待辦</button>
     </div>
     <div class="modal-actions">
+      ${existing ? `<button class="btn danger" id="schDeleteBtn" style="margin-right:auto;">🗑 刪除</button>` : ''}
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
     </div>
@@ -6347,6 +6443,10 @@ function openScheduleForm(id, prefill){
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveScheduleForm(existing));
+  const deleteBtn = document.getElementById('schDeleteBtn');
+  if(deleteBtn){
+    deleteBtn.addEventListener('click', ()=> confirmDelete('schedule', existing.id));
+  }
   showModal();
 }
 
@@ -6564,6 +6664,18 @@ const GOOGLE_G_ICON = `<svg width="18" height="18" viewBox="0 0 48 48" style="fl
 
 function openProfileForm(){
   const modal = document.getElementById('modal');
+  let pushSectionHtml = '';
+  if(!currentUser){
+    pushSectionHtml = `<div style="font-size:12px;color:var(--ink-soft);">登入雲端帳號後才能開啟手機推播通知</div>`;
+  } else if(!messaging){
+    pushSectionHtml = `<div style="font-size:12px;color:var(--ink-soft);">這個瀏覽器或裝置不支援推播通知</div>`;
+  } else {
+    const isPushOn = !!(state.profile.pushEnabled && state.profile.pushToken);
+    pushSectionHtml = `
+      <button type="button" class="btn ${isPushOn?'ghost':'primary'}" id="pushToggleBtn" style="width:100%;">${isPushOn ? '🔕 關閉這台裝置的推播通知' : '🔔 開啟這台裝置的推播通知'}</button>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">開啟後，就算沒開著手帳，手機也會在行程當天、開賣日、藝人生日時收到通知。（僅限這台裝置，換手機需要重新開啟一次）</div>
+    `;
+  }
   const accountHtml = currentUser ? `
     <div class="account-box">
       ${currentUser.photoURL ? `<img class="avatar" src="${currentUser.photoURL}" alt="">` : `<div class="avatar-ph">☁️</div>`}
@@ -6611,6 +6723,10 @@ function openProfileForm(){
         <button type="button" class="seg-btn ${state.profile.dailyReminder===false?'active':''}" data-val="off">🔕 關閉</button>
       </div>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
+    </div>
+    <div class="field">
+      <label>手機推播通知</label>
+      ${pushSectionHtml}
     </div>
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
@@ -6699,6 +6815,15 @@ function openProfileForm(){
   const logoutBtn = document.getElementById('logoutBtn');
   if(logoutBtn){
     logoutBtn.addEventListener('click', signOutOfGoogle);
+  }
+  const pushToggleBtn = document.getElementById('pushToggleBtn');
+  if(pushToggleBtn){
+    pushToggleBtn.addEventListener('click', async ()=>{
+      pushToggleBtn.disabled = true;
+      const isPushOn = !!(state.profile.pushEnabled && state.profile.pushToken);
+      if(isPushOn){ await disablePushNotifications(); } else { await enablePushNotifications(); }
+      if(document.getElementById('overlay').classList.contains('show')) openProfileForm();
+    });
   }
   showModal();
 }
@@ -6805,6 +6930,8 @@ function confirmDelete(tab, id){
   `;
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
+    const item = state[tab].find(i=>String(i.id)===String(id));
+    await deleteAllStorageImages(item);
     state[tab] = state[tab].filter(i=>String(i.id)!==String(id));
     await saveKey('oshi-'+tab, state[tab]);
     closeModal();
