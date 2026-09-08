@@ -2299,7 +2299,7 @@ function renderCard(tab, item){
     if(item.category) tags += `<span class="tag ${tagColorClass(item.category, [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories])}">${esc(item.category)}</span>`;
     const flLinked = linkedExpensesForFanlog(item);
     const flSpent = fanlogSpentAmount(item);
-    if(flSpent>0) tags += `<span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
+    if(flSpent>0) tags += `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
     if(flLinked.length>0) tags += `<span class="tag matcha">🔗 已連動 ${flLinked.length} 筆記帳</span>`;
     if(item.movieLinkedId){
       const linkedMovie = state.movie.find(m=>String(m.id)===String(item.movieLinkedId));
