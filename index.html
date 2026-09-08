@@ -7,7 +7,7 @@
 
 <!-- PWA：加到主畫面後可像 App 一樣開啟 -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2A8FC7">
+<meta name="theme-color" content="#C15B79">
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" href="icons/favicon-16.png" sizes="16x16" type="image/png">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -41,37 +41,37 @@
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
 <style>
   :root{
-    --bg:#EEF7FC;
-    --bg-deep:#DFF0FA;
-    --surface:#FFFFFF;
-    --surface-soft:#E7F5FC;
-    --ink:#2E4C5E;
-    --ink-soft:#7B98A9;
-    --ink-faint:#B9D3E0;
-    --sakura:#8FD3F4;
-    --sakura-pale:#DEF2FC;
-    --rose:#4FB8E8;
-    --rose-deep:#2A8FC7;
-    --matcha:#7DC4C9;
-    --matcha-pale:#E0F3F2;
-    --wisteria:#7FA8D9;
-    --wisteria-pale:#E6EEFA;
-    --gold:#5AA9D6;
-    --shadow: 0 6px 20px rgba(42,143,199,0.12);
-    --shadow-sm: 0 2px 8px rgba(42,143,199,0.10);
+    --bg:#FBF4EC;
+    --bg-deep:#F6E9DA;
+    --surface:#FFFDF9;
+    --surface-soft:#F8EFE2;
+    --ink:#4A3D36;
+    --ink-soft:#9C8977;
+    --ink-faint:#DCCDB8;
+    --sakura:#F3C9D6;
+    --sakura-pale:#FCEDF1;
+    --rose:#DD8AA0;
+    --rose-deep:#C15B79;
+    --matcha:#7FA05F;
+    --matcha-pale:#E8F0DE;
+    --wisteria:#9584C2;
+    --wisteria-pale:#F0ECF8;
+    --gold:#C6A13A;
+    --shadow: 0 6px 20px rgba(90,60,45,0.12);
+    --shadow-sm: 0 2px 8px rgba(90,60,45,0.10);
     --radius: 20px;
-    --blob-1: rgba(143,211,244,0.22);
-    --blob-2: rgba(127,168,217,0.16);
+    --blob-1: rgba(243,201,214,0.28);
+    --blob-2: rgba(149,132,194,0.16);
   }
   /* ===== 深色模式（底色／文字色，主題色由 JS 依使用者選擇的顏色套用） ===== */
   [data-theme="dark"]{
-    --bg:#101720;
-    --bg-deep:#0A0F16;
-    --surface:#1B2530;
-    --surface-soft:#212C38;
-    --ink:#EAF1F8;
-    --ink-soft:#8FA3B5;
-    --ink-faint:#4F6273;
+    --bg:#1C1712;
+    --bg-deep:#14100D;
+    --surface:#2A2320;
+    --surface-soft:#332A25;
+    --ink:#F3E9DE;
+    --ink-soft:#B3A08C;
+    --ink-faint:#6B5C4D;
     --shadow: 0 6px 20px rgba(0,0,0,0.45);
     --shadow-sm: 0 2px 10px rgba(0,0,0,0.35);
   }
@@ -213,19 +213,19 @@
     margin-right:6px;
     margin-top:4px;
   }
-  .tag.matcha{ background:var(--matcha-pale); color:#4E6B49;}
-  .tag.wisteria{ background:var(--wisteria-pale); color:#5F4E7A;}
-  .tag.gold{ background:#F7EAD1; color:#8A6A28;}
-  .tag.rose{ background:#FDE0E8; color:#B23A5C;}
-  .tag.sky{ background:#D9EEFB; color:#2A6F99;}
-  .tag.peach{ background:#FFE3C2; color:#9C5A17;}
+  .tag.matcha{ background:var(--matcha-pale); color:#4C6034;}
+  .tag.wisteria{ background:var(--wisteria-pale); color:#5A4A82;}
+  .tag.gold{ background:#F6E9CE; color:#8C6B22;}
+  .tag.rose{ background:#FBE3EA; color:#B2465F;}
+  .tag.sky{ background:#DCEBEF; color:#2F5A73;}
+  .tag.peach{ background:#FBE7D3; color:#9C5A17;}
   .linked-expense-tag{ cursor:pointer; }
   .linked-expense-tag:hover{ filter:brightness(0.95); }
-  .tag.lavender{ background:#E4D9FF; color:#5B3FA0;}
-  .tag.mint{ background:#D8F3DC; color:#2F6B3F;}
-  .tag.coral{ background:#FBD9F0; color:#9C3D82;}
-  .tag.amber{ background:#FFF3C4; color:#8A6A28;}
-  .tag.slate{ background:#E6E6E6; color:#555555;}
+  .tag.lavender{ background:#E6E4F5; color:#4F4A8C;}
+  .tag.mint{ background:#DCEFEA; color:#2F6B62;}
+  .tag.coral{ background:#F7E1EC; color:#8C4468;}
+  .tag.amber{ background:#F0E0CB; color:#8C6239;}
+  .tag.slate{ background:#EAE6E0; color:#5C5850;}
   .card-actions{ display:flex; gap:6px; flex-shrink:0;}
   .icon-btn{
     width:30px;height:30px;border-radius:50%;
@@ -1329,14 +1329,14 @@ function detachCloudListener(){
 
 /* ================= 外觀主題（深色模式 / 主題色） ================= */
 const THEME_PRESETS = [
-  {key:'sky', name:'天空藍（預設）', swatch:'#2A8FC7', vars:{'--rose-deep':'#2A8FC7','--rose':'#4FB8E8','--sakura':'#8FD3F4','--sakura-pale':'#DEF2FC'}},
-  {key:'pink', name:'櫻花粉', swatch:'#C4507B', vars:{'--rose-deep':'#C4507B','--rose':'#E58AA9','--sakura':'#F5C0D2','--sakura-pale':'#FCE6ED'}},
-  {key:'mint', name:'薄荷綠', swatch:'#2F8F7B', vars:{'--rose-deep':'#2F8F7B','--rose':'#5CBFAA','--sakura':'#A9E0D2','--sakura-pale':'#E1F5EF'}},
-  {key:'lavender', name:'薰衣草紫', swatch:'#6E5AA8', vars:{'--rose-deep':'#6E5AA8','--rose':'#9583C9','--sakura':'#C9BEEA','--sakura-pale':'#ECE6FA'}},
-  {key:'peach', name:'蜜桃橘', swatch:'#C97A3D', vars:{'--rose-deep':'#C97A3D','--rose':'#E7A468','--sakura':'#F5CFA0','--sakura-pale':'#FDEDDC'}},
-  {key:'gold', name:'香草金', swatch:'#A9832A', vars:{'--rose-deep':'#A9832A','--rose':'#CBA84C','--sakura':'#E6D091','--sakura-pale':'#FAF1DA'}}
+  {key:'sakura', name:'櫻花粉（預設）', swatch:'#C15B79', vars:{'--rose-deep':'#C15B79','--rose':'#DD8AA0','--sakura':'#F3C9D6','--sakura-pale':'#FCEDF1'}},
+  {key:'ai', name:'藍染色', swatch:'#2F5A73', vars:{'--rose-deep':'#2F5A73','--rose':'#4C7C93','--sakura':'#A8CBD6','--sakura-pale':'#E4F0F2'}},
+  {key:'matcha', name:'抹茶綠', swatch:'#5F7A45', vars:{'--rose-deep':'#5F7A45','--rose':'#84A25E','--sakura':'#C3D9A6','--sakura-pale':'#EDF4E1'}},
+  {key:'fuji', name:'藤紫色', swatch:'#6E5A96', vars:{'--rose-deep':'#6E5A96','--rose':'#9584C2','--sakura':'#CFC4E6','--sakura-pale':'#F0ECF8'}},
+  {key:'hiiro', name:'緋紅色', swatch:'#A83226', vars:{'--rose-deep':'#A83226','--rose':'#C9584A','--sakura':'#E8AB9E','--sakura-pale':'#FAE3DC'}},
+  {key:'nezumi', name:'鼠色', swatch:'#5C5850', vars:{'--rose-deep':'#5C5850','--rose':'#847F74','--sakura':'#C4BFB2','--sakura-pale':'#EFEDE7'}}
 ];
-const DEFAULT_THEME = { mode:'light', accent:'sky', customColor:'#4FB8E8' };
+const DEFAULT_THEME = { mode:'light', accent:'sakura', customColor:'#DD8AA0' };
 
 function hexToRgb(hex){
   hex = (hex||'#000000').replace('#','');
@@ -1716,23 +1716,23 @@ function tagColorClass(text, categoryList){
 /* Richer pastel palette for category "chip" filter buttons (e.g. expense categories) */
 // 圖表專用的高飽和配色（跟標籤用的柔和 CHIP_PALETTE 分開，比例橫條圖需要顏色彼此明顯區隔）
 const CHART_PALETTE = [
-  '#E24C6B', '#3A7BD5', '#F2A93B', '#2FAE6E', '#8E4FD6',
-  '#00B2A9', '#E0663F', '#4C6FE8', '#D6428E', '#6BAF2A',
-  '#C4941C', '#5F5FBF'
+  '#C15B79', '#4C7C93', '#C6A13A', '#7FA05F', '#9584C2',
+  '#3F8C87', '#BD6A34', '#6E5A96', '#8FA84A', '#D98F52',
+  '#A07E1E', '#5A6E8C'
 ];
 function chartColorAt(i){ return CHART_PALETTE[i % CHART_PALETTE.length]; }
 
 const CHIP_PALETTE = [
-  {bg:'#FDE0E8', fg:'#B23A5C'},
-  {bg:'#E4D9FF', fg:'#5B3FA0'},
-  {bg:'#FFF3C4', fg:'#8A6A28'},
-  {bg:'#D8F3DC', fg:'#2F6B3F'},
-  {bg:'#FBD9F0', fg:'#9C3D82'},
-  {bg:'#D9EEFB', fg:'#2A6F99'},
-  {bg:'#FFE3C2', fg:'#9C5A17'},
-  {bg:'#E0D4F7', fg:'#5A3E85'},
-  {bg:'#DCEEFA', fg:'#2A6F99'},
-  {bg:'#E6E6E6', fg:'#555555'}
+  {bg:'#FBE3EA', fg:'#B2465F'},
+  {bg:'#E6E4F5', fg:'#4F4A8C'},
+  {bg:'#F6E9CE', fg:'#8C6B22'},
+  {bg:'#DCEFEA', fg:'#2F6B62'},
+  {bg:'#F7E1EC', fg:'#8C4468'},
+  {bg:'#DCEBEF', fg:'#2F5A73'},
+  {bg:'#FBE7D3', fg:'#9C5A17'},
+  {bg:'#F0ECF8', fg:'#6E5A96'},
+  {bg:'#E8F0DE', fg:'#5F7A45'},
+  {bg:'#EAE6E0', fg:'#5C5850'}
 ];
 function chipColor(text){
   if(!text) return CHIP_PALETTE[CHIP_PALETTE.length-1];
@@ -2391,9 +2391,14 @@ function splitArtistNames(str){
   if(!str) return [];
   return String(str).split(/[、,，]/).map(s=>s.trim()).filter(Boolean);
 }
+function toLocalDateStr(t){
+  const y = t.getFullYear();
+  const m = String(t.getMonth()+1).padStart(2,'0');
+  const d = String(t.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
 function todayStr(){
-  const t = new Date();
-  return t.toISOString().slice(0,10);
+  return toLocalDateStr(new Date());
 }
 function fanDurationText(dateStr){
   if(!dateStr) return '';
@@ -2552,7 +2557,7 @@ const REMINDER_SHOWN_KEY = LOCAL_PREFIX + 'reminder-shown-date';
 /* 蒐集「今天」與「明天」跟行程有關的重要事項：行程本身、開賣日、藝人生日 */
 function computeTodayReminderItems(){
   const today = todayStr();
-  const tomorrow = (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return d.toISOString().slice(0,10); })();
+  const tomorrow = (()=>{ const d=new Date(); d.setDate(d.getDate()+1); return toLocalDateStr(d); })();
   const items = [];
 
   state.schedule.forEach(s=>{
@@ -2730,7 +2735,7 @@ function renderHome(){
   const monthTotal = monthItemsAll.reduce((sum,e)=> sum + homeExpenseAmount(e), 0);
   const monthItemsTop = [...monthItemsAll].sort((a,b)=> (b.date||'').localeCompare(a.date||'')).slice(0,3);
   const oshi = state.artists.find(a=>artistOshiLevel(a)==='本命') || state.artists[0];
-  const oneMonthAgoStr = (()=>{ const d=new Date(); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,10); })();
+  const oneMonthAgoStr = (()=>{ const d=new Date(); d.setMonth(d.getMonth()-1); return toLocalDateStr(d); })();
   const recentLog = [...state.fanlog]
     .filter(f=> f.date && f.date<=today && f.date>=oneMonthAgoStr)
     .sort((a,b)=> (b.date||'').localeCompare(a.date||''))
