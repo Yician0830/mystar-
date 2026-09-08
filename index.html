@@ -958,7 +958,7 @@
   @media (min-width:900px){
     body{ display:block; }
     header.top{ padding-left:40px; padding-right:40px; margin-left:220px; }
-    main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:20px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
+    main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:40px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
     .storage-warn{ margin-left:220px; }
     .fab{ right:48px; }
     nav.bottom{
@@ -4763,7 +4763,7 @@ function renderMovieCard(x){
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
-          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 ${linkedLogs.length} 筆紀錄</span>`:''); })()}
+          return (spent>0? `<span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + (linked.length>0? `<span class="tag matcha">🔗 已連動 ${linked.length} 筆記帳</span>`:'') + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;margin-top:8px;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
