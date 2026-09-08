@@ -642,6 +642,28 @@
     z-index:20;
   }
 
+  /* Floating back-to-top button, sits just above the add button */
+  .back-to-top{
+    position:fixed;
+    bottom:164px;
+    right:20px;
+    width:44px;height:44px;border-radius:50%;
+    background:var(--surface);
+    color:var(--rose-deep);
+    border:1px solid var(--sakura-pale);
+    font-size:18px;
+    font-weight:700;
+    box-shadow:var(--shadow-sm);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    z-index:20;
+    opacity:0;
+    pointer-events:none;
+    transform:translateY(6px);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+  }
+  .back-to-top.show{ opacity:1; pointer-events:auto; transform:translateY(0); }
+
   /* Bottom nav (becomes a left sidebar at >=900px, see breakpoint above) */
   .nav-more-only{ display:none; }
   .nav-btn.nav-more-btn{ display:none; }
@@ -970,6 +992,7 @@
     main#mainContent{ padding-left:40px; padding-right:40px; padding-bottom:40px; margin-left:220px; width:calc(100% - 220px); max-width:none; }
     .storage-warn{ margin-left:220px; }
     .fab{ right:48px; }
+    .back-to-top{ right:48px; }
     nav.bottom{
       left:0; top:0; bottom:0; transform:none;
       width:220px; max-width:220px;
@@ -1023,6 +1046,7 @@
   <main id="mainContent"></main>
 
   <button class="fab" id="fabAdd">＋</button>
+  <button class="back-to-top" id="backToTopBtn" title="回到頂端" aria-label="回到頂端">↑</button>
 
   <nav class="bottom" id="bottomNav">
     <button class="nav-btn" data-tab="home"><div class="stamp maru">首</div><div class="lbl">首頁</div></button>
@@ -1769,6 +1793,15 @@ function bindNav(){
   document.getElementById('overlay').addEventListener('click', (e)=>{
     if(e.target.id==='overlay') closeModal();
   });
+  const backToTopBtn = document.getElementById('backToTopBtn');
+  if(backToTopBtn){
+    backToTopBtn.addEventListener('click', ()=>{
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+    window.addEventListener('scroll', ()=>{
+      backToTopBtn.classList.toggle('show', window.scrollY > 400);
+    }, {passive:true});
+  }
 }
 
 /* 導覽列收在「更多」裡的分頁：點開一個小選單，選了就切換過去 */
