@@ -1023,6 +1023,14 @@
     <span id="storageWarningText"></span>
     <span class="storage-warn-close" id="storageWarningClose">✕</span>
   </div>
+  <div class="storage-warn" id="uploadPendingBanner" style="cursor:pointer;">
+    <span id="uploadPendingText"></span>
+    <span class="storage-warn-close" id="uploadPendingClose">✕</span>
+  </div>
+  <div class="storage-warn info" id="backupReminderBanner" style="cursor:pointer;">
+    <span id="backupReminderText"></span>
+    <span class="storage-warn-close" id="backupReminderClose">✕</span>
+  </div>
 
   <header class="top" id="petalHost">
     <div class="top-row">
@@ -1277,6 +1285,11 @@ const state = {
 /* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
 let expViewMode = 'all';
 let expSearchQuery = '';
+/* 「待重新上傳照片」與「備份提醒」用的狀態：都只在本次瀏覽有效（重新整理頁面後會重新檢查一次） */
+let uploadPendingDismissed = false;
+let backupReminderDismissed = false;
+let lastBackupAt = null;
+const BACKUP_REMINDER_DAYS = 30;
 let expCategoryFilter = '__all__';
 let expYearFilter = '__all__';
 let expMonthFilter = '__all__';
@@ -1704,18 +1717,24 @@ async function init(){
       currentUser = user;
       if(user){ await migrateLocalDataToCloudIfNeeded(); }
       await loadAllData();
+      lastBackupAt = await loadKey('oshi-last-backup', null);
       applyTheme(state.theme);
       document.getElementById('loadingScreen').style.display='none';
       updateStorageBanner();
+      updatePendingUploadsBanner();
+      updateBackupReminderBanner();
       renderProfile();
       render();
       maybeShowDailyReminder();
     });
   } else {
     await loadAllData();
+    lastBackupAt = await loadKey('oshi-last-backup', null);
     applyTheme(state.theme);
     document.getElementById('loadingScreen').style.display='none';
     updateStorageBanner();
+    updatePendingUploadsBanner();
+    updateBackupReminderBanner();
     renderProfile();
     render();
     maybeShowDailyReminder();
@@ -1746,6 +1765,138 @@ function renderProfile(){
 function updateStorageBanner(){
   const el = document.getElementById('storageWarning');
   if(el) el.style.display = 'none';
+}
+
+/* ================= 待重新上傳的照片 ================= */
+/* 只有「記帳」「應援」支援直接從裝置上傳照片，雲端上傳逾時/失敗時會自動退回存成本機 dataURL，
+   這裡直接掃描這兩個分頁裡還是 data: 開頭（代表還沒同步到雲端）的圖片網址，不用另外維護一份清單 */
+function findPendingUploadImages(){
+  const list = [];
+  ['expense','support'].forEach(tab=>{
+    (state[tab]||[]).forEach(item=>{
+      (item.imageUrls||[]).forEach(url=>{
+        if(typeof url==='string' && url.startsWith('data:')){
+          list.push({ tab, itemId:item.id, url, label:item.name || item.title || item.activity || '（未命名）' });
+        }
+      });
+    });
+  });
+  return list;
+}
+async function dataUrlToBlob(dataUrl){
+  const res = await fetch(dataUrl);
+  return await res.blob();
+}
+async function retryPendingUpload(p){
+  try{
+    const blob = await dataUrlToBlob(p.url);
+    const url = await uploadBlobToStorage(blob);
+    const item = state[p.tab].find(x=>String(x.id)===String(p.itemId));
+    if(item && Array.isArray(item.imageUrls)){
+      const idx = item.imageUrls.indexOf(p.url);
+      if(idx>=0) item.imageUrls[idx] = url;
+    }
+    await saveKey('oshi-'+p.tab, state[p.tab]);
+    return true;
+  }catch(e){
+    console.error('重新上傳失敗', e);
+    return false;
+  }
+}
+function openPendingUploadsModal(){
+  const modal = document.getElementById('modal');
+  const renderList = ()=>{
+    const cur = findPendingUploadImages();
+    if(cur.length===0){
+      modal.innerHTML = `
+        <h3 class="maru">📤 待重新上傳的照片</h3>
+        <div style="font-size:13px;color:var(--ink-soft);padding:8px 0 16px;">目前沒有待重新上傳的照片，都已經同步到雲端了 🎉</div>
+        <div class="modal-actions"><button class="btn primary" id="cancelBtn">關閉</button></div>
+      `;
+      document.getElementById('cancelBtn').addEventListener('click', closeModal);
+      updatePendingUploadsBanner();
+      return;
+    }
+    modal.innerHTML = `
+      <h3 class="maru">📤 待重新上傳的照片</h3>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:12px;">這些照片先前雲端同步失敗，暫時只存在這台裝置上。網路穩定時按「重新上傳」補同步，換裝置前建議先處理完，避免這些照片遺失。</div>
+      <div style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;">
+        ${cur.map((p,i)=>`
+          <div class="card" style="margin-bottom:0;padding:10px 12px;display:flex;align-items:center;gap:10px;">
+            <img src="${p.url}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;">
+            <div style="flex:1;min-width:0;">
+              <div class="card-title" style="font-size:13px;">${esc(p.label)}</div>
+              <div class="card-meta">${p.tab==='expense'?'記帳':'應援'}</div>
+            </div>
+            <button type="button" class="btn ghost pending-retry-btn" data-pending-idx="${i}" style="flex-shrink:0;padding:6px 12px;font-size:12px;">重新上傳</button>
+          </div>`).join('')}
+      </div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="cancelBtn">關閉</button>
+        <button class="btn primary" id="retryAllBtn">全部重新上傳</button>
+      </div>
+    `;
+    document.getElementById('cancelBtn').addEventListener('click', closeModal);
+    document.getElementById('retryAllBtn').addEventListener('click', async ()=>{
+      const btn = document.getElementById('retryAllBtn');
+      btn.disabled = true;
+      btn.textContent = '上傳中...';
+      let failCount = 0;
+      for(const p of cur){ const ok = await retryPendingUpload(p); if(!ok) failCount++; }
+      showToast(failCount>0 ? `還有 ${failCount} 張上傳失敗，請確認網路後再試一次` : '已全部重新上傳完成');
+      render();
+      renderList();
+    });
+    modal.querySelectorAll('.pending-retry-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const p = cur[Number(btn.dataset.pendingIdx)];
+        btn.disabled = true;
+        btn.textContent = '上傳中...';
+        const ok = await retryPendingUpload(p);
+        if(!ok) showToast('重新上傳失敗，請確認網路連線後再試一次');
+        render();
+        renderList();
+      });
+    });
+  };
+  renderList();
+  showModal();
+}
+function updatePendingUploadsBanner(){
+  const el = document.getElementById('uploadPendingBanner');
+  if(!el) return;
+  if(uploadPendingDismissed || !(useCloud && currentUser)){ el.style.display='none'; return; }
+  const count = findPendingUploadImages().length;
+  if(count<=0){ el.style.display='none'; return; }
+  document.getElementById('uploadPendingText').textContent = `📤 有 ${count} 張照片尚未同步到雲端，點此查看並重新上傳`;
+  el.style.display='block';
+}
+
+/* ================= 備份提醒 ================= */
+function daysSinceBackup(){
+  if(!lastBackupAt) return null;
+  const then = new Date(lastBackupAt).getTime();
+  if(isNaN(then)) return null;
+  return Math.floor((Date.now()-then)/86400000);
+}
+function hasAnyRealData(){
+  return ['schedule','expense','photocards','fanlog','support','merch','endorsement','magazine','movie']
+    .some(k=> Array.isArray(state[k]) && state[k].length>0);
+}
+function updateBackupReminderBanner(){
+  const el = document.getElementById('backupReminderBanner');
+  if(!el) return;
+  if(backupReminderDismissed || !hasAnyRealData()){ el.style.display='none'; return; }
+  const days = daysSinceBackup();
+  if(days===null){
+    document.getElementById('backupReminderText').textContent = `💾 你還沒有匯出過備份，建議定期備份避免資料遺失，點此立即匯出`;
+  } else if(days >= BACKUP_REMINDER_DAYS){
+    document.getElementById('backupReminderText').textContent = `💾 距離上次備份已經 ${days} 天了，點此立即匯出備份`;
+  } else {
+    el.style.display='none';
+    return;
+  }
+  el.style.display='block';
 }
 
 function spawnPetals(){
@@ -1789,6 +1940,24 @@ function bindNav(){
   document.getElementById('globalSearchBtn').addEventListener('click', openGlobalSearch);
   document.getElementById('storageWarningClose').addEventListener('click', ()=>{
     document.getElementById('storageWarning').style.display = 'none';
+  });
+  document.getElementById('uploadPendingBanner').addEventListener('click', (e)=>{
+    if(e.target.id==='uploadPendingClose') return;
+    openPendingUploadsModal();
+  });
+  document.getElementById('uploadPendingClose').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    uploadPendingDismissed = true;
+    document.getElementById('uploadPendingBanner').style.display = 'none';
+  });
+  document.getElementById('backupReminderBanner').addEventListener('click', (e)=>{
+    if(e.target.id==='backupReminderClose') return;
+    exportBackupData();
+  });
+  document.getElementById('backupReminderClose').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    backupReminderDismissed = true;
+    document.getElementById('backupReminderBanner').style.display = 'none';
   });
   document.getElementById('overlay').addEventListener('click', (e)=>{
     if(e.target.id==='overlay') closeModal();
@@ -3429,6 +3598,7 @@ async function saveExpenseForm(existing){
   await saveKey('oshi-expense', state.expense);
   closeModal();
   render();
+  updatePendingUploadsBanner();
   showToast(existing? '已更新' : '已新增');
 }
 
@@ -4620,6 +4790,7 @@ async function saveSupportForm(existing){
   await saveKey('oshi-support', state.support);
   closeModal();
   render();
+  updatePendingUploadsBanner();
   showToast(existing? '已更新' : '已新增');
 }
 
@@ -6507,6 +6678,10 @@ function exportBackupData(){
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  lastBackupAt = backup.exportedAt;
+  saveKey('oshi-last-backup', lastBackupAt);
+  backupReminderDismissed = false;
+  updateBackupReminderBanner();
   showToast('已匯出備份檔');
 }
 
@@ -6550,6 +6725,8 @@ async function applyImportedBackup(data){
       await saveKey(storageKey, state[stateKey]);
     }
   }
+  updatePendingUploadsBanner();
+  updateBackupReminderBanner();
 }
 
 function confirmDelete(tab, id){
@@ -6568,6 +6745,7 @@ function confirmDelete(tab, id){
     await saveKey('oshi-'+tab, state[tab]);
     closeModal();
     render();
+    updatePendingUploadsBanner();
     showToast('已刪除紀錄');
   });
   showModal();
