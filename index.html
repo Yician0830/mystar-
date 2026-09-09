@@ -1524,6 +1524,7 @@ let editingId = null;
 const FIXED_PC_CATEGORIES = ['專輯卡','特典卡','打歌卡','抽選卡','幸運卡','入場卡','PICK UP卡'];
 const FIXED_FANLOG_CATEGORIES = ['演唱會','見面會','簽唱會','商演','站台','頒獎','夜店','跨年','時裝周','校唱'];
 const FLIP_PLATFORM_OPTIONS = ['IG限動','IG貼文','微博','Threads','直播','其他'];
+const FLIP_TYPE_OPTIONS = ['留言','按讚','轉發'];
 const FIXED_SCHEDULE_CATEGORIES = ['演唱會','見面會','生放送','應援','簽唱會','簽售會','商演','站台','校唱','夜店'];
 const FIXED_ENDORSEMENT_CATEGORIES = ['代言人','品牌大使','形象代言','合作商品','聯名商品'];
 const FIXED_MERCH_CATEGORIES = ['專輯','應援小物','服飾','包包','文具','生活用品','公仔玩偶','海報','其他周邊'];
@@ -2968,7 +2969,15 @@ function renderCard(tab, item){
       const linkedMovie = state.movie.find(m=>String(m.id)===String(item.movieLinkedId));
       if(linkedMovie) tags += `<span class="tag matcha">🎬 ${esc(linkedMovie.title)}</span>`;
     }
-    if(item.isFlipped) tags += `<span class="tag rose">💌 被翻牌${item.flipPlatform ? '・'+esc(item.flipPlatform) : ''}</span>`;
+    if(item.isFlipped){
+      const types = Array.isArray(item.flipTypes) ? item.flipTypes : [];
+      const platforms = Array.isArray(item.flipPlatforms) ? item.flipPlatforms : (item.flipPlatform ? [item.flipPlatform] : []);
+      const flipDetail = [types.join('/'), platforms.join('/')].filter(Boolean).join('・');
+      tags += `<span class="tag rose">💌 被翻牌${flipDetail ? '・'+esc(flipDetail) : ''}</span>`;
+      if(Array.isArray(item.imageUrls) && item.imageUrls.length>0){
+        tags += `<span class="tag">📷 ${item.imageUrls.length}</span>`;
+      }
+    }
   }
 
   return `
@@ -6339,6 +6348,9 @@ async function saveMerchForm(existing){
 
 /* ================= Fanlog form ================= */
 let flArtists = [];
+let flFlipPlatforms = [];
+let flFlipTypes = [];
+let flImgUrls = [];
 function openFanlogForm(id, prefill){
   const existing = id ? state.fanlog.find(f=>String(f.id)===String(id)) : null;
   const src = existing || prefill || null;
@@ -6349,6 +6361,9 @@ function openFanlogForm(id, prefill){
   ])];
 
   flArtists = src ? splitArtistNames(src.artist) : [];
+  flFlipPlatforms = src ? (Array.isArray(src.flipPlatforms) ? [...src.flipPlatforms] : (src.flipPlatform ? [src.flipPlatform] : [])) : [];
+  flFlipTypes = src && Array.isArray(src.flipTypes) ? [...src.flipTypes] : [];
+  flImgUrls = src && Array.isArray(src.imageUrls) ? [...src.imageUrls] : [];
 
   const categoryOptions = [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories];
   const curCategory = src ? src.category : '';
@@ -6376,11 +6391,15 @@ function openFanlogForm(id, prefill){
     <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 追星紀錄</h3>
     <div class="field"><label>活動名稱 *</label><input type="text" id="flTitle" value="${src?esc(src.activity||''):''}" placeholder="例：BTS WORLD TOUR / 生日應援"></div>
     <div class="field"><label>相關藝人（可複選）</label>
-      ${artistNames.length ? `<div class="artist-multiselect" id="flArtistToggleGroup">
+      <div id="flArtistChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
+      ${artistNames.length ? `
+      <button type="button" id="flArtistDropdownToggle" style="width:100%;text-align:left;background:var(--surface);border:1px solid var(--sakura-pale);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--ink-soft);display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+        <span>從藝人清單挑選</span><span id="flArtistDropdownArrow">▾</span>
+      </button>
+      <div class="artist-multiselect" id="flArtistToggleGroup" style="display:none;margin-top:8px;">
         ${artistNames.map(n=>`<button type="button" class="artist-toggle-btn ${flArtists.includes(n)?'active':''}" data-name="${esc(n)}">${esc(n)}</button>`).join('')}
       </div>` : ''}
-      <div id="flArtistChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px;"></div>
-      <input type="text" id="flArtistText" list="flArtistList" placeholder="或輸入其他藝人名稱，按 Enter 加入">
+      <input type="text" id="flArtistText" list="flArtistList" placeholder="或輸入其他藝人名稱，按 Enter 加入" style="margin-top:8px;">
       <datalist id="flArtistList">${artistNames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>
     </div>
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
@@ -6391,10 +6410,26 @@ function openFanlogForm(id, prefill){
         <input type="checkbox" id="flIsFlipped" ${src && src.isFlipped ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--rose-deep);">
         💌 這次有被翻牌
       </label>
-      <select id="flFlipPlatform" style="margin-top:8px; display:${src && src.isFlipped ? 'block' : 'none'};">
-        <option value="">請選擇平台</option>
-        ${FLIP_PLATFORM_OPTIONS.map(p=>`<option value="${esc(p)}" ${src && src.flipPlatform===p?'selected':''}>${esc(p)}</option>`).join('')}
-      </select>
+      <div id="flFlipDetails" style="margin-top:8px; display:${src && src.isFlipped ? 'block' : 'none'};">
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">互動類型（可複選）</div>
+        <div class="artist-multiselect" id="flFlipTypeGroup">
+          ${FLIP_TYPE_OPTIONS.map(t=>`<button type="button" class="artist-toggle-btn ${flFlipTypes.includes(t)?'active':''}" data-fliptype="${esc(t)}">${esc(t)}</button>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft);margin:12px 0 6px;">翻牌平台（可複選）</div>
+        <div class="artist-multiselect" id="flFlipPlatformGroup">
+          ${FLIP_PLATFORM_OPTIONS.map(p=>`<button type="button" class="artist-toggle-btn ${flFlipPlatforms.includes(p)?'active':''}" data-platform="${esc(p)}">${esc(p)}</button>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft);margin:12px 0 6px;">翻牌截圖（最多 6 張，可從手機/電腦上傳照片，或貼上圖片連結）</div>
+        <div id="flImgList"></div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <button type="button" class="btn ghost" id="flImgUploadBtn" style="flex:0 0 auto;padding:10px 14px;">📷 上傳照片</button>
+          <input type="file" id="flImgFileInput" accept="image/*" multiple style="display:none;">
+        </div>
+        <div style="display:flex; gap:8px; margin-top:6px;">
+          <input type="url" id="flImgNewUrl" placeholder="或貼上圖片連結" style="flex:1;">
+          <button type="button" class="btn ghost" id="flImgAddBtn" style="flex:0 0 auto;padding:10px 14px;">＋新增</button>
+        </div>
+      </div>
     </div>
     <div class="field"><label>拍攝相簿連結（選填）</label><input type="url" id="flAlbumUrl" value="${src?esc(src.albumUrl||''):''}" placeholder="貼上這場的拍攝相簿網址"></div>
     <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${src?esc(src.amount||''):''}" placeholder="0"></div>
@@ -6418,12 +6453,52 @@ function openFanlogForm(id, prefill){
   });
 
   const flIsFlippedCheckbox = document.getElementById('flIsFlipped');
-  const flFlipPlatformSelect = document.getElementById('flFlipPlatform');
+  const flFlipDetails = document.getElementById('flFlipDetails');
   flIsFlippedCheckbox.addEventListener('change', ()=>{
-    flFlipPlatformSelect.style.display = flIsFlippedCheckbox.checked ? 'block' : 'none';
+    flFlipDetails.style.display = flIsFlippedCheckbox.checked ? 'block' : 'none';
   });
 
+  document.getElementById('flFlipTypeGroup').querySelectorAll('.artist-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const type = btn.dataset.fliptype;
+      if(flFlipTypes.includes(type)){
+        flFlipTypes = flFlipTypes.filter(t=>t!==type);
+      } else {
+        flFlipTypes.push(type);
+      }
+      btn.classList.toggle('active', flFlipTypes.includes(type));
+    });
+  });
+
+  document.getElementById('flFlipPlatformGroup').querySelectorAll('.artist-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const platform = btn.dataset.platform;
+      if(flFlipPlatforms.includes(platform)){
+        flFlipPlatforms = flFlipPlatforms.filter(p=>p!==platform);
+      } else {
+        flFlipPlatforms.push(platform);
+      }
+      btn.classList.toggle('active', flFlipPlatforms.includes(platform));
+    });
+  });
+
+  renderFlImgList();
+  document.getElementById('flImgAddBtn').addEventListener('click', addFlImgUrl);
+  document.getElementById('flImgUploadBtn').addEventListener('click', ()=> document.getElementById('flImgFileInput').click());
+  document.getElementById('flImgFileInput').addEventListener('change', async (e)=>{
+    await addImageFilesToList(e.target.files, ()=>flImgUrls, (arr)=>{ flImgUrls = arr; }, 6, renderFlImgList);
+    e.target.value = '';
+  });
+
+  const flArtistDropdownToggle = document.getElementById('flArtistDropdownToggle');
   const toggleGroup = document.getElementById('flArtistToggleGroup');
+  if(flArtistDropdownToggle && toggleGroup){
+    flArtistDropdownToggle.addEventListener('click', ()=>{
+      const isOpen = toggleGroup.style.display !== 'none';
+      toggleGroup.style.display = isOpen ? 'none' : 'flex';
+      document.getElementById('flArtistDropdownArrow').textContent = isOpen ? '▾' : '▴';
+    });
+  }
   if(toggleGroup){
     toggleGroup.querySelectorAll('.artist-toggle-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
@@ -6480,6 +6555,35 @@ function bindFlArtistTextInput(){
   });
 }
 
+function renderFlImgList(){
+  const list = document.getElementById('flImgList');
+  if(!list) return;
+  if(flImgUrls.length===0){
+    list.innerHTML = `<div style="font-size:12px;color:var(--ink-faint);">尚未加入截圖</div>`;
+    return;
+  }
+  list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + flImgUrls.map((url,idx)=>`
+    <div style="position:relative; width:64px; height:64px;">
+      <img src="${esc(url)}" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <button type="button" data-idx="${idx}" class="fl-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
+    </div>`).join('') + `</div>`;
+  list.querySelectorAll('.fl-img-remove').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      flImgUrls.splice(parseInt(btn.dataset.idx),1);
+      renderFlImgList();
+    });
+  });
+}
+function addFlImgUrl(){
+  const input = document.getElementById('flImgNewUrl');
+  const url = input.value.trim();
+  if(!url) return;
+  if(flImgUrls.length>=6){ showToast('最多只能加入 6 張圖片'); return; }
+  flImgUrls.push(url);
+  input.value = '';
+  renderFlImgList();
+}
+
 async function saveFanlogForm(existing){
   const activity = document.getElementById('flTitle').value.trim();
   const date = document.getElementById('flDate').value.trim();
@@ -6502,7 +6606,9 @@ async function saveFanlogForm(existing){
   const movieLinkedId = flMovieSelect ? flMovieSelect.value : '';
   const albumUrl = document.getElementById('flAlbumUrl').value.trim();
   const isFlipped = document.getElementById('flIsFlipped').checked;
-  const flipPlatform = isFlipped ? document.getElementById('flFlipPlatform').value : '';
+  const flipTypes = isFlipped ? [...flFlipTypes] : [];
+  const flipPlatforms = isFlipped ? [...flFlipPlatforms] : [];
+  const imageUrls = isFlipped ? [...flImgUrls] : [];
 
   const data = {
     activity,
@@ -6513,11 +6619,14 @@ async function saveFanlogForm(existing){
     movieLinkedId,
     albumUrl,
     isFlipped,
-    flipPlatform
+    flipTypes,
+    flipPlatforms,
+    imageUrls
   };
 
   let targetFanlog;
   if(existing){
+    await deleteRemovedStorageImages(existing.imageUrls, data.imageUrls);
     Object.assign(existing, data);
     targetFanlog = existing;
   } else {
