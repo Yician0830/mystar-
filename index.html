@@ -1046,7 +1046,7 @@
         </div>
       </div>
       <div class="top-row-actions">
-        <button class="icon-btn header-search-btn" id="globalSearchBtn" title="搜尋">🔍</button>
+        <button class="icon-btn header-search-btn" id="globalSearchBtn" title="搜尋" aria-label="搜尋">🔍</button>
         <div class="profile-chip" id="profileChip">
           <div class="dot" id="profileDot">🌸</div>
           <span id="profileLabel">設定 / 登入</span>
@@ -3043,9 +3043,9 @@ function renderCard(tab, item){
         ${tab==='fanlog' && item.albumUrl ? `<div style="margin-top:6px;"><a href="${esc(item.albumUrl)}" target="_blank" rel="noopener" class="tag matcha" style="text-decoration:none;">📷 查看拍攝紀錄</a></div>` : ''}
       </div>
       <div class="card-actions">
-        ${tab==='fanlog' ? `<button class="icon-btn dup" data-tab="fanlog" data-id="${item.id}" title="複製這筆">📋</button>` : ''}
-        <button class="icon-btn edit" title="編輯" data-tab="${tab}" data-id="${item.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="${tab}" data-id="${item.id}">🗑</button>
+        ${tab==='fanlog' ? `<button class="icon-btn dup" data-tab="fanlog" data-id="${item.id}" title="複製這筆" aria-label="複製這筆">📋</button>` : ''}
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="${tab}" data-id="${item.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="${tab}" data-id="${item.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -3465,9 +3465,9 @@ function renderExpenseCard(item){
       </div>
     </div>
     <div class="card-actions" style="justify-content:flex-end;margin-top:auto;padding-top:8px;">
-      <button class="icon-btn dup" data-tab="expense" data-id="${item.id}" title="複製這筆">📋</button>
-      <button class="icon-btn edit" title="編輯" data-tab="expense" data-id="${item.id}">✎</button>
-      <button class="icon-btn del" title="刪除" data-tab="expense" data-id="${item.id}">🗑</button>
+      <button class="icon-btn dup" data-tab="expense" data-id="${item.id}" title="複製這筆" aria-label="複製這筆">📋</button>
+      <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="expense" data-id="${item.id}">✎</button>
+      <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="expense" data-id="${item.id}">🗑</button>
     </div>
   </div>`;
 }
@@ -4019,8 +4019,8 @@ function renderScheduleListBody(filteredSchedule){
           ${checklistHtml}
         </div>
         <div class="card-actions">
-          <button class="icon-btn edit" title="編輯" data-tab="schedule" data-id="${s.id}">✎</button>
-          <button class="icon-btn del" title="刪除" data-tab="schedule" data-id="${s.id}">🗑</button>
+          <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="schedule" data-id="${s.id}">✎</button>
+          <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="schedule" data-id="${s.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -4169,9 +4169,9 @@ function renderPhotocardCard(pc, seriesLabel){
       </label>
       ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span></div>` : ''}
       <div class="pc-actions">
-        <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆">📋</button>
-        <button class="icon-btn edit" title="編輯" data-tab="photocards" data-id="${pc.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="photocards" data-id="${pc.id}">🗑</button>
+        <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="photocards" data-id="${pc.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="photocards" data-id="${pc.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -4372,9 +4372,9 @@ function renderMerchCard(mc, seriesLabel){
       </label>
       ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : ''}
       <div class="pc-actions">
-        <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆">📋</button>
-        <button class="icon-btn edit" title="編輯" data-tab="merch" data-id="${mc.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="merch" data-id="${mc.id}">🗑</button>
+        <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="merch" data-id="${mc.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="merch" data-id="${mc.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -4527,8 +4527,8 @@ function renderArtists(){
           </div>
         </div>
         <div class="card-actions">
-          <button class="icon-btn edit" title="編輯" data-tab="artists" data-id="${a.id}">✎</button>
-          <button class="icon-btn del" title="刪除" data-tab="artists" data-id="${a.id}">🗑</button>
+          <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="artists" data-id="${a.id}">✎</button>
+          <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="artists" data-id="${a.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -4848,9 +4848,9 @@ function renderSupportTab(){
         ${s.content ? `<div class="card-meta" style="margin-top:4px;">${esc(s.content)}</div>` : ''}
         ${s.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(s.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看文章</a></div>` : ''}
         <div class="card-actions" style="justify-content:flex-end;">
-          <button class="icon-btn dup" data-tab="support" data-id="${s.id}" title="複製這筆">📋</button>
-          <button class="icon-btn edit" title="編輯" data-tab="support" data-id="${s.id}">✎</button>
-          <button class="icon-btn del" title="刪除" data-tab="support" data-id="${s.id}">🗑</button>
+          <button class="icon-btn dup" data-tab="support" data-id="${s.id}" title="複製這筆" aria-label="複製這筆">📋</button>
+          <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="support" data-id="${s.id}">✎</button>
+          <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="support" data-id="${s.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -5258,8 +5258,8 @@ function renderEndorsementCard(e){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('endorsement', e.id, e.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" title="編輯" data-tab="endorsement" data-id="${e.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="endorsement" data-id="${e.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="endorsement" data-id="${e.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="endorsement" data-id="${e.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -5451,8 +5451,8 @@ function renderMagazineCard(m){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('magazine', m.id, m.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" title="編輯" data-tab="magazine" data-id="${m.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="magazine" data-id="${m.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="magazine" data-id="${m.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="magazine" data-id="${m.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -5626,8 +5626,8 @@ function renderMovieCard(x){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('movie', x.id, x.title, linked.length) + linkedFanlogTagHtml(x.id, x.title, linkedLogs.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" title="編輯" data-tab="movie" data-id="${x.id}">✎</button>
-        <button class="icon-btn del" title="刪除" data-tab="movie" data-id="${x.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="movie" data-id="${x.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="movie" data-id="${x.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -7171,14 +7171,14 @@ function openCategoryManager(){
           <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
             <input type="text" class="cat-manage-rename-input" value="${esc(name)}" style="flex:1;min-width:0;padding:6px 8px;font-size:13px;">
           </div>
-          <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
-          <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
-          <button type="button" class="icon-btn cat-manage-toggle-btn" title="${disabled?'啟用':'停用'}">${disabled?'✅':'🚫'}</button>
+          <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" aria-label="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
+          <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" aria-label="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
+          <button type="button" class="icon-btn cat-manage-toggle-btn" title="${disabled?'啟用':'停用'}" aria-label="${disabled?'啟用':'停用'}">${disabled?'✅':'🚫'}</button>
           ${isFixed ? '' : `
-          <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名">✎</button>
-          <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" style="display:none;">✓</button>
-          <button type="button" class="icon-btn cat-manage-cancel-btn" title="取消" style="display:none;">✕</button>
-          <button type="button" class="icon-btn del cat-manage-del-btn" title="刪除">🗑</button>`}
+          <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名" aria-label="重新命名">✎</button>
+          <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" aria-label="確認" style="display:none;">✓</button>
+          <button type="button" class="icon-btn cat-manage-cancel-btn" title="取消" aria-label="取消" style="display:none;">✕</button>
+          <button type="button" class="icon-btn del cat-manage-del-btn" title="刪除" aria-label="刪除">🗑</button>`}
         </div>`;
       }).join('')}
     </div>
@@ -7240,9 +7240,9 @@ function bindCategoryManagerActions(){
       const taken = cfg.fixed.includes(newName) || state[cfg.customField].includes(newName);
       if(taken){ showToast('這個分類名稱已經存在了'); return; }
       const idx = state[cfg.customField].indexOf(oldName);
-      if(idx>=0) state[cfg.customField][idx] = newName;
       const order = getCategoryOrder(cfg);
       const orderIdx = order.indexOf(oldName);
+      if(idx>=0) state[cfg.customField][idx] = newName;
       if(orderIdx>=0) order[orderIdx] = newName;
       const disabledIdx = (state[cfg.disabledField]||[]).indexOf(oldName);
       if(disabledIdx>=0) state[cfg.disabledField][disabledIdx] = newName;
