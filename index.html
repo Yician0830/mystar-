@@ -221,6 +221,8 @@
   .tag.peach{ background:#FBE7D3; color:#9C5A17;}
   .linked-expense-tag{ cursor:pointer; }
   .linked-expense-tag:hover{ filter:brightness(0.95); }
+  .linked-fanlog-tag{ cursor:pointer; }
+  .linked-fanlog-tag:hover{ filter:brightness(0.95); }
   .tag.lavender{ background:#E6E4F5; color:#4F4A8C;}
   .tag.mint{ background:#DCEFEA; color:#2F6B62;}
   .tag.coral{ background:#F7E1EC; color:#8C4468;}
@@ -1626,6 +1628,41 @@ function getLinkedExpensesByRef(type, id){
 function linkedExpenseTagHtml(type, id, label, count){
   if(!count || count<=0) return '';
   return `<span class="tag matcha linked-expense-tag" data-linked-type="${esc(type)}" data-linked-id="${esc(String(id))}" data-linked-label="${esc(label)}">🔗 已連動 ${count} 筆記帳</span>`;
+}
+/* 影視作品 → 一起參與了幾場追星紀錄，點擊可以看是哪幾場 */
+function linkedFanlogTagHtml(movieId, label, count){
+  if(!count || count<=0) return '';
+  return `<span class="tag matcha linked-fanlog-tag" data-linked-movie-id="${esc(String(movieId))}" data-linked-label="${esc(label)}">📖 一起參與了 ${count} 場活動</span>`;
+}
+function openLinkedFanlogsModal(movieId, label){
+  const linked = linkedFanlogsForMovie(movieId).slice().sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">📖 ${esc(label||'一起參與的活動')}</h3>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:14px;">共 ${linked.length} 場追星紀錄</div>
+    <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">
+      ${linked.length===0 ? `<div style="font-size:13px;color:var(--ink-soft);">目前沒有連結的追星紀錄</div>` : linked.map(f=>`
+        <div class="card" style="margin-bottom:0;padding:12px 14px;cursor:pointer;" data-open-fanlog-id="${esc(f.id)}">
+          <div class="card-row">
+            <div>
+              <div class="card-title" style="font-size:14px;">${esc(f.activity||'（未命名）')}</div>
+              <div class="card-meta">${fmtDate(f.date)}${f.artist?' · '+esc(f.artist):''}</div>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">關閉</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  modal.querySelectorAll('[data-open-fanlog-id]').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      closeModal();
+      openFanlogForm(row.dataset.openFanlogId);
+    });
+  });
+  showModal();
 }
 function openLinkedExpensesModal(type, id, label){
   const linked = getLinkedExpensesByRef(type, id).slice().sort((a,b)=> (b.date||'').localeCompare(a.date||''));
@@ -4055,6 +4092,7 @@ function renderPhotocardCard(pc, seriesLabel){
       </label>
       ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span></div>` : ''}
       <div class="pc-actions">
+        <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆">📋</button>
         <button class="icon-btn edit" data-tab="photocards" data-id="${pc.id}">✎</button>
         <button class="icon-btn del" data-tab="photocards" data-id="${pc.id}">🗑</button>
       </div>
@@ -4257,6 +4295,7 @@ function renderMerchCard(mc, seriesLabel){
       </label>
       ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : ''}
       <div class="pc-actions">
+        <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆">📋</button>
         <button class="icon-btn edit" data-tab="merch" data-id="${mc.id}">✎</button>
         <button class="icon-btn del" data-tab="merch" data-id="${mc.id}">🗑</button>
       </div>
@@ -5491,7 +5530,7 @@ function renderMovieCard(x){
         ${dateLabel ? `<span class="tag">${dateLabel}</span>` : ''}
         ${x.category ? `<span class="tag matcha">${esc(x.category)}</span>` : ''}
         ${(()=>{ const spent=mediaSpentAmount('movie',x); const linked=linkedExpensesForMedia('movie',x.id); const linkedLogs=linkedFanlogsForMovie(x.id);
-          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('movie', x.id, x.title, linked.length) + (linkedLogs.length>0? `<span class="tag matcha">📖 一起參與了 ${linkedLogs.length} 場活動</span>`:''); })()}
+          return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('movie', x.id, x.title, linked.length) + linkedFanlogTagHtml(x.id, x.title, linkedLogs.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
         <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
@@ -5649,9 +5688,17 @@ function bindListActions(tab){
       openLinkedExpensesModal(el.dataset.linkedType, el.dataset.linkedId, el.dataset.linkedLabel);
     });
   });
+  document.querySelectorAll('.linked-fanlog-tag').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openLinkedFanlogsModal(el.dataset.linkedMovieId, el.dataset.linkedLabel);
+    });
+  });
   document.querySelectorAll('.icon-btn.dup').forEach(b=>{
     if(b.dataset.tab==='fanlog') b.addEventListener('click', ()=> duplicateFanlog(b.dataset.id));
     else if(b.dataset.tab==='support') b.addEventListener('click', ()=> duplicateSupport(b.dataset.id));
+    else if(b.dataset.tab==='photocards') b.addEventListener('click', ()=> duplicatePhotocard(b.dataset.id));
+    else if(b.dataset.tab==='merch') b.addEventListener('click', ()=> duplicateMerch(b.dataset.id));
     // 'expense' 的複製按鈕另外在 bindExpenseActions() 綁定，這裡略過避免重複綁定
   });
   /* 這兩個「已擁有」勾選框拉到條件外綁定：小卡/周邊圖鑑互相連動顯示時，
@@ -5904,6 +5951,8 @@ async function saveForm(tab, schema, existing){
     showToast('請填寫必填欄位 *');
     return;
   }
+  // 改名前先記住藝人原本的名字，等等要拿去同步更新所有引用這個名字的資料
+  const oldArtistName = (tab==='artists' && existing) ? existing.name : null;
   if(existing){
     Object.assign(existing, data);
   } else {
@@ -5921,20 +5970,88 @@ async function saveForm(tab, schema, existing){
     });
   }
   await saveKey('oshi-'+tab, state[tab]);
+  // 藝人改名了：把行程／記帳／小卡／周邊／應援／紀錄／代言／雜誌／影視裡引用到舊名字的地方，全部一起換成新名字
+  let renamed = false;
+  if(oldArtistName && data.name && oldArtistName!==data.name){
+    await renameArtistEverywhere(oldArtistName, data.name);
+    renamed = true;
+  }
   closeModal();
   render();
-  showToast(existing? '已更新' : '已新增');
+  showToast(renamed ? `已更新，並同步改名「${oldArtistName}」→「${data.name}」` : (existing? '已更新' : '已新增'));
 }
 
-function openPhotocardForm(id){
+/* 藝人改名時，把所有其他分頁裡引用到這個藝人名字的資料一併更新，
+   不用使用者自己一筆一筆手動改。回傳前會一次把有變動的分頁存回去。 */
+async function renameArtistEverywhere(oldName, newName){
+  const savers = [];
+
+  // 這些分頁的 artist 欄位是單一字串，直接整筆比對取代
+  ['schedule','support','endorsement','magazine','movie','expense','photocards','merch'].forEach(t=>{
+    let changed = false;
+    (state[t]||[]).forEach(item=>{
+      if(item.artist===oldName){ item.artist = newName; changed = true; }
+    });
+    if(changed) savers.push(saveKey('oshi-'+t, state[t]));
+  });
+
+  // 追星紀錄的 artist 可能同時填好幾位藝人（用頓號/逗號分隔），只替換其中命中的那一個名字
+  let fanlogChanged = false;
+  (state.fanlog||[]).forEach(f=>{
+    if(!f.artist) return;
+    const names = splitArtistNames(f.artist);
+    if(names.includes(oldName)){
+      f.artist = names.map(n=> n===oldName ? newName : n).join('、');
+      fanlogChanged = true;
+    }
+  });
+  if(fanlogChanged) savers.push(saveKey('oshi-fanlog', state.fanlog));
+
+  // 小卡／周邊系列圖鑑：沒填「系列」的小卡/周邊，圖鑑會直接用藝人名稱當作分組 key，
+  // 這種情況要把封面圖跟建立時間也搬到新的 key，不然圖鑑資料會跟著「消失」（其實是變成孤兒資料）
+  let pcMetaChanged = false, merchMetaChanged = false;
+  if(state.pcSeriesCovers && state.pcSeriesCovers[oldName]!==undefined){
+    state.pcSeriesCovers[newName] = state.pcSeriesCovers[oldName];
+    delete state.pcSeriesCovers[oldName];
+    pcMetaChanged = true;
+  }
+  if(state.pcSeriesMeta && state.pcSeriesMeta[oldName]!==undefined){
+    state.pcSeriesMeta[newName] = state.pcSeriesMeta[oldName];
+    delete state.pcSeriesMeta[oldName];
+    pcMetaChanged = true;
+  }
+  if(pcMetaChanged){
+    savers.push(saveKey('oshi-pc-covers', state.pcSeriesCovers));
+    savers.push(saveKey('oshi-pc-series-meta', state.pcSeriesMeta));
+  }
+  if(state.merchSeriesCovers && state.merchSeriesCovers[oldName]!==undefined){
+    state.merchSeriesCovers[newName] = state.merchSeriesCovers[oldName];
+    delete state.merchSeriesCovers[oldName];
+    merchMetaChanged = true;
+  }
+  if(state.merchSeriesMeta && state.merchSeriesMeta[oldName]!==undefined){
+    state.merchSeriesMeta[newName] = state.merchSeriesMeta[oldName];
+    delete state.merchSeriesMeta[oldName];
+    merchMetaChanged = true;
+  }
+  if(merchMetaChanged){
+    savers.push(saveKey('oshi-merch-covers', state.merchSeriesCovers));
+    savers.push(saveKey('oshi-merch-series-meta', state.merchSeriesMeta));
+  }
+
+  await Promise.all(savers);
+}
+
+function openPhotocardForm(id, prefill){
   const existing = id ? state.photocards.find(p=>String(p.id)===String(id)) : null;
+  const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
   const categoryOptions = [...FIXED_PC_CATEGORIES, ...state.customPcCategories];
   const channels = [...new Set(state.photocards.map(p=>p.channel).filter(Boolean))];
 
-  const curArtist = existing ? existing.artist : '';
-  const curCategory = existing ? existing.category : '';
+  const curArtist = src ? src.artist : '';
+  const curCategory = src ? src.category : '';
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
   let artistFieldHtml = '';
@@ -5968,24 +6085,24 @@ function openPhotocardForm(id){
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
-    <h3 class="maru">${existing? '編輯' : '新增'} · 小卡</h3>
-    <div class="field"><label>小卡名稱 *</label><input type="text" id="pcName" value="${existing?esc(existing.name):''}" placeholder="例：Ver.A 個人卡"></div>
+    <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 小卡</h3>
+    <div class="field"><label>小卡名稱 *</label><input type="text" id="pcName" value="${src?esc(src.name):''}" placeholder="例：Ver.A 個人卡"></div>
     <div class="field"><label>藝人</label>${artistFieldHtml}</div>
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
-      <input type="text" id="pcSeries" list="pcSeriesList" placeholder="例：4Reasons、U:NFOLD..." value="${existing?esc(existing.series||''):''}">
+      <input type="text" id="pcSeries" list="pcSeriesList" placeholder="例：4Reasons、U:NFOLD..." value="${src?esc(src.series||''):''}">
       <datalist id="pcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟周邊圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>小卡類別</label>${categoryFieldHtml}</div>
     <div class="field"><label>通路</label>
-      <input type="text" id="pcChannel" list="pcChannelList" placeholder="例：演唱會、代購..." value="${existing?esc(existing.channel||''):''}">
+      <input type="text" id="pcChannel" list="pcChannelList" placeholder="例：演唱會、代購..." value="${src?esc(src.channel||''):''}">
       <datalist id="pcChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
-    <div class="field"><label>圖片網址</label><input type="url" id="pcImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>圖片網址</label><input type="url" id="pcImageUrl" value="${src?esc(src.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>建立時間</label><input type="date" id="pcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="pcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing&&existing.owned?'checked':''}>
+        <input type="checkbox" id="pcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${src&&src.owned?'checked':''}>
         已擁有這張小卡
       </label>
     </div>
@@ -6061,16 +6178,33 @@ async function savePhotocardForm(existing){
   showToast(existing? '已更新' : '已新增');
 }
 
+function duplicatePhotocard(id){
+  const item = state.photocards.find(p=>String(p.id)===String(id));
+  if(!item) return;
+  const prefill = JSON.parse(JSON.stringify(item));
+  delete prefill.id;
+  openPhotocardForm(null, prefill);
+}
+
+function duplicateMerch(id){
+  const item = state.merch.find(p=>String(p.id)===String(id));
+  if(!item) return;
+  const prefill = JSON.parse(JSON.stringify(item));
+  delete prefill.id;
+  openMerchForm(null, prefill);
+}
+
 /* ================= Merch (周邊/專輯) form ================= */
-function openMerchForm(id){
+function openMerchForm(id, prefill){
   const existing = id ? state.merch.find(p=>String(p.id)===String(id)) : null;
+  const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
   const categoryOptions = [...FIXED_MERCH_CATEGORIES, ...state.customMerchCategories];
   const channels = [...new Set(state.merch.map(p=>p.channel).filter(Boolean))];
 
-  const curArtist = existing ? existing.artist : '';
-  const curCategory = existing ? existing.category : '';
+  const curArtist = src ? src.artist : '';
+  const curCategory = src ? src.category : '';
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
   let artistFieldHtml = '';
@@ -6104,25 +6238,25 @@ function openMerchForm(id){
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
-    <h3 class="maru">${existing? '編輯' : '新增'} · 周邊/專輯</h3>
-    <div class="field"><label>名稱 *</label><input type="text" id="mcName" value="${existing?esc(existing.name):''}" placeholder="例：Butter 專輯 / 應援手燈"></div>
+    <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 周邊/專輯</h3>
+    <div class="field"><label>名稱 *</label><input type="text" id="mcName" value="${src?esc(src.name):''}" placeholder="例：Butter 專輯 / 應援手燈"></div>
     <div class="field"><label>藝人</label>${artistFieldHtml}</div>
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
-      <input type="text" id="mcSeries" list="mcSeriesList" placeholder="例：Proof、BE..." value="${existing?esc(existing.series||''):''}">
+      <input type="text" id="mcSeries" list="mcSeriesList" placeholder="例：Proof、BE..." value="${src?esc(src.series||''):''}">
       <datalist id="mcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟小卡圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
-      <input type="text" id="mcChannel" list="mcChannelList" placeholder="例：官方商城、演唱會現場、代購..." value="${existing?esc(existing.channel||''):''}">
+      <input type="text" id="mcChannel" list="mcChannelList" placeholder="例：官方商城、演唱會現場、代購..." value="${src?esc(src.channel||''):''}">
       <datalist id="mcChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
-    <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填"></div>
-    <div class="field"><label>圖片網址</label><input type="url" id="mcImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${src&&src.price!==undefined?esc(src.price):''}" placeholder="選填"></div>
+    <div class="field"><label>圖片網址</label><input type="url" id="mcImageUrl" value="${src?esc(src.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>建立時間</label><input type="date" id="mcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="mcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing&&existing.owned?'checked':''}>
+        <input type="checkbox" id="mcOwned" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${src&&src.owned?'checked':''}>
         已擁有這件周邊
       </label>
     </div>
