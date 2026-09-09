@@ -4508,8 +4508,23 @@ function openArtistDetail(id){
 
   const artistExpenses = state.expense.filter(e=>e.artist===a.name);
   const totalSpent = artistExpenses.reduce((sum,e)=> sum + expenseAmount(e), 0);
-  const currentYear = String(new Date().getFullYear());
+  const today = todayStr();
+  const currentYear = today.slice(0,4);
+  const lastYear = String(parseInt(currentYear,10)-1);
+  const monthDay = today.slice(5,10); // MM-DD，用來跟去年同一天做同期比較
   const thisYearSpent = artistExpenses.filter(e=> (e.date||'').slice(0,4)===currentYear).reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const lastYearSamePeriodSpent = artistExpenses.filter(e=>{
+    const d = e.date||'';
+    return d.slice(0,4)===lastYear && d.slice(5,10)<=monthDay;
+  }).reduce((sum,e)=> sum + expenseAmount(e), 0);
+  let yoyBadgeHtml = '';
+  if(lastYearSamePeriodSpent>0){
+    const yoyPct = Math.round((thisYearSpent-lastYearSamePeriodSpent)/lastYearSamePeriodSpent*100);
+    const up = yoyPct>=0;
+    yoyBadgeHtml = ` <span style="font-size:9.5px;color:${up?'var(--rose-deep)':'var(--matcha)'};">${up?'↑':'↓'}${Math.abs(yoyPct)}%</span>`;
+  } else if(thisYearSpent>0){
+    yoyBadgeHtml = ` <span style="font-size:9.5px;color:var(--ink-faint);">去年同期無資料</span>`;
+  }
   const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
   const fanlogCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name)).length;
@@ -4537,6 +4552,11 @@ function openArtistDetail(id){
       ${avgPerPc!==null ? `<div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--ink-faint);padding-top:8px;">平均每張擁有的小卡花費約 NT$ ${avgPerPc.toLocaleString()}</div>` : ''}
     </div>` : '';
 
+  const birthdayInfo = a.birthday ? nextOccurrenceInfo(a.birthday) : null;
+  const birthdayCountdownHtml = (birthdayInfo && birthdayInfo.diffDays>=0 && birthdayInfo.diffDays<=30)
+    ? `<span class="tag rose">🎂 ${birthdayInfo.diffDays===0?'今天生日！':`還有 ${birthdayInfo.diffDays} 天生日`}</span>`
+    : '';
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
@@ -4551,27 +4571,32 @@ function openArtistDetail(id){
     <div style="margin-bottom:10px;">
       ${oshiLevelTag(artistOshiLevel(a))}
       ${a.birthday ? `<span class="tag">🎂 ${fmtDate(a.birthday)}</span>`:''}
+      ${birthdayCountdownHtml}
       ${a.debutDate ? `<span class="tag matcha">出道 ${fmtDate(a.debutDate)}</span>`:''}
       ${a.fanSince ? `<span class="tag rose">入坑 ${fanDurationText(a.fanSince)}（${fmtDate(a.fanSince)}）</span>`:''}
     </div>
     ${a.bio ? `<div class="card-meta" style="white-space:pre-wrap;line-height:1.7;">${esc(a.bio)}</div>` : `<div class="card-meta" style="color:var(--ink-faint);">尚未填寫簡介</div>`}
     <div class="stat-grid" style="grid-template-columns:2fr 1fr 1fr;margin-top:14px;">
       <div class="stat-card" style="display:flex;align-items:center;padding-left:4px;padding-right:4px;">
-        <div style="flex:1;min-width:0;">
+        <div id="artistYearSpentBtn" style="flex:1;min-width:0;cursor:pointer;">
           <div class="num" style="font-size:15.5px;">NT$ ${thisYearSpent.toLocaleString()}</div>
-          <div class="lbl">今年花費</div>
+          <div class="lbl">今年花費${yoyBadgeHtml}</div>
         </div>
         <div style="width:1px;align-self:stretch;background:var(--ink-faint);opacity:0.35;margin:2px 8px;"></div>
-        <div style="flex:1;min-width:0;">
+        <div id="artistTotalSpentBtn" style="flex:1;min-width:0;cursor:pointer;">
           <div class="num" style="font-size:15.5px;">NT$ ${totalSpent.toLocaleString()}</div>
           <div class="lbl">累積花費</div>
         </div>
       </div>
-      <div class="stat-card"><div class="num">${pcOwnedCount}/${pcTotalCount}</div><div class="lbl">小卡收藏</div></div>
+      <div class="stat-card">
+        <div class="num">${pcOwnedCount}/${pcTotalCount}</div>
+        <div class="lbl">小卡收藏</div>
+        ${pcTotalCount>0 ? `<div style="height:4px;border-radius:2px;background:var(--bg-deep);margin-top:6px;overflow:hidden;"><div style="height:100%;width:${Math.round(pcOwnedCount/pcTotalCount*100)}%;background:var(--rose);"></div></div>` : ''}
+      </div>
       <div class="stat-card"><div class="num">${fanlogCount}</div><div class="lbl">追星紀錄</div></div>
     </div>
     ${ratioChartHtml}
-    ${supportCount>0 ? `<div class="card-meta" style="margin-top:8px;">📣 應援紀錄：${supportCount} 筆</div>` : ''}
+    ${supportCount>0 ? `<div class="card-meta" id="artistSupportLink" style="margin-top:8px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">📣 應援紀錄：${supportCount} 筆 →</div>` : ''}
     <div class="modal-actions" style="margin-top:18px;">
       <button class="btn ghost" id="cancelBtn">關閉</button>
       <button class="btn primary" id="artistDetailEditBtn">編輯</button>
@@ -4582,6 +4607,38 @@ function openArtistDetail(id){
     closeModal();
     openForm('artists', a.id);
   });
+  const yearSpentBtn = document.getElementById('artistYearSpentBtn');
+  if(yearSpentBtn){
+    yearSpentBtn.addEventListener('click', ()=>{
+      closeModal();
+      state.tab = 'expense';
+      expViewMode = 'all';
+      expMonthFilter = '__all__';
+      expSearchQuery = a.name;
+      render();
+    });
+  }
+  const totalSpentBtn = document.getElementById('artistTotalSpentBtn');
+  if(totalSpentBtn){
+    totalSpentBtn.addEventListener('click', ()=>{
+      closeModal();
+      state.tab = 'expense';
+      expViewMode = 'year';
+      expYearFilter = '__all__';
+      expSearchQuery = a.name;
+      render();
+    });
+  }
+  const supportLink = document.getElementById('artistSupportLink');
+  if(supportLink){
+    supportLink.addEventListener('click', ()=>{
+      closeModal();
+      state.tab = 'support';
+      supportArtistFilter = a.name;
+      supportYearFilter = '__all__';
+      render();
+    });
+  }
   showModal();
 }
 
