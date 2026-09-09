@@ -1413,7 +1413,13 @@ const state = {
   pcCategoryOrder:[],
   merchCategoryOrder:[],
   fanlogCategoryOrder:[],
-  endorsementCategoryOrder:[]
+  endorsementCategoryOrder:[],
+  expenseCategoryDisabled:[],
+  scheduleCategoryDisabled:[],
+  pcCategoryDisabled:[],
+  merchCategoryDisabled:[],
+  fanlogCategoryDisabled:[],
+  endorsementCategoryDisabled:[]
 };
 
 /* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
@@ -1837,7 +1843,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, exco, scco, pcco, mcco, flco, enco] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, exco, scco, pcco, mcco, flco, enco, exd, scd, pcd, mcd, fld, endd] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1865,7 +1871,13 @@ async function loadAllData(){
     loadKey('oshi-pc-categories-order', []),
     loadKey('oshi-merch-categories-order', []),
     loadKey('oshi-fanlog-categories-order', []),
-    loadKey('oshi-endorsement-categories-order', [])
+    loadKey('oshi-endorsement-categories-order', []),
+    loadKey('oshi-expense-categories-disabled', []),
+    loadKey('oshi-schedule-categories-disabled', []),
+    loadKey('oshi-pc-categories-disabled', []),
+    loadKey('oshi-merch-categories-disabled', []),
+    loadKey('oshi-fanlog-categories-disabled', []),
+    loadKey('oshi-endorsement-categories-disabled', [])
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1890,6 +1902,12 @@ async function loadAllData(){
   state.merchCategoryOrder = mcco || [];
   state.fanlogCategoryOrder = flco || [];
   state.endorsementCategoryOrder = enco || [];
+  state.expenseCategoryDisabled = exd || [];
+  state.scheduleCategoryDisabled = scd || [];
+  state.pcCategoryDisabled = pcd || [];
+  state.merchCategoryDisabled = mcd || [];
+  state.fanlogCategoryDisabled = fld || [];
+  state.endorsementCategoryDisabled = endd || [];
 }
 
 async function init(){
@@ -3563,8 +3581,8 @@ function openExpenseForm(id, prefill){
 
   const platforms = [...new Set(state.expense.map(e=>e.platform).filter(Boolean))];
 
-  const categoryOptions = orderedCategoryList('expense');
   const curCategory = src ? (src.category||'') : '';
+  const categoryOptions = selectableCategoryList('expense', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
     <select id="expCategorySelect">
@@ -5280,7 +5298,7 @@ function openEndorsementForm(id){
   }
 
   const curCategory = existing ? (existing.category||'') : '';
-  const categoryOptions = orderedCategoryList('endorsement');
+  const categoryOptions = selectableCategoryList('endorsement', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
     <select id="endCategorySelect">
@@ -6122,11 +6140,11 @@ function openPhotocardForm(id, prefill){
   const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
-  const categoryOptions = orderedCategoryList('photocards');
   const channels = [...new Set(state.photocards.map(p=>p.channel).filter(Boolean))];
 
   const curArtist = src ? src.artist : '';
   const curCategory = src ? src.category : '';
+  const categoryOptions = selectableCategoryList('photocards', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
   let artistFieldHtml = '';
@@ -6275,11 +6293,11 @@ function openMerchForm(id, prefill){
   const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
-  const categoryOptions = orderedCategoryList('merch');
   const channels = [...new Set(state.merch.map(p=>p.channel).filter(Boolean))];
 
   const curArtist = src ? src.artist : '';
   const curCategory = src ? src.category : '';
+  const categoryOptions = selectableCategoryList('merch', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
   let artistFieldHtml = '';
@@ -6427,8 +6445,8 @@ function openFanlogForm(id, prefill){
   flFlipTypes = src && Array.isArray(src.flipTypes) ? [...src.flipTypes] : [];
   flImgUrls = src && Array.isArray(src.imageUrls) ? [...src.imageUrls] : [];
 
-  const categoryOptions = orderedCategoryList('fanlog');
   const curCategory = src ? src.category : '';
+  const categoryOptions = selectableCategoryList('fanlog', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
   const categoryFieldHtml = `
@@ -6768,8 +6786,8 @@ function openScheduleForm(id, prefill){
       </select>`;
   }
 
-  const categoryOptions = orderedCategoryList('schedule');
   const curCategory = existing ? (existing.category||'') : '';
+  const categoryOptions = selectableCategoryList('schedule', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
     <select id="schCategorySelect">
@@ -7070,12 +7088,12 @@ const GOOGLE_G_ICON = `<svg width="18" height="18" viewBox="0 0 48 48" style="fl
 
 /* ================= 分類管理（重新命名／刪除使用者自訂的分類） ================= */
 const CATEGORY_MANAGE_CONFIG = [
-  { key:'expense', label:'記帳分類', fixed:FIXED_EXPENSE_CATEGORIES, customField:'customExpenseCategories', storageKey:'oshi-expense-categories', orderField:'expenseCategoryOrder', orderStorageKey:'oshi-expense-categories-order', itemField:'expense', itemStorageKey:'oshi-expense' },
-  { key:'schedule', label:'行程分類', fixed:FIXED_SCHEDULE_CATEGORIES, customField:'customScheduleCategories', storageKey:'oshi-schedule-categories', orderField:'scheduleCategoryOrder', orderStorageKey:'oshi-schedule-categories-order', itemField:'schedule', itemStorageKey:'oshi-schedule' },
-  { key:'photocards', label:'小卡分類', fixed:FIXED_PC_CATEGORIES, customField:'customPcCategories', storageKey:'oshi-pc-categories', orderField:'pcCategoryOrder', orderStorageKey:'oshi-pc-categories-order', itemField:'photocards', itemStorageKey:'oshi-photocards' },
-  { key:'merch', label:'周邊分類', fixed:FIXED_MERCH_CATEGORIES, customField:'customMerchCategories', storageKey:'oshi-merch-categories', orderField:'merchCategoryOrder', orderStorageKey:'oshi-merch-categories-order', itemField:'merch', itemStorageKey:'oshi-merch' },
-  { key:'fanlog', label:'追星紀錄分類', fixed:FIXED_FANLOG_CATEGORIES, customField:'customFanlogCategories', storageKey:'oshi-fanlog-categories', orderField:'fanlogCategoryOrder', orderStorageKey:'oshi-fanlog-categories-order', itemField:'fanlog', itemStorageKey:'oshi-fanlog' },
-  { key:'endorsement', label:'代言分類', fixed:FIXED_ENDORSEMENT_CATEGORIES, customField:'customEndorsementCategories', storageKey:'oshi-endorsement-categories', orderField:'endorsementCategoryOrder', orderStorageKey:'oshi-endorsement-categories-order', itemField:'endorsement', itemStorageKey:'oshi-endorsement' }
+  { key:'expense', label:'記帳分類', fixed:FIXED_EXPENSE_CATEGORIES, customField:'customExpenseCategories', storageKey:'oshi-expense-categories', orderField:'expenseCategoryOrder', orderStorageKey:'oshi-expense-categories-order', disabledField:'expenseCategoryDisabled', disabledStorageKey:'oshi-expense-categories-disabled', itemField:'expense', itemStorageKey:'oshi-expense' },
+  { key:'schedule', label:'行程分類', fixed:FIXED_SCHEDULE_CATEGORIES, customField:'customScheduleCategories', storageKey:'oshi-schedule-categories', orderField:'scheduleCategoryOrder', orderStorageKey:'oshi-schedule-categories-order', disabledField:'scheduleCategoryDisabled', disabledStorageKey:'oshi-schedule-categories-disabled', itemField:'schedule', itemStorageKey:'oshi-schedule' },
+  { key:'photocards', label:'小卡分類', fixed:FIXED_PC_CATEGORIES, customField:'customPcCategories', storageKey:'oshi-pc-categories', orderField:'pcCategoryOrder', orderStorageKey:'oshi-pc-categories-order', disabledField:'pcCategoryDisabled', disabledStorageKey:'oshi-pc-categories-disabled', itemField:'photocards', itemStorageKey:'oshi-photocards' },
+  { key:'merch', label:'周邊分類', fixed:FIXED_MERCH_CATEGORIES, customField:'customMerchCategories', storageKey:'oshi-merch-categories', orderField:'merchCategoryOrder', orderStorageKey:'oshi-merch-categories-order', disabledField:'merchCategoryDisabled', disabledStorageKey:'oshi-merch-categories-disabled', itemField:'merch', itemStorageKey:'oshi-merch' },
+  { key:'fanlog', label:'追星紀錄分類', fixed:FIXED_FANLOG_CATEGORIES, customField:'customFanlogCategories', storageKey:'oshi-fanlog-categories', orderField:'fanlogCategoryOrder', orderStorageKey:'oshi-fanlog-categories-order', disabledField:'fanlogCategoryDisabled', disabledStorageKey:'oshi-fanlog-categories-disabled', itemField:'fanlog', itemStorageKey:'oshi-fanlog' },
+  { key:'endorsement', label:'代言分類', fixed:FIXED_ENDORSEMENT_CATEGORIES, customField:'customEndorsementCategories', storageKey:'oshi-endorsement-categories', orderField:'endorsementCategoryOrder', orderStorageKey:'oshi-endorsement-categories-order', disabledField:'endorsementCategoryDisabled', disabledStorageKey:'oshi-endorsement-categories-disabled', itemField:'endorsement', itemStorageKey:'oshi-endorsement' }
 ];
 function categoryUsageCount(cfg, name){
   return state[cfg.itemField].filter(it=> it.category===name).length;
@@ -7092,6 +7110,34 @@ function orderedCategoryList(key){
   const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===key);
   return cfg ? getCategoryOrder(cfg) : [];
 }
+function isCategoryDisabled(cfg, name){
+  return (state[cfg.disabledField]||[]).includes(name);
+}
+/* 排除已停用分類後的清單；新增/編輯紀錄的下拉選單用這個，舊資料的標籤顏色、分類統計等仍用 orderedCategoryList（不篩選）以維持穩定。 */
+function activeCategoryList(key){
+  const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===key);
+  if(!cfg) return [];
+  return getCategoryOrder(cfg).filter(n=> !isCategoryDisabled(cfg, n));
+}
+/* 給表單下拉選單用：排除已停用分類，但如果這筆紀錄目前用的分類剛好是被停用的，
+   還是把它加回選項最後面，這樣編輯舊紀錄時分類還是能正常顯示、不會被誤判成自訂文字。 */
+function selectableCategoryList(key, curCategory){
+  const active = activeCategoryList(key);
+  if(curCategory && !active.includes(curCategory) && orderedCategoryList(key).includes(curCategory)){
+    return [...active, curCategory];
+  }
+  return active;
+}
+async function resetCategoryOrder(cfg){
+  const order = [...cfg.fixed, ...state[cfg.customField]];
+  state[cfg.orderField] = order;
+  await saveKey(cfg.orderStorageKey, order);
+}
+async function toggleCategoryDisabled(cfg, name){
+  const list = state[cfg.disabledField] || [];
+  state[cfg.disabledField] = isCategoryDisabled(cfg, name) ? list.filter(n=>n!==name) : [...list, name];
+  await saveKey(cfg.disabledStorageKey, state[cfg.disabledField]);
+}
 let categoryManagerSelectedKey = CATEGORY_MANAGE_CONFIG[0].key;
 function openCategoryManager(){
   const modal = document.getElementById('modal');
@@ -7099,22 +7145,27 @@ function openCategoryManager(){
   const order = getCategoryOrder(cfg);
   modal.innerHTML = `
     <h3 class="maru" style="margin-bottom:6px;">🏷️ 管理分類</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">用 ▲▼ 可以調整分類在選單裡出現的先後順序，內建分類也可以一起排序，只是不能重新命名或刪除。重新命名自訂分類會同步更新所有已經套用該分類的紀錄。</p>
+    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">用 ▲▼ 可以調整分類在選單裡出現的先後順序，內建分類也可以一起排序，只是不能重新命名或刪除。「停用」的分類不會出現在新增/編輯紀錄的選單裡，但既有紀錄還是會保留原本的分類文字。重新命名自訂分類會同步更新所有已經套用該分類的紀錄。</p>
     <div class="field" style="margin-bottom:14px;">
       <label for="categoryManagerGroupSelect" style="font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;">選擇分類群組</label>
       <select id="categoryManagerGroupSelect" style="width:100%;">
         ${CATEGORY_MANAGE_CONFIG.map(c=>`<option value="${c.key}" ${c.key===cfg.key?'selected':''}>${esc(c.label)}</option>`).join('')}
       </select>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button type="button" class="btn ghost" id="catManageResetOrderBtn" style="font-size:12px;padding:6px 10px;">↺ 重設為預設順序</button>
+    </div>
     <div class="cat-manage-list" data-cfg="${cfg.key}">
       ${order.map((name, idx, arr)=>{
         const count = categoryUsageCount(cfg, name);
         const isFixed = cfg.fixed.includes(name);
+        const disabled = isCategoryDisabled(cfg, name);
         return `
-        <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
+        <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);${disabled?'opacity:0.55;':''}">
           <div class="cat-manage-row-view" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
-            <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span>
+            <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${disabled?'text-decoration:line-through;':''}">${esc(name)}</span>
             ${isFixed ? `<span style="font-size:10.5px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--sakura-pale);border-radius:6px;padding:1px 5px;">內建</span>` : ''}
+            ${disabled ? `<span style="font-size:10.5px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--ink-faint);border-radius:6px;padding:1px 5px;">已停用</span>` : ''}
             <span style="font-size:11px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
           </div>
           <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
@@ -7122,6 +7173,7 @@ function openCategoryManager(){
           </div>
           <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
           <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
+          <button type="button" class="icon-btn cat-manage-toggle-btn" title="${disabled?'啟用':'停用'}">${disabled?'✅':'🚫'}</button>
           ${isFixed ? '' : `
           <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名">✎</button>
           <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" style="display:none;">✓</button>
@@ -7137,6 +7189,11 @@ function openCategoryManager(){
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('categoryManagerGroupSelect').addEventListener('change', (e)=>{
     categoryManagerSelectedKey = e.target.value;
+    openCategoryManager();
+  });
+  document.getElementById('catManageResetOrderBtn').addEventListener('click', async ()=>{
+    await resetCategoryOrder(cfg);
+    showToast('已重設為預設順序');
     openCategoryManager();
   });
   bindCategoryManagerActions();
@@ -7187,10 +7244,13 @@ function bindCategoryManagerActions(){
       const order = getCategoryOrder(cfg);
       const orderIdx = order.indexOf(oldName);
       if(orderIdx>=0) order[orderIdx] = newName;
+      const disabledIdx = (state[cfg.disabledField]||[]).indexOf(oldName);
+      if(disabledIdx>=0) state[cfg.disabledField][disabledIdx] = newName;
       state[cfg.itemField].forEach(it=>{ if(it.category===oldName) it.category = newName; });
       await saveKey(cfg.storageKey, state[cfg.customField]);
       await saveKey(cfg.orderStorageKey, order);
       state[cfg.orderField] = order;
+      await saveKey(cfg.disabledStorageKey, state[cfg.disabledField]);
       await saveKey(cfg.itemStorageKey, state[cfg.itemField]);
       showToast('已更新分類名稱');
       openCategoryManager();
@@ -7202,6 +7262,15 @@ function bindCategoryManagerActions(){
       const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
       const name = row.dataset.name;
       confirmDeleteCategory(cfg, name);
+    });
+  });
+  document.querySelectorAll('.cat-manage-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.cat-manage-row');
+      const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
+      const name = row.dataset.name;
+      await toggleCategoryDisabled(cfg, name);
+      openCategoryManager();
     });
   });
 }
@@ -7233,8 +7302,10 @@ function confirmDeleteCategory(cfg, name){
     state[cfg.customField] = state[cfg.customField].filter(n=>n!==name);
     const order = getCategoryOrder(cfg).filter(n=>n!==name);
     state[cfg.orderField] = order;
+    state[cfg.disabledField] = (state[cfg.disabledField]||[]).filter(n=>n!==name);
     await saveKey(cfg.storageKey, state[cfg.customField]);
     await saveKey(cfg.orderStorageKey, order);
+    await saveKey(cfg.disabledStorageKey, state[cfg.disabledField]);
     showToast('已刪除分類');
     openCategoryManager();
   });
@@ -7442,7 +7513,13 @@ const BACKUP_FIELD_MAP = [
   ['pcCategoryOrder','oshi-pc-categories-order'],
   ['merchCategoryOrder','oshi-merch-categories-order'],
   ['fanlogCategoryOrder','oshi-fanlog-categories-order'],
-  ['endorsementCategoryOrder','oshi-endorsement-categories-order']
+  ['endorsementCategoryOrder','oshi-endorsement-categories-order'],
+  ['expenseCategoryDisabled','oshi-expense-categories-disabled'],
+  ['scheduleCategoryDisabled','oshi-schedule-categories-disabled'],
+  ['pcCategoryDisabled','oshi-pc-categories-disabled'],
+  ['merchCategoryDisabled','oshi-merch-categories-disabled'],
+  ['fanlogCategoryDisabled','oshi-fanlog-categories-disabled'],
+  ['endorsementCategoryDisabled','oshi-endorsement-categories-disabled']
 ];
 
 function exportBackupData(){
