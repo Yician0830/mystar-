@@ -1407,7 +1407,13 @@ const state = {
   merchSeriesMeta:{},
   customFanlogCategories:[],
   customScheduleCategories:[],
-  customExpenseCategories:[]
+  customExpenseCategories:[],
+  expenseCategoryOrder:[],
+  scheduleCategoryOrder:[],
+  pcCategoryOrder:[],
+  merchCategoryOrder:[],
+  fanlogCategoryOrder:[],
+  endorsementCategoryOrder:[]
 };
 
 /* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
@@ -1831,7 +1837,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, exco, scco, pcco, mcco, flco, enco] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -1853,7 +1859,13 @@ async function loadAllData(){
     loadKey('oshi-merch', []),
     loadKey('oshi-merch-categories', []),
     loadKey('oshi-merch-covers', {}),
-    loadKey('oshi-merch-series-meta', {})
+    loadKey('oshi-merch-series-meta', {}),
+    loadKey('oshi-expense-categories-order', []),
+    loadKey('oshi-schedule-categories-order', []),
+    loadKey('oshi-pc-categories-order', []),
+    loadKey('oshi-merch-categories-order', []),
+    loadKey('oshi-fanlog-categories-order', []),
+    loadKey('oshi-endorsement-categories-order', [])
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -1872,6 +1884,12 @@ async function loadAllData(){
   state.customMerchCategories = mcc || [];
   state.merchSeriesCovers = mccov || {};
   state.merchSeriesMeta = mcmeta || {};
+  state.expenseCategoryOrder = exco || [];
+  state.scheduleCategoryOrder = scco || [];
+  state.pcCategoryOrder = pcco || [];
+  state.merchCategoryOrder = mcco || [];
+  state.fanlogCategoryOrder = flco || [];
+  state.endorsementCategoryOrder = enco || [];
 }
 
 async function init(){
@@ -2976,7 +2994,7 @@ function renderCard(tab, item){
   } else if(tab==='fanlog'){
     metaLine = fmtDate(item.date);
     if(item.artist) tags += `<span class="tag">${esc(item.artist)}</span>`;
-    if(item.category) tags += `<span class="tag ${tagColorClass(item.category, [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories])}">${esc(item.category)}</span>`;
+    if(item.category) tags += `<span class="tag ${tagColorClass(item.category, orderedCategoryList('fanlog'))}">${esc(item.category)}</span>`;
     const flLinked = linkedExpensesForFanlog(item);
     const flSpent = fanlogSpentAmount(item);
     if(flSpent>0) tags += `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${flSpent.toLocaleString()}</span>`;
@@ -3132,7 +3150,7 @@ function renderExpenseTab(){
       catGroups[cat].push(item);
     });
 
-    const allExpCategories = [...FIXED_EXPENSE_CATEGORIES, ...state.customExpenseCategories];
+    const allExpCategories = orderedCategoryList('expense');
     const categoryKeys = Object.keys(catGroups).sort((a,b)=>{
       const idxA = allExpCategories.indexOf(a);
       const idxB = allExpCategories.indexOf(b);
@@ -3545,7 +3563,7 @@ function openExpenseForm(id, prefill){
 
   const platforms = [...new Set(state.expense.map(e=>e.platform).filter(Boolean))];
 
-  const categoryOptions = [...FIXED_EXPENSE_CATEGORIES, ...state.customExpenseCategories];
+  const categoryOptions = orderedCategoryList('expense');
   const curCategory = src ? (src.category||'') : '';
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
@@ -3965,7 +3983,7 @@ function renderScheduleListBody(filteredSchedule){
     const dateLabel = (s.isMultiDay && s.endDate && s.endDate!==s.date)
       ? `${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}`
       : fmtDate(s.date);
-    const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories])}">${esc(s.category)}</span>` : '';
+    const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, orderedCategoryList('schedule'))}">${esc(s.category)}</span>` : '';
     const checklist = Array.isArray(s.checklist) ? s.checklist : [];
     const doneCount = checklist.filter(it=>it.done).length;
     const checklistPct = checklist.length>0 ? Math.round(doneCount/checklist.length*100) : 0;
@@ -4113,7 +4131,7 @@ function pcOrderedKeys(groups){
 }
 
 function renderPhotocardCard(pc, seriesLabel){
-  const catClass = tagColorClass(pc.category, [...FIXED_PC_CATEGORIES, ...state.customPcCategories]);
+  const catClass = tagColorClass(pc.category, orderedCategoryList('photocards'));
   const owned = !!pc.owned;
   const wished = !!pc.wished;
   return `
@@ -4320,7 +4338,7 @@ function mcOrderedKeys(groups){
 }
 
 function renderMerchCard(mc, seriesLabel){
-  const catClass = tagColorClass(mc.category, [...FIXED_MERCH_CATEGORIES, ...state.customMerchCategories]);
+  const catClass = tagColorClass(mc.category, orderedCategoryList('merch'));
   const owned = !!mc.owned;
   return `
   <div class="pc-card">
@@ -5262,7 +5280,7 @@ function openEndorsementForm(id){
   }
 
   const curCategory = existing ? (existing.category||'') : '';
-  const categoryOptions = [...FIXED_ENDORSEMENT_CATEGORIES, ...state.customEndorsementCategories];
+  const categoryOptions = orderedCategoryList('endorsement');
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
     <select id="endCategorySelect">
@@ -6104,7 +6122,7 @@ function openPhotocardForm(id, prefill){
   const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
-  const categoryOptions = [...FIXED_PC_CATEGORIES, ...state.customPcCategories];
+  const categoryOptions = orderedCategoryList('photocards');
   const channels = [...new Set(state.photocards.map(p=>p.channel).filter(Boolean))];
 
   const curArtist = src ? src.artist : '';
@@ -6257,7 +6275,7 @@ function openMerchForm(id, prefill){
   const src = existing || prefill || null;
 
   const artistOptions = state.artists.map(a=>a.name);
-  const categoryOptions = [...FIXED_MERCH_CATEGORIES, ...state.customMerchCategories];
+  const categoryOptions = orderedCategoryList('merch');
   const channels = [...new Set(state.merch.map(p=>p.channel).filter(Boolean))];
 
   const curArtist = src ? src.artist : '';
@@ -6409,7 +6427,7 @@ function openFanlogForm(id, prefill){
   flFlipTypes = src && Array.isArray(src.flipTypes) ? [...src.flipTypes] : [];
   flImgUrls = src && Array.isArray(src.imageUrls) ? [...src.imageUrls] : [];
 
-  const categoryOptions = [...FIXED_FANLOG_CATEGORIES, ...state.customFanlogCategories];
+  const categoryOptions = orderedCategoryList('fanlog');
   const curCategory = src ? src.category : '';
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
 
@@ -6750,7 +6768,7 @@ function openScheduleForm(id, prefill){
       </select>`;
   }
 
-  const categoryOptions = [...FIXED_SCHEDULE_CATEGORIES, ...state.customScheduleCategories];
+  const categoryOptions = orderedCategoryList('schedule');
   const curCategory = existing ? (existing.category||'') : '';
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
@@ -7052,53 +7070,75 @@ const GOOGLE_G_ICON = `<svg width="18" height="18" viewBox="0 0 48 48" style="fl
 
 /* ================= 分類管理（重新命名／刪除使用者自訂的分類） ================= */
 const CATEGORY_MANAGE_CONFIG = [
-  { key:'expense', label:'記帳分類', fixed:FIXED_EXPENSE_CATEGORIES, customField:'customExpenseCategories', storageKey:'oshi-expense-categories', itemField:'expense', itemStorageKey:'oshi-expense' },
-  { key:'schedule', label:'行程分類', fixed:FIXED_SCHEDULE_CATEGORIES, customField:'customScheduleCategories', storageKey:'oshi-schedule-categories', itemField:'schedule', itemStorageKey:'oshi-schedule' },
-  { key:'photocards', label:'小卡分類', fixed:FIXED_PC_CATEGORIES, customField:'customPcCategories', storageKey:'oshi-pc-categories', itemField:'photocards', itemStorageKey:'oshi-photocards' },
-  { key:'merch', label:'周邊分類', fixed:FIXED_MERCH_CATEGORIES, customField:'customMerchCategories', storageKey:'oshi-merch-categories', itemField:'merch', itemStorageKey:'oshi-merch' },
-  { key:'fanlog', label:'追星紀錄分類', fixed:FIXED_FANLOG_CATEGORIES, customField:'customFanlogCategories', storageKey:'oshi-fanlog-categories', itemField:'fanlog', itemStorageKey:'oshi-fanlog' },
-  { key:'endorsement', label:'代言分類', fixed:FIXED_ENDORSEMENT_CATEGORIES, customField:'customEndorsementCategories', storageKey:'oshi-endorsement-categories', itemField:'endorsement', itemStorageKey:'oshi-endorsement' }
+  { key:'expense', label:'記帳分類', fixed:FIXED_EXPENSE_CATEGORIES, customField:'customExpenseCategories', storageKey:'oshi-expense-categories', orderField:'expenseCategoryOrder', orderStorageKey:'oshi-expense-categories-order', itemField:'expense', itemStorageKey:'oshi-expense' },
+  { key:'schedule', label:'行程分類', fixed:FIXED_SCHEDULE_CATEGORIES, customField:'customScheduleCategories', storageKey:'oshi-schedule-categories', orderField:'scheduleCategoryOrder', orderStorageKey:'oshi-schedule-categories-order', itemField:'schedule', itemStorageKey:'oshi-schedule' },
+  { key:'photocards', label:'小卡分類', fixed:FIXED_PC_CATEGORIES, customField:'customPcCategories', storageKey:'oshi-pc-categories', orderField:'pcCategoryOrder', orderStorageKey:'oshi-pc-categories-order', itemField:'photocards', itemStorageKey:'oshi-photocards' },
+  { key:'merch', label:'周邊分類', fixed:FIXED_MERCH_CATEGORIES, customField:'customMerchCategories', storageKey:'oshi-merch-categories', orderField:'merchCategoryOrder', orderStorageKey:'oshi-merch-categories-order', itemField:'merch', itemStorageKey:'oshi-merch' },
+  { key:'fanlog', label:'追星紀錄分類', fixed:FIXED_FANLOG_CATEGORIES, customField:'customFanlogCategories', storageKey:'oshi-fanlog-categories', orderField:'fanlogCategoryOrder', orderStorageKey:'oshi-fanlog-categories-order', itemField:'fanlog', itemStorageKey:'oshi-fanlog' },
+  { key:'endorsement', label:'代言分類', fixed:FIXED_ENDORSEMENT_CATEGORIES, customField:'customEndorsementCategories', storageKey:'oshi-endorsement-categories', orderField:'endorsementCategoryOrder', orderStorageKey:'oshi-endorsement-categories-order', itemField:'endorsement', itemStorageKey:'oshi-endorsement' }
 ];
 function categoryUsageCount(cfg, name){
   return state[cfg.itemField].filter(it=> it.category===name).length;
 }
+/* 回傳這個分類群組「內建＋自訂」合併後的顯示順序；使用者用 ▲▼ 調整過的順序會存在 state[cfg.orderField]，
+   若有新分類（新增的自訂分類，或是還沒被排序過的內建分類）不在裡面，會自動補到最後面。 */
+function getCategoryOrder(cfg){
+  const all = [...cfg.fixed, ...state[cfg.customField]];
+  let order = (state[cfg.orderField]||[]).filter(n=> all.includes(n));
+  all.forEach(n=>{ if(!order.includes(n)) order.push(n); });
+  return order;
+}
+function orderedCategoryList(key){
+  const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===key);
+  return cfg ? getCategoryOrder(cfg) : [];
+}
+let categoryManagerSelectedKey = CATEGORY_MANAGE_CONFIG[0].key;
 function openCategoryManager(){
   const modal = document.getElementById('modal');
-  const groups = CATEGORY_MANAGE_CONFIG.filter(cfg=> (state[cfg.customField]||[]).length>0);
+  const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===categoryManagerSelectedKey) || CATEGORY_MANAGE_CONFIG[0];
+  const order = getCategoryOrder(cfg);
   modal.innerHTML = `
     <h3 class="maru" style="margin-bottom:6px;">🏷️ 管理分類</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">這裡只能管理你自己新增過的分類；系統內建的預設分類無法在此刪除或調整順序。用 ▲▼ 可以調整分類在選單裡出現的先後順序，重新命名會同步更新所有已經套用該分類的紀錄。</p>
-    ${groups.length===0 ? `<div style="font-size:13px;color:var(--ink-soft);text-align:center;padding:20px 0;">目前還沒有任何自訂分類</div>` : groups.map(cfg=>`
-      <div style="margin-bottom:16px;">
-        <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">${esc(cfg.label)}</div>
-        <div class="cat-manage-list" data-cfg="${cfg.key}">
-          ${state[cfg.customField].map((name, idx, arr)=>{
-            const count = categoryUsageCount(cfg, name);
-            return `
-            <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
-              <div class="cat-manage-row-view" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
-                <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span>
-                <span style="font-size:11px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
-              </div>
-              <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
-                <input type="text" class="cat-manage-rename-input" value="${esc(name)}" style="flex:1;min-width:0;padding:6px 8px;font-size:13px;">
-              </div>
-              <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
-              <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
-              <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名">✎</button>
-              <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" style="display:none;">✓</button>
-              <button type="button" class="icon-btn cat-manage-cancel-btn" title="取消" style="display:none;">✕</button>
-              <button type="button" class="icon-btn del cat-manage-del-btn" title="刪除">🗑</button>
-            </div>`;
-          }).join('')}
-        </div>
-      </div>
-    `).join('')}
+    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">用 ▲▼ 可以調整分類在選單裡出現的先後順序，內建分類也可以一起排序，只是不能重新命名或刪除。重新命名自訂分類會同步更新所有已經套用該分類的紀錄。</p>
+    <div class="field" style="margin-bottom:14px;">
+      <label for="categoryManagerGroupSelect" style="font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;">選擇分類群組</label>
+      <select id="categoryManagerGroupSelect" style="width:100%;">
+        ${CATEGORY_MANAGE_CONFIG.map(c=>`<option value="${c.key}" ${c.key===cfg.key?'selected':''}>${esc(c.label)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="cat-manage-list" data-cfg="${cfg.key}">
+      ${order.map((name, idx, arr)=>{
+        const count = categoryUsageCount(cfg, name);
+        const isFixed = cfg.fixed.includes(name);
+        return `
+        <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
+          <div class="cat-manage-row-view" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
+            <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span>
+            ${isFixed ? `<span style="font-size:10.5px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--sakura-pale);border-radius:6px;padding:1px 5px;">內建</span>` : ''}
+            <span style="font-size:11px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
+          </div>
+          <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
+            <input type="text" class="cat-manage-rename-input" value="${esc(name)}" style="flex:1;min-width:0;padding:6px 8px;font-size:13px;">
+          </div>
+          <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
+          <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
+          ${isFixed ? '' : `
+          <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名">✎</button>
+          <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" style="display:none;">✓</button>
+          <button type="button" class="icon-btn cat-manage-cancel-btn" title="取消" style="display:none;">✕</button>
+          <button type="button" class="icon-btn del cat-manage-del-btn" title="刪除">🗑</button>`}
+        </div>`;
+      }).join('')}
+    </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">關閉</button>
     </div>
   `;
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('categoryManagerGroupSelect').addEventListener('change', (e)=>{
+    categoryManagerSelectedKey = e.target.value;
+    openCategoryManager();
+  });
   bindCategoryManagerActions();
   showModal();
 }
@@ -7144,8 +7184,13 @@ function bindCategoryManagerActions(){
       if(taken){ showToast('這個分類名稱已經存在了'); return; }
       const idx = state[cfg.customField].indexOf(oldName);
       if(idx>=0) state[cfg.customField][idx] = newName;
+      const order = getCategoryOrder(cfg);
+      const orderIdx = order.indexOf(oldName);
+      if(orderIdx>=0) order[orderIdx] = newName;
       state[cfg.itemField].forEach(it=>{ if(it.category===oldName) it.category = newName; });
       await saveKey(cfg.storageKey, state[cfg.customField]);
+      await saveKey(cfg.orderStorageKey, order);
+      state[cfg.orderField] = order;
       await saveKey(cfg.itemStorageKey, state[cfg.itemField]);
       showToast('已更新分類名稱');
       openCategoryManager();
@@ -7163,12 +7208,13 @@ function bindCategoryManagerActions(){
 async function moveCategoryOrder(btn, dir){
   const row = btn.closest('.cat-manage-row');
   const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
-  const list = state[cfg.customField];
-  const idx = list.indexOf(row.dataset.name);
+  const order = getCategoryOrder(cfg);
+  const idx = order.indexOf(row.dataset.name);
   const targetIdx = idx + dir;
-  if(idx<0 || targetIdx<0 || targetIdx>=list.length) return;
-  [list[idx], list[targetIdx]] = [list[targetIdx], list[idx]];
-  await saveKey(cfg.storageKey, list);
+  if(idx<0 || targetIdx<0 || targetIdx>=order.length) return;
+  [order[idx], order[targetIdx]] = [order[targetIdx], order[idx]];
+  state[cfg.orderField] = order;
+  await saveKey(cfg.orderStorageKey, order);
   openCategoryManager();
 }
 function confirmDeleteCategory(cfg, name){
@@ -7185,7 +7231,10 @@ function confirmDeleteCategory(cfg, name){
   document.getElementById('cancelBtn').addEventListener('click', ()=> openCategoryManager());
   document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
     state[cfg.customField] = state[cfg.customField].filter(n=>n!==name);
+    const order = getCategoryOrder(cfg).filter(n=>n!==name);
+    state[cfg.orderField] = order;
     await saveKey(cfg.storageKey, state[cfg.customField]);
+    await saveKey(cfg.orderStorageKey, order);
     showToast('已刪除分類');
     openCategoryManager();
   });
@@ -7387,7 +7436,13 @@ const BACKUP_FIELD_MAP = [
   ['merch','oshi-merch'],
   ['customMerchCategories','oshi-merch-categories'],
   ['merchSeriesCovers','oshi-merch-covers'],
-  ['merchSeriesMeta','oshi-merch-series-meta']
+  ['merchSeriesMeta','oshi-merch-series-meta'],
+  ['expenseCategoryOrder','oshi-expense-categories-order'],
+  ['scheduleCategoryOrder','oshi-schedule-categories-order'],
+  ['pcCategoryOrder','oshi-pc-categories-order'],
+  ['merchCategoryOrder','oshi-merch-categories-order'],
+  ['fanlogCategoryOrder','oshi-fanlog-categories-order'],
+  ['endorsementCategoryOrder','oshi-endorsement-categories-order']
 ];
 
 function exportBackupData(){
