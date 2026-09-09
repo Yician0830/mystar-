@@ -335,10 +335,11 @@
   /* 最新追星紀錄：用一條細線把每個節點連起來，做出時間軸的感覺 */
   .home-thumb-card.timeline:not(:last-child) .home-thumb-pic::after{
     content:''; position:absolute; left:50%; top:100%;
-    width:2px; height:18px; background:var(--sakura-pale);
+    width:2px; height:18px; background:var(--rose);
+    opacity:0.55;
     transform:translateX(-50%);
   }
-  [data-theme="dark"] .home-thumb-card.timeline:not(:last-child) .home-thumb-pic::after{ background:var(--wisteria); opacity:0.5; }
+  [data-theme="dark"] .home-thumb-card.timeline:not(:last-child) .home-thumb-pic::after{ background:var(--wisteria); opacity:0.6; }
   .home-thumb-info{ flex:1; min-width:0; }
   .home-thumb-title{
     font-size:13px; color:var(--ink); font-weight:600;
