@@ -367,7 +367,21 @@
   }
   .stat-card .num{ font-family:'Zen Maru Gothic'; font-size:19px; font-weight:700; color:var(--rose-deep);}
   .stat-card .lbl{ font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+  /* 首頁頂端 4 格總覽：每格依主題上色，加小圖示與 hover 回饋 */
+  .home-stat-grid .stat-card{
+    transition:transform 0.15s, box-shadow 0.15s;
+  }
+  .home-stat-grid .stat-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
+  .home-stat-grid .stat-icon{ font-size:15px; margin-bottom:3px; opacity:0.9; }
+  .home-stat-grid .stat-card.c-sched{ background:var(--sakura-pale); }
+  .home-stat-grid .stat-card.c-pc{ background:var(--matcha-pale); }
+  .home-stat-grid .stat-card.c-pc .num{ color:#4C6034; }
+  .home-stat-grid .stat-card.c-support{ background:var(--wisteria-pale); }
+  .home-stat-grid .stat-card.c-support .num{ color:#5A4A82; }
+  .home-stat-grid .stat-card.c-flip{ background:var(--gold-pale); }
+  .home-stat-grid .stat-card.c-flip .num{ color:#8C6239; }
   .oshi-banner{
+    position:relative; overflow:hidden;
     background: linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
     border-radius:var(--radius);
     padding:16px;
@@ -375,7 +389,14 @@
     margin-bottom:18px;
     box-shadow: var(--shadow-sm);
   }
-  .oshi-banner .oshi-top{ display:flex; gap:14px; align-items:center; }
+  /* 右下角很淡的星星/愛心裝飾，只是氣氛點綴，不影響閱讀 */
+  .oshi-watermark{
+    position:absolute; right:-16px; bottom:-16px;
+    width:112px; height:112px;
+    opacity:0.14; pointer-events:none; z-index:0;
+  }
+  [data-theme="dark"] .oshi-watermark{ opacity:0.10; }
+  .oshi-banner .oshi-top{ position:relative; z-index:1; display:flex; gap:14px; align-items:center; }
   .oshi-banner img, .oshi-banner .ph{
     width:58px;height:58px;border-radius:50%;
     object-fit:cover; border:3px solid #fff; box-shadow:var(--shadow-sm);
@@ -385,6 +406,7 @@
   .oshi-banner .name{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px;}
   .oshi-banner .grp{ font-size:12px; color:var(--ink-soft); margin-top:1px;}
   .oshi-stats{
+    position:relative; z-index:1;
     display:grid; grid-template-columns:repeat(3,1fr); gap:8px;
   }
   .oshi-stat{
@@ -400,6 +422,14 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .oshi-stat .l{ font-size:10px; color:var(--ink-soft); margin-top:2px;}
+  /* 「入坑多久」做成徽章樣式，跟另外兩個純資訊格區隔出來，是本命橫幅裡最想被看到的數字 */
+  .oshi-stat.badge{
+    background:linear-gradient(135deg, var(--rose-deep), var(--wisteria));
+    border-radius:999px;
+    box-shadow:0 3px 10px rgba(193,91,121,0.28);
+  }
+  .oshi-stat.badge .v{ color:#fff; }
+  .oshi-stat.badge .l{ color:rgba(255,255,255,0.85); }
   @media (min-width:700px){
     .oshi-stat{ padding:12px 8px; }
     .oshi-stat .v{ font-size:15px; }
@@ -409,6 +439,7 @@
     display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
   }
   .bday-card{
+    position:relative;
     background:var(--surface); border-radius:16px; padding:14px 8px;
     text-align:center; box-shadow:var(--shadow-sm);
     display:flex; flex-direction:column; gap:4px; min-width:0;
@@ -420,12 +451,41 @@
   .bday-card .date{ font-size:11.5px; color:var(--ink-soft); }
   .bday-card .days{ font-size:12px; font-weight:700; color:var(--rose-deep); }
   .bday-card.today{ background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale)); }
+  /* 「今天」的卡片右上角加個會呼吸的小圓點，比單純換底色更容易被注意到 */
+  .bday-card.today::after{
+    content:'';
+    position:absolute; top:9px; right:9px;
+    width:8px; height:8px; border-radius:50%;
+    background:var(--rose-deep);
+    animation: today-pulse 1.8s ease-out infinite;
+  }
+  .dday-card.onsale.today::after{ background:var(--matcha); animation-name: today-pulse-matcha; }
+  @keyframes today-pulse{
+    0%{ box-shadow:0 0 0 0 rgba(193,91,121,0.45); }
+    70%{ box-shadow:0 0 0 8px rgba(193,91,121,0); }
+    100%{ box-shadow:0 0 0 0 rgba(193,91,121,0); }
+  }
+  @keyframes today-pulse-matcha{
+    0%{ box-shadow:0 0 0 0 rgba(127,160,95,0.45); }
+    70%{ box-shadow:0 0 0 8px rgba(127,160,95,0); }
+    100%{ box-shadow:0 0 0 0 rgba(127,160,95,0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .bday-card.today::after{ animation:none; }
+  }
   @media (min-width:700px){
     .bday-card{ padding:16px 10px; }
     .bday-card .name{ font-size:14px; }
     .bday-card .date{ font-size:12px; }
     .bday-card .days{ font-size:13px; }
   }
+  /* 倒數計時卡片左側色條：演唱會用玫瑰色、開賣日用抹茶綠，一眼區分類型（生日卡不受影響） */
+  .dday-card{ padding-left:14px; }
+  .dday-card::before{
+    content:''; position:absolute; left:0; top:12%; bottom:12%;
+    width:4px; border-radius:4px; background:var(--rose);
+  }
+  .dday-card.onsale::before{ background:var(--matcha); }
   .dday-card.onsale .days{ color:var(--matcha); }
   .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
   .home-block{ margin-bottom:22px;}
@@ -439,7 +499,16 @@
   }
   .home-block .block-head a{
     font-size:11.5px; color:var(--rose-deep); cursor:pointer; text-decoration:none;
+    display:inline-flex; align-items:center; gap:2px;
+    transition:transform 0.15s, opacity 0.15s;
   }
+  .home-block .block-head a::after{
+    content:'→';
+    display:inline-block;
+    transition:transform 0.15s;
+  }
+  .home-block .block-head a:hover{ text-decoration:underline; opacity:0.8; }
+  .home-block .block-head a:hover::after{ transform:translateX(3px); }
   .mini-row{
     display:flex; justify-content:space-between; align-items:center;
     background:var(--surface); border-radius:14px; padding:10px 14px;
@@ -868,6 +937,14 @@
     font-family:'Noto Sans TC'; font-size:13.5px; font-weight:700; color:var(--ink-soft); cursor:pointer;
   }
   .seg-btn.active{ background:var(--rose-deep); color:#fff; }
+  /* 首頁「本月/本年花費排行」切換：改用跟首頁其他區塊一致的柔和漸層，取代單一實色紅塊 */
+  #homeSpendScopeToggle{ background:var(--sakura-pale); }
+  #homeSpendScopeToggle .seg-btn{ color:var(--rose-deep); }
+  #homeSpendScopeToggle .seg-btn.active{
+    background:linear-gradient(135deg, var(--rose-deep), var(--wisteria));
+    color:#fff;
+    box-shadow:0 2px 8px rgba(193,91,121,0.25);
+  }
 
   /* Tag chip input (標籤) */
   .tag-input-box{
@@ -2898,11 +2975,11 @@ function renderHome(){
       </div>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat-card"><div class="num">${state.schedule.length}</div><div class="lbl">總行程</div></div>
-      <div class="stat-card"><div class="num">${state.photocards.length}</div><div class="lbl">小卡收藏</div></div>
-      <div class="stat-card"><div class="num">${state.support.length}</div><div class="lbl">應援紀錄</div></div>
-      <div class="stat-card"><div class="num">${state.fanlog.filter(f=>f.isFlipped).length}</div><div class="lbl">💌 被翻牌</div></div>
+    <div class="stat-grid home-stat-grid">
+      <div class="stat-card c-sched"><div class="stat-icon">🗓️</div><div class="num">${state.schedule.length}</div><div class="lbl">總行程</div></div>
+      <div class="stat-card c-pc"><div class="stat-icon">🎴</div><div class="num">${state.photocards.length}</div><div class="lbl">小卡收藏</div></div>
+      <div class="stat-card c-support"><div class="stat-icon">📣</div><div class="num">${state.support.length}</div><div class="lbl">應援紀錄</div></div>
+      <div class="stat-card c-flip"><div class="stat-icon">💌</div><div class="num">${state.fanlog.filter(f=>f.isFlipped).length}</div><div class="lbl">被翻牌</div></div>
     </div>
 
     ${renderYearRecapBlock()}
@@ -2911,6 +2988,11 @@ function renderHome(){
   if(oshi){
     main += `
     <div class="oshi-banner">
+      <svg class="oshi-watermark" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+        <path d="M70 108 C34 84 12 60 12 38 C12 18 27 6 43 6 C57 6 66 16 70 30 C74 16 83 6 97 6 C113 6 128 18 128 38 C128 60 106 84 70 108 Z" fill="var(--rose-deep)"/>
+        <path d="M24 4 C24 11 30 17 37 17 C30 17 24 23 24 30 C24 23 18 17 11 17 C18 17 24 11 24 4 Z" fill="var(--wisteria)"/>
+        <path d="M104 86 C104 91 108 95 113 95 C108 95 104 99 104 104 C104 99 100 95 95 95 C100 95 104 91 104 86 Z" fill="var(--gold)"/>
+      </svg>
       <div class="oshi-top">
         ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
         <div>
@@ -2921,7 +3003,7 @@ function renderHome(){
       <div class="oshi-stats">
         <div class="oshi-stat"><div class="v" title="${esc(oshi.group||'')}">${oshi.group? esc(oshi.group) : '—'}</div><div class="l">所屬團體</div></div>
         <div class="oshi-stat"><div class="v">${oshi.debutDate? fanDurationText(oshi.debutDate) : '—'}</div><div class="l">出道年資</div></div>
-        <div class="oshi-stat"><div class="v">${oshi.fanSince? fanDurationText(oshi.fanSince) : '—'}</div><div class="l">入坑多久</div></div>
+        <div class="oshi-stat badge"><div class="v">${oshi.fanSince? ('💗 '+fanDurationText(oshi.fanSince)) : '—'}</div><div class="l">入坑多久</div></div>
       </div>
     </div>`;
   }
