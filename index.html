@@ -1921,7 +1921,7 @@ function renderProfile(){
   document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星手帳' : '我的追星手帳';
   const dot = document.getElementById('profileDot');
   if(currentUser && currentUser.photoURL){
-    dot.innerHTML = `<img src="${currentUser.photoURL}" alt="">`;
+    dot.innerHTML = `<img src="${currentUser.photoURL}" alt="" loading="lazy">`;
   } else if(currentUser){
     dot.innerHTML = '☁️';
   } else {
@@ -1990,7 +1990,7 @@ function openPendingUploadsModal(){
       <div style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;">
         ${cur.map((p,i)=>`
           <div class="card" style="margin-bottom:0;padding:10px 12px;display:flex;align-items:center;gap:10px;">
-            <img src="${p.url}" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;">
+            <img src="${p.url}" loading="lazy" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;">
             <div style="flex:1;min-width:0;">
               <div class="card-title" style="font-size:13px;">${esc(p.label)}</div>
               <div class="card-meta">${p.tab==='expense'?'記帳':'應援'}</div>
@@ -2127,8 +2127,12 @@ function bindNav(){
     document.getElementById('backupReminderBanner').style.display = 'none';
   });
   document.getElementById('overlay').addEventListener('click', (e)=>{
-    if(e.target.id==='overlay') closeModal();
+    if(e.target.id!=='overlay') return;
+    if(modalDirty && !confirm('目前輸入的內容還沒儲存，確定要放棄嗎？')) return;
+    closeModal();
   });
+  document.getElementById('modal').addEventListener('input', ()=>{ if(modalHasForm) modalDirty = true; });
+  document.getElementById('modal').addEventListener('change', ()=>{ if(modalHasForm) modalDirty = true; });
   const backToTopBtn = document.getElementById('backToTopBtn');
   if(backToTopBtn){
     backToTopBtn.addEventListener('click', ()=>{
@@ -2247,6 +2251,12 @@ function render(){
 function esc(s){
   if(s===undefined||s===null) return '';
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+// 金額欄位防呆：使用者手動輸入負數時，存檔前夾回 0，避免統計/加總出現負值
+function clampAmount(v){
+  const n = parseFloat(v);
+  if(isNaN(n)) return v;
+  return n<0 ? '0' : v;
 }
 /* 藝人喜愛程度（本命／二推／三推／均愛）。舊資料只有 是/否 的「設為本命」欄位，這裡自動換算相容 */
 function artistOshiLevel(a){
@@ -2751,7 +2761,7 @@ function renderHomeExpenseThumb(item){
   const title = item.name || item.item || '（未命名）';
   return `
   <div class="home-thumb-card">
-    <div class="home-thumb-pic">${cover ? `<img src="${esc(cover)}" onerror="this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
+    <div class="home-thumb-pic">${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
     <div class="home-thumb-info">
       <div class="home-thumb-title">${esc(title)}</div>
       <div class="home-thumb-meta">${fmtDate(item.date)}${item.category ? ' · '+esc(item.category) : ''}</div>
@@ -2816,7 +2826,7 @@ function renderHome(){
     main += `
     <div class="oshi-banner">
       <div class="oshi-top">
-        ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
+        ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
         <div>
           <div style="font-size:11px;color:var(--rose-deep);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
           <div class="name">${esc(oshi.name)}</div>
@@ -2998,8 +3008,8 @@ function renderCard(tab, item){
       </div>
       <div class="card-actions">
         ${tab==='fanlog' ? `<button class="icon-btn dup" data-tab="fanlog" data-id="${item.id}" title="複製這筆">📋</button>` : ''}
-        <button class="icon-btn edit" data-tab="${tab}" data-id="${item.id}">✎</button>
-        <button class="icon-btn del" data-tab="${tab}" data-id="${item.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="${tab}" data-id="${item.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="${tab}" data-id="${item.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -3400,7 +3410,7 @@ function renderExpenseCard(item){
   <div class="card exp-card" style="border-left-color:${catColor.fg};">
     <div class="exp-row">
       <div class="exp-thumb" style="background:linear-gradient(135deg, ${catColor.bg}, var(--wisteria-pale));">
-        ${cover ? `<img src="${esc(cover)}" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
+        ${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
       </div>
       <div class="exp-info">
         <div class="exp-badges">
@@ -3420,8 +3430,8 @@ function renderExpenseCard(item){
     </div>
     <div class="card-actions" style="justify-content:flex-end;margin-top:auto;padding-top:8px;">
       <button class="icon-btn dup" data-tab="expense" data-id="${item.id}" title="複製這筆">📋</button>
-      <button class="icon-btn edit" data-tab="expense" data-id="${item.id}">✎</button>
-      <button class="icon-btn del" data-tab="expense" data-id="${item.id}">🗑</button>
+      <button class="icon-btn edit" title="編輯" data-tab="expense" data-id="${item.id}">✎</button>
+      <button class="icon-btn del" title="刪除" data-tab="expense" data-id="${item.id}">🗑</button>
     </div>
   </div>`;
 }
@@ -3576,9 +3586,9 @@ function openExpenseForm(id, prefill){
     <div class="field"><label>商品名稱 *</label><input type="text" id="expName" value="${src?esc(src.name||''):''}" placeholder="例：815演唱會應援"></div>
     <div class="field"><label>相關藝人</label>${artistFieldHtml}</div>
     <div style="display:flex; gap:10px;">
-      <div class="field" style="flex:1;"><label>單價</label><input type="number" id="expUnitPrice" value="${src?esc(src.unitPrice||''):''}" placeholder="0"></div>
+      <div class="field" style="flex:1;"><label>單價</label><input type="number" id="expUnitPrice" value="${src?esc(src.unitPrice||''):''}" min="0" placeholder="0"></div>
       <div class="field" style="flex:1;"><label>數量</label><input type="number" id="expQuantity" value="${src?esc(src.quantity||1):1}" min="1" placeholder="1"></div>
-      <div class="field" style="flex:1;"><label>運費/二補</label><input type="number" id="expShipping" value="${src?esc(src.shipping||''):''}" placeholder="0"></div>
+      <div class="field" style="flex:1;"><label>運費/二補</label><input type="number" id="expShipping" value="${src?esc(src.shipping||''):''}" min="0" placeholder="0"></div>
     </div>
     <div class="field">
       <label>原始幣值（選填，可換算台幣單價）</label>
@@ -3586,7 +3596,7 @@ function openExpenseForm(id, prefill){
         <select id="expCurrency" style="flex:0 0 92px;">
           ${['CNY','JPY','KRW','USD','HKD','TWD'].map(c=>`<option value="${c}" ${src&&src.origCurrency===c?'selected':''}>${c}</option>`).join('')}
         </select>
-        <input type="number" id="expOrigAmount" value="${src?esc(src.origAmount||''):''}" placeholder="原始金額" style="flex:1;">
+        <input type="number" id="expOrigAmount" value="${src?esc(src.origAmount||''):''}" min="0" placeholder="原始金額" style="flex:1;">
         <button type="button" class="btn ghost" id="expConvertBtn" style="flex:0 0 auto;padding:10px 14px;">⇄ 換算</button>
       </div>
       <div id="expRateHint" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
@@ -3730,7 +3740,7 @@ function renderExpImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + expImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="exp-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.exp-img-remove').forEach(btn=>{
@@ -3783,11 +3793,11 @@ async function saveExpenseForm(existing){
     recordType,
     name,
     artist,
-    unitPrice: document.getElementById('expUnitPrice').value.trim(),
+    unitPrice: clampAmount(document.getElementById('expUnitPrice').value.trim()),
     quantity: document.getElementById('expQuantity').value.trim() || '1',
-    shipping: document.getElementById('expShipping').value.trim(),
+    shipping: clampAmount(document.getElementById('expShipping').value.trim()),
     origCurrency: document.getElementById('expCurrency').value,
-    origAmount: document.getElementById('expOrigAmount').value.trim(),
+    origAmount: clampAmount(document.getElementById('expOrigAmount').value.trim()),
     category,
     date,
     links: expLinks.map(l=>({ type:l.type, id:l.id })),
@@ -3823,6 +3833,8 @@ async function saveExpenseForm(existing){
 let calMonth = null;
 let scheduleArtistFilter = '__all__';
 let scheduleViewMode = 'calendar';
+const PAST_LIST_PAGE_SIZE = 10;
+let schedulePastShowCount = PAST_LIST_PAGE_SIZE;
 
 function ensureCalMonth(){
   if(!calMonth) calMonth = todayStr().slice(0,7);
@@ -3942,9 +3954,10 @@ function renderScheduleListBody(filteredSchedule){
   const effectiveEnd = s=> (s.isMultiDay && s.endDate) ? s.endDate : s.date;
   const dated = filteredSchedule.filter(s=>s.date);
   const upcoming = dated.filter(s=> effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-  const past = dated.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const pastAll = dated.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const past = pastAll.slice(0, schedulePastShowCount);
 
-  if(upcoming.length===0 && past.length===0){
+  if(upcoming.length===0 && pastAll.length===0){
     return `<div class="empty"><div class="stamp-big maru">程</div><div class="msg">還沒有安排任何行程<br>點右下角的「＋」新增一筆吧</div></div>`;
   }
 
@@ -3970,8 +3983,8 @@ function renderScheduleListBody(filteredSchedule){
           ${checklistHtml}
         </div>
         <div class="card-actions">
-          <button class="icon-btn edit" data-tab="schedule" data-id="${s.id}">✎</button>
-          <button class="icon-btn del" data-tab="schedule" data-id="${s.id}">🗑</button>
+          <button class="icon-btn edit" title="編輯" data-tab="schedule" data-id="${s.id}">✎</button>
+          <button class="icon-btn del" title="刪除" data-tab="schedule" data-id="${s.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -3982,14 +3995,24 @@ function renderScheduleListBody(filteredSchedule){
     html += `<div class="exp-group-header"><div class="exp-group-title">📌 即將到來 <span class="exp-group-count">(${upcoming.length} 筆)</span></div></div>
     <div class="list-grid">${upcoming.map(renderRow).join('')}</div>`;
   }
-  if(past.length>0){
-    html += `<div class="exp-group-header" style="margin-top:18px;"><div class="exp-group-title">✅ 已結束 <span class="exp-group-count">(${past.length} 筆)</span></div></div>
+  if(pastAll.length>0){
+    html += `<div class="exp-group-header" style="margin-top:18px;"><div class="exp-group-title">✅ 已結束 <span class="exp-group-count">(${pastAll.length} 筆)</span></div></div>
     <div class="list-grid">${past.map(renderRow).join('')}</div>`;
+    if(pastAll.length > schedulePastShowCount){
+      html += `<div style="text-align:center;margin-top:12px;"><button class="chip-clear" id="schedulePastMoreBtn">顯示更多（還有 ${pastAll.length - schedulePastShowCount} 筆）</button></div>`;
+    }
   }
   return html;
 }
 
 function bindCalendarActions(){
+  const schedulePastMoreBtn = document.getElementById('schedulePastMoreBtn');
+  if(schedulePastMoreBtn){
+    schedulePastMoreBtn.addEventListener('click', ()=>{
+      schedulePastShowCount += PAST_LIST_PAGE_SIZE;
+      render();
+    });
+  }
   document.querySelectorAll('.sched-view-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       scheduleViewMode = btn.dataset.view;
@@ -3999,6 +4022,7 @@ function bindCalendarActions(){
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
       scheduleArtistFilter = b.dataset.filter;
+      schedulePastShowCount = PAST_LIST_PAGE_SIZE;
       render();
     });
   });
@@ -4096,7 +4120,7 @@ function renderPhotocardCard(pc, seriesLabel){
   <div class="pc-card">
     <div style="position:relative;">
       ${pc.imageUrl
-        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
+        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
         : `<div class="pc-img ph">🎴</div>`}
       <button class="pc-wish-btn" data-id="${pc.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
     </div>
@@ -4110,8 +4134,8 @@ function renderPhotocardCard(pc, seriesLabel){
       ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span></div>` : ''}
       <div class="pc-actions">
         <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆">📋</button>
-        <button class="icon-btn edit" data-tab="photocards" data-id="${pc.id}">✎</button>
-        <button class="icon-btn del" data-tab="photocards" data-id="${pc.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="photocards" data-id="${pc.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="photocards" data-id="${pc.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -4237,7 +4261,7 @@ function renderPhotocards(){
     html += `
     <div class="pc-series-card-wrap">
       <button class="pc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🎴</div>'">`
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🎴</div>'">`
                 : `<div class="pc-series-cover ph">🎴</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
@@ -4301,7 +4325,7 @@ function renderMerchCard(mc, seriesLabel){
   return `
   <div class="pc-card">
     ${mc.imageUrl
-      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
+      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
       : `<div class="pc-img ph">🛍️</div>`}
     <div class="pc-body">
       ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
@@ -4313,8 +4337,8 @@ function renderMerchCard(mc, seriesLabel){
       ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : ''}
       <div class="pc-actions">
         <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆">📋</button>
-        <button class="icon-btn edit" data-tab="merch" data-id="${mc.id}">✎</button>
-        <button class="icon-btn del" data-tab="merch" data-id="${mc.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="merch" data-id="${mc.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="merch" data-id="${mc.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -4421,7 +4445,7 @@ function renderMerchTab(){
     html += `
     <div class="pc-series-card-wrap">
       <button class="pc-series-card mc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
                 : `<div class="pc-series-cover ph">🛍️</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
@@ -4453,7 +4477,7 @@ function renderArtists(){
       <div class="card-row">
         <div style="display:flex;gap:12px;">
           ${a.photoUrl
-            ? `<img src="${esc(a.photoUrl)}" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+            ? `<img src="${esc(a.photoUrl)}" loading="lazy" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
             : `<div style="width:52px;height:52px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>`}
           <div>
             <div class="card-title">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</div>
@@ -4467,8 +4491,8 @@ function renderArtists(){
           </div>
         </div>
         <div class="card-actions">
-          <button class="icon-btn edit" data-tab="artists" data-id="${a.id}">✎</button>
-          <button class="icon-btn del" data-tab="artists" data-id="${a.id}">🗑</button>
+          <button class="icon-btn edit" title="編輯" data-tab="artists" data-id="${a.id}">✎</button>
+          <button class="icon-btn del" title="刪除" data-tab="artists" data-id="${a.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -4493,7 +4517,7 @@ const GLOBAL_SEARCH_CONFIG = [
   { tab:'photocards', icon:'🎴', label:'小卡', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='photocards'; render(); openPhotocardForm(id); } },
   { tab:'merch', icon:'🛍️', label:'周邊', fields:['name','series','artist','category'], titleField:'name', openFn:(id)=>{ state.tab='merch'; render(); openMerchForm(id); } },
   { tab:'support', icon:'📣', label:'應援', fields:['title','artist','activity','location','content'], titleField:'title', openFn:(id)=>{ state.tab='support'; render(); openSupportForm(id); } },
-  { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','category'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
+  { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','category','flipTypes','flipPlatforms'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
   { tab:'artists', icon:'✨', label:'藝人', fields:['name','group','bio'], titleField:'name', openFn:(id)=>{ openArtistDetail(id); } },
   { tab:'endorsement', icon:'🤝', label:'代言', fields:['title','artist','category'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='endorsement'; render(); openEndorsementForm(id); } },
   { tab:'magazine', icon:'📔', label:'雜誌', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='magazine'; render(); openMagazineForm(id); } },
@@ -4620,7 +4644,7 @@ function openArtistDetail(id){
   modal.innerHTML = `
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
       ${a.photoUrl
-        ? `<img src="${esc(a.photoUrl)}" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        ? `<img src="${esc(a.photoUrl)}" loading="lazy" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
         : `<div style="width:64px;height:64px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">✨</div>`}
       <div>
         <h3 class="maru" style="margin:0;">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</h3>
@@ -4705,6 +4729,7 @@ function openArtistDetail(id){
 /* ================= Support wall (應援牆) ================= */
 let supportArtistFilter = '__all__';
 let supportYearFilter = '__all__';
+let supportPastShowCount = PAST_LIST_PAGE_SIZE;
 let supImgUrls = [];
 let endorsementArtistFilter = '__all__';
 let magazineArtistFilter = '__all__';
@@ -4743,7 +4768,8 @@ function renderSupportTab(){
   const bySupportArtist = s=> supportArtistFilter==='__all__' || s.artist===supportArtistFilter;
   const bySupportYear = s=> supportYearFilter==='__all__' || (s.date && s.date.startsWith(supportYearFilter));
   const upcoming = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-  const past = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const pastAll = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const past = pastAll.slice(0, supportPastShowCount);
 
   const scopedSupport = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s));
   const totalSpent = scopedSupport.reduce((sum,s)=> sum + supportSpentAmount(s), 0);
@@ -4769,7 +4795,7 @@ function renderSupportTab(){
     <div class="card support-card">
       <div style="position:relative;">
         ${cover
-          ? `<img class="support-cover" src="${esc(cover)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
+          ? `<img class="support-cover" src="${esc(cover)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
           : `<div class="support-cover ph">📣</div>`}
         ${imgs.length>1 ? `<span class="tag" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;">📷 ${imgs.length}</span>` : ''}
       </div>
@@ -4787,8 +4813,8 @@ function renderSupportTab(){
         ${s.articleUrl ? `<div style="margin-top:6px;"><a href="${esc(s.articleUrl)}" target="_blank" rel="noopener" class="tag" style="text-decoration:none;">🔗 查看文章</a></div>` : ''}
         <div class="card-actions" style="justify-content:flex-end;">
           <button class="icon-btn dup" data-tab="support" data-id="${s.id}" title="複製這筆">📋</button>
-          <button class="icon-btn edit" data-tab="support" data-id="${s.id}">✎</button>
-          <button class="icon-btn del" data-tab="support" data-id="${s.id}">🗑</button>
+          <button class="icon-btn edit" title="編輯" data-tab="support" data-id="${s.id}">✎</button>
+          <button class="icon-btn del" title="刪除" data-tab="support" data-id="${s.id}">🗑</button>
         </div>
       </div>
     </div>`;
@@ -4800,25 +4826,35 @@ function renderSupportTab(){
       <div class="support-grid">${upcoming.map(s=>renderSupportCard(s,false)).join('')}</div>
     </div>`;
   }
-  if(past.length>0){
+  if(pastAll.length>0){
     html += `<div class="home-block">
-      <div class="block-head"><h3>✅ 已結束應援</h3></div>
+      <div class="block-head"><h3>✅ 已結束應援 <span class="exp-group-count">(${pastAll.length} 筆)</span></h3></div>
       <div class="support-grid">${past.map(s=>renderSupportCard(s,true)).join('')}</div>
+      ${pastAll.length > supportPastShowCount ? `<div style="text-align:center;margin-top:12px;"><button class="chip-clear" id="supportPastMoreBtn">顯示更多（還有 ${pastAll.length - supportPastShowCount} 筆）</button></div>` : ''}
     </div>`;
   }
   return html;
 }
 
 function bindSupportFilterActions(){
+  const supportPastMoreBtn = document.getElementById('supportPastMoreBtn');
+  if(supportPastMoreBtn){
+    supportPastMoreBtn.addEventListener('click', ()=>{
+      supportPastShowCount += PAST_LIST_PAGE_SIZE;
+      render();
+    });
+  }
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
       supportArtistFilter = b.dataset.filter;
+      supportPastShowCount = PAST_LIST_PAGE_SIZE;
       render();
     });
   });
   document.querySelectorAll('.cal-filter-btn[data-year]').forEach(b=>{
     b.addEventListener('click', ()=>{
       supportYearFilter = b.dataset.year;
+      supportPastShowCount = PAST_LIST_PAGE_SIZE;
       render();
     });
   });
@@ -4893,7 +4929,7 @@ function openSupportForm(id, prefill){
       </label>
     </div>
     <div id="supPaidFields" style="display:${isPaid?'block':'none'};">
-      <div class="field"><label>花費金額</label><input type="number" id="supPaidAmount" value="${src?esc(src.paidAmount||''):''}" placeholder="0"></div>
+      <div class="field"><label>花費金額</label><input type="number" id="supPaidAmount" value="${src?esc(src.paidAmount||''):''}" min="0" placeholder="0"></div>
       <div class="field">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
           <input type="checkbox" id="supAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
@@ -4967,7 +5003,7 @@ function renderSupImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + supImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="sup-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.sup-img-remove').forEach(btn=>{
@@ -5013,7 +5049,7 @@ async function saveSupportForm(existing){
   }
 
   const isPaid = document.getElementById('supIsPaid').checked;
-  const paidAmount = document.getElementById('supPaidAmount') ? document.getElementById('supPaidAmount').value.trim() : '';
+  const paidAmount = document.getElementById('supPaidAmount') ? clampAmount(document.getElementById('supPaidAmount').value.trim()) : '';
   const addToExpense = isPaid && document.getElementById('supAddToExpense') && document.getElementById('supAddToExpense').checked;
 
   const data = {
@@ -5174,7 +5210,7 @@ function renderEndorsementCard(e){
   return `
   <div class="card support-card">
     ${e.imageUrl
-      ? `<img class="support-cover" src="${esc(e.imageUrl)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🤝</div>'">`
+      ? `<img class="support-cover" src="${esc(e.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🤝</div>'">`
       : `<div class="support-cover ph">🤝</div>`}
     <div class="support-body">
       <div class="card-title">${esc(e.title)}</div>
@@ -5186,8 +5222,8 @@ function renderEndorsementCard(e){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('endorsement', e.id, e.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" data-tab="endorsement" data-id="${e.id}">✎</button>
-        <button class="icon-btn del" data-tab="endorsement" data-id="${e.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="endorsement" data-id="${e.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="endorsement" data-id="${e.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -5244,7 +5280,7 @@ function openEndorsementForm(id){
     <div class="field"><label>類型</label>${categoryFieldHtml}</div>
     <div class="field"><label>開始日期</label><input type="date" id="endStartDate" value="${existing?esc(existing.startDate||''):''}"></div>
     <div class="field"><label>展示圖片網址</label><input type="url" id="endImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
-    <div class="field"><label>為了支持花的錢（選填）</label><input type="number" id="endAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field"><label>為了支持花的錢（選填）</label><input type="number" id="endAmount" value="${existing?esc(existing.amount||''):''}" min="0" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="endAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
@@ -5301,7 +5337,7 @@ async function saveEndorsementForm(existing){
   }
 
   const startDate = document.getElementById('endStartDate').value.trim();
-  const amount = document.getElementById('endAmount').value.trim();
+  const amount = clampAmount(document.getElementById('endAmount').value.trim());
   const addToExpense = document.getElementById('endAddToExpense') && document.getElementById('endAddToExpense').checked;
 
   const data = {
@@ -5367,7 +5403,7 @@ function renderMagazineCard(m){
   return `
   <div class="card support-card">
     ${m.imageUrl
-      ? `<img class="support-cover" src="${esc(m.imageUrl)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📔</div>'">`
+      ? `<img class="support-cover" src="${esc(m.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📔</div>'">`
       : `<div class="support-cover ph">📔</div>`}
     <div class="support-body">
       <div class="card-title">${esc(m.title)}</div>
@@ -5379,8 +5415,8 @@ function renderMagazineCard(m){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('magazine', m.id, m.title, linked.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" data-tab="magazine" data-id="${m.id}">✎</button>
-        <button class="icon-btn del" data-tab="magazine" data-id="${m.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="magazine" data-id="${m.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="magazine" data-id="${m.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -5432,7 +5468,7 @@ function openMagazineForm(id){
     </div>
     <div class="field"><label>發售日期</label><input type="date" id="magIssueDate" value="${existing?esc(existing.issueDate||''):''}"></div>
     <div class="field"><label>封面圖片網址</label><input type="url" id="magImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
-    <div class="field"><label>購買花費（選填）</label><input type="number" id="magAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field"><label>購買花費（選填）</label><input type="number" id="magAmount" value="${existing?esc(existing.amount||''):''}" min="0" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="magAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
@@ -5472,7 +5508,7 @@ async function saveMagazineForm(existing){
   }
 
   const issueDate = document.getElementById('magIssueDate').value.trim();
-  const amount = document.getElementById('magAmount').value.trim();
+  const amount = clampAmount(document.getElementById('magAmount').value.trim());
   const addToExpense = document.getElementById('magAddToExpense') && document.getElementById('magAddToExpense').checked;
 
   const data = {
@@ -5542,7 +5578,7 @@ function renderMovieCard(x){
   return `
   <div class="card support-card">
     ${x.imageUrl
-      ? `<img class="support-cover" src="${esc(x.imageUrl)}" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🎬</div>'">`
+      ? `<img class="support-cover" src="${esc(x.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🎬</div>'">`
       : `<div class="support-cover ph">🎬</div>`}
     <div class="support-body">
       <div class="card-title">${esc(x.title)}</div>
@@ -5554,8 +5590,8 @@ function renderMovieCard(x){
           return (spent>0? `<div style="width:100%;"></div><span class="tag gold">💰 NT$ ${spent.toLocaleString()}</span>`:'') + linkedExpenseTagHtml('movie', x.id, x.title, linked.length) + linkedFanlogTagHtml(x.id, x.title, linkedLogs.length); })()}
       </div>
       <div class="card-actions" style="justify-content:flex-end;">
-        <button class="icon-btn edit" data-tab="movie" data-id="${x.id}">✎</button>
-        <button class="icon-btn del" data-tab="movie" data-id="${x.id}">🗑</button>
+        <button class="icon-btn edit" title="編輯" data-tab="movie" data-id="${x.id}">✎</button>
+        <button class="icon-btn del" title="刪除" data-tab="movie" data-id="${x.id}">🗑</button>
       </div>
     </div>
   </div>`;
@@ -5609,7 +5645,7 @@ function openMovieForm(id){
     <div class="field"><label>開播/上映日期</label><input type="date" id="movStartDate" value="${existing?esc(existing.startDate||''):''}"></div>
     <div class="field"><label>完結日期</label><input type="date" id="movEndDate" value="${existing?esc(existing.endDate||''):''}"></div>
     <div class="field"><label>海報圖片網址</label><input type="url" id="movImageUrl" value="${existing?esc(existing.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
-    <div class="field"><label>相關花費（選填，例如電影票、訂閱費）</label><input type="number" id="movAmount" value="${existing?esc(existing.amount||''):''}" placeholder="0"></div>
+    <div class="field"><label>相關花費（選填，例如電影票、訂閱費）</label><input type="number" id="movAmount" value="${existing?esc(existing.amount||''):''}" min="0" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="movAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
@@ -5652,7 +5688,7 @@ async function saveMovieForm(existing){
   const endDate = document.getElementById('movEndDate').value.trim();
   if(startDate && endDate && endDate < startDate){ showToast('完結日期不能早於開播日期'); return; }
 
-  const amount = document.getElementById('movAmount').value.trim();
+  const amount = clampAmount(document.getElementById('movAmount').value.trim());
   const addToExpense = document.getElementById('movAddToExpense') && document.getElementById('movAddToExpense').checked;
 
   const data = {
@@ -6272,7 +6308,7 @@ function openMerchForm(id, prefill){
       <input type="text" id="mcChannel" list="mcChannelList" placeholder="例：官方商城、演唱會現場、代購..." value="${src?esc(src.channel||''):''}">
       <datalist id="mcChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
-    <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${src&&src.price!==undefined?esc(src.price):''}" placeholder="選填"></div>
+    <div class="field"><label>價格 (NT$)</label><input type="number" id="mcPrice" value="${src&&src.price!==undefined?esc(src.price):''}" min="0" placeholder="選填"></div>
     <div class="field"><label>圖片網址</label><input type="url" id="mcImageUrl" value="${src?esc(src.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
     <div class="field"><label>建立時間</label><input type="date" id="mcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
     <div class="field">
@@ -6336,7 +6372,7 @@ async function saveMerchForm(existing){
     series: document.getElementById('mcSeries').value.trim(),
     category,
     channel: document.getElementById('mcChannel').value.trim(),
-    price: document.getElementById('mcPrice').value ? parseFloat(document.getElementById('mcPrice').value) : '',
+    price: document.getElementById('mcPrice').value ? Math.max(0, parseFloat(document.getElementById('mcPrice').value)) : '',
     imageUrl: document.getElementById('mcImageUrl').value.trim(),
     createdAt: document.getElementById('mcCreatedAt').value || todayStr(),
     owned: document.getElementById('mcOwned').checked
@@ -6440,7 +6476,7 @@ function openFanlogForm(id, prefill){
       </div>
     </div>
     <div class="field"><label>拍攝相簿連結（選填）</label><input type="url" id="flAlbumUrl" value="${src?esc(src.albumUrl||''):''}" placeholder="貼上這場的拍攝相簿網址"></div>
-    <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${src?esc(src.amount||''):''}" placeholder="0"></div>
+    <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${src?esc(src.amount||''):''}" min="0" placeholder="0"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="flAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
@@ -6572,7 +6608,7 @@ function renderFlImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + flImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="fl-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.fl-img-remove').forEach(btn=>{
@@ -6608,7 +6644,7 @@ async function saveFanlogForm(existing){
     }
   }
 
-  const amount = document.getElementById('flAmount').value.trim();
+  const amount = clampAmount(document.getElementById('flAmount').value.trim());
   const addToExpense = document.getElementById('flAddToExpense') && document.getElementById('flAddToExpense').checked;
   const flMovieSelect = document.getElementById('flMovieSelect');
   const movieLinkedId = flMovieSelect ? flMovieSelect.value : '';
@@ -7014,6 +7050,148 @@ const GOOGLE_G_ICON = `<svg width="18" height="18" viewBox="0 0 48 48" style="fl
   <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.6 5.6C41.5 36.4 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/>
 </svg>`;
 
+/* ================= 分類管理（重新命名／刪除使用者自訂的分類） ================= */
+const CATEGORY_MANAGE_CONFIG = [
+  { key:'expense', label:'記帳分類', fixed:FIXED_EXPENSE_CATEGORIES, customField:'customExpenseCategories', storageKey:'oshi-expense-categories', itemField:'expense', itemStorageKey:'oshi-expense' },
+  { key:'schedule', label:'行程分類', fixed:FIXED_SCHEDULE_CATEGORIES, customField:'customScheduleCategories', storageKey:'oshi-schedule-categories', itemField:'schedule', itemStorageKey:'oshi-schedule' },
+  { key:'photocards', label:'小卡分類', fixed:FIXED_PC_CATEGORIES, customField:'customPcCategories', storageKey:'oshi-pc-categories', itemField:'photocards', itemStorageKey:'oshi-photocards' },
+  { key:'merch', label:'周邊分類', fixed:FIXED_MERCH_CATEGORIES, customField:'customMerchCategories', storageKey:'oshi-merch-categories', itemField:'merch', itemStorageKey:'oshi-merch' },
+  { key:'fanlog', label:'追星紀錄分類', fixed:FIXED_FANLOG_CATEGORIES, customField:'customFanlogCategories', storageKey:'oshi-fanlog-categories', itemField:'fanlog', itemStorageKey:'oshi-fanlog' },
+  { key:'endorsement', label:'代言分類', fixed:FIXED_ENDORSEMENT_CATEGORIES, customField:'customEndorsementCategories', storageKey:'oshi-endorsement-categories', itemField:'endorsement', itemStorageKey:'oshi-endorsement' }
+];
+function categoryUsageCount(cfg, name){
+  return state[cfg.itemField].filter(it=> it.category===name).length;
+}
+function openCategoryManager(){
+  const modal = document.getElementById('modal');
+  const groups = CATEGORY_MANAGE_CONFIG.filter(cfg=> (state[cfg.customField]||[]).length>0);
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:6px;">🏷️ 管理分類</h3>
+    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">這裡只能管理你自己新增過的分類；系統內建的預設分類無法在此刪除或調整順序。用 ▲▼ 可以調整分類在選單裡出現的先後順序，重新命名會同步更新所有已經套用該分類的紀錄。</p>
+    ${groups.length===0 ? `<div style="font-size:13px;color:var(--ink-soft);text-align:center;padding:20px 0;">目前還沒有任何自訂分類</div>` : groups.map(cfg=>`
+      <div style="margin-bottom:16px;">
+        <div style="font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;">${esc(cfg.label)}</div>
+        <div class="cat-manage-list" data-cfg="${cfg.key}">
+          ${state[cfg.customField].map((name, idx, arr)=>{
+            const count = categoryUsageCount(cfg, name);
+            return `
+            <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
+              <div class="cat-manage-row-view" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
+                <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(name)}</span>
+                <span style="font-size:11px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
+              </div>
+              <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
+                <input type="text" class="cat-manage-rename-input" value="${esc(name)}" style="flex:1;min-width:0;padding:6px 8px;font-size:13px;">
+              </div>
+              <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
+              <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
+              <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名">✎</button>
+              <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" style="display:none;">✓</button>
+              <button type="button" class="icon-btn cat-manage-cancel-btn" title="取消" style="display:none;">✕</button>
+              <button type="button" class="icon-btn del cat-manage-del-btn" title="刪除">🗑</button>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `).join('')}
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">關閉</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  bindCategoryManagerActions();
+  showModal();
+}
+function bindCategoryManagerActions(){
+  document.querySelectorAll('.cat-manage-up-btn:not([disabled])').forEach(btn=>{
+    btn.addEventListener('click', ()=> moveCategoryOrder(btn, -1));
+  });
+  document.querySelectorAll('.cat-manage-down-btn:not([disabled])').forEach(btn=>{
+    btn.addEventListener('click', ()=> moveCategoryOrder(btn, 1));
+  });
+  document.querySelectorAll('.cat-manage-rename-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const row = btn.closest('.cat-manage-row');
+      row.querySelector('.cat-manage-row-view').style.display = 'none';
+      row.querySelector('.cat-manage-row-edit').style.display = 'flex';
+      row.querySelector('.cat-manage-rename-btn').style.display = 'none';
+      row.querySelector('.cat-manage-del-btn').style.display = 'none';
+      row.querySelector('.cat-manage-confirm-btn').style.display = 'inline-flex';
+      row.querySelector('.cat-manage-cancel-btn').style.display = 'inline-flex';
+      row.querySelector('.cat-manage-rename-input').focus();
+    });
+  });
+  document.querySelectorAll('.cat-manage-cancel-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const row = btn.closest('.cat-manage-row');
+      row.querySelector('.cat-manage-row-view').style.display = 'flex';
+      row.querySelector('.cat-manage-row-edit').style.display = 'none';
+      row.querySelector('.cat-manage-rename-btn').style.display = 'inline-flex';
+      row.querySelector('.cat-manage-del-btn').style.display = 'inline-flex';
+      row.querySelector('.cat-manage-confirm-btn').style.display = 'none';
+      row.querySelector('.cat-manage-cancel-btn').style.display = 'none';
+      row.querySelector('.cat-manage-rename-input').value = row.dataset.name;
+    });
+  });
+  document.querySelectorAll('.cat-manage-confirm-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const row = btn.closest('.cat-manage-row');
+      const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
+      const oldName = row.dataset.name;
+      const newName = row.querySelector('.cat-manage-rename-input').value.trim();
+      if(!newName || newName===oldName){ closeModal(); openCategoryManager(); return; }
+      const taken = cfg.fixed.includes(newName) || state[cfg.customField].includes(newName);
+      if(taken){ showToast('這個分類名稱已經存在了'); return; }
+      const idx = state[cfg.customField].indexOf(oldName);
+      if(idx>=0) state[cfg.customField][idx] = newName;
+      state[cfg.itemField].forEach(it=>{ if(it.category===oldName) it.category = newName; });
+      await saveKey(cfg.storageKey, state[cfg.customField]);
+      await saveKey(cfg.itemStorageKey, state[cfg.itemField]);
+      showToast('已更新分類名稱');
+      openCategoryManager();
+    });
+  });
+  document.querySelectorAll('.cat-manage-del-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const row = btn.closest('.cat-manage-row');
+      const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
+      const name = row.dataset.name;
+      confirmDeleteCategory(cfg, name);
+    });
+  });
+}
+async function moveCategoryOrder(btn, dir){
+  const row = btn.closest('.cat-manage-row');
+  const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
+  const list = state[cfg.customField];
+  const idx = list.indexOf(row.dataset.name);
+  const targetIdx = idx + dir;
+  if(idx<0 || targetIdx<0 || targetIdx>=list.length) return;
+  [list[idx], list[targetIdx]] = [list[targetIdx], list[idx]];
+  await saveKey(cfg.storageKey, list);
+  openCategoryManager();
+}
+function confirmDeleteCategory(cfg, name){
+  const count = categoryUsageCount(cfg, name);
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">確定要刪除這個分類嗎？</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">「${esc(name)}」將從${esc(cfg.label)}選單中移除。${count>0 ? `目前有 ${count} 筆紀錄使用這個分類，刪除後這些紀錄還是會保留原本的分類文字，只是選單裡不會再列出它。` : '目前沒有紀錄使用這個分類。'}</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn danger" id="delConfirmBtn">確定刪除</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', ()=> openCategoryManager());
+  document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
+    state[cfg.customField] = state[cfg.customField].filter(n=>n!==name);
+    await saveKey(cfg.storageKey, state[cfg.customField]);
+    showToast('已刪除分類');
+    openCategoryManager();
+  });
+  showModal();
+}
+
 function openProfileForm(){
   const modal = document.getElementById('modal');
   let pushSectionHtml = '';
@@ -7030,7 +7208,7 @@ function openProfileForm(){
   }
   const accountHtml = currentUser ? `
     <div class="account-box">
-      ${currentUser.photoURL ? `<img class="avatar" src="${currentUser.photoURL}" alt="">` : `<div class="avatar-ph">☁️</div>`}
+      ${currentUser.photoURL ? `<img class="avatar" src="${currentUser.photoURL}" alt="" loading="lazy">` : `<div class="avatar-ph">☁️</div>`}
       <div>
         <div class="name">${esc(currentUser.displayName||'已登入')}</div>
         <div class="mail">${esc(currentUser.email||'')}</div>
@@ -7084,6 +7262,9 @@ function openProfileForm(){
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
     </div>
     <div class="field">
+      <button type="button" class="btn ghost" id="goCategoryManagerBtn" style="width:100%;">🏷️ 管理分類</button>
+    </div>
+    <div class="field">
       <label>資料備份</label>
       <div style="display:flex; gap:8px;">
         <button type="button" class="btn ghost" id="exportBackupBtn" style="flex:1;">📤 匯出備份</button>
@@ -7109,6 +7290,9 @@ function openProfileForm(){
     closeModal();
     state.tab = 'artists';
     render();
+  });
+  document.getElementById('goCategoryManagerBtn').addEventListener('click', ()=>{
+    openCategoryManager();
   });
   document.getElementById('themeModeToggle').querySelectorAll('.seg-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -7294,8 +7478,17 @@ function confirmDelete(tab, id){
   showModal();
 }
 
-function showModal(){ document.getElementById('overlay').classList.add('show'); }
-function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+let modalDirty = false;
+let modalHasForm = false;
+function showModal(){
+  modalDirty = false;
+  modalHasForm = !!document.getElementById('modal').querySelector('#saveBtn');
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){
+  modalDirty = false;
+  document.getElementById('overlay').classList.remove('show');
+}
 
 function showToast(msg){
   const toast = document.getElementById('toast');
