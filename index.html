@@ -212,6 +212,7 @@
     color:var(--rose-deep);
     margin-right:6px;
     margin-top:4px;
+    white-space:nowrap;
   }
   .tag.matcha{ background:var(--matcha-pale); color:#4C6034;}
   .tag.wisteria{ background:var(--wisteria-pale); color:#5A4A82;}
@@ -965,7 +966,7 @@
   .recap-stat{ background:rgba(255,255,255,0.16); border-radius:14px; padding:10px 4px; text-align:center; }
   .recap-stat .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:17px; }
   .recap-stat .l{ font-size:9.5px; opacity:0.88; margin-top:3px; }
-  .recap-info-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px; position:relative; z-index:1; }
+  .recap-info-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; position:relative; z-index:1; }
   .recap-info{ background:rgba(255,255,255,0.14); border-radius:14px; padding:9px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
   .recap-info .l{ font-size:10px; opacity:0.88; }
   .recap-info .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -2487,7 +2488,9 @@ function computeYearSummary(year){
   });
   const topArtist = Object.entries(artistMap).map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count)[0] || null;
 
-  return { year, concertCount, totalEventCount, totalExpense, categoryBreakdown, topCategory, photocardCount, topArtist };
+  const flipCount = yearFanlogs.filter(f=>f.isFlipped).length;
+
+  return { year, concertCount, totalEventCount, totalExpense, categoryBreakdown, topCategory, photocardCount, topArtist, flipCount };
 }
 function availableSummaryYears(){
   const years = new Set();
@@ -2514,6 +2517,7 @@ function renderYearRecapBlock(){
     <div class="recap-info-row">
       <div class="recap-info"><span class="l">最常消費類別</span><span class="v">${s.topCategory? esc(s.topCategory.name): '—'}</span></div>
       <div class="recap-info"><span class="l">總追星支出</span><span class="v">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span></div>
+      <div class="recap-info"><span class="l">💌 被翻牌次數</span><span class="v">${s.flipCount} 次</span></div>
     </div>
     <button class="recap-btn" data-open-year-summary="${year}">查看完整年度總結 →</button>
   </div>`;
@@ -2553,7 +2557,8 @@ function renderYsModalBody(year){
       <span class="l" style="font-weight:700;">💰 ${year} 年度總支出</span>
       <span class="r" style="font-weight:700; color:var(--rose-deep); font-size:14px;">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span>
     </div>
-    ${s.topArtist ? `<div class="mini-row" style="margin-bottom:18px;"><span class="l">👑 最常紀錄的藝人</span><span class="r">${esc(s.topArtist.name)}・${s.topArtist.count} 次</span></div>` : `<div style="margin-bottom:18px;"></div>`}
+    ${s.topArtist ? `<div class="mini-row" style="margin-bottom:8px;"><span class="l">👑 最常紀錄的藝人</span><span class="r">${esc(s.topArtist.name)}・${s.topArtist.count} 次</span></div>` : ''}
+    ${s.flipCount>0 ? `<div class="mini-row" style="margin-bottom:18px;"><span class="l">💌 今年被翻牌</span><span class="r">${s.flipCount} 次</span></div>` : `<div style="margin-bottom:18px;"></div>`}
     <div class="card-title" style="margin:0 2px 12px; font-size:14px;">消費類別分布</div>
     ${catBarsHtml}
     <div class="modal-actions">
@@ -2801,6 +2806,7 @@ function renderHome(){
       <div class="stat-card"><div class="num">${state.schedule.length}</div><div class="lbl">總行程</div></div>
       <div class="stat-card"><div class="num">${state.photocards.length}</div><div class="lbl">小卡收藏</div></div>
       <div class="stat-card"><div class="num">${state.support.length}</div><div class="lbl">應援紀錄</div></div>
+      <div class="stat-card"><div class="num">${state.fanlog.filter(f=>f.isFlipped).length}</div><div class="lbl">💌 被翻牌</div></div>
     </div>
 
     ${renderYearRecapBlock()}
@@ -4579,7 +4585,9 @@ function openArtistDetail(id){
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
   const fanlogCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name)).length;
   const supportCount = state.support.filter(s=>s.artist===a.name).length;
-  const flipCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name) && f.isFlipped).length;
+  const artistFlips = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name) && f.isFlipped);
+  const flipCount = artistFlips.length;
+  const flipTypeCounts = FLIP_TYPE_OPTIONS.map(t=> ({ type:t, count: artistFlips.filter(f=>Array.isArray(f.flipTypes) && f.flipTypes.includes(t)).length })).filter(x=>x.count>0);
 
   // 花費 vs 收藏 比例：換得到實體收藏（專輯/小卡/周邊等）的花費，跟體驗／消耗型花費（門票/交通/餐飲等）的佔比
   const collectibleSpent = artistExpenses.filter(e=> COLLECTIBLE_EXPENSE_CATEGORIES.includes(e.category)).reduce((sum,e)=> sum + expenseAmount(e), 0);
@@ -4648,7 +4656,7 @@ function openArtistDetail(id){
     </div>
     ${ratioChartHtml}
     ${supportCount>0 ? `<div class="card-meta" id="artistSupportLink" style="margin-top:8px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">📣 應援紀錄：${supportCount} 筆 →</div>` : ''}
-    ${flipCount>0 ? `<div class="card-meta" style="margin-top:4px;">💌 被翻牌次數：${flipCount} 次</div>` : ''}
+    ${flipCount>0 ? `<div class="card-meta" style="margin-top:4px;">💌 被翻牌次數：${flipCount} 次${flipTypeCounts.length ? '（'+flipTypeCounts.map(x=>`${esc(x.type)} ${x.count}`).join('・')+'）' : ''}</div>` : ''}
     <div class="modal-actions" style="margin-top:18px;">
       <button class="btn ghost" id="cancelBtn">關閉</button>
       <button class="btn primary" id="artistDetailEditBtn">編輯</button>
@@ -6877,10 +6885,11 @@ function renderFanlogTab(){
   const visibleYears = showAllYears ? years : years.slice(0, FANLOG_YEAR_ROW_MAX);
   let yearListHtml = visibleYears.map(y=>{
     const count = dated.filter(f=>f.date.slice(0,4)===y).length;
+    const flipCount = dated.filter(f=>f.date.slice(0,4)===y && f.isFlipped).length;
     const isThisYear = y===thisYear;
     const qualify = !isThisYear && count>=FANLOG_YEAR_QUALIFY_COUNT;
     const active = y===fanlogYearFilter ? 'active' : '';
-    return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場</button>`;
+    return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場${flipCount>0?` · 💌${flipCount}`:''}</button>`;
   }).join('');
   if(!showAllYears){
     yearListHtml += `<button class="year-review-more-btn" id="fanlogYearsMoreBtn">更多 +${years.length - FANLOG_YEAR_ROW_MAX}</button>`;
@@ -6892,11 +6901,13 @@ function renderFanlogTab(){
     const mm = String(m).padStart(2,'0');
     const ym = `${fanlogYearFilter}-${mm}`;
     const count = dated.filter(f=>f.date.startsWith(ym)).length;
+    const flipCount = dated.filter(f=>f.date.startsWith(ym) && f.isFlipped).length;
     const happy = count>=FANLOG_MONTH_HAPPY_COUNT;
     const active = ym===fanlogMonthFilter ? 'active' : '';
     monthListHtml += `<div class="month-card ${happy?'happy':''} ${active}" data-ym="${ym}">
       <div class="month-num maru">${fanlogYearFilter}/${m}月</div>
       <div class="month-count">本月參加：${count}場</div>
+      ${flipCount>0 ? `<div class="month-count">💌 被翻牌：${flipCount}次</div>` : ''}
     </div>`;
   }
 
