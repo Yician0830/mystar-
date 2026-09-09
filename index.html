@@ -4508,6 +4508,8 @@ function openArtistDetail(id){
 
   const artistExpenses = state.expense.filter(e=>e.artist===a.name);
   const totalSpent = artistExpenses.reduce((sum,e)=> sum + expenseAmount(e), 0);
+  const currentYear = String(new Date().getFullYear());
+  const thisYearSpent = artistExpenses.filter(e=> (e.date||'').slice(0,4)===currentYear).reduce((sum,e)=> sum + expenseAmount(e), 0);
   const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
   const fanlogCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name)).length;
@@ -4554,7 +4556,7 @@ function openArtistDetail(id){
     </div>
     ${a.bio ? `<div class="card-meta" style="white-space:pre-wrap;line-height:1.7;">${esc(a.bio)}</div>` : `<div class="card-meta" style="color:var(--ink-faint);">尚未填寫簡介</div>`}
     <div class="stat-grid" style="margin-top:14px;">
-      <div class="stat-card"><div class="num">NT$ ${totalSpent.toLocaleString()}</div><div class="lbl">累積花費</div></div>
+      <div class="stat-card"><div class="num">NT$ ${totalSpent.toLocaleString()}</div><div class="lbl">累積花費</div><div style="font-size:9.5px;color:var(--ink-faint);margin-top:3px;">今年 NT$ ${thisYearSpent.toLocaleString()}</div></div>
       <div class="stat-card"><div class="num">${pcOwnedCount}/${pcTotalCount}</div><div class="lbl">小卡收藏</div></div>
       <div class="stat-card"><div class="num">${fanlogCount}</div><div class="lbl">追星紀錄</div></div>
     </div>
