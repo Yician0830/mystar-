@@ -57,6 +57,11 @@
     --wisteria:#9584C2;
     --wisteria-pale:#F0ECF8;
     --gold:#C6A13A;
+    --gold-pale:#F6E9CE;
+    --sky-pale:#DCEBEF;
+    --peach-pale:#FBE7D3;
+    --night-pale:#E4E6F5;
+    --night:#7B7FB0;
     --shadow: 0 6px 20px rgba(90,60,45,0.12);
     --shadow-sm: 0 2px 8px rgba(90,60,45,0.10);
     --radius: 20px;
@@ -201,10 +206,12 @@
     border:1px solid rgba(0,0,0,0.02);
   }
   .card-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px;}
+  .card-row > *:first-child{ min-width:0; flex:1 1 auto; }
   .card-title{ font-weight:700; font-size:15px; margin:0 0 3px;}
   .card-meta{ font-size:12.5px; color:var(--ink-soft); line-height:1.6;}
   .tag{
     display:inline-block;
+    max-width:100%;
     font-size:11px;
     padding:2px 9px;
     border-radius:999px;
@@ -212,7 +219,9 @@
     color:var(--rose-deep);
     margin-right:6px;
     margin-top:4px;
-    white-space:nowrap;
+    white-space:normal;
+    word-break:break-word;
+    box-sizing:border-box;
   }
   .tag.matcha{ background:var(--matcha-pale); color:#4C6034;}
   .tag.wisteria{ background:var(--wisteria-pale); color:#5A4A82;}
@@ -270,29 +279,66 @@
     .home-dashboard{ display:grid; grid-template-columns:1.5fr 1fr; gap:24px; align-items:start; }
   }
   .greet-card{
+    position:relative; overflow:hidden;
     display:flex; align-items:center; gap:14px;
-    background:var(--surface); border-radius:var(--radius);
-    padding:14px 18px; margin-bottom:18px; box-shadow:var(--shadow-sm);
-  }
-  .greet-card-icon{
-    width:46px;height:46px;border-radius:50%;
     background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
-    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;
+    border-radius:var(--radius);
+    padding:16px 18px; margin-bottom:18px; box-shadow:var(--shadow-sm);
+    transition: background 0.4s ease;
   }
-  .greet-card-text{ min-width:0; }
+  /* 依時段變換卡片底色：晨／午／午後／晚／深夜 各有不同漸層氣氛 */
+  .greet-card.time-morning{ background:linear-gradient(135deg, var(--peach-pale), var(--sakura-pale)); }
+  .greet-card.time-noon{ background:linear-gradient(135deg, var(--sky-pale), var(--sakura-pale)); }
+  .greet-card.time-afternoon{ background:linear-gradient(135deg, var(--sakura-pale), var(--gold-pale)); }
+  .greet-card.time-evening{ background:linear-gradient(135deg, var(--wisteria-pale), var(--sakura-pale)); }
+  .greet-card.time-night{ background:linear-gradient(135deg, var(--night-pale), var(--wisteria-pale)); }
+  /* 卡片內兩顆柔霧色塊，呼應整頁背景的裝飾光斑，讓招呼卡不只是純色塊 */
+  .greet-card-blob{ position:absolute; border-radius:50%; filter:blur(2px); pointer-events:none; opacity:0.55; }
+  .greet-card-blob.b1{ width:90px; height:90px; right:-24px; top:-30px; background:rgba(255,255,255,0.55); }
+  .greet-card-blob.b2{ width:60px; height:60px; right:38px; bottom:-30px; background:rgba(255,255,255,0.35); }
+  [data-theme="dark"] .greet-card-blob{ opacity:0.06; background:#fff; }
+  .greet-card-icon{
+    position:relative; z-index:1;
+    width:50px;height:50px;border-radius:50%;
+    background:rgba(255,255,255,0.55);
+    box-shadow:0 3px 10px rgba(90,60,45,0.10);
+    display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;
+    animation: greet-float 3.6s ease-in-out infinite;
+  }
+  [data-theme="dark"] .greet-card-icon{ background:rgba(255,255,255,0.10); }
+  @keyframes greet-float{
+    0%,100%{ transform:translateY(0); }
+    50%{ transform:translateY(-4px); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .greet-card-icon{ animation:none; }
+  }
+  .greet-card-text{ position:relative; z-index:1; min-width:0; }
   .greet-card .greet{ margin:0; }
   .greet-card .greet-date{ margin:2px 0 0; }
   .home-thumb-card{
+    position:relative;
     display:flex; align-items:center; gap:10px;
     background:var(--surface); border-radius:14px; padding:9px 12px;
     margin-bottom:8px; box-shadow:var(--shadow-sm);
+    transition:box-shadow 0.15s, transform 0.15s;
   }
+  .home-thumb-card:hover{ box-shadow:var(--shadow); transform:translateX(2px); }
   .home-thumb-pic{
-    width:40px;height:40px;border-radius:10px;flex-shrink:0;
+    position:relative; z-index:1;
+    width:40px;height:40px;border-radius:50%;flex-shrink:0;
     background:var(--sakura-pale); overflow:hidden;
     display:flex;align-items:center;justify-content:center;font-size:18px;
+    box-shadow:0 0 0 3px var(--surface);
   }
   .home-thumb-pic img{ width:100%;height:100%;object-fit:cover; }
+  /* 最新追星紀錄：用一條細線把每個節點連起來，做出時間軸的感覺 */
+  .home-thumb-card.timeline:not(:last-child) .home-thumb-pic::after{
+    content:''; position:absolute; left:50%; top:100%;
+    width:2px; height:18px; background:var(--sakura-pale);
+    transform:translateX(-50%);
+  }
+  [data-theme="dark"] .home-thumb-card.timeline:not(:last-child) .home-thumb-pic::after{ background:var(--wisteria); opacity:0.5; }
   .home-thumb-info{ flex:1; min-width:0; }
   .home-thumb-title{
     font-size:13px; color:var(--ink); font-weight:600;
@@ -2721,11 +2767,11 @@ const FANLOG_CATEGORY_ICON = {
 };
 function greetingTimeInfo(){
   const h = new Date().getHours();
-  if(h>=5 && h<11) return {text:'早安', icon:'🌅'};
-  if(h>=11 && h<14) return {text:'午安', icon:'☀️'};
-  if(h>=14 && h<18) return {text:'下午好', icon:'🌤️'};
-  if(h>=18 && h<22) return {text:'晚安', icon:'🌆'};
-  return {text:'夜深了', icon:'🌙'};
+  if(h>=5 && h<11) return {text:'早安', icon:'🌅', period:'morning'};
+  if(h>=11 && h<14) return {text:'午安', icon:'☀️', period:'noon'};
+  if(h>=14 && h<18) return {text:'下午好', icon:'🌤️', period:'afternoon'};
+  if(h>=18 && h<22) return {text:'晚安', icon:'🌆', period:'evening'};
+  return {text:'夜深了', icon:'🌙', period:'night'};
 }
 function homeExpenseAmount(e){
   return e.unitPrice!==undefined ? expenseAmount(e) : (parseFloat(e.amount)||0);
@@ -2793,11 +2839,12 @@ function renderHomeOverviewBlock(){
 function renderHomeExpenseThumb(item){
   const cover = (item.imageUrls||[])[0];
   const catIcon = EXPENSE_CATEGORY_ICON[item.category] || '💸';
+  const c = chipColor(item.category || '其他');
   const amt = homeExpenseAmount(item);
   const title = item.name || item.item || '（未命名）';
   return `
   <div class="home-thumb-card">
-    <div class="home-thumb-pic">${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
+    <div class="home-thumb-pic" style="${cover ? '' : `background:${c.bg};color:${c.fg};`}">${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.removeAttribute('style');this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
     <div class="home-thumb-info">
       <div class="home-thumb-title">${esc(title)}</div>
       <div class="home-thumb-meta">${fmtDate(item.date)}${item.category ? ' · '+esc(item.category) : ''}</div>
@@ -2809,7 +2856,7 @@ function renderHomeFanlogThumb(item){
   const icon = FANLOG_CATEGORY_ICON[item.category] || '📖';
   const c = chipColor(item.category || '其他');
   return `
-  <div class="home-thumb-card">
+  <div class="home-thumb-card timeline">
     <div class="home-thumb-pic" style="background:${c.bg};color:${c.fg};">${icon}</div>
     <div class="home-thumb-info">
       <div class="home-thumb-title">${esc(item.activity)}</div>
@@ -2837,10 +2884,12 @@ function renderHome(){
     .sort((a,b)=> a.info.diffDays - b.info.diffDays)
     .slice(0,3);
 
-  const {text:greetTime, icon:greetIcon} = greetingTimeInfo();
+  const {text:greetTime, icon:greetIcon, period:greetPeriod} = greetingTimeInfo();
 
   let main = `
-    <div class="greet-card">
+    <div class="greet-card time-${greetPeriod}">
+      <div class="greet-card-blob b1"></div>
+      <div class="greet-card-blob b2"></div>
       <div class="greet-card-icon">${greetIcon}</div>
       <div class="greet-card-text">
         <div class="greet maru">${greetTime}${state.profile.nickname ? '，'+esc(state.profile.nickname) : ''}</div>
@@ -6961,7 +7010,7 @@ function renderFanlogTab(){
     const isThisYear = y===thisYear;
     const qualify = !isThisYear && count>=FANLOG_YEAR_QUALIFY_COUNT;
     const active = y===fanlogYearFilter ? 'active' : '';
-    return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場${flipCount>0?` · 💌${flipCount}`:''}</button>`;
+    return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場</button>`;
   }).join('');
   if(!showAllYears){
     yearListHtml += `<button class="year-review-more-btn" id="fanlogYearsMoreBtn">更多 +${years.length - FANLOG_YEAR_ROW_MAX}</button>`;
