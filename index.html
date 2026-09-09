@@ -479,13 +479,7 @@
     .bday-card .date{ font-size:12px; }
     .bday-card .days{ font-size:13px; }
   }
-  /* 倒數計時卡片左側色條：演唱會用玫瑰色、開賣日用抹茶綠，一眼區分類型（生日卡不受影響） */
-  .dday-card{ padding-left:14px; }
-  .dday-card::before{
-    content:''; position:absolute; left:0; top:12%; bottom:12%;
-    width:4px; border-radius:4px; background:var(--rose);
-  }
-  .dday-card.onsale::before{ background:var(--matcha); }
+  /* 倒數計時卡片：依需求移除左側色條，改回一般置中卡片 */
   .dday-card.onsale .days{ color:var(--matcha); }
   .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
   .home-block{ margin-bottom:22px;}
