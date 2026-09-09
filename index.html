@@ -1523,6 +1523,7 @@ const TAB_META = {
 let editingId = null; 
 const FIXED_PC_CATEGORIES = ['專輯卡','特典卡','打歌卡','抽選卡','幸運卡','入場卡','PICK UP卡'];
 const FIXED_FANLOG_CATEGORIES = ['演唱會','見面會','簽唱會','商演','站台','頒獎','夜店','跨年','時裝周','校唱'];
+const FLIP_PLATFORM_OPTIONS = ['IG限動','IG貼文','微博','Threads','直播','其他'];
 const FIXED_SCHEDULE_CATEGORIES = ['演唱會','見面會','生放送','應援','簽唱會','簽售會','商演','站台','校唱','夜店'];
 const FIXED_ENDORSEMENT_CATEGORIES = ['代言人','品牌大使','形象代言','合作商品','聯名商品'];
 const FIXED_MERCH_CATEGORIES = ['專輯','應援小物','服飾','包包','文具','生活用品','公仔玩偶','海報','其他周邊'];
@@ -2967,6 +2968,7 @@ function renderCard(tab, item){
       const linkedMovie = state.movie.find(m=>String(m.id)===String(item.movieLinkedId));
       if(linkedMovie) tags += `<span class="tag matcha">🎬 ${esc(linkedMovie.title)}</span>`;
     }
+    if(item.isFlipped) tags += `<span class="tag rose">💌 被翻牌${item.flipPlatform ? '・'+esc(item.flipPlatform) : ''}</span>`;
   }
 
   return `
@@ -4568,6 +4570,7 @@ function openArtistDetail(id){
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
   const fanlogCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name)).length;
   const supportCount = state.support.filter(s=>s.artist===a.name).length;
+  const flipCount = state.fanlog.filter(f=>splitArtistNames(f.artist).includes(a.name) && f.isFlipped).length;
 
   // 花費 vs 收藏 比例：換得到實體收藏（專輯/小卡/周邊等）的花費，跟體驗／消耗型花費（門票/交通/餐飲等）的佔比
   const collectibleSpent = artistExpenses.filter(e=> COLLECTIBLE_EXPENSE_CATEGORIES.includes(e.category)).reduce((sum,e)=> sum + expenseAmount(e), 0);
@@ -4636,6 +4639,7 @@ function openArtistDetail(id){
     </div>
     ${ratioChartHtml}
     ${supportCount>0 ? `<div class="card-meta" id="artistSupportLink" style="margin-top:8px;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">📣 應援紀錄：${supportCount} 筆 →</div>` : ''}
+    ${flipCount>0 ? `<div class="card-meta" style="margin-top:4px;">💌 被翻牌次數：${flipCount} 次</div>` : ''}
     <div class="modal-actions" style="margin-top:18px;">
       <button class="btn ghost" id="cancelBtn">關閉</button>
       <button class="btn primary" id="artistDetailEditBtn">編輯</button>
@@ -6382,6 +6386,16 @@ function openFanlogForm(id, prefill){
     <div class="field"><label>日期 *</label><input type="date" id="flDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>活動性質</label>${categoryFieldHtml}</div>
     <div class="field"><label>相關影視作品（選填）</label>${movieFieldHtml}</div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="flIsFlipped" ${src && src.isFlipped ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--rose-deep);">
+        💌 這次有被翻牌
+      </label>
+      <select id="flFlipPlatform" style="margin-top:8px; display:${src && src.isFlipped ? 'block' : 'none'};">
+        <option value="">請選擇平台</option>
+        ${FLIP_PLATFORM_OPTIONS.map(p=>`<option value="${esc(p)}" ${src && src.flipPlatform===p?'selected':''}>${esc(p)}</option>`).join('')}
+      </select>
+    </div>
     <div class="field"><label>拍攝相簿連結（選填）</label><input type="url" id="flAlbumUrl" value="${src?esc(src.albumUrl||''):''}" placeholder="貼上這場的拍攝相簿網址"></div>
     <div class="field"><label>本次花費（選填）</label><input type="number" id="flAmount" value="${src?esc(src.amount||''):''}" placeholder="0"></div>
     <div class="field">
@@ -6401,6 +6415,12 @@ function openFanlogForm(id, prefill){
   const newCategoryInput = document.getElementById('flNewCategory');
   categorySelect.addEventListener('change', ()=>{
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
+  const flIsFlippedCheckbox = document.getElementById('flIsFlipped');
+  const flFlipPlatformSelect = document.getElementById('flFlipPlatform');
+  flIsFlippedCheckbox.addEventListener('change', ()=>{
+    flFlipPlatformSelect.style.display = flIsFlippedCheckbox.checked ? 'block' : 'none';
   });
 
   const toggleGroup = document.getElementById('flArtistToggleGroup');
@@ -6481,6 +6501,8 @@ async function saveFanlogForm(existing){
   const flMovieSelect = document.getElementById('flMovieSelect');
   const movieLinkedId = flMovieSelect ? flMovieSelect.value : '';
   const albumUrl = document.getElementById('flAlbumUrl').value.trim();
+  const isFlipped = document.getElementById('flIsFlipped').checked;
+  const flipPlatform = isFlipped ? document.getElementById('flFlipPlatform').value : '';
 
   const data = {
     activity,
@@ -6489,7 +6511,9 @@ async function saveFanlogForm(existing){
     category,
     amount,
     movieLinkedId,
-    albumUrl
+    albumUrl,
+    isFlipped,
+    flipPlatform
   };
 
   let targetFanlog;
