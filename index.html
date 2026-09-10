@@ -1473,6 +1473,13 @@ function mixHex(hex, target, pct){
   const c = hexToRgb(hex), t = hexToRgb(target);
   return rgbToHex(c.r+(t.r-c.r)*pct, c.g+(t.g-c.g)*pct, c.b+(t.b-c.b)*pct);
 }
+function isDarkPalette(palette){
+  const c = hexToRgb((palette && palette.ink) || '#4A3D36');
+  return (c.r*0.299 + c.g*0.587 + c.b*0.114) > 150;
+}
+function badgeTextColor(baseColor, palette){
+  return isDarkPalette(palette) ? '#FFFFFF' : mixHex(baseColor, '#000000', 0.18);
+}
 function buildCustomThemeVars(base){
   return {
     '--rose-deep': mixHex(base, '#000000', 0.14),
@@ -3012,8 +3019,8 @@ async function generateYearSummaryCanvas(year, themeId){
     if(yoy.prevHasData){
       const up = st.d>0, down = st.d<0;
       const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→ 持平';
-      const badgeColor = up ? matcha : down ? night : inkSoft;
-      pillBadge(x+scW-14, y+14, badgeText, hx(badgeColor,0.22), mixHex(badgeColor,'#000000',0.18));
+      const badgeColor = up ? roseDeep : down ? wisteria : inkSoft;
+      pillBadge(x+scW-14, y+14, badgeText, hx(badgeColor, isDarkPalette(palette)?0.32:0.22), badgeTextColor(badgeColor, palette));
     }
   });
   if(yoy.prevHasData){
@@ -3387,8 +3394,8 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     if(yoy.prevHasData){
       const up = st.d>0, down = st.d<0;
       const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→ 持平';
-      const badgeColor = up ? matcha : down ? night : inkSoft;
-      pillBadge(x+scW-12, y+12, badgeText, hx(badgeColor,0.22), mixHex(badgeColor,'#000000',0.18));
+      const badgeColor = up ? roseDeep : down ? wisteria : inkSoft;
+      pillBadge(x+scW-12, y+12, badgeText, hx(badgeColor, isDarkPalette(palette)?0.32:0.22), badgeTextColor(badgeColor, palette));
     }
   });
   y += scH + 40;
