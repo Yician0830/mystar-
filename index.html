@@ -1894,6 +1894,23 @@ const CHART_PALETTE = [
   '#A07E1E', '#5A6E8C'
 ];
 function chartColorAt(i){ return CHART_PALETTE[i % CHART_PALETTE.length]; }
+function themeChartColors(palette){
+  const { roseDeep, rose, gold, wisteria, sakura } = palette;
+  return [
+    roseDeep,
+    wisteria,
+    gold,
+    mixHex(rose, '#000000', 0.20),
+    mixHex(gold, '#000000', 0.24),
+    mixHex(wisteria, '#000000', 0.22),
+    mixHex(roseDeep, '#ffffff', 0.35),
+    mixHex(wisteria, '#ffffff', 0.32),
+    mixHex(gold, '#ffffff', 0.32),
+    rose,
+    mixHex(sakura, '#000000', 0.18),
+    mixHex(roseDeep, '#000000', 0.18)
+  ];
+}
 
 const CHIP_PALETTE = [
   {bg:'#FBE3EA', fg:'#B2465F'},
@@ -2996,7 +3013,7 @@ async function generateYearSummaryCanvas(year, themeId){
       const up = st.d>0, down = st.d<0;
       const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→ 持平';
       const badgeColor = up ? matcha : down ? night : inkSoft;
-      pillBadge(x+scW-14, y+14, badgeText, hx(badgeColor,0.15), badgeColor);
+      pillBadge(x+scW-14, y+14, badgeText, hx(badgeColor,0.22), mixHex(badgeColor,'#000000',0.18));
     }
   });
   if(yoy.prevHasData){
@@ -3078,6 +3095,7 @@ async function generateYearSummaryCanvas(year, themeId){
 
   // 消費類別分布（含圓餅縮圖＋百分比橫條圖）
   const cats = s.categoryBreakdown.slice(0,5);
+  const catColors = themeChartColors(palette);
   if(cats.length){
     const barRowH = 84, headerH = 212;
     const catH = headerH + cats.length*barRowH + 20;
@@ -3102,7 +3120,7 @@ async function generateYearSummaryCanvas(year, themeId){
       ctx.moveTo(donutCX,donutCY);
       ctx.arc(donutCX,donutCY,donutR,angleStart,angleStart+angle);
       ctx.closePath();
-      ctx.fillStyle = chartColorAt(i);
+      ctx.fillStyle = catColors[i % catColors.length];
       ctx.fill();
       angleStart += angle;
     });
@@ -3121,7 +3139,7 @@ async function generateYearSummaryCanvas(year, themeId){
     cats.forEach((c,i)=>{
       const ry = y + headerH + i*barRowH;
       const pct = s.totalExpense>0 ? c.amount/s.totalExpense : 0;
-      const color = chartColorAt(i);
+      const color = catColors[i % catColors.length];
       ctx.beginPath();
       ctx.arc(PAD+36+8, ry-9, 8, 0, Math.PI*2);
       ctx.fillStyle = color;
@@ -3154,18 +3172,18 @@ async function generateYearSummaryCanvas(year, themeId){
     y += emptyH + 40;
   }
 
-  // 底部裝飾與品牌落款（位置依實際內容高度而定）
-  sakuraFlower(46, y+20, 20, sakura, 0.22, 0.4);
-  handDrawnSwirl(66, y+36, 38, rose, 0.16, -0.4);
-  sakuraFlower(W-46, y+18, 18, gold, 0.18, -0.5);
-  blob(70, y+120, 260, gold, 0.20);
-  blob(1010, y+150, 240, sakura, 0.32);
+  // 底部裝飾與品牌落款（位置依實際內容高度而定，單行文字讓裝飾與文字更貼近）
+  sakuraFlower(46, y+14, 20, sakura, 0.22, 0.4);
+  handDrawnSwirl(66, y+28, 38, rose, 0.16, -0.4);
+  sakuraFlower(W-46, y+12, 18, gold, 0.18, -0.5);
+  blob(70, y+110, 260, gold, 0.20);
+  blob(1010, y+140, 240, sakura, 0.32);
   ctx.textAlign = 'center';
   ctx.font = '400 22px "Noto Sans TC"';
   ctx.fillStyle = inkSoft;
-  ctx.fillText(`產生於 ${todayStr()}`, W/2, y+66);
+  ctx.fillText(`產生於 ${todayStr()}`, W/2, y+52);
 
-  const finalH = Math.min(MAXH, y + 120);
+  const finalH = Math.min(MAXH, y + 96);
   const out = document.createElement('canvas');
   out.width = W; out.height = finalH;
   out.getContext('2d').drawImage(big, 0, 0, W, finalH, 0, 0, W, finalH);
@@ -3185,7 +3203,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   const ctx = canvas.getContext('2d');
 
   const palette = resolveSharePalette(themeId);
-  const { bg, bgDeep, surface, ink, inkSoft, inkFaint, roseDeep, rose, sakura, sakuraPale, gold, matcha, night } = palette;
+  const { bg, bgDeep, surface, ink, inkSoft, inkFaint, roseDeep, rose, sakura, sakuraPale, gold, matcha, night, wisteria } = palette;
 
   function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
   function blob(cx,cy,r,color,a){
@@ -3267,6 +3285,16 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     ctx.stroke();
     ctx.restore();
   }
+  function miniAccent(cx, cy, glyph, color, alpha, size){
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${size}px "Zen Maru Gothic"`;
+    ctx.fillStyle = hx(color, alpha);
+    ctx.fillText(glyph, cx, cy);
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+  }
 
   // 全版背景（滿版鋪色，讓限動上下被系統介面遮住的區域也有延伸的色調）
   const bgGrad = ctx.createLinearGradient(0,0,0,H);
@@ -3336,6 +3364,12 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   // 三個統計卡片
   const scH = 176, scGap = 24;
   const scW = (CW - scGap*2)/3;
+  if(yoy.prevHasData){
+    ctx.textAlign = 'right';
+    ctx.font = '700 22px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(`🔁 較 ${yoy.prevYear} 年`, PAD+CW, y-10);
+  }
   [
     { v:s.concertCount, l:'演唱會場次', d:yoy.concertCount },
     { v:s.totalEventCount, l:'總參戰次數', d:yoy.totalEventCount },
@@ -3352,12 +3386,13 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     ctx.fillText(st.l, x+scW/2, y+140);
     if(yoy.prevHasData){
       const up = st.d>0, down = st.d<0;
-      const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→';
+      const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→ 持平';
       const badgeColor = up ? matcha : down ? night : inkSoft;
-      pillBadge(x+scW-12, y+12, badgeText, hx(badgeColor,0.15), badgeColor);
+      pillBadge(x+scW-12, y+12, badgeText, hx(badgeColor,0.22), mixHex(badgeColor,'#000000',0.18));
     }
   });
-  y += scH + 44;
+  y += scH + 40;
+  miniAccent(PAD+18, y-20, '✦', gold, 0.45, 22);
 
   // 年度總支出（大卡片強調）
   const exH = 220;
@@ -3393,7 +3428,8 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fillText(line, W/2, y+182);
   }
-  y += exH + 36;
+  y += exH + 40;
+  miniAccent(W-PAD-18, y-20, '♪', wisteria, 0.4, 20);
 
   // 精華資訊（最常紀錄的藝人／最常消費類別／被翻牌次數，限動版最多取兩項）
   const rows = [];
@@ -3431,8 +3467,9 @@ async function generateYearSummaryStoryCanvas(year, themeId){
 
   // 消費類別分布（限動版精簡：最多 3 類別，無圓餅圖，省下的空間留給版面呼吸）
   const storyCats = s.categoryBreakdown.slice(0,3);
+  const catColors = themeChartColors(palette);
   if(storyCats.length){
-    const catRowH = 70, catHeaderH = 96, catPadBottom = 24;
+    const catRowH = 70, catHeaderH = 118, catPadBottom = 24;
     const catH = catHeaderH + storyCats.length*catRowH + catPadBottom;
     card(PAD, y, CW, catH, 30, surface);
     ctx.textAlign = 'left';
@@ -3446,7 +3483,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     storyCats.forEach((c,i)=>{
       const ry = y + catHeaderH + i*catRowH + 12;
       const pct = s.totalExpense>0 ? c.amount/s.totalExpense : 0;
-      const color = chartColorAt(i);
+      const color = catColors[i % catColors.length];
       ctx.beginPath();
       ctx.arc(PAD+32+7, ry-7, 7, 0, Math.PI*2);
       ctx.fillStyle = color;
@@ -3468,20 +3505,26 @@ async function generateYearSummaryStoryCanvas(year, themeId){
       roundRectPath(PAD+32, trackY, Math.max(12, trackW*pct), 12, 6);
       ctx.fill();
     });
-    y += catH + 36;
+    y += catH + 40;
   } else {
-    y += 10;
+    const emptyH = 120;
+    card(PAD, y, CW, emptyH, 30, surface);
+    ctx.textAlign = 'center';
+    ctx.font = '500 26px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText('這年還沒有消費紀錄', W/2, y+emptyH/2+10);
+    y += emptyH + 40;
   }
 
-  // 底部裝飾與品牌落款（固定貼齊畫面最下方，不隨內容高度浮動）
-  const footerY = Math.max(H - 140, y + 40);
-  sakuraFlower(48, footerY+2, 20, sakura, 0.22, 0.4);
-  handDrawnSwirl(68, footerY+18, 36, rose, 0.16, -0.4);
-  sakuraFlower(W-48, footerY, 18, gold, 0.18, -0.5);
+  // 底部裝飾與品牌落款（固定貼齊畫面最下方，不隨內容高度浮動；單行文字讓裝飾更貼近文字）
+  const footerY = Math.max(H - 128, y + 40);
+  sakuraFlower(48, footerY+6, 20, sakura, 0.22, 0.4);
+  handDrawnSwirl(68, footerY+20, 36, rose, 0.16, -0.4);
+  sakuraFlower(W-48, footerY+4, 18, gold, 0.18, -0.5);
   ctx.textAlign = 'center';
   ctx.font = '400 22px "Noto Sans TC"';
   ctx.fillStyle = inkSoft;
-  ctx.fillText(`產生於 ${todayStr()}`, W/2, footerY+50);
+  ctx.fillText(`產生於 ${todayStr()}`, W/2, footerY+42);
 
   return canvas;
 }
