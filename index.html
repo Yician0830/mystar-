@@ -542,7 +542,7 @@
     font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:500;
   }
   .cal-filter-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700;}
-  .cal-filter-btn.qualify{ background:var(--matcha-pale); border-color:var(--matcha-pale); color:#3F6B45; font-weight:700;}
+  .cal-filter-btn.qualify{ background:var(--sakura-pale); border-color:var(--sakura-pale); color:var(--rose-deep); font-weight:700;}
   .cal-filter-btn.qualify.active{ background:var(--rose-deep); border-color:var(--rose-deep); color:#fff;}
   .artist-multiselect{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px; }
   .artist-toggle-btn{
@@ -609,12 +609,12 @@
     cursor:pointer; box-shadow:var(--shadow-sm); border:2px solid transparent; transition:0.15s;
   }
   .year-card:hover{ transform:translateY(-1px);}
-  .year-card.qualify{ background:var(--matcha-pale);}
+  .year-card.qualify{ background:var(--sakura-pale);}
   .year-card.active{ border-color:var(--rose-deep);}
   .year-num{ font-weight:700; font-size:17px;}
   .year-count{ font-size:12px; color:var(--ink-soft); margin-top:3px;}
   .year-msg{ font-size:12px; margin-top:5px; font-weight:700; color:#B54545;}
-  .year-card.qualify .year-msg{ color:#4E6B49;}
+  .year-card.qualify .year-msg{ color:var(--rose-deep);}
 
   .month-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .month-card{
@@ -864,6 +864,7 @@
   .exp-date{ font-size:11px; color:var(--rose-deep); font-weight:700; margin-bottom:3px; white-space:nowrap; }
   .exp-unit{ font-size:11px; color:var(--ink-soft); }
   .exp-total{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:15.5px; margin-top:2px; }
+  .exp-orig{ font-size:10.5px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; }
 
   /* 分類與歷年標題外觀 */
   .exp-group-header{
@@ -1678,6 +1679,8 @@ function expenseAmount(item){
   const shipping = parseFloat(item.shipping)||0;
   return unit*qty + shipping;
 }
+const CURRENCY_SYMBOL = { CNY:'¥', JPY:'¥', KRW:'₩', USD:'$', HKD:'$', TWD:'NT$' };
+function currencySymbol(code){ return CURRENCY_SYMBOL[code] || ''; }
 /* 一筆記帳現在可以同時連到好幾個項目（應援、追星紀錄、小卡系列、周邊系列、代言/雜誌/影視都可以混搭），
    新資料存在 e.links = [{type,id}, ...]；舊資料只有單一連結欄位，這裡統一轉成同樣的陣列格式方便共用比對邏輯 */
 function expenseLinksArray(e){
@@ -2727,10 +2730,311 @@ function renderYsModalBody(year){
     ${catBarsHtml}
     <div class="modal-actions">
       <button class="btn ghost" id="ysCloseBtn">關閉</button>
+      <button class="btn primary" id="ysShareImgBtn">🖼️ 產生分享圖</button>
     </div>
   `;
   document.getElementById('ysYearSelect').addEventListener('change', (e)=>{ renderYsModalBody(e.target.value); });
   document.getElementById('ysCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('ysShareImgBtn').addEventListener('click', ()=> openYearSummaryShareImage(year));
+}
+
+/* ================= 年度總結分享圖（Canvas 產圖 + 下載／分享） ================= */
+function themeVar(name, fallback){
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+function loadShareFonts(){
+  if(!document.fonts || !document.fonts.load) return Promise.resolve();
+  return Promise.all([
+    document.fonts.load('700 32px "Zen Maru Gothic"'),
+    document.fonts.load('900 32px "Zen Maru Gothic"'),
+    document.fonts.load('400 26px "Noto Sans TC"'),
+    document.fonts.load('500 26px "Noto Sans TC"'),
+    document.fonts.load('700 26px "Noto Sans TC"')
+  ]).catch(()=>{});
+}
+async function generateYearSummaryCanvas(year){
+  await loadShareFonts();
+  const s = computeYearSummary(year);
+  const nickname = (state.profile && state.profile.nickname) ? state.profile.nickname.trim() : '';
+
+  const W = 1080, MAXH = 3000, PAD = 64, CW = W - PAD*2;
+  const big = document.createElement('canvas');
+  big.width = W; big.height = MAXH;
+  const ctx = big.getContext('2d');
+
+  const bg = themeVar('--bg','#FBF4EC');
+  const bgDeep = themeVar('--bg-deep','#F6E9DA');
+  const surface = themeVar('--surface','#FFFDF9');
+  const ink = themeVar('--ink','#4A3D36');
+  const inkSoft = themeVar('--ink-soft','#9C8977');
+  const inkFaint = themeVar('--ink-faint','#DCCDB8');
+  const roseDeep = themeVar('--rose-deep','#C15B79');
+  const rose = themeVar('--rose','#DD8AA0');
+  const sakura = themeVar('--sakura','#F3C9D6');
+  const sakuraPale = themeVar('--sakura-pale','#FCEDF1');
+  const gold = themeVar('--gold','#C6A13A');
+
+  function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
+  function blob(cx,cy,r,color,a){
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0, hx(color,a));
+    g.addColorStop(1, hx(color,0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+  function roundRectPath(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  function card(x,y,w,h,r,fill){
+    ctx.save();
+    ctx.shadowColor = 'rgba(74,50,35,0.16)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = fill;
+    roundRectPath(x,y,w,h,r);
+    ctx.fill();
+    ctx.restore();
+  }
+  function truncate(text, maxWidth){
+    if(ctx.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while(t.length>1 && ctx.measureText(t+'…').width > maxWidth) t = t.slice(0,-1);
+    return t+'…';
+  }
+
+  // 背景（先鋪滿預留高度，最後會依實際內容裁切）
+  const bgGrad = ctx.createLinearGradient(0,0,0,MAXH);
+  bgGrad.addColorStop(0, bg);
+  bgGrad.addColorStop(1, bgDeep);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0,0,W,MAXH);
+  blob(90,120,340,sakura,0.55);
+  blob(1010,200,300,rose,0.30);
+
+  let y = 110;
+  ctx.textBaseline = 'alphabetic';
+
+  // 頂部品牌列
+  ctx.textAlign = 'left';
+  ctx.font = '700 32px "Zen Maru Gothic"';
+  ctx.fillStyle = ink;
+  ctx.fillText('🌸 推し手帳', PAD, y);
+  ctx.textAlign = 'right';
+  ctx.font = '500 26px "Noto Sans TC"';
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(`${year} 年度回顧`, W-PAD, y-2);
+  y += 90;
+
+  // 標題
+  ctx.textAlign = 'center';
+  ctx.font = '900 130px "Zen Maru Gothic"';
+  ctx.fillStyle = roseDeep;
+  ctx.fillText(String(year), W/2, y+110);
+  y += 150;
+  ctx.font = '700 54px "Zen Maru Gothic"';
+  ctx.fillStyle = ink;
+  ctx.fillText('年度追星總結', W/2, y+40);
+  y += 74;
+  if(nickname){
+    ctx.font = '500 30px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(truncate(`${nickname} 的追星足跡`, CW-40), W/2, y+30);
+    y += 60;
+  } else {
+    y += 16;
+  }
+  y += 34;
+
+  // 三個統計卡片
+  const scH = 190, scGap = 28;
+  const scW = (CW - scGap*2)/3;
+  [
+    { v:s.concertCount, l:'演唱會場次' },
+    { v:s.totalEventCount, l:'總參戰次數' },
+    { v:s.photocardCount, l:'新增小卡' }
+  ].forEach((st,i)=>{
+    const x = PAD + i*(scW+scGap);
+    card(x, y, scW, scH, 26, surface);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = roseDeep;
+    ctx.font = '900 66px "Zen Maru Gothic"';
+    ctx.fillText(String(st.v), x+scW/2, y+108);
+    ctx.fillStyle = inkSoft;
+    ctx.font = '500 25px "Noto Sans TC"';
+    ctx.fillText(st.l, x+scW/2, y+150);
+  });
+  y += scH + 40;
+
+  // 年度總支出（大卡片強調）
+  const exH = 210;
+  ctx.save();
+  ctx.shadowColor = 'rgba(193,91,121,0.35)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 16;
+  const grad = ctx.createLinearGradient(PAD,y,PAD+CW,y+exH);
+  grad.addColorStop(0, roseDeep);
+  grad.addColorStop(1, rose);
+  ctx.fillStyle = grad;
+  roundRectPath(PAD,y,CW,exH,30);
+  ctx.fill();
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.font = '700 30px "Zen Maru Gothic"';
+  ctx.fillText(`💰 ${year} 年度總支出`, W/2, y+64);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 78px "Zen Maru Gothic"';
+  ctx.fillText(`NT$ ${Math.round(s.totalExpense).toLocaleString()}`, W/2, y+156);
+  y += exH + 40;
+
+  // 資訊列卡片（最常紀錄的藝人／最常消費類別／被翻牌次數）
+  const rows = [];
+  if(s.topArtist) rows.push({icon:'👑', label:'最常紀錄的藝人', value:`${s.topArtist.name}・${s.topArtist.count} 次`});
+  if(s.topCategory) rows.push({icon:'🏷️', label:'最常消費類別', value:s.topCategory.name});
+  if(s.flipCount>0) rows.push({icon:'💌', label:'被翻牌次數', value:`${s.flipCount} 次`});
+  if(rows.length){
+    const rowH = 80;
+    const infoH = rows.length*rowH + 44;
+    card(PAD, y, CW, infoH, 26, surface);
+    rows.forEach((r,i)=>{
+      const ry = y + 44 + i*rowH + rowH/2;
+      ctx.textAlign = 'left';
+      ctx.font = '500 30px "Noto Sans TC"';
+      ctx.fillStyle = ink;
+      ctx.fillText(`${r.icon}  ${r.label}`, PAD+36, ry+10);
+      ctx.textAlign = 'right';
+      ctx.font = '700 30px "Noto Sans TC"';
+      ctx.fillStyle = roseDeep;
+      ctx.fillText(truncate(r.value, 360), PAD+CW-36, ry+10);
+      if(i < rows.length-1){
+        ctx.strokeStyle = sakuraPale;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(PAD+36, y+44+(i+1)*rowH);
+        ctx.lineTo(PAD+CW-36, y+44+(i+1)*rowH);
+        ctx.stroke();
+      }
+    });
+    y += infoH + 40;
+  }
+
+  // 消費類別分布橫條圖
+  const cats = s.categoryBreakdown.slice(0,5);
+  if(cats.length){
+    const barRowH = 84;
+    const catH = 60 + cats.length*barRowH + 20;
+    card(PAD, y, CW, catH, 26, surface);
+    ctx.textAlign = 'left';
+    ctx.font = '700 30px "Zen Maru Gothic"';
+    ctx.fillStyle = ink;
+    ctx.fillText('消費類別分布', PAD+36, y+58);
+    cats.forEach((c,i)=>{
+      const ry = y + 96 + i*barRowH;
+      const pct = s.totalExpense>0 ? c.amount/s.totalExpense : 0;
+      const color = chartColorAt(i);
+      ctx.font = '500 26px "Noto Sans TC"';
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'left';
+      ctx.fillText(truncate(c.name, CW-400), PAD+36, ry);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = inkSoft;
+      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()}`, PAD+CW-36, ry);
+      const trackY = ry + 18;
+      const trackW = CW - 72;
+      ctx.fillStyle = sakuraPale;
+      roundRectPath(PAD+36, trackY, trackW, 16, 8);
+      ctx.fill();
+      ctx.fillStyle = color;
+      roundRectPath(PAD+36, trackY, Math.max(16, trackW*pct), 16, 8);
+      ctx.fill();
+    });
+    y += catH + 40;
+  } else {
+    const emptyH = 140;
+    card(PAD, y, CW, emptyH, 26, surface);
+    ctx.textAlign = 'center';
+    ctx.font = '500 28px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText('這年還沒有消費紀錄', W/2, y+emptyH/2+10);
+    y += emptyH + 40;
+  }
+
+  // 底部裝飾與品牌落款（位置依實際內容高度而定）
+  blob(70, y+120, 260, gold, 0.20);
+  blob(1010, y+150, 240, sakura, 0.32);
+  ctx.textAlign = 'center';
+  ctx.font = '500 24px "Noto Sans TC"';
+  ctx.fillStyle = inkSoft;
+  ctx.fillText('🌸 推し手帳 · 記錄你的追星日常', W/2, y+70);
+  ctx.font = '400 20px "Noto Sans TC"';
+  ctx.fillStyle = inkFaint;
+  ctx.fillText(`產生於 ${todayStr()}`, W/2, y+108);
+
+  const finalH = Math.min(MAXH, y + 160);
+  const out = document.createElement('canvas');
+  out.width = W; out.height = finalH;
+  out.getContext('2d').drawImage(big, 0, 0, W, finalH, 0, 0, W, finalH);
+  return out;
+}
+async function openYearSummaryShareImage(year){
+  showToast('圖片產生中…');
+  try{
+    const canvas = await generateYearSummaryCanvas(year);
+    canvas.toBlob((blob)=>{
+      if(!blob){ showToast('圖片產生失敗，請再試一次'); return; }
+      showYsShareModal(canvas, blob, year);
+    }, 'image/png');
+  }catch(err){
+    console.error(err);
+    showToast('圖片產生失敗，請再試一次');
+  }
+}
+function showYsShareModal(canvas, blob, year){
+  const dataUrl = canvas.toDataURL('image/png');
+  let canShareFile = false;
+  try{
+    canShareFile = !!(navigator.canShare && navigator.share && navigator.canShare({ files:[new File([blob], 'x.png', {type:'image/png'})] }));
+  }catch(e){ canShareFile = false; }
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:12px;">🎉 ${esc(String(year))} 年度總結分享圖</h3>
+    <div style="border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); max-height:55vh; overflow-y:auto; background:var(--bg-deep);">
+      <img src="${dataUrl}" style="width:100%; display:block;">
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn ghost" id="ysShareCloseBtn" style="flex:1;">關閉</button>
+      <button class="btn ghost" id="ysDownloadBtn" style="flex:1;">📥 下載圖片</button>
+      ${canShareFile ? `<button class="btn primary" id="ysShareBtn" style="flex:1;">📤 分享</button>` : ''}
+    </div>
+  `;
+  document.getElementById('ysShareCloseBtn').addEventListener('click', closeModal);
+  document.getElementById('ysDownloadBtn').addEventListener('click', ()=>{
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `推し手帳年度總結-${year}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    showToast('已儲存圖片');
+  });
+  if(canShareFile){
+    document.getElementById('ysShareBtn').addEventListener('click', async ()=>{
+      try{
+        const file = new File([blob], `推し手帳年度總結-${year}.png`, {type:'image/png'});
+        await navigator.share({ files:[file], title:`${year} 年度追星總結`, text:'我的年度追星總結來了 🌸' });
+      }catch(err){
+        if(err && err.name !== 'AbortError') showToast('分享失敗，請改用下載圖片');
+      }
+    });
+  }
+  showModal();
 }
 
 /* ================= Home ================= */
@@ -3588,6 +3892,7 @@ function renderExpenseCard(item){
         <div class="exp-date">${item.date? fmtDate(item.date) : '—'}</div>
         <div class="exp-unit">$${unit.toLocaleString()}×${qty}</div>
         <div class="exp-total">$${total.toLocaleString()}</div>
+        ${item.origCurrency && item.origCurrency!=='TWD' && item.origAmount ? `<div class="exp-orig">原 ${currencySymbol(item.origCurrency)}${Number(item.origAmount).toLocaleString()} ${esc(item.origCurrency)}</div>` : ''}
       </div>
     </div>
     <div class="card-actions" style="justify-content:flex-end;margin-top:auto;padding-top:8px;">
@@ -7271,7 +7576,7 @@ function openCategoryManager(){
   const order = getCategoryOrder(cfg);
   modal.innerHTML = `
     <h3 class="maru" style="margin-bottom:6px;">🏷️ 管理分類</h3>
-    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">用 ▲▼ 可以調整分類在選單裡出現的先後順序，內建分類也可以一起排序，只是不能重新命名或刪除。「停用」的分類不會出現在新增/編輯紀錄的選單裡，但既有紀錄還是會保留原本的分類文字。重新命名自訂分類會同步更新所有已經套用該分類的紀錄。</p>
+    <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">用 ▲▼ 可以調整分類在選單裡出現的先後順序，內建分類也可以一起排序，只是不能重新命名或刪除。「停用」的分類不會出現在新增/編輯紀錄的選單裡，但既有紀錄還是會保留原本的分類文字。重新命名自訂分類會同步更新所有已經套用該分類的紀錄。如果發現有重複或想合併的分類（例如打錯字產生的兩個分類），可以用 🔀 把某個分類底下所有紀錄一次改成另一個分類。</p>
     <div class="field" style="margin-bottom:14px;">
       <label for="categoryManagerGroupSelect" style="font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;">選擇分類群組</label>
       <select id="categoryManagerGroupSelect" style="width:100%;">
@@ -7300,6 +7605,7 @@ function openCategoryManager(){
           <button type="button" class="icon-btn cat-manage-up-btn" title="往上移" aria-label="往上移" ${idx===0?'disabled style="opacity:0.3;cursor:default;"':''}>▲</button>
           <button type="button" class="icon-btn cat-manage-down-btn" title="往下移" aria-label="往下移" ${idx===arr.length-1?'disabled style="opacity:0.3;cursor:default;"':''}>▼</button>
           <button type="button" class="icon-btn cat-manage-toggle-btn" title="${disabled?'啟用':'停用'}" aria-label="${disabled?'啟用':'停用'}">${disabled?'✅':'🚫'}</button>
+          ${arr.length>1 ? `<button type="button" class="icon-btn cat-manage-merge-btn" title="合併到其他分類" aria-label="合併到其他分類">🔀</button>` : ''}
           ${isFixed ? '' : `
           <button type="button" class="icon-btn cat-manage-rename-btn" title="重新命名" aria-label="重新命名">✎</button>
           <button type="button" class="icon-btn cat-manage-confirm-btn" title="確認" aria-label="確認" style="display:none;">✓</button>
@@ -7399,6 +7705,64 @@ function bindCategoryManagerActions(){
       openCategoryManager();
     });
   });
+  document.querySelectorAll('.cat-manage-merge-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const row = btn.closest('.cat-manage-row');
+      const cfg = CATEGORY_MANAGE_CONFIG.find(c=>c.key===row.dataset.cfg);
+      const name = row.dataset.name;
+      openMergeCategoryModal(cfg, name);
+    });
+  });
+}
+/* 合併分類：把某個分類底下所有紀錄改成另一個分類；來源若是自訂分類會直接刪除，若是內建分類則改為停用（內建分類不能真的刪除） */
+function openMergeCategoryModal(cfg, sourceName){
+  const targets = getCategoryOrder(cfg).filter(n=> n!==sourceName);
+  if(targets.length===0){ showToast('沒有其他分類可以合併'); return; }
+  const count = categoryUsageCount(cfg, sourceName);
+  const isFixed = cfg.fixed.includes(sourceName);
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:6px;">🔀 合併分類</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">${count>0 ? `「${esc(sourceName)}」目前有 ${count} 筆紀錄，合併後這些紀錄的分類都會改成你選擇的分類。` : `「${esc(sourceName)}」目前沒有紀錄使用。`}合併後「${esc(sourceName)}」${isFixed ? '會被停用（內建分類無法刪除，但停用後不會再出現在選單裡）' : '會從分類清單中刪除'}，此動作無法復原。</p>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="font-size:12.5px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:6px;">合併到</label>
+      <select id="mergeTargetSelect" style="width:100%;">
+        ${targets.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn primary" id="mergeConfirmBtn">確定合併</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', ()=> openCategoryManager());
+  document.getElementById('mergeConfirmBtn').addEventListener('click', async ()=>{
+    const targetName = document.getElementById('mergeTargetSelect').value;
+    await mergeCategoryInto(cfg, sourceName, targetName);
+    showToast(`已合併到「${targetName}」`);
+    openCategoryManager();
+  });
+  showModal();
+}
+async function mergeCategoryInto(cfg, sourceName, targetName){
+  if(!targetName || targetName===sourceName) return;
+  state[cfg.itemField].forEach(it=>{ if(it.category===sourceName) it.category = targetName; });
+  await saveKey(cfg.itemStorageKey, state[cfg.itemField]);
+  if(cfg.fixed.includes(sourceName)){
+    const list = state[cfg.disabledField] || [];
+    if(!list.includes(sourceName)){
+      state[cfg.disabledField] = [...list, sourceName];
+      await saveKey(cfg.disabledStorageKey, state[cfg.disabledField]);
+    }
+  } else {
+    state[cfg.customField] = state[cfg.customField].filter(n=>n!==sourceName);
+    const order = getCategoryOrder(cfg).filter(n=>n!==sourceName);
+    state[cfg.orderField] = order;
+    state[cfg.disabledField] = (state[cfg.disabledField]||[]).filter(n=>n!==sourceName);
+    await saveKey(cfg.storageKey, state[cfg.customField]);
+    await saveKey(cfg.orderStorageKey, order);
+    await saveKey(cfg.disabledStorageKey, state[cfg.disabledField]);
+  }
 }
 async function moveCategoryOrder(btn, dir){
   const row = btn.closest('.cat-manage-row');
