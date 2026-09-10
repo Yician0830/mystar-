@@ -2768,7 +2768,45 @@ function loadShareFonts(){
     document.fonts.load('700 26px "Noto Sans TC"')
   ]).catch(()=>{});
 }
-async function generateYearSummaryCanvas(year){
+/* 分享圖專用配色主題：與 App 目前主題色無關，讓分享圖可以獨立挑選節慶感配色 */
+const YS_THEME_PRESETS = [
+  { id:'sakura', label:'櫻花粉', swatch:'#DD8AA0', colors:{
+    bg:'#FBF4EC', bgDeep:'#F6E9DA', surface:'#FFFDF9', ink:'#4A3D36', inkSoft:'#9C8977', inkFaint:'#DCCDB8',
+    roseDeep:'#C15B79', rose:'#DD8AA0', sakura:'#F3C9D6', sakuraPale:'#FCEDF1', gold:'#C6A13A', wisteria:'#9584C2'
+  }},
+  { id:'matcha', label:'抹茶綠', swatch:'#7FA05F', colors:{
+    bg:'#F4F7EC', bgDeep:'#E7EFDA', surface:'#FDFEF9', ink:'#38402A', inkSoft:'#8B9673', inkFaint:'#D4DFC2',
+    roseDeep:'#5C7A3D', rose:'#84A85E', sakura:'#CDE0AC', sakuraPale:'#EFF5E3', gold:'#C6A13A', wisteria:'#84A85E'
+  }},
+  { id:'wisteria', label:'紫藤夜', swatch:'#9584C2', colors:{
+    bg:'#F3EFF8', bgDeep:'#E6DEF1', surface:'#FCFAFE', ink:'#3A3050', inkSoft:'#8D82A6', inkFaint:'#D8CEEA',
+    roseDeep:'#6C56A0', rose:'#9584C2', sakura:'#CBBCE7', sakuraPale:'#F1EDF9', gold:'#C6A13A', wisteria:'#9584C2'
+  }},
+  { id:'honey', label:'蜜糖金', swatch:'#D9A54B', colors:{
+    bg:'#FBF3E3', bgDeep:'#F5E4C4', surface:'#FFFCF3', ink:'#4A3B22', inkSoft:'#A08B5C', inkFaint:'#E6D2A2',
+    roseDeep:'#B4791F', rose:'#D9A54B', sakura:'#F0D28F', sakuraPale:'#FBEECF', gold:'#C6A13A', wisteria:'#D9A54B'
+  }},
+  { id:'midnight', label:'深夜摩登', swatch:'#B98AE0', colors:{
+    bg:'#211A2E', bgDeep:'#181222', surface:'#2C2440', ink:'#F2ECFB', inkSoft:'#B3A6CC', inkFaint:'#4A3F66',
+    roseDeep:'#E88FB3', rose:'#B98AE0', sakura:'#7A5FB0', sakuraPale:'#3A2F55', gold:'#E0B85C', wisteria:'#B98AE0'
+  }}
+];
+function resolveSharePalette(themeId){
+  const base = { matcha:'#7FA05F', night:'#7B7FB0' }; // 漲跌指示色，跨主題維持一致語意
+  if(!themeId || themeId==='app'){
+    return Object.assign(base, {
+      bg: themeVar('--bg','#FBF4EC'), bgDeep: themeVar('--bg-deep','#F6E9DA'),
+      surface: themeVar('--surface','#FFFDF9'), ink: themeVar('--ink','#4A3D36'),
+      inkSoft: themeVar('--ink-soft','#9C8977'), inkFaint: themeVar('--ink-faint','#DCCDB8'),
+      roseDeep: themeVar('--rose-deep','#C15B79'), rose: themeVar('--rose','#DD8AA0'),
+      sakura: themeVar('--sakura','#F3C9D6'), sakuraPale: themeVar('--sakura-pale','#FCEDF1'),
+      gold: themeVar('--gold','#C6A13A'), wisteria: themeVar('--wisteria','#9584C2')
+    });
+  }
+  const preset = YS_THEME_PRESETS.find(p=>p.id===themeId) || YS_THEME_PRESETS[0];
+  return Object.assign(base, preset.colors);
+}
+async function generateYearSummaryCanvas(year, themeId){
   await loadShareFonts();
   const s = computeYearSummary(year);
   const yoy = computeYoySummary(year);
@@ -2779,20 +2817,8 @@ async function generateYearSummaryCanvas(year){
   big.width = W; big.height = MAXH;
   const ctx = big.getContext('2d');
 
-  const bg = themeVar('--bg','#FBF4EC');
-  const bgDeep = themeVar('--bg-deep','#F6E9DA');
-  const surface = themeVar('--surface','#FFFDF9');
-  const ink = themeVar('--ink','#4A3D36');
-  const inkSoft = themeVar('--ink-soft','#9C8977');
-  const inkFaint = themeVar('--ink-faint','#DCCDB8');
-  const roseDeep = themeVar('--rose-deep','#C15B79');
-  const rose = themeVar('--rose','#DD8AA0');
-  const sakura = themeVar('--sakura','#F3C9D6');
-  const sakuraPale = themeVar('--sakura-pale','#FCEDF1');
-  const gold = themeVar('--gold','#C6A13A');
-  const matcha = themeVar('--matcha','#7FA05F');
-  const night = themeVar('--night','#7B7FB0');
-  const wisteria = themeVar('--wisteria','#9584C2');
+  const palette = resolveSharePalette(themeId);
+  const { bg, bgDeep, surface, ink, inkSoft, inkFaint, roseDeep, rose, sakura, sakuraPale, gold, matcha, night, wisteria } = palette;
 
   function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
   function blob(cx,cy,r,color,a){
@@ -3148,29 +3174,318 @@ async function generateYearSummaryCanvas(year){
   out.getContext('2d').drawImage(big, 0, 0, W, finalH, 0, 0, W, finalH);
   return out;
 }
+
+/* ===== IG 限時動態版（1080x1920 固定尺寸，內容濃縮並避開上下系統安全區） ===== */
+async function generateYearSummaryStoryCanvas(year, themeId){
+  await loadShareFonts();
+  const s = computeYearSummary(year);
+  const yoy = computeYoySummary(year);
+  const nickname = (state.profile && state.profile.nickname) ? state.profile.nickname.trim() : '';
+
+  const W = 1080, H = 1920, PAD = 64, CW = W - PAD*2;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  const palette = resolveSharePalette(themeId);
+  const { bg, bgDeep, surface, ink, inkSoft, inkFaint, roseDeep, rose, sakura, sakuraPale, gold, matcha, night } = palette;
+
+  function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
+  function blob(cx,cy,r,color,a){
+    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
+    g.addColorStop(0, hx(color,a));
+    g.addColorStop(1, hx(color,0));
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+  }
+  function roundRectPath(x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.arcTo(x+w,y,x+w,y+h,r);
+    ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r);
+    ctx.arcTo(x,y,x+w,y,r);
+    ctx.closePath();
+  }
+  function card(x,y,w,h,r,fill){
+    ctx.save();
+    ctx.shadowColor = 'rgba(74,50,35,0.16)';
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetY = 12;
+    ctx.fillStyle = fill;
+    roundRectPath(x,y,w,h,r);
+    ctx.fill();
+    ctx.restore();
+  }
+  function truncate(text, maxWidth){
+    if(ctx.measureText(text).width <= maxWidth) return text;
+    let t = text;
+    while(t.length>1 && ctx.measureText(t+'…').width > maxWidth) t = t.slice(0,-1);
+    return t+'…';
+  }
+  function pillBadge(rightX, topY, text, bgColor, textColor){
+    ctx.font = '700 22px "Noto Sans TC"';
+    const tw = ctx.measureText(text).width;
+    const padX = 14, h = 34;
+    const w = tw + padX*2;
+    const x = rightX - w;
+    ctx.fillStyle = bgColor;
+    roundRectPath(x, topY, w, h, h/2);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = textColor;
+    ctx.fillText(text, x+w/2, topY+h/2+1);
+    ctx.textBaseline = 'alphabetic';
+  }
+  function sakuraFlower(cx, cy, r, color, alpha, rotation){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation||0);
+    ctx.fillStyle = hx(color, alpha);
+    for(let i=0;i<5;i++){
+      ctx.save();
+      ctx.rotate((Math.PI*2/5)*i);
+      ctx.beginPath();
+      ctx.ellipse(0, -r*0.55, r*0.4, r*0.62, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(0,0,r*0.16,0,Math.PI*2);
+    ctx.fillStyle = hx(color, Math.min(1, alpha+0.12));
+    ctx.fill();
+    ctx.restore();
+  }
+  function handDrawnSwirl(x, y, len, color, alpha, rotation){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(rotation||0);
+    ctx.strokeStyle = hx(color, alpha);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(len*0.42, -len*0.48, len, -len*0.08);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 全版背景（滿版鋪色，讓限動上下被系統介面遮住的區域也有延伸的色調）
+  const bgGrad = ctx.createLinearGradient(0,0,0,H);
+  bgGrad.addColorStop(0, bg);
+  bgGrad.addColorStop(1, bgDeep);
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0,0,W,H);
+  blob(90,180,380,sakura,0.5);
+  blob(1000,260,320,rose,0.26);
+  blob(70,H-200,300,gold,0.20);
+  blob(1010,H-260,280,sakura,0.30);
+  sakuraFlower(52, 92, 22, rose, 0.20, -0.3);
+  sakuraFlower(W-52, 84, 20, gold, 0.18, 0.6);
+
+  // 安全區：IG 限時動態上下各約 250px 會被帳號列／回覆列擋住，內容集中在中段
+  let y = 250;
+  ctx.textBaseline = 'alphabetic';
+
+  // 品牌列
+  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し手帳';
+  const yearLabelText = `${year} 年度回顧`;
+  const dotGap = 16, dotR = 4;
+  ctx.font = '700 30px "Zen Maru Gothic"';
+  const brandDisplay = truncate(brandText, CW*0.55);
+  const brandW = ctx.measureText(brandDisplay).width;
+  ctx.font = '500 24px "Noto Sans TC"';
+  const yearLabelW = ctx.measureText(yearLabelText).width;
+  const brandRowW = brandW + dotGap*2 + dotR*2 + yearLabelW;
+  let bx = W/2 - brandRowW/2;
+  ctx.textAlign = 'left';
+  ctx.font = '700 30px "Zen Maru Gothic"';
+  ctx.fillStyle = ink;
+  ctx.fillText(brandDisplay, bx, y);
+  bx += brandW + dotGap;
+  ctx.fillStyle = inkFaint;
+  ctx.beginPath();
+  ctx.arc(bx+dotR, y-10, dotR, 0, Math.PI*2);
+  ctx.fill();
+  bx += dotR*2 + dotGap;
+  ctx.font = '500 24px "Noto Sans TC"';
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(yearLabelText, bx, y-2);
+  y += 80;
+
+  // 年份主標
+  ctx.textAlign = 'center';
+  ctx.font = '900 118px "Zen Maru Gothic"';
+  ctx.fillStyle = hx(roseDeep, 0.28);
+  ctx.fillText(String(year), W/2, y+104);
+  ctx.fillStyle = roseDeep;
+  ctx.fillText(String(year), W/2, y+98);
+  y += 132;
+  ctx.font = '700 50px "Zen Maru Gothic"';
+  ctx.fillStyle = ink;
+  ctx.fillText('年度追星總結', W/2, y+36);
+  y += 64;
+  if(nickname){
+    ctx.font = '500 28px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(truncate(`${nickname} 的追星足跡`, CW-40), W/2, y+28);
+    y += 54;
+  } else {
+    y += 10;
+  }
+  y += 30;
+
+  // 三個統計卡片
+  const scH = 176, scGap = 24;
+  const scW = (CW - scGap*2)/3;
+  [
+    { v:s.concertCount, l:'演唱會場次', d:yoy.concertCount },
+    { v:s.totalEventCount, l:'總參戰次數', d:yoy.totalEventCount },
+    { v:s.photocardCount, l:'新增小卡', d:yoy.photocardCount }
+  ].forEach((st,i)=>{
+    const x = PAD + i*(scW+scGap);
+    card(x, y, scW, scH, 30, surface);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = roseDeep;
+    ctx.font = '900 60px "Zen Maru Gothic"';
+    ctx.fillText(String(st.v), x+scW/2, y+100);
+    ctx.fillStyle = inkSoft;
+    ctx.font = '500 23px "Noto Sans TC"';
+    ctx.fillText(st.l, x+scW/2, y+140);
+    if(yoy.prevHasData){
+      const up = st.d>0, down = st.d<0;
+      const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→';
+      const badgeColor = up ? matcha : down ? night : inkSoft;
+      pillBadge(x+scW-12, y+12, badgeText, hx(badgeColor,0.15), badgeColor);
+    }
+  });
+  y += scH + 44;
+
+  // 年度總支出（大卡片強調）
+  const exH = 220;
+  ctx.save();
+  ctx.shadowColor = 'rgba(193,91,121,0.35)';
+  ctx.shadowBlur = 40;
+  ctx.shadowOffsetY = 16;
+  const grad = ctx.createLinearGradient(PAD,y,PAD+CW,y+exH);
+  grad.addColorStop(0, roseDeep);
+  grad.addColorStop(1, rose);
+  ctx.fillStyle = grad;
+  roundRectPath(PAD,y,CW,exH,34);
+  ctx.fill();
+  ctx.restore();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = 'rgba(255,255,255,0.88)';
+  ctx.font = '700 28px "Zen Maru Gothic"';
+  ctx.fillText(`💰 ${year} 年度總支出`, W/2, y+60);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = '900 70px "Zen Maru Gothic"';
+  ctx.fillText(`NT$ ${Math.round(s.totalExpense).toLocaleString()}`, W/2, y+142);
+  if(yoy.prevHasData){
+    const up = yoy.expenseDiff>0, down = yoy.expenseDiff<0;
+    const absAmt = Math.abs(Math.round(yoy.expenseDiff)).toLocaleString();
+    let pctText = '';
+    if(yoy.expensePrev>0){
+      const pct = Math.round(Math.abs(yoy.expenseDiff)/yoy.expensePrev*100);
+      pctText = `・${pct}%`;
+    }
+    const arrow = up ? '▲' : down ? '▼' : '→';
+    const line = (up || down) ? `${arrow} 較 ${yoy.prevYear} 年 NT$ ${absAmt}${pctText}` : `→ 與 ${yoy.prevYear} 年持平`;
+    ctx.font = '500 24px "Noto Sans TC"';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(line, W/2, y+182);
+  }
+  y += exH + 36;
+
+  // 精華資訊（最常紀錄的藝人／最常消費類別／被翻牌次數，限動版最多取兩項）
+  const rows = [];
+  if(s.topArtist) rows.push({icon:'👑', label:'最常紀錄的藝人', value:`${s.topArtist.name}・${s.topArtist.count} 次`});
+  if(s.topCategory) rows.push({icon:'🏷️', label:'最常消費類別', value:s.topCategory.name});
+  if(s.flipCount>0) rows.push({icon:'💌', label:'被翻牌次數', value:`${s.flipCount} 次`});
+  const shownRows = rows.slice(0,2);
+  if(shownRows.length){
+    const rowH = 76;
+    const infoH = shownRows.length*rowH + 40;
+    card(PAD, y, CW, infoH, 30, surface);
+    shownRows.forEach((r,i)=>{
+      const ry = y + 40 + i*rowH + rowH/2;
+      ctx.textAlign = 'left';
+      ctx.font = '500 28px "Noto Sans TC"';
+      ctx.fillStyle = ink;
+      ctx.fillText(`${r.icon}  ${r.label}`, PAD+32, ry+8);
+      ctx.textAlign = 'right';
+      ctx.font = '700 28px "Noto Sans TC"';
+      ctx.fillStyle = roseDeep;
+      ctx.fillText(truncate(r.value, 340), PAD+CW-32, ry+8);
+      if(i < shownRows.length-1){
+        ctx.strokeStyle = sakuraPale;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(PAD+32, y+40+(i+1)*rowH);
+        ctx.lineTo(PAD+CW-32, y+40+(i+1)*rowH);
+        ctx.stroke();
+      }
+    });
+    y += infoH + 40;
+  } else {
+    y += 20;
+  }
+
+  // 底部裝飾與品牌落款
+  sakuraFlower(48, y+22, 20, sakura, 0.22, 0.4);
+  handDrawnSwirl(68, y+38, 36, rose, 0.16, -0.4);
+  sakuraFlower(W-48, y+20, 18, gold, 0.18, -0.5);
+  ctx.textAlign = 'center';
+  ctx.font = '500 24px "Noto Sans TC"';
+  ctx.fillStyle = inkSoft;
+  ctx.fillText('🌸 推し手帳 · 記錄你的追星日常', W/2, y+70);
+  ctx.font = '400 20px "Noto Sans TC"';
+  ctx.fillStyle = inkSoft;
+  ctx.fillText(`產生於 ${todayStr()}`, W/2, y+106);
+
+  return canvas;
+}
+
+const YS_FORMAT_META = {
+  long:  { label:'📄 長圖',   fileSuffix:'',      generator: generateYearSummaryCanvas },
+  story: { label:'📱 限動版', fileSuffix:'-限動', generator: generateYearSummaryStoryCanvas }
+};
+const YS_THEME_SWATCHES = [{ id:'app', label:'App 主題', swatch:'var(--rose-deep)' }, ...YS_THEME_PRESETS.map(p=>({ id:p.id, label:p.label, swatch:p.swatch }))];
 async function openYearSummaryShareImage(year){
   showToast('圖片產生中…');
   try{
-    const canvas = await generateYearSummaryCanvas(year);
+    const canvas = await generateYearSummaryCanvas(year, 'app');
     canvas.toBlob((blob)=>{
       if(!blob){ showToast('圖片產生失敗，請再試一次'); return; }
-      showYsShareModal(canvas, blob, year);
+      showYsShareModal(year, { 'long:app':{canvas,blob} }, 'long', 'app');
     }, 'image/png');
   }catch(err){
     console.error(err);
     showToast('圖片產生失敗，請再試一次');
   }
 }
-function showYsShareModal(canvas, blob, year){
-  const dataUrl = canvas.toDataURL('image/png');
+function showYsShareModal(year, cache, activeFormat, activeTheme){
+  const meta = YS_FORMAT_META[activeFormat];
+  const key = `${activeFormat}:${activeTheme}`;
+  const entry = cache[key];
+  const dataUrl = entry.canvas.toDataURL('image/png');
   let canShareFile = false;
   try{
-    canShareFile = !!(navigator.canShare && navigator.share && navigator.canShare({ files:[new File([blob], 'x.png', {type:'image/png'})] }));
+    canShareFile = !!(navigator.canShare && navigator.share && navigator.canShare({ files:[new File([entry.blob], 'x.png', {type:'image/png'})] }));
   }catch(e){ canShareFile = false; }
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru" style="margin-bottom:12px;">🎉 ${esc(String(year))} 年度總結分享圖</h3>
-    <div style="border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); max-height:55vh; overflow-y:auto; background:var(--bg-deep);">
+    <div class="ys-format-tabs" style="display:flex; gap:8px; margin-bottom:14px;">
+      <button class="btn ${activeFormat==='long'?'primary':'ghost'}" id="ysFormatLong" style="flex:1;">${YS_FORMAT_META.long.label}</button>
+      <button class="btn ${activeFormat==='story'?'primary':'ghost'}" id="ysFormatStory" style="flex:1;">${YS_FORMAT_META.story.label}</button>
+    </div>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;">配色主題</div>
+    <div class="theme-swatch-grid" id="ysThemeSwatchGrid" style="margin-bottom:16px;">
+      ${YS_THEME_SWATCHES.map(t=>`<button type="button" class="theme-swatch ${activeTheme===t.id?'active':''}" data-theme="${t.id}" style="background:${t.swatch};" title="${esc(t.label)}"></button>`).join('')}
+    </div>
+    <div style="border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); max-height:50vh; overflow-y:auto; background:var(--bg-deep);">
       <img src="${dataUrl}" style="width:100%; display:block;">
     </div>
     <div class="modal-actions" style="flex-wrap:wrap;">
@@ -3183,7 +3498,7 @@ function showYsShareModal(canvas, blob, year){
   document.getElementById('ysDownloadBtn').addEventListener('click', ()=>{
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = `推し手帳年度總結-${year}.png`;
+    a.download = `推し手帳年度總結-${year}${meta.fileSuffix}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -3192,13 +3507,37 @@ function showYsShareModal(canvas, blob, year){
   if(canShareFile){
     document.getElementById('ysShareBtn').addEventListener('click', async ()=>{
       try{
-        const file = new File([blob], `推し手帳年度總結-${year}.png`, {type:'image/png'});
+        const file = new File([entry.blob], `推し手帳年度總結-${year}${meta.fileSuffix}.png`, {type:'image/png'});
         await navigator.share({ files:[file], title:`${year} 年度追星總結`, text:'我的年度追星總結來了 🌸' });
       }catch(err){
         if(err && err.name !== 'AbortError') showToast('分享失敗，請改用下載圖片');
       }
     });
   }
+  async function regenerate(fmt, theme){
+    const k = `${fmt}:${theme}`;
+    if(cache[k]){
+      showYsShareModal(year, cache, fmt, theme);
+      return;
+    }
+    showToast('圖片產生中…');
+    try{
+      const c = await YS_FORMAT_META[fmt].generator(year, theme);
+      c.toBlob((b)=>{
+        if(!b){ showToast('圖片產生失敗，請再試一次'); return; }
+        cache[k] = { canvas:c, blob:b };
+        showYsShareModal(year, cache, fmt, theme);
+      }, 'image/png');
+    }catch(err){
+      console.error(err);
+      showToast('圖片產生失敗，請再試一次');
+    }
+  }
+  document.getElementById('ysFormatLong').addEventListener('click', ()=> regenerate('long', activeTheme));
+  document.getElementById('ysFormatStory').addEventListener('click', ()=> regenerate('story', activeTheme));
+  document.querySelectorAll('#ysThemeSwatchGrid .theme-swatch').forEach(sw=>{
+    sw.addEventListener('click', ()=> regenerate(activeFormat, sw.dataset.theme));
+  });
   showModal();
 }
 
