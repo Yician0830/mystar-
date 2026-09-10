@@ -2951,7 +2951,7 @@ async function generateYearSummaryCanvas(year, themeId){
   ctx.font = '500 26px "Noto Sans TC"';
   ctx.fillStyle = inkSoft;
   ctx.fillText(yearLabelText, bx, y-2);
-  y += 90;
+  y += 62;
 
   // 標題（實色疊字營造立體感，不用模糊陰影避免糊出髒感）
   ctx.textAlign = 'center';
@@ -3312,7 +3312,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   ctx.font = '500 24px "Noto Sans TC"';
   ctx.fillStyle = inkSoft;
   ctx.fillText(yearLabelText, bx, y-2);
-  y += 80;
+  y += 55;
 
   // 年份主標
   ctx.textAlign = 'center';
@@ -3430,6 +3430,50 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     y += infoH + 40;
   } else {
     y += 20;
+  }
+
+  // 消費類別分布（限動版精簡：最多 3 類別，無圓餅圖，省下的空間留給版面呼吸）
+  const storyCats = s.categoryBreakdown.slice(0,3);
+  if(storyCats.length){
+    const catRowH = 70, catHeaderH = 64, catPadBottom = 24;
+    const catH = catHeaderH + storyCats.length*catRowH + catPadBottom;
+    card(PAD, y, CW, catH, 30, surface);
+    ctx.textAlign = 'left';
+    ctx.font = '700 28px "Zen Maru Gothic"';
+    ctx.fillStyle = ink;
+    ctx.fillText('消費類別分布', PAD+32, y+42);
+    ctx.font = '400 20px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(`共 ${s.categoryBreakdown.length} 個類別`, PAD+32, y+68);
+
+    storyCats.forEach((c,i)=>{
+      const ry = y + catHeaderH + i*catRowH + 12;
+      const pct = s.totalExpense>0 ? c.amount/s.totalExpense : 0;
+      const color = chartColorAt(i);
+      ctx.beginPath();
+      ctx.arc(PAD+32+7, ry-7, 7, 0, Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.font = '500 24px "Noto Sans TC"';
+      ctx.fillStyle = ink;
+      ctx.textAlign = 'left';
+      ctx.fillText(truncate(c.name, CW-420), PAD+32+24, ry);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = inkSoft;
+      ctx.font = '500 23px "Noto Sans TC"';
+      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()} ・ ${Math.round(pct*100)}%`, PAD+CW-32, ry);
+      const trackY = ry + 16;
+      const trackW = CW - 64;
+      ctx.fillStyle = sakuraPale;
+      roundRectPath(PAD+32, trackY, trackW, 12, 6);
+      ctx.fill();
+      ctx.fillStyle = color;
+      roundRectPath(PAD+32, trackY, Math.max(12, trackW*pct), 12, 6);
+      ctx.fill();
+    });
+    y += catH + 36;
+  } else {
+    y += 10;
   }
 
   // 底部裝飾與品牌落款
