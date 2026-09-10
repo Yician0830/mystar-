@@ -8587,4 +8587,90 @@ async function handleImportFile(file){
   }
 }
 
-function conf
+function confirmImportBackup(data){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">確定要匯入這份備份嗎？</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn danger" id="importConfirmBtn">確定匯入並覆蓋</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('importConfirmBtn').addEventListener('click', async ()=>{
+    await applyImportedBackup(data);
+    closeModal();
+    renderProfile();
+    render();
+    showToast('已匯入備份資料');
+  });
+  showModal();
+}
+
+async function applyImportedBackup(data){
+  for(const [stateKey, storageKey] of BACKUP_FIELD_MAP){
+    if(data[stateKey] !== undefined){
+      state[stateKey] = data[stateKey];
+      await saveKey(storageKey, state[stateKey]);
+    }
+  }
+  updatePendingUploadsBanner();
+  updateBackupReminderBanner();
+}
+
+function confirmDelete(tab, id){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">確定要刪除嗎？</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">刪除後資料將無法復原。</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn danger" id="delConfirmBtn">確定刪除</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
+    const item = state[tab].find(i=>String(i.id)===String(id));
+    await deleteAllStorageImages(item);
+    state[tab] = state[tab].filter(i=>String(i.id)!==String(id));
+    await saveKey('oshi-'+tab, state[tab]);
+    closeModal();
+    render();
+    updatePendingUploadsBanner();
+    showToast('已刪除紀錄');
+  });
+  showModal();
+}
+
+let modalDirty = false;
+let modalHasForm = false;
+function showModal(){
+  modalDirty = false;
+  modalHasForm = !!document.getElementById('modal').querySelector('#saveBtn');
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){
+  modalDirty = false;
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(()=> toast.classList.remove('show'), 2200);
+}
+
+/* 啟動應用程式 */
+window.addEventListener('DOMContentLoaded', init);
+
+/* 註冊 Service Worker，讓加到主畫面後能像 App 一樣開啟、離線也能打開已看過的頁面 */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
