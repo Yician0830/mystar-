@@ -2659,6 +2659,21 @@ function computeYearSummary(year){
 
   return { year, concertCount, totalEventCount, totalExpense, categoryBreakdown, topCategory, photocardCount, topArtist, flipCount };
 }
+function computeYoySummary(year){
+  const prevYear = String(parseInt(year,10)-1);
+  const cur = computeYearSummary(year);
+  const prev = computeYearSummary(prevYear);
+  const prevHasData = prev.totalEventCount>0 || prev.totalExpense>0 || prev.photocardCount>0;
+  return {
+    prevYear,
+    prevHasData,
+    concertCount: cur.concertCount - prev.concertCount,
+    totalEventCount: cur.totalEventCount - prev.totalEventCount,
+    photocardCount: cur.photocardCount - prev.photocardCount,
+    expenseDiff: cur.totalExpense - prev.totalExpense,
+    expensePrev: prev.totalExpense
+  };
+}
 function availableSummaryYears(){
   const years = new Set();
   [...state.schedule, ...state.expense, ...state.fanlog].forEach(item=>{
@@ -2756,6 +2771,7 @@ function loadShareFonts(){
 async function generateYearSummaryCanvas(year){
   await loadShareFonts();
   const s = computeYearSummary(year);
+  const yoy = computeYoySummary(year);
   const nickname = (state.profile && state.profile.nickname) ? state.profile.nickname.trim() : '';
 
   const W = 1080, MAXH = 3000, PAD = 64, CW = W - PAD*2;
@@ -2774,6 +2790,9 @@ async function generateYearSummaryCanvas(year){
   const sakura = themeVar('--sakura','#F3C9D6');
   const sakuraPale = themeVar('--sakura-pale','#FCEDF1');
   const gold = themeVar('--gold','#C6A13A');
+  const matcha = themeVar('--matcha','#7FA05F');
+  const night = themeVar('--night','#7B7FB0');
+  const wisteria = themeVar('--wisteria','#9584C2');
 
   function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
   function blob(cx,cy,r,color,a){
@@ -2808,6 +2827,63 @@ async function generateYearSummaryCanvas(year){
     while(t.length>1 && ctx.measureText(t+'…').width > maxWidth) t = t.slice(0,-1);
     return t+'…';
   }
+  function pillBadge(rightX, topY, text, bgColor, textColor){
+    ctx.font = '700 22px "Noto Sans TC"';
+    const tw = ctx.measureText(text).width;
+    const padX = 14, h = 34;
+    const w = tw + padX*2;
+    const x = rightX - w;
+    ctx.fillStyle = bgColor;
+    roundRectPath(x, topY, w, h, h/2);
+    ctx.fill();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = textColor;
+    ctx.fillText(text, x+w/2, topY+h/2+1);
+    ctx.textBaseline = 'alphabetic';
+  }
+  function sakuraFlower(cx, cy, r, color, alpha, rotation){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rotation||0);
+    ctx.fillStyle = hx(color, alpha);
+    for(let i=0;i<5;i++){
+      ctx.save();
+      ctx.rotate((Math.PI*2/5)*i);
+      ctx.beginPath();
+      ctx.ellipse(0, -r*0.55, r*0.4, r*0.62, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.beginPath();
+    ctx.arc(0,0,r*0.16,0,Math.PI*2);
+    ctx.fillStyle = hx(color, Math.min(1, alpha+0.12));
+    ctx.fill();
+    ctx.restore();
+  }
+  function handDrawnSwirl(x, y, len, color, alpha, rotation){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(rotation||0);
+    ctx.strokeStyle = hx(color, alpha);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.quadraticCurveTo(len*0.42, -len*0.48, len, -len*0.08);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function miniAccent(cx, cy, glyph, color, alpha, size){
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `${size}px "Zen Maru Gothic"`;
+    ctx.fillStyle = hx(color, alpha);
+    ctx.fillText(glyph, cx, cy);
+    ctx.restore();
+    ctx.textBaseline = 'alphabetic';
+  }
 
   // 背景（先鋪滿預留高度，最後會依實際內容裁切）
   const bgGrad = ctx.createLinearGradient(0,0,0,MAXH);
@@ -2817,24 +2893,45 @@ async function generateYearSummaryCanvas(year){
   ctx.fillRect(0,0,W,MAXH);
   blob(90,120,340,sakura,0.55);
   blob(1010,200,300,rose,0.30);
+  // 四角手繪風花瓣裝飾（頂部兩角）
+  sakuraFlower(44, 40, 22, rose, 0.20, -0.3);
+  handDrawnSwirl(64, 56, 42, roseDeep, 0.16, 0.5);
+  sakuraFlower(W-44, 38, 20, gold, 0.18, 0.6);
 
   let y = 110;
   ctx.textBaseline = 'alphabetic';
 
-  // 頂部品牌列
+  // 頂部品牌列（置中 + 分隔點）
+  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し手帳';
+  const yearLabelText = `${year} 年度回顧`;
+  const dotGap = 18, dotR = 4;
+  ctx.font = '700 32px "Zen Maru Gothic"';
+  const brandW = ctx.measureText(truncate(brandText, CW*0.55)).width;
+  const brandDisplay = truncate(brandText, CW*0.55);
+  ctx.font = '500 26px "Noto Sans TC"';
+  const yearLabelW = ctx.measureText(yearLabelText).width;
+  const brandRowW = brandW + dotGap*2 + dotR*2 + yearLabelW;
+  let bx = W/2 - brandRowW/2;
   ctx.textAlign = 'left';
   ctx.font = '700 32px "Zen Maru Gothic"';
   ctx.fillStyle = ink;
-  ctx.fillText('🌸 推し手帳', PAD, y);
-  ctx.textAlign = 'right';
+  ctx.fillText(brandDisplay, bx, y);
+  bx += brandW + dotGap;
+  ctx.fillStyle = inkFaint;
+  ctx.beginPath();
+  ctx.arc(bx+dotR, y-10, dotR, 0, Math.PI*2);
+  ctx.fill();
+  bx += dotR*2 + dotGap;
   ctx.font = '500 26px "Noto Sans TC"';
   ctx.fillStyle = inkSoft;
-  ctx.fillText(`${year} 年度回顧`, W-PAD, y-2);
+  ctx.fillText(yearLabelText, bx, y-2);
   y += 90;
 
-  // 標題
+  // 標題（實色疊字營造立體感，不用模糊陰影避免糊出髒感）
   ctx.textAlign = 'center';
   ctx.font = '900 130px "Zen Maru Gothic"';
+  ctx.fillStyle = hx(roseDeep, 0.28);
+  ctx.fillText(String(year), W/2, y+116);
   ctx.fillStyle = roseDeep;
   ctx.fillText(String(year), W/2, y+110);
   y += 150;
@@ -2856,12 +2953,12 @@ async function generateYearSummaryCanvas(year){
   const scH = 190, scGap = 28;
   const scW = (CW - scGap*2)/3;
   [
-    { v:s.concertCount, l:'演唱會場次' },
-    { v:s.totalEventCount, l:'總參戰次數' },
-    { v:s.photocardCount, l:'新增小卡' }
+    { v:s.concertCount, l:'演唱會場次', d:yoy.concertCount },
+    { v:s.totalEventCount, l:'總參戰次數', d:yoy.totalEventCount },
+    { v:s.photocardCount, l:'新增小卡', d:yoy.photocardCount }
   ].forEach((st,i)=>{
     const x = PAD + i*(scW+scGap);
-    card(x, y, scW, scH, 26, surface);
+    card(x, y, scW, scH, 32, surface);
     ctx.textAlign = 'center';
     ctx.fillStyle = roseDeep;
     ctx.font = '900 66px "Zen Maru Gothic"';
@@ -2869,11 +2966,24 @@ async function generateYearSummaryCanvas(year){
     ctx.fillStyle = inkSoft;
     ctx.font = '500 25px "Noto Sans TC"';
     ctx.fillText(st.l, x+scW/2, y+150);
+    if(yoy.prevHasData){
+      const up = st.d>0, down = st.d<0;
+      const badgeText = up ? `▲${st.d}` : down ? `▼${Math.abs(st.d)}` : '→ 持平';
+      const badgeColor = up ? matcha : down ? night : inkSoft;
+      pillBadge(x+scW-14, y+14, badgeText, hx(badgeColor,0.15), badgeColor);
+    }
   });
+  if(yoy.prevHasData){
+    ctx.textAlign = 'right';
+    ctx.font = '700 24px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(`🔁 較 ${yoy.prevYear} 年`, PAD+CW, y-14);
+  }
   y += scH + 40;
+  miniAccent(PAD+22, y-20, '✦', gold, 0.45, 26);
 
   // 年度總支出（大卡片強調）
-  const exH = 210;
+  const exH = yoy.prevHasData ? 254 : 210;
   ctx.save();
   ctx.shadowColor = 'rgba(193,91,121,0.35)';
   ctx.shadowBlur = 40;
@@ -2882,7 +2992,7 @@ async function generateYearSummaryCanvas(year){
   grad.addColorStop(0, roseDeep);
   grad.addColorStop(1, rose);
   ctx.fillStyle = grad;
-  roundRectPath(PAD,y,CW,exH,30);
+  roundRectPath(PAD,y,CW,exH,36);
   ctx.fill();
   ctx.restore();
   ctx.textAlign = 'center';
@@ -2892,7 +3002,22 @@ async function generateYearSummaryCanvas(year){
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '900 78px "Zen Maru Gothic"';
   ctx.fillText(`NT$ ${Math.round(s.totalExpense).toLocaleString()}`, W/2, y+156);
+  if(yoy.prevHasData){
+    const up = yoy.expenseDiff>0, down = yoy.expenseDiff<0;
+    const absAmt = Math.abs(Math.round(yoy.expenseDiff)).toLocaleString();
+    let pctText = '';
+    if(yoy.expensePrev>0){
+      const pct = Math.round(Math.abs(yoy.expenseDiff)/yoy.expensePrev*100);
+      pctText = `・${pct}%`;
+    }
+    const arrow = up ? '▲' : down ? '▼' : '→';
+    const line = (up || down) ? `${arrow} 較 ${yoy.prevYear} 年 NT$ ${absAmt}${pctText}` : `→ 與 ${yoy.prevYear} 年持平`;
+    ctx.font = '500 27px "Noto Sans TC"';
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillText(line, W/2, y+202);
+  }
   y += exH + 40;
+  miniAccent(W-PAD-22, y-20, '♪', wisteria, 0.4, 24);
 
   // 資訊列卡片（最常紀錄的藝人／最常消費類別／被翻牌次數）
   const rows = [];
@@ -2902,7 +3027,7 @@ async function generateYearSummaryCanvas(year){
   if(rows.length){
     const rowH = 80;
     const infoH = rows.length*rowH + 44;
-    card(PAD, y, CW, infoH, 26, surface);
+    card(PAD, y, CW, infoH, 32, surface);
     rows.forEach((r,i)=>{
       const ry = y + 44 + i*rowH + rowH/2;
       ctx.textAlign = 'left';
@@ -2925,27 +3050,64 @@ async function generateYearSummaryCanvas(year){
     y += infoH + 40;
   }
 
-  // 消費類別分布橫條圖
+  // 消費類別分布（含圓餅縮圖＋百分比橫條圖）
   const cats = s.categoryBreakdown.slice(0,5);
   if(cats.length){
-    const barRowH = 84;
-    const catH = 60 + cats.length*barRowH + 20;
-    card(PAD, y, CW, catH, 26, surface);
+    const barRowH = 84, headerH = 212;
+    const catH = headerH + cats.length*barRowH + 20;
+    card(PAD, y, CW, catH, 32, surface);
     ctx.textAlign = 'left';
     ctx.font = '700 30px "Zen Maru Gothic"';
     ctx.fillStyle = ink;
     ctx.fillText('消費類別分布', PAD+36, y+58);
+    ctx.font = '400 22px "Noto Sans TC"';
+    ctx.fillStyle = inkSoft;
+    ctx.fillText(`共 ${s.categoryBreakdown.length} 個類別`, PAD+36, y+92);
+
+    // 圓餅縮圖
+    const donutR = 56, donutInnerR = 45;
+    const donutCX = PAD+CW-140, donutCY = y+96;
+    const donutTotal = s.categoryBreakdown.reduce((sum,c)=>sum+c.amount,0);
+    let angleStart = -Math.PI/2;
+    s.categoryBreakdown.forEach((c,i)=>{
+      const frac = donutTotal>0 ? c.amount/donutTotal : 0;
+      const angle = frac*Math.PI*2;
+      ctx.beginPath();
+      ctx.moveTo(donutCX,donutCY);
+      ctx.arc(donutCX,donutCY,donutR,angleStart,angleStart+angle);
+      ctx.closePath();
+      ctx.fillStyle = chartColorAt(i);
+      ctx.fill();
+      angleStart += angle;
+    });
+    ctx.fillStyle = surface;
+    ctx.beginPath();
+    ctx.arc(donutCX,donutCY,donutInnerR,0,Math.PI*2);
+    ctx.fill();
+    if(s.topCategory && donutTotal>0){
+      const topPct = Math.round(s.topCategory.amount/donutTotal*100);
+      ctx.textAlign = 'center';
+      ctx.font = '900 25px "Zen Maru Gothic"';
+      ctx.fillStyle = roseDeep;
+      ctx.fillText(`${topPct}%`, donutCX, donutCY+9);
+    }
+
     cats.forEach((c,i)=>{
-      const ry = y + 96 + i*barRowH;
+      const ry = y + headerH + i*barRowH;
       const pct = s.totalExpense>0 ? c.amount/s.totalExpense : 0;
       const color = chartColorAt(i);
+      ctx.beginPath();
+      ctx.arc(PAD+36+8, ry-9, 8, 0, Math.PI*2);
+      ctx.fillStyle = color;
+      ctx.fill();
       ctx.font = '500 26px "Noto Sans TC"';
       ctx.fillStyle = ink;
       ctx.textAlign = 'left';
-      ctx.fillText(truncate(c.name, CW-400), PAD+36, ry);
+      ctx.fillText(truncate(c.name, CW-460), PAD+36+28, ry);
       ctx.textAlign = 'right';
       ctx.fillStyle = inkSoft;
-      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()}`, PAD+CW-36, ry);
+      ctx.font = '500 25px "Noto Sans TC"';
+      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()} ・ ${Math.round(pct*100)}%`, PAD+CW-36, ry);
       const trackY = ry + 18;
       const trackW = CW - 72;
       ctx.fillStyle = sakuraPale;
@@ -2958,7 +3120,7 @@ async function generateYearSummaryCanvas(year){
     y += catH + 40;
   } else {
     const emptyH = 140;
-    card(PAD, y, CW, emptyH, 26, surface);
+    card(PAD, y, CW, emptyH, 32, surface);
     ctx.textAlign = 'center';
     ctx.font = '500 28px "Noto Sans TC"';
     ctx.fillStyle = inkSoft;
@@ -2967,6 +3129,9 @@ async function generateYearSummaryCanvas(year){
   }
 
   // 底部裝飾與品牌落款（位置依實際內容高度而定）
+  sakuraFlower(46, y+20, 20, sakura, 0.22, 0.4);
+  handDrawnSwirl(66, y+36, 38, rose, 0.16, -0.4);
+  sakuraFlower(W-46, y+18, 18, gold, 0.18, -0.5);
   blob(70, y+120, 260, gold, 0.20);
   blob(1010, y+150, 240, sakura, 0.32);
   ctx.textAlign = 'center';
@@ -2974,7 +3139,7 @@ async function generateYearSummaryCanvas(year){
   ctx.fillStyle = inkSoft;
   ctx.fillText('🌸 推し手帳 · 記錄你的追星日常', W/2, y+70);
   ctx.font = '400 20px "Noto Sans TC"';
-  ctx.fillStyle = inkFaint;
+  ctx.fillStyle = inkSoft;
   ctx.fillText(`產生於 ${todayStr()}`, W/2, y+108);
 
   const finalH = Math.min(MAXH, y + 160);
