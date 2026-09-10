@@ -8474,6 +8474,10 @@ function openProfileForm(){
         <button type="button" class="seg-btn ${state.profile.bgMusicEnabled!==false?'active':''}" data-val="on">🔊 開啟</button>
         <button type="button" class="seg-btn ${state.profile.bgMusicEnabled===false?'active':''}" data-val="off">🔇 關閉</button>
       </div>
+      <div class="seg-toggle" id="bgMusicOrderToggle" style="margin-top:8px;">
+        <button type="button" class="seg-btn ${!state.profile.bgMusicShuffle?'active':''}" data-val="seq">🔁 順序播放</button>
+        <button type="button" class="seg-btn ${state.profile.bgMusicShuffle?'active':''}" data-val="shuffle">🔀 隨機播放</button>
+      </div>
       <div id="playlistManageList" style="margin-top:10px;">
         ${state.playlist.length===0 ? `<div style="font-size:12px;color:var(--ink-soft);">還沒有加入任何歌曲</div>` : state.playlist.map(p=>`
         <div class="cat-manage-row" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
@@ -8529,6 +8533,13 @@ function openProfileForm(){
       document.getElementById('bgMusicToggle').querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
       await saveKey('oshi-profile', state.profile);
       if(state.profile.bgMusicEnabled){ setupBgMusic(); } else { stopBgMusic(); }
+    });
+  });
+  document.getElementById('bgMusicOrderToggle').querySelectorAll('.seg-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.profile.bgMusicShuffle = btn.dataset.val==='shuffle';
+      document.getElementById('bgMusicOrderToggle').querySelectorAll('.seg-btn').forEach(b=>b.classList.toggle('active', b===btn));
+      await saveKey('oshi-profile', state.profile);
     });
   });
   document.getElementById('playlistAddBtn').addEventListener('click', async ()=>{
@@ -8797,6 +8808,18 @@ function getPlayablePlaylist(){
 function isBgMusicEnabled(){
   return state.profile && state.profile.bgMusicEnabled!==false;
 }
+function isBgMusicShuffle(){
+  return !!(state.profile && state.profile.bgMusicShuffle);
+}
+/* 依目前是否開啟隨機播放，決定下一首要播的 index。
+   隨機模式下會避免連續兩次選到同一首（清單超過 1 首時）。 */
+function pickNextBgIndex(currentIndex, listLength){
+  if(listLength<=1) return 0;
+  if(!isBgMusicShuffle()) return (currentIndex+1)%listLength;
+  let idx;
+  do{ idx = Math.floor(Math.random()*listLength); }while(idx===currentIndex);
+  return idx;
+}
 function loadYouTubeIframeApi(){
   if(window.YT && window.YT.Player){ onYouTubeIframeAPIReady(); return; }
   if(ytApiRequested) return;
@@ -8812,7 +8835,7 @@ function initYtPlayer(){
   if(ytPlayer || !window.YT || !window.YT.Player) return;
   const list = getPlayablePlaylist();
   if(list.length===0) return;
-  ytCurrentIndex = 0;
+  ytCurrentIndex = isBgMusicShuffle() ? Math.floor(Math.random()*list.length) : 0;
   ytPlayer = new YT.Player('ytBgPlayer', {
     height:'1', width:'1',
     videoId: list[0].videoId,
@@ -8827,7 +8850,7 @@ function initYtPlayer(){
 function playNextBgTrack(){
   const list = getPlayablePlaylist();
   if(list.length===0 || !ytPlayer || !ytPlayer.loadVideoById) return;
-  ytCurrentIndex = (ytCurrentIndex+1) % list.length;
+  ytCurrentIndex = pickNextBgIndex(ytCurrentIndex, list.length);
   ytPlayer.loadVideoById(list[ytCurrentIndex].videoId);
 }
 function tryStartBgMusic(){
