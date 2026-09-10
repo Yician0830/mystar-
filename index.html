@@ -8481,18 +8481,18 @@ function openProfileForm(){
       <div id="playlistManageList" style="margin-top:10px;">
         ${state.playlist.length===0 ? `<div style="font-size:12px;color:var(--ink-soft);">還沒有加入任何歌曲</div>` : state.playlist.map(p=>`
         <div class="cat-manage-row" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);">
-          <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">🎵 ${esc(p.title || '未命名歌曲')}</span>
+          <span style="font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.playlistId?'📃':'🎵'} ${esc(p.title || (p.playlistId?'YouTube 播放清單':'未命名歌曲'))}</span>
           <button type="button" class="icon-btn del playlist-del-btn" data-id="${esc(p.id)}" title="刪除" aria-label="刪除">🗑</button>
         </div>`).join('')}
       </div>
       <div style="display:flex;gap:6px;margin-top:8px;">
-        <input type="text" id="playlistNewTitle" placeholder="歌曲名稱（選填）" style="flex:1;min-width:0;">
+        <input type="text" id="playlistNewTitle" placeholder="名稱（選填）" style="flex:1;min-width:0;">
       </div>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <input type="url" id="playlistNewUrl" placeholder="貼上 YouTube 連結" style="flex:1;min-width:0;">
+        <input type="url" id="playlistNewUrl" placeholder="貼上 YouTube 影片或播放清單連結" style="flex:1;min-width:0;">
         <button type="button" class="btn ghost" id="playlistAddBtn" style="flex-shrink:0;">➕ 加入</button>
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">加入歌曲後，打開手帳會依序輪播播放清單裡的歌曲（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">支援單一影片連結，也支援整份 YouTube 播放清單連結（例如 youtube.com/playlist?list=... ）—— 加入整份清單後，會依序（或隨機）播放清單裡的每一首歌。加入歌曲後，打開手帳會自動輪播播放清單裡的內容（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
     </div>
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
@@ -8548,10 +8548,13 @@ function openProfileForm(){
     const url = urlInput.value.trim();
     const title = titleInput.value.trim();
     const videoId = extractYouTubeId(url);
-    if(!videoId){ showToast('請貼上有效的 YouTube 連結'); return; }
-    state.playlist.push({ id:'pl_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), title, url, videoId });
+    const playlistId = videoId ? '' : extractYouTubePlaylistId(url);
+    if(!videoId && !playlistId){ showToast('請貼上有效的 YouTube 影片或播放清單連結'); return; }
+    const item = { id:'pl_'+Date.now()+'_'+Math.random().toString(36).slice(2,7), title, url };
+    if(videoId){ item.videoId = videoId; } else { item.playlistId = playlistId; }
+    state.playlist.push(item);
     await saveKey('oshi-playlist', state.playlist);
-    showToast('已加入播放清單');
+    showToast(playlistId ? '已加入整份播放清單' : '已加入播放清單');
     openProfileForm();
     setupBgMusic();
   });
@@ -8802,8 +8805,15 @@ function extractYouTubeId(url){
   const m = String(url).match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
   return m ? m[1] : '';
 }
+/* 解析 YouTube 播放清單連結（例如 youtube.com/playlist?list=PLxxxx，
+   或分享時常見的 youtube.com/watch?v=xxx&list=PLxxxx&si=...）裡的 list 參數 */
+function extractYouTubePlaylistId(url){
+  if(!url) return '';
+  const m = String(url).match(/[?&]list=([A-Za-z0-9_-]+)/);
+  return m ? m[1] : '';
+}
 function getPlayablePlaylist(){
-  return (state.playlist||[]).filter(p=>p && p.videoId);
+  return (state.playlist||[]).filter(p=>p && (p.videoId || p.playlistId));
 }
 function isBgMusicEnabled(){
   return state.profile && state.profile.bgMusicEnabled!==false;
@@ -8811,8 +8821,8 @@ function isBgMusicEnabled(){
 function isBgMusicShuffle(){
   return !!(state.profile && state.profile.bgMusicShuffle);
 }
-/* 依目前是否開啟隨機播放，決定下一首要播的 index。
-   隨機模式下會避免連續兩次選到同一首（清單超過 1 首時）。 */
+/* 依目前是否開啟隨機播放，決定「清單裡下一個項目」的 index（項目可能是單曲，也可能是一整份 YouTube 播放清單）。
+   隨機模式下會避免連續兩次選到同一個項目（清單超過 1 項時）。 */
 function pickNextBgIndex(currentIndex, listLength){
   if(listLength<=1) return 0;
   if(!isBgMusicShuffle()) return (currentIndex+1)%listLength;
@@ -8838,20 +8848,55 @@ function initYtPlayer(){
   ytCurrentIndex = isBgMusicShuffle() ? Math.floor(Math.random()*list.length) : 0;
   ytPlayer = new YT.Player('ytBgPlayer', {
     height:'1', width:'1',
-    videoId: list[0].videoId,
     playerVars:{ autoplay:0, controls:0, disablekb:1, playsinline:1, modestbranding:1, rel:0 },
     events:{
-      onReady: function(){ ytPlayerReady = true; tryStartBgMusic(); },
-      onStateChange: function(e){ if(e.data===YT.PlayerState.ENDED){ playNextBgTrack(); } },
+      onReady: function(){ ytPlayerReady = true; cueQueueEntry(ytCurrentIndex, false); tryStartBgMusic(); },
+      onStateChange: onYtBgStateChange,
       onError: function(){ playNextBgTrack(); }
     }
   });
 }
+/* 把「清單裡第 index 個項目」載入播放器。項目若是整份 YouTube 播放清單，就用播放清單模式播放
+   （並依目前的隨機播放設定套用 YouTube 自己的隨機播放）；若是單一影片，就直接載入該影片。
+   autoplay=false 用 cue（先載入但不播放，配合稍後手動 playVideo），autoplay=true 用 load（載入後直接播放）。 */
+function cueQueueEntry(index, autoplay){
+  const list = getPlayablePlaylist();
+  if(list.length===0 || !ytPlayer) return;
+  const entry = list[index];
+  if(!entry) return;
+  if(entry.playlistId){
+    const opts = { list: entry.playlistId, listType:'playlist', index:0 };
+    if(autoplay && ytPlayer.loadPlaylist){ ytPlayer.loadPlaylist(opts); }
+    else if(ytPlayer.cuePlaylist){ ytPlayer.cuePlaylist(opts); }
+    if(ytPlayer.setShuffle) ytPlayer.setShuffle(isBgMusicShuffle());
+  } else if(entry.videoId){
+    if(autoplay && ytPlayer.loadVideoById){ ytPlayer.loadVideoById(entry.videoId); }
+    else if(ytPlayer.cueVideoById){ ytPlayer.cueVideoById(entry.videoId); }
+  }
+}
+/* 播放清單項目（整份 YouTube 播放清單）播完某一首時，YouTube 會自動接播清單裡下一首，
+   我們不用介入；只有播到「這份 YouTube 播放清單的最後一首」播完時，才換到我們自己清單的下一個項目。
+   單一影片項目播完就直接換下一個項目。 */
+function onYtBgStateChange(e){
+  if(e.data!==YT.PlayerState.ENDED) return;
+  const list = getPlayablePlaylist();
+  const entry = list[ytCurrentIndex];
+  if(entry && entry.playlistId && ytPlayer.getPlaylist && ytPlayer.getPlaylistIndex){
+    try{
+      const ytList = ytPlayer.getPlaylist();
+      const ytIdx = ytPlayer.getPlaylistIndex();
+      if(ytList && ytIdx===ytList.length-1){ playNextBgTrack(); }
+      // 不是最後一首的話，YouTube 會自動接下一首，這裡不用做任何事
+    }catch(err){ playNextBgTrack(); }
+  } else {
+    playNextBgTrack();
+  }
+}
 function playNextBgTrack(){
   const list = getPlayablePlaylist();
-  if(list.length===0 || !ytPlayer || !ytPlayer.loadVideoById) return;
+  if(list.length===0 || !ytPlayer) return;
   ytCurrentIndex = pickNextBgIndex(ytCurrentIndex, list.length);
-  ytPlayer.loadVideoById(list[ytCurrentIndex].videoId);
+  cueQueueEntry(ytCurrentIndex, true);
 }
 function tryStartBgMusic(){
   if(!ytPlayer || !ytPlayerReady || !ytPlayer.playVideo) return;
