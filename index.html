@@ -371,7 +371,9 @@
   .home-stat-grid .stat-card{
     transition:transform 0.15s, box-shadow 0.15s;
   }
+  .home-stat-grid .stat-card{ cursor:pointer; }
   .home-stat-grid .stat-card:hover{ transform:translateY(-2px); box-shadow:var(--shadow); }
+  .home-stat-grid .stat-card:focus-visible{ outline:2px solid var(--rose-deep); outline-offset:2px; }
   .home-stat-grid .stat-icon{ font-size:15px; margin-bottom:3px; opacity:0.9; }
   .home-stat-grid .stat-card.c-sched{ background:var(--sakura-pale); }
   .home-stat-grid .stat-card.c-pc{ background:var(--matcha-pale); }
@@ -544,6 +546,7 @@
   .cal-filter-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700;}
   .cal-filter-btn.qualify{ background:var(--sakura-pale); border-color:var(--sakura-pale); color:var(--rose-deep); font-weight:700;}
   .cal-filter-btn.qualify.active{ background:var(--rose-deep); border-color:var(--rose-deep); color:#fff;}
+  .cal-filter-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
   .artist-multiselect{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px; }
   .artist-toggle-btn{
     padding:7px 14px; border-radius:999px;
@@ -2252,7 +2255,7 @@ function openPendingUploadsModal(){
       <div style="display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow-y:auto;">
         ${cur.map((p,i)=>`
           <div class="card" style="margin-bottom:0;padding:10px 12px;display:flex;align-items:center;gap:10px;">
-            <img src="${p.url}" loading="lazy" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;">
+            <img src="${p.url}" alt="${esc(p.label||'待上傳照片')}" loading="lazy" style="width:52px;height:52px;object-fit:cover;border-radius:10px;flex-shrink:0;">
             <div style="flex:1;min-width:0;">
               <div class="card-title" style="font-size:13px;">${esc(p.label)}</div>
               <div class="card-meta">${p.tab==='expense'?'記帳':'應援'}</div>
@@ -2830,6 +2833,17 @@ function availableSummaryYears(){
 function renderYearRecapBlock(){
   const year = todayStr().slice(0,4);
   const s = computeYearSummary(year);
+  const hasData = s.totalEventCount>0 || s.photocardCount>0 || s.totalExpense>0;
+  if(!hasData){
+    return `
+    <div class="recap-card">
+      <div class="recap-head">
+        <div class="recap-title maru">🌸 歡迎使用追星手帳</div>
+        <div class="recap-sub">還沒有任何紀錄，從第一筆行程開始寫下你的追星旅程吧</div>
+      </div>
+      <button class="recap-btn" data-goto="schedule">新增第一筆行程 →</button>
+    </div>`;
+  }
   return `
   <div class="recap-card">
     <div class="recap-head">
@@ -3696,7 +3710,7 @@ function showYsShareModal(year, cache, activeFormat, activeTheme){
       ${YS_THEME_SWATCHES.map(t=>`<button type="button" class="theme-swatch ${activeTheme===t.id?'active':''}" data-theme="${t.id}" style="background:${t.swatch};" title="${esc(t.label)}"></button>`).join('')}
     </div>
     <div style="border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); max-height:50vh; overflow-y:auto; background:var(--bg-deep);">
-      <img src="${dataUrl}" style="width:100%; display:block;">
+      <img src="${dataUrl}" alt="${esc(String(year))} 年度總結分享圖預覽" style="width:100%; display:block;">
     </div>
     <div class="modal-actions" style="flex-wrap:wrap;">
       <button class="btn ghost" id="ysShareCloseBtn" style="flex:1;">關閉</button>
@@ -3901,13 +3915,13 @@ function renderHomeOverviewBlock(){
   const scopeLabel = scopeIsMonth ? `${o.month.replace('-','年')}月` : `${o.year}年`;
 
   const barsHtml = artistTotals.length===0
-    ? `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">${scopeLabel}還沒有花費紀錄</span></div>`
+    ? `<div class="mini-row" style="justify-content:center;"><span class="l" style="color:var(--ink-soft); font-size:13px;">📊 ${scopeLabel}還沒有花費紀錄</span></div>`
     : artistTotals.map(a=>{
         const pct = total>0 ? Math.round(a.amount/total*100) : 0;
-        const color = chipColor(a.name);
+        const barColor = artistChipColor(a.name);
         return `<div class="ys-cat-row">
           <div class="ys-cat-top"><span>${esc(a.name)}</span><span>NT$ ${Math.round(a.amount).toLocaleString()}</span></div>
-          <div class="ys-cat-track"><div class="ys-cat-fill" style="width:${pct}%; background:${color.fg};"></div></div>
+          <div class="ys-cat-track"><div class="ys-cat-fill" style="width:${pct}%; background:${barColor};"></div></div>
         </div>`;
       }).join('');
 
@@ -3934,7 +3948,7 @@ function renderHomeExpenseThumb(item){
   const title = item.name || item.item || '（未命名）';
   return `
   <div class="home-thumb-card">
-    <div class="home-thumb-pic" style="${cover ? '' : `background:${c.bg};color:${c.fg};`}">${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.removeAttribute('style');this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
+    <div class="home-thumb-pic" style="${cover ? '' : `background:${c.bg};color:${c.fg};`}">${cover ? `<img src="${esc(cover)}" alt="${esc(title)}" loading="lazy" onerror="this.parentElement.removeAttribute('style');this.parentElement.textContent='${catIcon}'">` : catIcon}</div>
     <div class="home-thumb-info">
       <div class="home-thumb-title">${esc(title)}</div>
       <div class="home-thumb-meta">${fmtDate(item.date)}${item.category ? ' · '+esc(item.category) : ''}</div>
@@ -3988,10 +4002,10 @@ function renderHome(){
     </div>
 
     <div class="stat-grid home-stat-grid">
-      <div class="stat-card c-sched"><div class="stat-icon">🗓️</div><div class="num">${state.schedule.length}</div><div class="lbl">總行程</div></div>
-      <div class="stat-card c-pc"><div class="stat-icon">🎴</div><div class="num">${state.photocards.length}</div><div class="lbl">小卡收藏</div></div>
-      <div class="stat-card c-support"><div class="stat-icon">📣</div><div class="num">${state.support.length}</div><div class="lbl">應援紀錄</div></div>
-      <div class="stat-card c-flip"><div class="stat-icon">💌</div><div class="num">${state.fanlog.filter(f=>f.isFlipped).length}</div><div class="lbl">被翻牌</div></div>
+      <div class="stat-card c-sched" data-goto="schedule" role="button" tabindex="0"><div class="stat-icon">🗓️</div><div class="num" data-count="${state.schedule.length}">0</div><div class="lbl">總行程</div></div>
+      <div class="stat-card c-pc" data-goto="photocards" role="button" tabindex="0"><div class="stat-icon">🎴</div><div class="num" data-count="${state.photocards.length}">0</div><div class="lbl">小卡收藏</div></div>
+      <div class="stat-card c-support" data-goto="support" role="button" tabindex="0"><div class="stat-icon">📣</div><div class="num" data-count="${state.support.length}">0</div><div class="lbl">應援紀錄</div></div>
+      <div class="stat-card c-flip" data-goto="fanlog" role="button" tabindex="0"><div class="stat-icon">💌</div><div class="num" data-count="${state.fanlog.filter(f=>f.isFlipped).length}">0</div><div class="lbl">被翻牌</div></div>
     </div>
 
     ${renderYearRecapBlock()}
@@ -4006,7 +4020,7 @@ function renderHome(){
         <path d="M104 86 C104 91 108 95 113 95 C108 95 104 99 104 104 C104 99 100 95 95 95 C100 95 104 91 104 86 Z" fill="var(--gold)"/>
       </svg>
       <div class="oshi-top">
-        ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
+        ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" alt="${esc(oshi.name)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
         <div>
           <div style="font-size:11px;color:var(--rose-deep);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
           <div class="name">${esc(oshi.name)}</div>
@@ -4038,7 +4052,7 @@ function renderHome(){
   main += `<div class="home-block">
     <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule">查看全部</a></div>`;
   if(topDdayItems.length===0){
-    main += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">目前沒有排定行程</span></div>`;
+    main += `<div class="mini-row" style="justify-content:center;"><span class="l" style="color:var(--ink-soft); font-size:13px;">📅 目前沒有排定行程</span></div>`;
   } else {
     main += `<div class="bday-grid">`;
     topDdayItems.forEach(it=>{
@@ -4083,7 +4097,7 @@ function renderHome(){
   side += `<div class="home-block">
     <div class="block-head"><h3>📖 最新追星紀錄</h3><a data-goto="fanlog">查看全部</a></div>`;
   if(recentLog.length===0){
-    side += `<div class="mini-row"><span class="l" style="color:var(--ink-faint)">最近一個月還沒有寫下任何紀錄</span></div>`;
+    side += `<div class="mini-row" style="justify-content:center;"><span class="l" style="color:var(--ink-soft); font-size:13px;">📖 最近一個月還沒有寫下任何紀錄</span></div>`;
   } else {
     recentLog.forEach(f=>{ side += renderHomeFanlogThumb(f); });
   }
@@ -4094,6 +4108,11 @@ function renderHome(){
 function bindHomeLinks(){
   document.querySelectorAll('[data-goto]').forEach(a=>{
     a.addEventListener('click', ()=>{ state.tab = a.dataset.goto; render(); });
+    if(a.getAttribute('role')==='button'){
+      a.addEventListener('keydown', (e)=>{
+        if(e.key==='Enter' || e.key===' '){ e.preventDefault(); state.tab = a.dataset.goto; render(); }
+      });
+    }
   });
   document.querySelectorAll('[data-open-year-summary]').forEach(btn=>{
     btn.addEventListener('click', ()=> openYearSummaryModal(btn.dataset.openYearSummary));
@@ -4107,6 +4126,29 @@ function bindHomeLinks(){
       });
     });
   }
+  animateHomeCounts();
+}
+
+/* 首頁統計數字進場時由 0 數到實際值，增加一點活潑感；
+   尊重使用者的「減少動態效果」系統設定，此時直接顯示最終數字不做動畫 */
+function animateHomeCounts(){
+  const nums = document.querySelectorAll('.home-stat-grid .num[data-count]');
+  if(nums.length===0) return;
+  const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const duration = 600;
+  nums.forEach(el=>{
+    const target = parseInt(el.dataset.count, 10) || 0;
+    if(prefersReduced || target===0){ el.textContent = target; return; }
+    const start = performance.now();
+    function tick(now){
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out
+      el.textContent = Math.round(target * eased);
+      if(progress < 1) requestAnimationFrame(tick);
+      else el.textContent = target;
+    }
+    requestAnimationFrame(tick);
+  });
 }
 
 /* ================= Generic list ================= */
@@ -4606,7 +4648,7 @@ function renderExpenseCard(item){
   <div class="card exp-card" style="border-left-color:${catColor.fg};">
     <div class="exp-row">
       <div class="exp-thumb" style="background:linear-gradient(135deg, ${catColor.bg}, var(--wisteria-pale));">
-        ${cover ? `<img src="${esc(cover)}" loading="lazy" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
+        ${cover ? `<img src="${esc(cover)}" alt="${esc(item.name||item.item||'記帳項目照片')}" loading="lazy" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
       </div>
       <div class="exp-info">
         <div class="exp-badges">
@@ -4972,7 +5014,7 @@ function renderExpImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + expImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" alt="已上傳照片預覽 ${idx+1}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="exp-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.exp-img-remove').forEach(btn=>{
@@ -5075,10 +5117,27 @@ function ensureCalMonth(){
 /* 月曆行程配色改成「依藝人」— 同一位藝人在月曆、清單、記帳圖表都用同一個顏色（跟花費排行的 chipColor 共用同一份色票），
    沒有填藝人的行程統一用中性灰，不會硬湊一個看起來有意義、其實沒意義的顏色 */
 const SCHEDULE_NEUTRAL_COLOR = '#8C98A4';
+/* 藝人專屬色票：色相盡量拉開（紅／藍／橘／綠／紫／洋紅／草綠／靛／棕／灰／天藍／陶土橘），
+   避免像 CHIP_PALETTE 裡兩種紫色系（靛藍 #4F4A8C 與紫 #6E5A96）放在一起容易被誤認成同一色 */
+const ARTIST_COLOR_PALETTE = [
+  '#B2465F', '#2F5A73', '#9C5A17', '#2F6B62', '#6E5A96',
+  '#8C4468', '#5F7A45', '#4F4A8C', '#8C6B22', '#5C5850',
+  '#3D6F94', '#A15D3B'
+];
+/* 依「藝人資料建立的順序」（沿用 scheduleArtistOptions 的順序）分配顏色，
+   只要藝人數不超過色票數，每個人保證拿到不同顏色，不會像純字串雜湊那樣偶爾撞色。
+   如果行程/記帳上填的名字不在藝人清單裡（手動打字、沒對應到藝人資料），才退回原本的雜湊配色當備援。 */
+function artistChipColor(name){
+  if(!name) return chipColor(name).fg;
+  const known = scheduleArtistOptions();
+  const idx = known.indexOf(name);
+  if(idx===-1) return chipColor(name).fg;
+  return ARTIST_COLOR_PALETTE[idx % ARTIST_COLOR_PALETTE.length];
+}
 function scheduleEventColor(ev){
   const name = (ev.artist && ev.artist.trim()) ? ev.artist.trim() : '';
   if(!name) return SCHEDULE_NEUTRAL_COLOR;
-  return chipColor(name).fg;
+  return artistChipColor(name);
 }
 
 function renderScheduleTab(){
@@ -5096,7 +5155,7 @@ function renderScheduleTab(){
 
   html += `<div class="cal-filter-row">
     <button class="cal-filter-btn ${scheduleArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部行程</button>
-    ${artistNames.map(n=>`<button class="cal-filter-btn ${scheduleArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+    ${artistNames.map(n=>`<button class="cal-filter-btn ${scheduleArtistFilter===n?'active':''}" data-filter="${esc(n)}"><span class="cal-filter-dot" style="background:${artistChipColor(n)};"></span>${esc(n)}</button>`).join('')}
   </div>`;
 
   if(scheduleViewMode==='list'){
@@ -5354,7 +5413,7 @@ function renderPhotocardCard(pc, seriesLabel){
   <div class="pc-card">
     <div style="position:relative;">
       ${pc.imageUrl
-        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
+        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" alt="${esc(pc.name||'小卡')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
         : `<div class="pc-img ph">🎴</div>`}
       <button class="pc-wish-btn" data-id="${pc.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
     </div>
@@ -5504,7 +5563,7 @@ function renderPhotocards(){
     html += `
     <div class="pc-series-card-wrap">
       <button class="pc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🎴</div>'">`
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" alt="${esc(key)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🎴</div>'">`
                 : `<div class="pc-series-cover ph">🎴</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
@@ -5596,7 +5655,7 @@ function renderMerchCard(mc, seriesLabel){
   return `
   <div class="pc-card">
     ${mc.imageUrl
-      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
+      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" alt="${esc(mc.name||'周邊')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
       : `<div class="pc-img ph">🛍️</div>`}
     <div class="pc-body">
       ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
@@ -5725,7 +5784,7 @@ function renderMerchTab(){
     html += `
     <div class="pc-series-card-wrap">
       <button class="pc-series-card mc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" alt="${esc(key)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
                 : `<div class="pc-series-cover ph">🛍️</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
@@ -5815,8 +5874,9 @@ function renderArrivalCard(a){
         </div>
         <div style="margin-top:6px;">
           <span class="tag ${st.tagClass}" style="${overdue?'background:#FBE3EA;color:#B2465F;':''}">${st.icon} ${st.label}</span>
+          ${a.category ? `<span class="tag">${esc(a.category)}</span>` : ''}
           ${a.quantity && a.quantity>1 ? `<span class="tag">x${esc(a.quantity)}</span>` : ''}
-          ${a.price ? `<span class="tag gold">NT$ ${(parseFloat(a.price)||0).toLocaleString()}</span>` : ''}
+          ${a.price ? `<span class="tag gold">NT$ ${((parseFloat(a.price)||0)*(parseInt(a.quantity,10)||1)).toLocaleString()}${a.quantity && a.quantity>1 ? `（單價 NT$${(parseFloat(a.price)||0).toLocaleString()}）` : ''}</span>` : ''}
           ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
         </div>
       </div>
@@ -5856,7 +5916,7 @@ async function applyArrivalArrivedSideEffect(item){
     const newPc = {
       id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
       name:item.name, artist:item.artist||'', series:item.series||'',
-      category:'', channel:item.channel||'',
+      category:item.category||'', channel:item.channel||'',
       imageUrl:'', createdAt: todayStr(), owned:true
     };
     state.photocards.push(newPc);
@@ -5922,6 +5982,17 @@ function openArrivalForm(id, itemType){
     ...state.merch.map(m=>m.series)
   ].filter(Boolean))].sort();
 
+  const curCategory = existing ? (existing.category||'') : '';
+  const categoryOptions = selectableCategoryList(type==='photocard' ? 'photocards' : 'merch', curCategory);
+  const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
+  const categoryFieldHtml = `
+    <select id="avCategorySelect">
+      <option value="">不指定</option>
+      ${categoryOptions.map(c=>`<option value="${esc(c)}" ${curCategory===c?'selected':''}>${esc(c)}</option>`).join('')}
+      <option value="__other__" ${isCustomCategory?'selected':''}>其他（自行輸入）</option>
+    </select>
+    <input type="text" id="avNewCategory" placeholder="輸入新的${typeLabel}類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
@@ -5932,12 +6003,15 @@ function openArrivalForm(id, itemType){
       <datalist id="avSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟${typeLabel}圖鑑打得一模一樣，到貨後才能正確連動顯示在一起</p>
     </div>
+    <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
       <input type="text" id="avChannel" list="avChannelList" value="${existing?esc(existing.channel||''):''}" placeholder="例：官方商城、代購...">
       <datalist id="avChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
     <div class="field"><label>數量</label><input type="number" id="avQuantity" min="1" value="${existing&&existing.quantity?esc(existing.quantity):1}"></div>
-    <div class="field"><label>價格 (NT$)</label><input type="number" id="avPrice" min="0" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填"></div>
+    <div class="field"><label>單價 (NT$)</label><input type="number" id="avPrice" min="0" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填，填一件多少錢">
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">這裡填的是「一件」的價格，不是這批的總價；同步到記帳時會自動乘上數量算出總金額</p>
+    </div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
         <input type="checkbox" id="avSyncExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing?(existing.expenseLinkedId?'checked':''):''}>
@@ -5985,6 +6059,12 @@ function openArrivalForm(id, itemType){
     linkedItemWrap.style.display = addToMerchCheckbox.checked ? 'block' : 'none';
   });
 
+  const categorySelect = document.getElementById('avCategorySelect');
+  const newCategoryInput = document.getElementById('avNewCategory');
+  categorySelect.addEventListener('change', ()=>{
+    newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveArrivalForm(existing, type));
   showModal();
@@ -6007,13 +6087,32 @@ async function saveArrivalForm(existing, itemType){
 
   const prevStatus = existing ? existing.status : null;
   const newStatus = document.getElementById('avStatus').value;
+  const resolvedItemType = existing ? (existing.itemType||'merch') : (itemType||'merch');
+
+  let category = document.getElementById('avCategorySelect').value;
+  if(category==='__other__'){
+    const newCat = document.getElementById('avNewCategory').value.trim();
+    category = newCat;
+    if(resolvedItemType==='photocard'){
+      if(newCat && !FIXED_PC_CATEGORIES.includes(newCat) && !state.customPcCategories.includes(newCat)){
+        state.customPcCategories.push(newCat);
+        await saveKey('oshi-pc-categories', state.customPcCategories);
+      }
+    } else {
+      if(newCat && !FIXED_MERCH_CATEGORIES.includes(newCat) && !state.customMerchCategories.includes(newCat)){
+        state.customMerchCategories.push(newCat);
+        await saveKey('oshi-merch-categories', state.customMerchCategories);
+      }
+    }
+  }
 
   const linkedItemSelect = document.getElementById('avLinkedItem');
   const data = {
     id: existing ? existing.id : 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
-    itemType: existing ? (existing.itemType||'merch') : (itemType||'merch'),
+    itemType: resolvedItemType,
     name, artist,
     series: document.getElementById('avSeries').value.trim(),
+    category,
     channel: document.getElementById('avChannel').value.trim(),
     quantity: parseInt(document.getElementById('avQuantity').value,10) || 1,
     price: document.getElementById('avPrice').value ? parseFloat(document.getElementById('avPrice').value) : '',
@@ -6025,8 +6124,7 @@ async function saveArrivalForm(existing, itemType){
     note: document.getElementById('avNote').value.trim(),
     arrivedAt: existing ? existing.arrivedAt : '',
     linkedMerchId: linkedItemSelect ? (linkedItemSelect.value || null) : (existing ? existing.linkedMerchId : null),
-    expenseLinkedId: existing ? existing.expenseLinkedId : '',
-    category: existing ? existing.category : ''
+    expenseLinkedId: existing ? existing.expenseLinkedId : ''
   };
   const syncExpense = document.getElementById('avSyncExpense').checked;
   if(newStatus==='arrived' && prevStatus!=='arrived'){
@@ -6073,7 +6171,7 @@ function renderArtists(){
       <div class="card-row">
         <div style="display:flex;gap:12px;">
           ${a.photoUrl
-            ? `<img src="${esc(a.photoUrl)}" loading="lazy" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+            ? `<img src="${esc(a.photoUrl)}" alt="${esc(a.name)}" loading="lazy" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
             : `<div style="width:52px;height:52px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>`}
           <div>
             <div class="card-title">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</div>
@@ -6240,7 +6338,7 @@ function openArtistDetail(id){
   modal.innerHTML = `
     <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
       ${a.photoUrl
-        ? `<img src="${esc(a.photoUrl)}" loading="lazy" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+        ? `<img src="${esc(a.photoUrl)}" alt="${esc(a.name)}" loading="lazy" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
         : `<div style="width:64px;height:64px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">✨</div>`}
       <div>
         <h3 class="maru" style="margin:0;">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</h3>
@@ -6391,7 +6489,7 @@ function renderSupportTab(){
     <div class="card support-card">
       <div style="position:relative;">
         ${cover
-          ? `<img class="support-cover" src="${esc(cover)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
+          ? `<img class="support-cover" src="${esc(cover)}" alt="${esc(s.title||'應援紀錄照片')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📣</div>'">`
           : `<div class="support-cover ph">📣</div>`}
         ${imgs.length>1 ? `<span class="tag" style="position:absolute;bottom:6px;right:6px;background:rgba(0,0,0,0.55);color:#fff;">📷 ${imgs.length}</span>` : ''}
       </div>
@@ -6599,7 +6697,7 @@ function renderSupImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + supImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" alt="已上傳照片預覽 ${idx+1}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="sup-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.sup-img-remove').forEach(btn=>{
@@ -6806,7 +6904,7 @@ function renderEndorsementCard(e){
   return `
   <div class="card support-card">
     ${e.imageUrl
-      ? `<img class="support-cover" src="${esc(e.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🤝</div>'">`
+      ? `<img class="support-cover" src="${esc(e.imageUrl)}" alt="${esc(e.title||'代言合作照片')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🤝</div>'">`
       : `<div class="support-cover ph">🤝</div>`}
     <div class="support-body">
       <div class="card-title">${esc(e.title)}</div>
@@ -6999,7 +7097,7 @@ function renderMagazineCard(m){
   return `
   <div class="card support-card">
     ${m.imageUrl
-      ? `<img class="support-cover" src="${esc(m.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📔</div>'">`
+      ? `<img class="support-cover" src="${esc(m.imageUrl)}" alt="${esc(m.title||'雜誌封面')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>📔</div>'">`
       : `<div class="support-cover ph">📔</div>`}
     <div class="support-body">
       <div class="card-title">${esc(m.title)}</div>
@@ -7174,7 +7272,7 @@ function renderMovieCard(x){
   return `
   <div class="card support-card">
     ${x.imageUrl
-      ? `<img class="support-cover" src="${esc(x.imageUrl)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🎬</div>'">`
+      ? `<img class="support-cover" src="${esc(x.imageUrl)}" alt="${esc(x.title||'影視作品封面')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;support-cover ph&quot;>🎬</div>'">`
       : `<div class="support-cover ph">🎬</div>`}
     <div class="support-body">
       <div class="card-title">${esc(x.title)}</div>
@@ -8263,7 +8361,7 @@ function renderFlImgList(){
   }
   list.innerHTML = `<div style="display:flex; gap:8px; flex-wrap:wrap;">` + flImgUrls.map((url,idx)=>`
     <div style="position:relative; width:64px; height:64px;">
-      <img src="${esc(url)}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
+      <img src="${esc(url)}" alt="已上傳截圖預覽 ${idx+1}" loading="lazy" onerror="this.src='';this.style.background='var(--sakura-pale)'" style="width:100%;height:100%;object-fit:cover;border-radius:10px;box-shadow:var(--shadow-sm);">
       <button type="button" data-idx="${idx}" class="fl-img-remove" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;border:none;background:#B54545;color:#fff;font-size:12px;cursor:pointer;">×</button>
     </div>`).join('') + `</div>`;
   list.querySelectorAll('.fl-img-remove').forEach(btn=>{
