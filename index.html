@@ -2352,14 +2352,23 @@ function updateBackupReminderBanner(){
   el.style.display='block';
 }
 
-/* ================= 到貨逾期提醒 ================= */
+/* ================= 到貨逾期／提前提醒 ================= */
 function updateArrivalReminderBanner(){
   const el = document.getElementById('arrivalReminderBanner');
   if(!el) return;
   if(arrivalReminderDismissed){ el.style.display='none'; return; }
   const overdue = arrivalOverdueList().length;
-  if(overdue<=0){ el.style.display='none'; return; }
-  document.getElementById('arrivalReminderText').textContent = `🚚 有 ${overdue} 件已逾期還沒到貨，點此查看到貨管理`;
+  const upcoming = arrivalUpcomingList().length;
+  if(overdue<=0 && upcoming<=0){ el.style.display='none'; return; }
+  let text = '';
+  if(overdue>0 && upcoming>0){
+    text = `🚚 有 ${overdue} 件已逾期、${upcoming} 件即將到貨（${arrivalReminderDaysSetting()} 天內），點此查看到貨管理`;
+  } else if(overdue>0){
+    text = `🚚 有 ${overdue} 件已逾期還沒到貨，點此查看到貨管理`;
+  } else {
+    text = `🚚 有 ${upcoming} 件即將到貨（${arrivalReminderDaysSetting()} 天內），點此查看到貨管理`;
+  }
+  document.getElementById('arrivalReminderText').textContent = text;
   el.style.display='block';
 }
 
@@ -2432,8 +2441,8 @@ function bindNav(){
   });
   document.getElementById('arrivalReminderBanner').addEventListener('click', (e)=>{
     if(e.target.id==='arrivalReminderClose') return;
-    const overdueMerch = arrivalOverdueList('merch').length;
-    const overduePc = arrivalOverdueList('photocard').length;
+    const overdueMerch = arrivalOverdueList('merch').length + arrivalUpcomingList('merch').length;
+    const overduePc = arrivalOverdueList('photocard').length + arrivalUpcomingList('photocard').length;
     if(overduePc>0 && overdueMerch===0){
       state.tab = 'photocards';
       pcSubTab = 'arrivals';
@@ -5827,6 +5836,9 @@ let mcOwnedFilter = '__all__';
 let merchSubTab = 'catalog';
 let arrivalStatusFilter = '__pending__';
 let arrivalReminderDismissed = false;
+let arrivalSelectedIds = new Set(); // 到貨管理清單的批次選取（存字串 id）
+let arrivalChannelFilter = '__all__'; // 到貨管理依購入通路/賣家篩選
+let arrivalExpandedTimelineIds = new Set(); // 目前展開「時間軸」小視圖的到貨項目 id
 
 /* ================= 到貨管理 (Arrivals) ================= */
 const ARRIVAL_STATUS_META = {
@@ -5836,6 +5848,9 @@ const ARRIVAL_STATUS_META = {
   cancelled: { label:'已取消', icon:'🚫', tagClass:'' }
 };
 const ARRIVAL_STATUS_ORDER = ['ordered','shipped','arrived','cancelled'];
+/* 物流公司清單：黑貓宅急便有官方單號查詢網址可以直接組出連結；
+   其他公司單號格式各家不同、直接猜網址容易查錯，所以統一導去 17TRACK（支援大量兩岸/國際物流商，會自動辨識） */
+const ARRIVAL_CARRIER_OPTIONS = ['黑貓宅急便','新竹物流','中華郵政','7-11 賣貨便','全家店到店','萊爾富店到店','OK mart店到店','FedEx','DHL','UPS','順豐速運','其他'];
 function arrivalIsOverdue(a){
   return (a.status==='ordered' || a.status==='shipped') && a.expectedAt && a.expectedAt < todayStr();
 }
@@ -5844,12 +5859,104 @@ function arrivalOverdueDays(a){
   const diff = Math.floor((new Date(todayStr()) - new Date(a.expectedAt)) / 86400000);
   return diff>0 ? diff : 0;
 }
+/* 是否在「提前提醒」範圍內：狀態還在下單/出貨中、有填預計到貨日、還沒逾期，
+   且距離預計到貨日不超過使用者設定的提醒天數 */
+function arrivalIsUpcoming(a){
+  if(!(a.status==='ordered' || a.status==='shipped')) return false;
+  if(!a.expectedAt) return false;
+  const days = arrivalReminderDaysSetting();
+  if(days<=0) return false;
+  const today = todayStr();
+  if(a.expectedAt < today) return false; // 已逾期的不算提前提醒，算逾期提醒
+  const diff = Math.floor((new Date(a.expectedAt) - new Date(today)) / 86400000);
+  return diff <= days;
+}
+function arrivalReminderDaysSetting(){
+  const v = state.profile && state.profile.arrivalReminderDays;
+  return (v===undefined || v===null || v==='') ? 3 : (parseInt(v,10)||0);
+}
 /* itemType 不帶入時＝不分類型，回傳全部（提醒橫幅要合併小卡＋周邊時會用到） */
 function arrivalPendingList(itemType){
   return state.arrivals.filter(a=> (a.status==='ordered' || a.status==='shipped') && (!itemType || (a.itemType||'merch')===itemType));
 }
 function arrivalOverdueList(itemType){
   return state.arrivals.filter(a=> arrivalIsOverdue(a) && (!itemType || (a.itemType||'merch')===itemType));
+}
+function arrivalUpcomingList(itemType){
+  return state.arrivals.filter(a=> arrivalIsUpcoming(a) && (!itemType || (a.itemType||'merch')===itemType));
+}
+/* 到貨管理小統計：這個月已到貨幾件、在途（已下單／出貨中）總金額多少 */
+function arrivalSingleAmount(a){
+  return (parseFloat(a.price)||0) * (parseInt(a.quantity,10)||1);
+}
+function arrivalArrivedThisMonthCount(itemType){
+  const ym = todayStr().slice(0,7); // 'YYYY-MM'
+  return state.arrivals.filter(a=>
+    a.status==='arrived' && a.arrivedAt && a.arrivedAt.slice(0,7)===ym &&
+    (!itemType || (a.itemType||'merch')===itemType)
+  ).length;
+}
+function arrivalInTransitTotalAmount(itemType){
+  return arrivalPendingList(itemType).reduce((sum,a)=> sum + arrivalSingleAmount(a), 0);
+}
+/* 物流單號查詢連結：黑貓宅急便直接組官方查詢網址，其他物流商導去 17TRACK 讓它自動辨識 */
+function arrivalTrackingUrl(a){
+  const no = a && a.trackingNo ? String(a.trackingNo).trim() : '';
+  if(!no) return '';
+  if(a.carrier==='黑貓宅急便'){
+    return `https://www.t-cat.com.tw/inquire/TraceDetail.aspx?BillID=${encodeURIComponent(no)}`;
+  }
+  return `https://t.17track.net/en#nums=${encodeURIComponent(no)}`;
+}
+
+/* ============ 到貨時間軸 ============
+   每次狀態變更（下單/出貨中/已到貨/已取消）都記錄一筆 {status, at}，
+   at 存完整時間戳（ISO 字串），時間軸小視圖可以依序列出每次變更的時間點。 */
+function arrivalRecordStatusHistory(item, status){
+  if(!item.statusHistory) item.statusHistory = [];
+  const last = item.statusHistory[item.statusHistory.length-1];
+  if(last && last.status===status) return; // 狀態沒變就不重複記錄
+  item.statusHistory.push({ status, at: new Date().toISOString() });
+}
+/* 舊資料（這個功能上線前就有的紀錄）沒有 statusHistory，時間軸改用既有欄位兜出一個大概的版本 */
+function arrivalTimelineEntries(a){
+  if(a.statusHistory && a.statusHistory.length>0) return a.statusHistory;
+  const fallback = [];
+  if(a.orderedAt) fallback.push({ status:'ordered', at:a.orderedAt });
+  if(a.status==='arrived' && a.arrivedAt) fallback.push({ status:'arrived', at:a.arrivedAt });
+  else if(a.status!=='ordered') fallback.push({ status:a.status, at:'' });
+  return fallback;
+}
+function fmtDateTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  if(isNaN(d.getTime())) return '';
+  const hh = String(d.getHours()).padStart(2,'0');
+  const mm = String(d.getMinutes()).padStart(2,'0');
+  return `${fmtDate(toLocalDateStr(d))} ${hh}:${mm}`;
+}
+function renderArrivalTimeline(a){
+  const entries = arrivalTimelineEntries(a);
+  if(entries.length===0){
+    return `<div style="margin-top:8px;padding:10px 12px;background:var(--surface-soft);border-radius:12px;font-size:11.5px;color:var(--ink-soft);">目前還沒有時間軸紀錄</div>`;
+  }
+  return `<div class="arrival-timeline" style="margin-top:8px;padding:10px 12px;background:var(--surface-soft);border-radius:12px;">
+    ${entries.map(e=>{
+      const meta = ARRIVAL_STATUS_META[e.status] || { icon:'•', label:e.status };
+      const isIso = e.at && String(e.at).includes('T');
+      const timeLabel = isIso ? fmtDateTime(e.at) : (e.at ? fmtDate(e.at) : '時間不詳');
+      return `<div style="display:flex;align-items:center;gap:8px;font-size:12px;padding:3px 0;">
+        <span>${meta.icon}</span>
+        <span style="flex:1;">${esc(meta.label)}</span>
+        <span style="color:var(--ink-soft);">${esc(timeLabel)}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ============ 依購入通路/賣家篩選 ============ */
+function arrivalChannelOptions(itemType){
+  return [...new Set(state.arrivals.filter(a=>(a.itemType||'merch')===itemType).map(a=>a.channel).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-Hant'));
 }
 
 function mcGroupKey(mc){
@@ -6057,6 +6164,7 @@ function renderMerchTab(){
 function renderArrivalsBody(itemType){
   let html = '';
   const overdue = arrivalOverdueList(itemType);
+  const upcoming = arrivalUpcomingList(itemType);
   const pending = arrivalPendingList(itemType);
   if(overdue.length>0){
     html += `<div class="mini-row" style="margin:12px 0 16px; background:#FBE3EA; border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
@@ -6064,10 +6172,30 @@ function renderArrivalsBody(itemType){
       <span class="r" style="font-weight:700; color:#B2465F;">${overdue.length} 件還沒到貨</span>
     </div>`;
   }
+  if(upcoming.length>0){
+    html += `<div class="mini-row" style="margin:${overdue.length>0?'0 0 16px':'12px 0 16px'}; background:var(--gold-pale); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+      <span class="l" style="font-weight:700;color:var(--gold);">⏳ 即將到貨</span>
+      <span class="r" style="font-weight:700; color:var(--gold);">${upcoming.length} 件（${arrivalReminderDaysSetting()} 天內）</span>
+    </div>`;
+  }
   html += `
-  <div class="mini-row" style="margin:${overdue.length>0?'0':'12px'} 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+  <div class="mini-row" style="margin:${(overdue.length>0||upcoming.length>0)?'0':'12px'} 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">🚚 待到貨</span>
     <span class="r" style="font-weight:700; color:var(--rose-deep);">${pending.length} 件</span>
+  </div>`;
+
+  const arrivedThisMonth = arrivalArrivedThisMonthCount(itemType);
+  const inTransitTotal = arrivalInTransitTotalAmount(itemType);
+  html += `
+  <div style="display:flex; gap:10px; margin:0 0 16px;">
+    <div style="flex:1; min-width:0; background:var(--matcha-pale); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow-sm);">
+      <div style="font-size:11.5px; color:var(--matcha); font-weight:700;">📅 本月已到貨</div>
+      <div style="font-size:19px; font-weight:700; color:var(--matcha); margin-top:2px;">${arrivedThisMonth} 件</div>
+    </div>
+    <div style="flex:1; min-width:0; background:var(--wisteria-pale); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow-sm);">
+      <div style="font-size:11.5px; color:var(--wisteria); font-weight:700;">💰 在途總金額</div>
+      <div style="font-size:19px; font-weight:700; color:var(--wisteria); margin-top:2px;">NT$ ${inTransitTotal.toLocaleString()}</div>
+    </div>
   </div>`;
 
   html += `<div class="cal-filter-row" style="margin-top:8px;">
@@ -6076,10 +6204,20 @@ function renderArrivalsBody(itemType){
     ${ARRIVAL_STATUS_ORDER.map(s=>`<button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter===s?'active':''}" data-status="${s}">${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</button>`).join('')}
   </div>`;
 
+  const channelOptions = arrivalChannelOptions(itemType);
+  if(arrivalChannelFilter!=='__all__' && !channelOptions.includes(arrivalChannelFilter)) arrivalChannelFilter = '__all__';
+  if(channelOptions.length>0){
+    html += `<div class="cal-filter-row" style="margin-top:8px;">
+      <button class="arrival-channel-filter-btn cal-filter-btn ${arrivalChannelFilter==='__all__'?'active':''}" data-channel="__all__">🏬 全部通路</button>
+      ${channelOptions.map(c=>`<button class="arrival-channel-filter-btn cal-filter-btn ${arrivalChannelFilter===c?'active':''}" data-channel="${esc(c)}">${esc(c)}</button>`).join('')}
+    </div>`;
+  }
+
   let items = state.arrivals.filter(a=> (a.itemType||'merch')===itemType);
   const totalOfType = items.length;
   if(arrivalStatusFilter==='__pending__') items = items.filter(a=> a.status==='ordered' || a.status==='shipped');
   else if(arrivalStatusFilter!=='__all__') items = items.filter(a=> a.status===arrivalStatusFilter);
+  if(arrivalChannelFilter!=='__all__') items = items.filter(a=> a.channel===arrivalChannelFilter);
 
   items.sort((a,b)=>{
     const aOver = arrivalIsOverdue(a), bOver = arrivalIsOverdue(b);
@@ -6094,21 +6232,149 @@ function renderArrivalsBody(itemType){
     return html;
   }
 
+  /* 批次操作：全選本頁按鈕 + 已選取數量的操作列 */
+  const viewIds = items.map(a=>String(a.id));
+  const selectedInView = viewIds.filter(id=>arrivalSelectedIds.has(id));
+  const allSelected = viewIds.length>0 && selectedInView.length===viewIds.length;
+  html += `<div style="display:flex;justify-content:flex-end;margin:2px 2px 8px;">
+    <button type="button" class="arrival-select-all-btn" data-ids='${esc(JSON.stringify(viewIds))}' style="background:none;border:none;color:var(--rose-deep);font-size:12px;cursor:pointer;padding:4px;">${allSelected ? '取消全選' : '☑️ 全選本頁'}</button>
+  </div>`;
+  if(selectedInView.length>0){
+    html += `<div class="mini-row arrival-batch-bar" style="margin:0 0 12px; background:var(--wisteria-pale); border-radius:14px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+      <span style="font-weight:700; font-size:13px;">已選 ${selectedInView.length} 件</span>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button type="button" class="btn ghost arrival-batch-clear-btn" style="padding:6px 12px;font-size:12px;">取消選取</button>
+        <button type="button" class="btn ghost arrival-batch-arrived-btn" style="padding:6px 12px;font-size:12px;">✅ 標記已到貨</button>
+        <button type="button" class="btn danger arrival-batch-delete-btn" style="padding:6px 12px;font-size:12px;">🗑 刪除</button>
+      </div>
+    </div>`;
+  }
+
   html += `<div class="list-grid">`;
   items.forEach(a=>{ html += renderArrivalCard(a); });
   html += `</div>`;
   return html;
 }
 
+/* 批次把選取的到貨項目標記為已到貨（沿用單筆推進狀態時的同一套「到貨後自動加入圖鑑」邏輯） */
+async function arrivalBatchMarkArrived(){
+  const ids = [...arrivalSelectedIds];
+  if(ids.length===0) return;
+  let changed = false;
+  for(const id of ids){
+    const item = state.arrivals.find(a=>String(a.id)===String(id));
+    if(item && item.status!=='arrived'){
+      item.status = 'arrived';
+      item.arrivedAt = todayStr();
+      arrivalRecordStatusHistory(item, 'arrived');
+      await applyArrivalArrivedSideEffect(item);
+      changed = true;
+    }
+  }
+  if(changed) await saveKey('oshi-arrivals', state.arrivals);
+  arrivalSelectedIds.clear();
+  render();
+  updateArrivalReminderBanner();
+  showToast(`已將 ${ids.length} 件標記為已到貨`);
+}
+
+/* 批次刪除選取的到貨項目，沿用單筆刪除時「解除記帳連結、刪除已上傳圖片」的處理 */
+function confirmArrivalBatchDelete(){
+  const ids = [...arrivalSelectedIds];
+  if(ids.length===0) return;
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">確定要刪除選取的 ${ids.length} 筆到貨紀錄嗎？</h3>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">刪除後資料將無法復原。</p>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn danger" id="delConfirmBtn">確定刪除</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
+    for(const id of ids){
+      const item = state.arrivals.find(a=>String(a.id)===String(id));
+      if(item){
+        await deleteAllStorageImages(item);
+        if(item.expenseLinkedId){
+          const linkedExp = state.expense.find(e=>String(e.id)===String(item.expenseLinkedId));
+          if(linkedExp){ linkedExp.arrivalLinkedId = ''; await saveKey('oshi-expense', state.expense); }
+        }
+      }
+    }
+    state.arrivals = state.arrivals.filter(a=>!ids.includes(String(a.id)));
+    await saveKey('oshi-arrivals', state.arrivals);
+    arrivalSelectedIds.clear();
+    closeModal();
+    render();
+    updatePendingUploadsBanner();
+    updateArrivalReminderBanner();
+    showToast(`已刪除 ${ids.length} 筆紀錄`);
+  });
+  showModal();
+}
+
+/* 到貨管理批次操作的事件綁定：全選按鈕、每張卡片的勾選框、批次操作列上的按鈕。
+   小卡跟周邊的到貨管理分頁都會呼叫這個共用函式。 */
+function bindArrivalBatchControls(){
+  document.querySelectorAll('.arrival-select-input').forEach(cb=>{
+    cb.addEventListener('change', (e)=>{
+      e.stopPropagation();
+      const id = String(cb.dataset.id);
+      if(cb.checked) arrivalSelectedIds.add(id); else arrivalSelectedIds.delete(id);
+      render();
+    });
+  });
+  const selectAllBtn = document.querySelector('.arrival-select-all-btn');
+  if(selectAllBtn){
+    selectAllBtn.addEventListener('click', ()=>{
+      let ids = [];
+      try{ ids = JSON.parse(selectAllBtn.dataset.ids||'[]'); }catch(e){ ids = []; }
+      const allSelected = ids.length>0 && ids.every(id=>arrivalSelectedIds.has(id));
+      if(allSelected){ ids.forEach(id=>arrivalSelectedIds.delete(id)); }
+      else{ ids.forEach(id=>arrivalSelectedIds.add(id)); }
+      render();
+    });
+  }
+  document.querySelectorAll('.arrival-batch-clear-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ arrivalSelectedIds.clear(); render(); });
+  });
+  document.querySelectorAll('.arrival-batch-arrived-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ arrivalBatchMarkArrived(); });
+  });
+  document.querySelectorAll('.arrival-batch-delete-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{ confirmArrivalBatchDelete(); });
+  });
+  document.querySelectorAll('.arrival-channel-filter-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      arrivalChannelFilter = b.dataset.channel;
+      render();
+    });
+  });
+  document.querySelectorAll('.arrival-timeline-toggle-btn').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = String(b.dataset.id);
+      if(arrivalExpandedTimelineIds.has(id)) arrivalExpandedTimelineIds.delete(id);
+      else arrivalExpandedTimelineIds.add(id);
+      render();
+    });
+  });
+}
+
 function renderArrivalCard(a){
   const st = ARRIVAL_STATUS_META[a.status] || ARRIVAL_STATUS_META.ordered;
   const overdue = arrivalIsOverdue(a);
   const overdueDays = arrivalOverdueDays(a);
+  const upcoming = arrivalIsUpcoming(a);
   let dateLine = '';
   if(a.status==='arrived' && a.arrivedAt){
     dateLine = `📦 ${esc(a.arrivedAt)} 已到貨`;
   } else if(overdue){
     dateLine = `⚠️ 已逾期 ${overdueDays} 天（預計 ${esc(a.expectedAt)}）`;
+  } else if(upcoming){
+    dateLine = `⏳ 即將到貨：預計 ${esc(a.expectedAt)}`;
   } else if(a.expectedAt){
     dateLine = `⏳ 預計 ${esc(a.expectedAt)} 到貨`;
   } else if(a.orderedAt){
@@ -6116,23 +6382,37 @@ function renderArrivalCard(a){
   }
   const nextStatus = a.status==='ordered' ? 'shipped' : (a.status==='shipped' ? 'arrived' : null);
   const linkedExpense = a.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(a.expenseLinkedId)) : null;
+  const trackUrl = arrivalTrackingUrl(a);
+  const trackingLine = a.trackingNo
+    ? `<br>🔖 單號：${trackUrl
+        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--rose-deep);text-decoration:underline;" onclick="event.stopPropagation();">${esc(a.trackingNo)}${a.carrier?`（${esc(a.carrier)}）`:''} ↗</a>`
+        : esc(a.trackingNo)}`
+    : '';
+  const isSelected = arrivalSelectedIds.has(String(a.id));
+  const isTimelineOpen = arrivalExpandedTimelineIds.has(String(a.id));
   return `
   <div class="card">
     <div class="card-row">
-      <div>
-        <div class="card-title">${esc(a.name)}</div>
-        <div class="card-meta">
-          ${[a.artist, a.series].filter(Boolean).map(esc).join(' · ')}
-          ${a.channel ? `<br>🏬 ${esc(a.channel)}` : ''}
-          ${dateLine ? `<br>${dateLine}` : ''}
-          ${a.trackingNo ? `<br>🔖 單號：${esc(a.trackingNo)}` : ''}
-        </div>
-        <div style="margin-top:6px;">
-          <span class="tag ${st.tagClass}" style="${overdue?'background:#FBE3EA;color:#B2465F;':''}">${st.icon} ${st.label}</span>
-          ${a.category ? `<span class="tag">${esc(a.category)}</span>` : ''}
-          ${a.quantity && a.quantity>1 ? `<span class="tag">x${esc(a.quantity)}</span>` : ''}
-          ${a.price ? `<span class="tag gold">NT$ ${((parseFloat(a.price)||0)*(parseInt(a.quantity,10)||1)).toLocaleString()}${a.quantity && a.quantity>1 ? `（單價 NT$${(parseFloat(a.price)||0).toLocaleString()}）` : ''}</span>` : ''}
-          ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
+      <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1 1 auto;">
+        <input type="checkbox" class="arrival-select-input" data-id="${esc(a.id)}" ${isSelected?'checked':''} style="width:17px;height:17px;margin-top:2px;flex-shrink:0;accent-color:var(--rose-deep);" aria-label="選取這一筆">
+        <div style="min-width:0;flex:1;">
+          <div class="card-title">${esc(a.name)}</div>
+          <div class="card-meta">
+            ${[a.artist, a.series].filter(Boolean).map(esc).join(' · ')}
+            ${a.channel ? `<br>🏬 ${esc(a.channel)}` : ''}
+            ${dateLine ? `<br>${dateLine}` : ''}
+            ${trackingLine}
+          </div>
+          <div style="margin-top:6px;">
+            <span class="tag ${st.tagClass}" style="${overdue?'background:#FBE3EA;color:#B2465F;':''}">${st.icon} ${st.label}</span>
+            ${!overdue && upcoming ? `<span class="tag gold">⏳ 即將到貨</span>` : ''}
+            ${a.category ? `<span class="tag">${esc(a.category)}</span>` : ''}
+            ${a.quantity && a.quantity>1 ? `<span class="tag">x${esc(a.quantity)}</span>` : ''}
+            ${a.price ? `<span class="tag gold">NT$ ${((parseFloat(a.price)||0)*(parseInt(a.quantity,10)||1)).toLocaleString()}${a.quantity && a.quantity>1 ? `（單價 NT$${(parseFloat(a.price)||0).toLocaleString()}）` : ''}</span>` : ''}
+            ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
+          </div>
+          <button type="button" class="arrival-timeline-toggle-btn" data-id="${esc(a.id)}" style="background:none;border:none;color:var(--ink-soft);font-size:11.5px;cursor:pointer;padding:6px 0 0;">🕘 ${isTimelineOpen?'收合時間軸':'查看時間軸'}</button>
+          ${isTimelineOpen ? renderArrivalTimeline(a) : ''}
         </div>
       </div>
       <div class="pc-actions">
@@ -6147,10 +6427,14 @@ function renderArrivalCard(a){
 async function advanceArrivalStatus(id){
   const item = state.arrivals.find(a=>String(a.id)===String(id));
   if(!item) return;
-  if(item.status==='ordered') item.status = 'shipped';
+  if(item.status==='ordered'){
+    item.status = 'shipped';
+    arrivalRecordStatusHistory(item, 'shipped');
+  }
   else if(item.status==='shipped'){
     item.status = 'arrived';
     item.arrivedAt = todayStr();
+    arrivalRecordStatusHistory(item, 'arrived');
     await applyArrivalArrivedSideEffect(item);
   }
   await saveKey('oshi-arrivals', state.arrivals);
@@ -6276,7 +6560,14 @@ function openArrivalForm(id, itemType){
     </div>
     <div class="field"><label>下單日期</label><input type="date" id="avOrderedAt" value="${existing?esc(existing.orderedAt||''):todayStr()}"></div>
     <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
-    <div class="field"><label>追蹤單號</label><input type="text" id="avTrackingNo" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填"></div>
+    <div class="field"><label>物流公司</label>
+      <select id="avCarrier">
+        <option value="">不指定</option>
+        ${ARRIVAL_CARRIER_OPTIONS.map(c=>`<option value="${esc(c)}" ${existing&&existing.carrier===c?'selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">選「黑貓宅急便」可以直接連到官網查詢；其他物流商會用 17TRACK 幫忙自動辨識查詢</p>
+    </div>
+    <div class="field"><label>追蹤單號</label><input type="text" id="avTrackingNo" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填，填了會自動產生查詢連結"></div>
     <div class="field"><label>狀態</label>
       <select id="avStatus">
         ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='ordered'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
@@ -6374,6 +6665,7 @@ async function saveArrivalForm(existing, itemType){
     orderedAt: document.getElementById('avOrderedAt').value,
     expectedAt: document.getElementById('avExpectedAt').value,
     trackingNo: document.getElementById('avTrackingNo').value.trim(),
+    carrier: document.getElementById('avCarrier').value,
     status: newStatus,
     addToMerch: document.getElementById('avAddToMerch').checked,
     note: document.getElementById('avNote').value.trim(),
@@ -6391,7 +6683,9 @@ async function saveArrivalForm(existing, itemType){
 
   if(existing){
     Object.assign(existing, data);
+    if(newStatus!==prevStatus) arrivalRecordStatusHistory(existing, newStatus);
   } else {
+    data.statusHistory = [{ status:newStatus, at:new Date().toISOString() }];
     state.arrivals.push(data);
   }
   await saveKey('oshi-arrivals', state.arrivals);
@@ -7862,6 +8156,7 @@ function bindListActions(tab){
     document.querySelectorAll('.pc-subtab-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
         pcSubTab = b.dataset.sub;
+        arrivalSelectedIds.clear();
         render();
       });
     });
@@ -7886,6 +8181,7 @@ function bindListActions(tab){
           openExpenseForm(el.dataset.expenseId);
         });
       });
+      bindArrivalBatchControls();
       return;
     }
     document.querySelectorAll('.pc-wish-btn').forEach(b=>{
@@ -7944,6 +8240,7 @@ function bindListActions(tab){
     document.querySelectorAll('.merch-subtab-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
         merchSubTab = b.dataset.sub;
+        arrivalSelectedIds.clear();
         render();
       });
     });
@@ -7968,6 +8265,7 @@ function bindListActions(tab){
           openExpenseForm(el.dataset.expenseId);
         });
       });
+      bindArrivalBatchControls();
       return;
     }
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
@@ -9564,6 +9862,11 @@ function openProfileForm(){
       <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
     </div>
     <div class="field">
+      <label>到貨提前提醒</label>
+      <input type="number" id="profArrivalReminderDays" min="0" max="30" value="${arrivalReminderDaysSetting()}">
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">到貨管理裡「已下單／出貨中」的品項，距離預計到貨日還剩幾天內就開始提醒（填 0 代表關閉提前提醒，只保留逾期提醒）。</div>
+    </div>
+    <div class="field">
       <label>手機推播通知</label>
       ${pushSectionHtml}
     </div>
@@ -9708,10 +10011,16 @@ function openProfileForm(){
   document.getElementById('saveProfBtn').addEventListener('click', async ()=>{
     state.profile.nickname = document.getElementById('profNickname').value.trim();
     state.profile.dailyReminder = pendingDailyReminder;
+    const reminderDaysInput = document.getElementById('profArrivalReminderDays');
+    if(reminderDaysInput){
+      const v = parseInt(reminderDaysInput.value, 10);
+      state.profile.arrivalReminderDays = isNaN(v) ? 3 : Math.max(0, Math.min(30, v));
+    }
     await saveKey('oshi-profile', state.profile);
     closeModal();
     renderProfile();
     render();
+    updateArrivalReminderBanner();
     showToast('已更新個人資料');
   });
   const loginBtn = document.getElementById('googleLoginBtn');
