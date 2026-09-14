@@ -1936,6 +1936,7 @@ async function syncArrivalExpense(item, addToExpense){
     linkedExpense.quantity = String(item.quantity||1);
     linkedExpense.date = item.orderedAt || linkedExpense.date || todayStr();
     linkedExpense.platform = item.channel || linkedExpense.platform || '';
+    linkedExpense.paymentMethod = item.paymentMethod || linkedExpense.paymentMethod || '';
     linkedExpense.arrivalLinkedId = item.id;
   } else {
     const newExpense = {
@@ -1955,7 +1956,7 @@ async function syncArrivalExpense(item, addToExpense){
       mediaType: '', mediaLinkedId: '',
       platform: item.channel || '',
       deliveryStatus: '',
-      paymentMethod: '',
+      paymentMethod: item.paymentMethod || '',
       tags: [],
       note: '由到貨追蹤自動建立',
       imageUrls: [],
@@ -5850,7 +5851,7 @@ const ARRIVAL_STATUS_META = {
 const ARRIVAL_STATUS_ORDER = ['ordered','shipped','arrived','cancelled'];
 /* 物流公司清單：黑貓宅急便有官方單號查詢網址可以直接組出連結；
    其他公司單號格式各家不同、直接猜網址容易查錯，所以統一導去 17TRACK（支援大量兩岸/國際物流商，會自動辨識） */
-const ARRIVAL_CARRIER_OPTIONS = ['黑貓宅急便','新竹物流','中華郵政','7-11 賣貨便','全家店到店','萊爾富店到店','OK mart店到店','FedEx','DHL','UPS','順豐速運','其他'];
+const ARRIVAL_CARRIER_OPTIONS = ['黑貓宅急便','新竹物流','中華郵政','7-11 賣貨便','7-11店到店','蝦皮店到店','全家店到店','萊爾富店到店','OK mart店到店','FedEx','DHL','UPS','順豐速運','其他'];
 function arrivalIsOverdue(a){
   return (a.status==='ordered' || a.status==='shipped') && a.expectedAt && a.expectedAt < todayStr();
 }
@@ -6250,8 +6251,24 @@ function renderArrivalsBody(itemType){
     </div>`;
   }
 
+  /* 依追蹤單號分組：同一個單號出現在 2 筆以上，就合併成一個「包裹」顯示；只有自己一筆或沒填單號的維持單張卡片 */
+  const keyCounts = {};
+  items.forEach(a=>{ const k = arrivalPackageKey(a); if(k) keyCounts[k] = (keyCounts[k]||0)+1; });
+  const rendered = new Set();
   html += `<div class="list-grid">`;
-  items.forEach(a=>{ html += renderArrivalCard(a); });
+  items.forEach(a=>{
+    const id = String(a.id);
+    if(rendered.has(id)) return;
+    const k = arrivalPackageKey(a);
+    if(k && keyCounts[k]>1){
+      const group = items.filter(x=>arrivalPackageKey(x)===k);
+      group.forEach(x=>rendered.add(String(x.id)));
+      html += renderArrivalPackageGroup(group);
+    } else {
+      rendered.add(id);
+      html += renderArrivalCard(a);
+    }
+  });
   html += `</div>`;
   return html;
 }
@@ -6361,9 +6378,25 @@ function bindArrivalBatchControls(){
       render();
     });
   });
+  document.querySelectorAll('.arrival-dup-btn').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      duplicateArrival(b.dataset.id);
+    });
+  });
+  document.querySelectorAll('.arrival-package-advance-btn').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      let ids = [];
+      try{ ids = JSON.parse(b.dataset.ids||'[]'); }catch(err){ ids = []; }
+      arrivalPackageAdvance(ids, b.dataset.status);
+    });
+  });
 }
 
-function renderArrivalCard(a){
+/* compact：在「同包裹」群組裡巢狀顯示時傳 true —— 省略單號那行（已經顯示在包裹外層標頭），
+   卡片本身也少一點陰影/邊距，視覺上跟外層包裹卡有區隔 */
+function renderArrivalCard(a, compact){
   const st = ARRIVAL_STATUS_META[a.status] || ARRIVAL_STATUS_META.ordered;
   const overdue = arrivalIsOverdue(a);
   const overdueDays = arrivalOverdueDays(a);
@@ -6383,7 +6416,7 @@ function renderArrivalCard(a){
   const nextStatus = a.status==='ordered' ? 'shipped' : (a.status==='shipped' ? 'arrived' : null);
   const linkedExpense = a.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(a.expenseLinkedId)) : null;
   const trackUrl = arrivalTrackingUrl(a);
-  const trackingLine = a.trackingNo
+  const trackingLine = (!compact && a.trackingNo)
     ? `<br>🔖 單號：${trackUrl
         ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--rose-deep);text-decoration:underline;" onclick="event.stopPropagation();">${esc(a.trackingNo)}${a.carrier?`（${esc(a.carrier)}）`:''} ↗</a>`
         : esc(a.trackingNo)}`
@@ -6391,7 +6424,7 @@ function renderArrivalCard(a){
   const isSelected = arrivalSelectedIds.has(String(a.id));
   const isTimelineOpen = arrivalExpandedTimelineIds.has(String(a.id));
   return `
-  <div class="card">
+  <div class="card" style="${compact?'box-shadow:none;border:1px solid var(--ink-faint);margin-bottom:0;':''}">
     <div class="card-row">
       <div style="display:flex;align-items:flex-start;gap:8px;min-width:0;flex:1 1 auto;">
         <input type="checkbox" class="arrival-select-input" data-id="${esc(a.id)}" ${isSelected?'checked':''} style="width:17px;height:17px;margin-top:2px;flex-shrink:0;accent-color:var(--rose-deep);" aria-label="選取這一筆">
@@ -6409,6 +6442,7 @@ function renderArrivalCard(a){
             ${a.category ? `<span class="tag">${esc(a.category)}</span>` : ''}
             ${a.quantity && a.quantity>1 ? `<span class="tag">x${esc(a.quantity)}</span>` : ''}
             ${a.price ? `<span class="tag gold">NT$ ${((parseFloat(a.price)||0)*(parseInt(a.quantity,10)||1)).toLocaleString()}${a.quantity && a.quantity>1 ? `（單價 NT$${(parseFloat(a.price)||0).toLocaleString()}）` : ''}</span>` : ''}
+            ${a.paymentMethod ? `<span class="tag">💳 ${esc(a.paymentMethod)}</span>` : ''}
             ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
           </div>
           <button type="button" class="arrival-timeline-toggle-btn" data-id="${esc(a.id)}" style="background:none;border:none;color:var(--ink-soft);font-size:11.5px;cursor:pointer;padding:6px 0 0;">🕘 ${isTimelineOpen?'收合時間軸':'查看時間軸'}</button>
@@ -6417,11 +6451,66 @@ function renderArrivalCard(a){
       </div>
       <div class="pc-actions">
         ${nextStatus ? `<button class="icon-btn arrival-advance-btn" data-id="${a.id}" title="標記為${ARRIVAL_STATUS_META[nextStatus].label}" aria-label="標記為${ARRIVAL_STATUS_META[nextStatus].label}">${ARRIVAL_STATUS_META[nextStatus].icon}</button>` : ''}
+        <button class="icon-btn arrival-dup-btn" title="複製這筆" aria-label="複製這筆" data-id="${a.id}">⧉</button>
         <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="arrivals" data-id="${a.id}">✎</button>
         <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="arrivals" data-id="${a.id}">🗑</button>
       </div>
     </div>
   </div>`;
+}
+
+/* ============ 到貨包裹（同一組追蹤單號的多個品項合併顯示） ============ */
+function arrivalPackageKey(a){
+  return a.trackingNo ? String(a.trackingNo).trim()+'||'+(a.carrier||'') : '';
+}
+function renderArrivalPackageGroup(group){
+  const first = group[0];
+  const trackUrl = arrivalTrackingUrl(first);
+  const totalAmount = group.reduce((sum,a)=> sum + arrivalSingleAmount(a), 0);
+  const anyOverdue = group.some(a=>arrivalIsOverdue(a));
+  const advanceable = group.filter(a=> a.status==='ordered' || a.status==='shipped');
+  /* 包裹整批推進：以裡面最落後的狀態決定下一步——還有任何一筆停在「已下單」，就整批推進到「出貨中」；
+     全部都已出貨中了，才整批推進到「已到貨」；已到貨/已取消的品項不受批次操作影響 */
+  let groupNextStatus = null;
+  if(advanceable.some(a=>a.status==='ordered')) groupNextStatus = 'shipped';
+  else if(advanceable.some(a=>a.status==='shipped')) groupNextStatus = 'arrived';
+  return `
+  <div class="card arrival-package-card" style="border:1.5px dashed var(--rose);">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;">
+        📦 同包裹 · ${group.length} 件
+        ${anyOverdue ? `<span class="tag" style="background:#FBE3EA;color:#B2465F;">⚠️ 已逾期</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);">合計 NT$ ${totalAmount.toLocaleString()}</div>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;">
+      🔖 單號：${trackUrl
+        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--rose-deep);text-decoration:underline;">${esc(first.trackingNo)}${first.carrier?`（${esc(first.carrier)}）`:''} ↗</a>`
+        : esc(first.trackingNo)}
+    </div>
+    ${groupNextStatus ? `<button type="button" class="btn ghost arrival-package-advance-btn" data-ids='${esc(JSON.stringify(group.map(a=>String(a.id))))}' data-status="${groupNextStatus}" style="padding:6px 12px;font-size:12px;margin-bottom:10px;">整批標記為${ARRIVAL_STATUS_META[groupNextStatus].icon} ${ARRIVAL_STATUS_META[groupNextStatus].label}</button>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${group.map(a=>renderArrivalCard(a, true)).join('')}
+    </div>
+  </div>`;
+}
+/* 包裹整批推進狀態：只動還在「已下單/出貨中」的品項，已到貨/已取消的略過不動 */
+async function arrivalPackageAdvance(ids, newStatus){
+  let changed = false;
+  for(const id of ids){
+    const item = state.arrivals.find(a=>String(a.id)===String(id));
+    if(item && (item.status==='ordered' || item.status==='shipped') && item.status!==newStatus){
+      item.status = newStatus;
+      if(newStatus==='arrived') item.arrivedAt = todayStr();
+      arrivalRecordStatusHistory(item, newStatus);
+      if(newStatus==='arrived') await applyArrivalArrivedSideEffect(item);
+      changed = true;
+    }
+  }
+  if(changed) await saveKey('oshi-arrivals', state.arrivals);
+  render();
+  updateArrivalReminderBanner();
+  showToast(`已將包裹內品項標記為${ARRIVAL_STATUS_META[newStatus].label}`);
 }
 
 async function advanceArrivalStatus(id){
@@ -6478,16 +6567,44 @@ async function applyArrivalArrivedSideEffect(item){
   await saveKey('oshi-merch', state.merch);
 }
 
-function openArrivalForm(id, itemType){
+/* 複製一筆到貨紀錄：帶著名稱/藝人/系列/分類/通路/數量/單價/物流公司等欄位開一張全新的「新增」表單，
+   但不帶日期、單號、狀態、已連結的記帳/圖鑑品項 —— 這些都是每次下單各自獨立的東西，交給使用者自己填新的。 */
+function duplicateArrival(id){
+  const orig = state.arrivals.find(a=>String(a.id)===String(id));
+  if(!orig) return;
+  openArrivalForm(null, orig.itemType||'merch', {
+    itemType: orig.itemType||'merch',
+    name: orig.name,
+    artist: orig.artist,
+    series: orig.series,
+    category: orig.category,
+    channel: orig.channel,
+    quantity: orig.quantity,
+    price: orig.price,
+    paymentMethod: orig.paymentMethod,
+    carrier: orig.carrier,
+    addToMerch: orig.addToMerch,
+    syncExpense: !!orig.expenseLinkedId
+  });
+}
+
+function openArrivalForm(id, itemType, prefill){
   const existing = id ? state.arrivals.find(a=>String(a.id)===String(id)) : null;
-  const type = existing ? (existing.itemType||'merch') : (itemType||'merch');
+  /* src：用來預填表單欄位的資料來源。編輯時是原本那筆；複製新增時是 duplicateArrival() 組出來的 prefill；
+     全新新增則沒有來源。跟 existing 分開，是因為複製出來的這筆本質上是「新增」（existing 仍是 null）。 */
+  const src = existing || prefill || null;
+  const type = src ? (src.itemType||'merch') : (itemType||'merch');
   const typeLabel = type==='photocard' ? '小卡' : '周邊';
   const artistOptions = state.artists.map(a=>a.name);
   const channels = [...new Set([
     ...state.arrivals.filter(a=>(a.itemType||'merch')===type).map(a=>a.channel),
     ...(type==='photocard' ? state.photocards.map(p=>p.channel) : state.merch.map(m=>m.channel))
   ].filter(Boolean))];
-  const curArtist = existing ? existing.artist : '';
+  /* 追蹤單號候選清單：填跟別筆一樣的單號，清單畫面就會自動把它們合併顯示成同一個包裹 */
+  const trackingNoOptions = [...new Set(state.arrivals
+    .filter(a=>(a.itemType||'merch')===type && a.trackingNo && (!existing || String(a.id)!==String(existing.id)))
+    .map(a=>a.trackingNo))];
+  const curArtist = src ? src.artist : '';
 
   let artistFieldHtml = '';
   if(artistOptions.length===0){
@@ -6515,13 +6632,14 @@ function openArrivalForm(id, itemType){
   const linkedItemOptionsHtml = sortedCatalog.map(it=>
     `<option value="${esc(it.id)}" ${curLinkedId===String(it.id)?'selected':''}>${esc(catalogGroupKey(it))} － ${esc(it.name)}${it.owned?'（已擁有）':''}</option>`
   ).join('');
-  const addToMerchChecked = existing ? !!existing.addToMerch : true;
+  const addToMerchChecked = src ? !!src.addToMerch : true;
+  const syncExpenseChecked = existing ? !!existing.expenseLinkedId : !!(prefill && prefill.syncExpense);
   const seriesOptions = [...new Set([
     ...state.photocards.map(p=>p.series),
     ...state.merch.map(m=>m.series)
   ].filter(Boolean))].sort();
 
-  const curCategory = existing ? (existing.category||'') : '';
+  const curCategory = src ? (src.category||'') : '';
   const categoryOptions = selectableCategoryList(type==='photocard' ? 'photocards' : 'merch', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
   const categoryFieldHtml = `
@@ -6532,46 +6650,64 @@ function openArrivalForm(id, itemType){
     </select>
     <input type="text" id="avNewCategory" placeholder="輸入新的${typeLabel}類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
+  /* 預計到貨日／物流公司／追蹤單號這幾個欄位，狀態還在「已下單」時先不顯示，選到「出貨中」或「已到貨」才出現 */
+  const initialStatus = existing ? existing.status : 'ordered';
+  const initialShowShipping = initialStatus==='shipped' || initialStatus==='arrived';
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
-    <div class="field"><label>名稱 *</label><input type="text" id="avName" value="${existing?esc(existing.name):''}" placeholder="例：官方商城預購小卡組"></div>
+    ${(!existing && prefill) ? `<p style="font-size:11.5px;color:var(--rose-deep);background:var(--sakura-pale);border-radius:10px;padding:8px 10px;margin:-4px 0 12px;">📋 已複製「${esc(prefill.name||'')}」的內容，確認/調整後再儲存</p>` : ''}
+    <div class="field"><label>名稱 *</label><input type="text" id="avName" value="${src?esc(src.name):''}" placeholder="例：官方商城預購小卡組"></div>
     <div class="field"><label>藝人</label>${artistFieldHtml}</div>
     <div class="field"><label>系列</label>
-      <input type="text" id="avSeries" list="avSeriesList" value="${existing?esc(existing.series||''):''}" placeholder="例：4Reasons、U:NFOLD...">
+      <input type="text" id="avSeries" list="avSeriesList" value="${src?esc(src.series||''):''}" placeholder="例：4Reasons、U:NFOLD...">
       <datalist id="avSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟${typeLabel}圖鑑打得一模一樣，到貨後才能正確連動顯示在一起</p>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
-      <input type="text" id="avChannel" list="avChannelList" value="${existing?esc(existing.channel||''):''}" placeholder="例：官方商城、代購...">
+      <input type="text" id="avChannel" list="avChannelList" value="${src?esc(src.channel||''):''}" placeholder="例：官方商城、代購...">
       <datalist id="avChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
-    <div class="field"><label>數量</label><input type="number" id="avQuantity" min="1" value="${existing&&existing.quantity?esc(existing.quantity):1}"></div>
-    <div class="field"><label>單價 (NT$)</label><input type="number" id="avPrice" min="0" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填，填一件多少錢">
+    <div class="field"><label>數量</label><input type="number" id="avQuantity" min="1" value="${src&&src.quantity?esc(src.quantity):1}"></div>
+    <div class="field"><label>單價 (NT$)</label><input type="number" id="avPrice" min="0" value="${src&&src.price!==undefined&&src.price!==''?esc(src.price):''}" placeholder="選填，填一件多少錢">
       <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">這裡填的是「一件」的價格，不是這批的總價；同步到記帳時會自動乘上數量算出總金額</p>
+    </div>
+    <div class="field"><label>付款方式</label>
+      <select id="avPaymentMethod">
+        <option value="">請選擇</option>
+        ${EXPENSE_PAYMENT.map(p=>`<option value="${esc(p)}" ${src&&src.paymentMethod===p?'selected':''}>${esc(p)}</option>`).join('')}
+      </select>
     </div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="avSyncExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing?(existing.expenseLinkedId?'checked':''):''}>
+        <input type="checkbox" id="avSyncExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${syncExpenseChecked?'checked':''}>
         同步到記帳
       </label>
       <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填價格且勾選時，會自動建立/更新一筆對應花費（分類：${type==='photocard'?'小卡':'周邊商品'}），記帳那筆會即時顯示這裡的到貨狀態；取消勾選只會解除連結，記帳紀錄本身不會被刪除</div>
     </div>
     <div class="field"><label>下單日期</label><input type="date" id="avOrderedAt" value="${existing?esc(existing.orderedAt||''):todayStr()}"></div>
-    <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
-    <div class="field"><label>物流公司</label>
-      <select id="avCarrier">
-        <option value="">不指定</option>
-        ${ARRIVAL_CARRIER_OPTIONS.map(c=>`<option value="${esc(c)}" ${existing&&existing.carrier===c?'selected':''}>${esc(c)}</option>`).join('')}
-      </select>
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">選「黑貓宅急便」可以直接連到官網查詢；其他物流商會用 17TRACK 幫忙自動辨識查詢</p>
-    </div>
-    <div class="field"><label>追蹤單號</label><input type="text" id="avTrackingNo" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填，填了會自動產生查詢連結"></div>
     <div class="field"><label>狀態</label>
       <select id="avStatus">
         ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='ordered'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
       </select>
+      <p id="avShippingHint" style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;display:${initialShowShipping?'none':'block'};">狀態選「🚚 出貨中」或「✅ 已到貨」後，才會出現預計到貨日／物流公司／追蹤單號欄位</p>
+    </div>
+    <div id="avShippingFieldsWrap" style="display:${initialShowShipping?'block':'none'};">
+      <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
+      <div class="field"><label>物流公司</label>
+        <select id="avCarrier">
+          <option value="">不指定</option>
+          ${ARRIVAL_CARRIER_OPTIONS.map(c=>`<option value="${esc(c)}" ${src&&src.carrier===c?'selected':''}>${esc(c)}</option>`).join('')}
+        </select>
+        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">選「黑貓宅急便」可以直接連到官網查詢；其他物流商會用 17TRACK 幫忙自動辨識查詢</p>
+      </div>
+      <div class="field"><label>追蹤單號</label>
+        <input type="text" id="avTrackingNo" list="avTrackingNoList" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填，填了會自動產生查詢連結">
+        <datalist id="avTrackingNoList">${trackingNoOptions.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
+        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">填跟其他品項一樣的單號，到貨管理清單會自動把它們合併顯示成同一個包裹</p>
+      </div>
     </div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -6609,6 +6745,24 @@ function openArrivalForm(id, itemType){
   const newCategoryInput = document.getElementById('avNewCategory');
   categorySelect.addEventListener('change', ()=>{
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+  });
+
+  const trackingInput = document.getElementById('avTrackingNo');
+  const carrierSelect = document.getElementById('avCarrier');
+  trackingInput.addEventListener('change', ()=>{
+    const val = trackingInput.value.trim();
+    if(!val || carrierSelect.value) return;
+    const match = state.arrivals.find(a=>(a.itemType||'merch')===type && a.trackingNo===val && a.carrier);
+    if(match) carrierSelect.value = match.carrier;
+  });
+
+  const statusSelect = document.getElementById('avStatus');
+  const shippingFieldsWrap = document.getElementById('avShippingFieldsWrap');
+  const shippingHint = document.getElementById('avShippingHint');
+  statusSelect.addEventListener('change', ()=>{
+    const show = statusSelect.value==='shipped' || statusSelect.value==='arrived';
+    shippingFieldsWrap.style.display = show ? 'block' : 'none';
+    if(shippingHint) shippingHint.style.display = show ? 'none' : 'block';
   });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
@@ -6662,6 +6816,7 @@ async function saveArrivalForm(existing, itemType){
     channel: document.getElementById('avChannel').value.trim(),
     quantity: parseInt(document.getElementById('avQuantity').value,10) || 1,
     price: document.getElementById('avPrice').value ? parseFloat(document.getElementById('avPrice').value) : '',
+    paymentMethod: document.getElementById('avPaymentMethod').value,
     orderedAt: document.getElementById('avOrderedAt').value,
     expectedAt: document.getElementById('avExpectedAt').value,
     trackingNo: document.getElementById('avTrackingNo').value.trim(),
