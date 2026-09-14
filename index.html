@@ -5917,13 +5917,21 @@ function openArrivalForm(id, itemType){
     `<option value="${esc(it.id)}" ${curLinkedId===String(it.id)?'selected':''}>${esc(catalogGroupKey(it))} － ${esc(it.name)}${it.owned?'（已擁有）':''}</option>`
   ).join('');
   const addToMerchChecked = existing ? !!existing.addToMerch : true;
+  const seriesOptions = [...new Set([
+    ...state.photocards.map(p=>p.series),
+    ...state.merch.map(m=>m.series)
+  ].filter(Boolean))].sort();
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
     <div class="field"><label>名稱 *</label><input type="text" id="avName" value="${existing?esc(existing.name):''}" placeholder="例：官方商城預購小卡組"></div>
     <div class="field"><label>藝人</label>${artistFieldHtml}</div>
-    <div class="field"><label>系列</label><input type="text" id="avSeries" value="${existing?esc(existing.series||''):''}" placeholder="選填"></div>
+    <div class="field"><label>系列</label>
+      <input type="text" id="avSeries" list="avSeriesList" value="${existing?esc(existing.series||''):''}" placeholder="例：4Reasons、U:NFOLD...">
+      <datalist id="avSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
+      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟${typeLabel}圖鑑打得一模一樣，到貨後才能正確連動顯示在一起</p>
+    </div>
     <div class="field"><label>購入通路</label>
       <input type="text" id="avChannel" list="avChannelList" value="${existing?esc(existing.channel||''):''}" placeholder="例：官方商城、代購...">
       <datalist id="avChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
