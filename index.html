@@ -5905,6 +5905,19 @@ function openArrivalForm(id, itemType){
       <input type="text" id="avNewArtistName" placeholder="輸入新藝人名稱" style="margin-top:8px; display:${curArtist && !artistOptions.includes(curArtist)?'block':'none'};" value="${curArtist && !artistOptions.includes(curArtist)?esc(curArtist):''}">`;
   }
 
+  const catalogList = type==='photocard' ? state.photocards : state.merch;
+  const catalogGroupKey = (it)=> type==='photocard' ? pcGroupKey(it) : mcGroupKey(it);
+  const sortedCatalog = catalogList.slice().sort((a,b)=>{
+    const ka = catalogGroupKey(a), kb = catalogGroupKey(b);
+    if(ka!==kb) return ka.localeCompare(kb,'zh-Hant');
+    return (a.name||'').localeCompare(b.name||'','zh-Hant');
+  });
+  const curLinkedId = existing && existing.linkedMerchId ? String(existing.linkedMerchId) : '';
+  const linkedItemOptionsHtml = sortedCatalog.map(it=>
+    `<option value="${esc(it.id)}" ${curLinkedId===String(it.id)?'selected':''}>${esc(catalogGroupKey(it))} － ${esc(it.name)}${it.owned?'（已擁有）':''}</option>`
+  ).join('');
+  const addToMerchChecked = existing ? !!existing.addToMerch : true;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
@@ -5934,9 +5947,16 @@ function openArrivalForm(id, itemType){
     </div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-        <input type="checkbox" id="avAddToMerch" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing?(existing.addToMerch?'checked':''):'checked'}>
+        <input type="checkbox" id="avAddToMerch" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${addToMerchChecked?'checked':''}>
         到貨後自動加入${typeLabel}圖鑑（標記為已擁有）
       </label>
+      <div id="avLinkedItemWrap" style="margin-top:8px; display:${addToMerchChecked?'block':'none'};">
+        <select id="avLinkedItem">
+          <option value="">🆕 到貨後自動新增一筆新的</option>
+          ${linkedItemOptionsHtml}
+        </select>
+        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">如果${typeLabel}圖鑑裡已經有這筆了，選它就不會重複新增，到貨時只會直接幫那筆打勾「已擁有」</p>
+      </div>
     </div>
     <div class="field"><label>備註</label><input type="text" id="avNote" value="${existing?esc(existing.note||''):''}" placeholder="選填"></div>
     <div class="modal-actions">
@@ -5949,6 +5969,12 @@ function openArrivalForm(id, itemType){
   const newArtistInput = document.getElementById('avNewArtistName');
   artistSelect.addEventListener('change', ()=>{
     newArtistInput.style.display = artistSelect.value==='__new__' ? 'block' : 'none';
+  });
+
+  const addToMerchCheckbox = document.getElementById('avAddToMerch');
+  const linkedItemWrap = document.getElementById('avLinkedItemWrap');
+  addToMerchCheckbox.addEventListener('change', ()=>{
+    linkedItemWrap.style.display = addToMerchCheckbox.checked ? 'block' : 'none';
   });
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
@@ -5974,6 +6000,7 @@ async function saveArrivalForm(existing, itemType){
   const prevStatus = existing ? existing.status : null;
   const newStatus = document.getElementById('avStatus').value;
 
+  const linkedItemSelect = document.getElementById('avLinkedItem');
   const data = {
     id: existing ? existing.id : 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
     itemType: existing ? (existing.itemType||'merch') : (itemType||'merch'),
@@ -5989,7 +6016,7 @@ async function saveArrivalForm(existing, itemType){
     addToMerch: document.getElementById('avAddToMerch').checked,
     note: document.getElementById('avNote').value.trim(),
     arrivedAt: existing ? existing.arrivedAt : '',
-    linkedMerchId: existing ? existing.linkedMerchId : null,
+    linkedMerchId: linkedItemSelect ? (linkedItemSelect.value || null) : (existing ? existing.linkedMerchId : null),
     expenseLinkedId: existing ? existing.expenseLinkedId : '',
     category: existing ? existing.category : ''
   };
@@ -6010,7 +6037,7 @@ async function saveArrivalForm(existing, itemType){
 
   const finalItem = existing || data;
   await syncArrivalExpense(finalItem, syncExpense);
-  if(newStatus==='arrived' && prevStatus!=='arrived'){
+  if(newStatus==='arrived'){
     await applyArrivalArrivedSideEffect(finalItem);
   }
   await saveKey('oshi-arrivals', state.arrivals);
