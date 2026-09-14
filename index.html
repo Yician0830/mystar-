@@ -2401,7 +2401,8 @@ function bindNav(){
     if(state.tab==='media'){
       if(mediaSubTab==='endorsement'){ openEndorsementForm(null); }
       else if(mediaSubTab==='magazine'){ openMagazineForm(null); }
-      else { openMovieForm(null); }
+      else if(mediaSubTab==='movie'){ openMovieForm(null); }
+      else { openMediaOverviewAddChooser(); }
       return;
     }
     openForm(state.tab, null);
@@ -2775,6 +2776,17 @@ function toLocalDateStr(t){
 }
 function todayStr(){
   return toLocalDateStr(new Date());
+}
+/* 算出「本週」的日期範圍（週一～週日），用來做行程表的本週快速篩選 */
+function currentWeekRange(){
+  const now = new Date();
+  const day = now.getDay(); // 0=週日...6=週六
+  const diffToMonday = (day===0) ? -6 : (1-day);
+  const monday = new Date(now);
+  monday.setDate(now.getDate()+diffToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate()+6);
+  return { start: toLocalDateStr(monday), end: toLocalDateStr(sunday) };
 }
 function fanDurationText(dateStr){
   if(!dateStr) return '';
@@ -5129,9 +5141,12 @@ async function saveExpenseForm(existing){
 /* ================= Schedule (calendar view) ================= */
 let calMonth = null;
 let scheduleArtistFilter = '__all__';
+/* 清單檢視的時間快速篩選：'__all__' 全部／'week' 本週／'month' 本月，只影響「即將到來」區塊 */
+let scheduleTimeFilter = '__all__';
+/* 「已結束」行程改成依年份自動歸檔、預設收合，這裡記錄目前展開了哪些年份 */
+let schedulePastOpenYears = new Set();
 let scheduleViewMode = 'calendar';
 const PAST_LIST_PAGE_SIZE = 10;
-let schedulePastShowCount = PAST_LIST_PAGE_SIZE;
 
 function ensureCalMonth(){
   if(!calMonth) calMonth = todayStr().slice(0,7);
@@ -5382,12 +5397,23 @@ function renderScheduleListBody(filteredSchedule){
   const today = todayStr();
   const effectiveEnd = s=> (s.isMultiDay && s.endDate) ? s.endDate : s.date;
   const dated = filteredSchedule.filter(s=>s.date);
-  const upcoming = dated.filter(s=> effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  let upcoming = dated.filter(s=> effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
   const pastAll = dated.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
-  const past = pastAll.slice(0, schedulePastShowCount);
 
   if(upcoming.length===0 && pastAll.length===0){
     return `<div class="empty"><div class="stamp-big maru">程</div><div class="msg">還沒有安排任何行程<br>點右下角的「＋」新增一筆吧</div></div>`;
+  }
+
+  // 「本週／本月」快速篩選：只影響「即將到來」的清單，方便只看近期要做的事
+  let timeRangeLabel = '';
+  if(scheduleTimeFilter==='week'){
+    const {start,end} = currentWeekRange();
+    upcoming = upcoming.filter(s=> s.date<=end && effectiveEnd(s)>=start);
+    timeRangeLabel = `（本週 ${fmtDate(start)}～${fmtDate(end)}）`;
+  } else if(scheduleTimeFilter==='month'){
+    const thisMonth = today.slice(0,7);
+    upcoming = upcoming.filter(s=> (s.date||'').startsWith(thisMonth) || (s.isMultiDay && (s.endDate||'').startsWith(thisMonth)));
+    timeRangeLabel = '（本月）';
   }
 
   const renderRow = (s)=>{
@@ -5432,28 +5458,66 @@ function renderScheduleListBody(filteredSchedule){
   };
 
   let html = '';
-  if(upcoming.length>0){
-    html += `<div class="exp-group-header"><div class="exp-group-title">📌 即將到來 <span class="exp-group-count">(${upcoming.length} 筆)</span></div></div>
-    <div class="list-grid">${upcoming.map(renderRow).join('')}</div>`;
+
+  html += `<div class="cal-filter-row" style="margin-bottom:10px;">
+    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='__all__'?'active':''}" data-time="__all__">🗓️ 全部</button>
+    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='week'?'active':''}" data-time="week">📍 本週</button>
+    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='month'?'active':''}" data-time="month">📆 本月</button>
+  </div>`;
+
+  html += `<div class="exp-group-header"><div class="exp-group-title">📌 即將到來${timeRangeLabel} <span class="exp-group-count">(${upcoming.length} 筆)</span></div></div>`;
+  if(upcoming.length===0){
+    html += `<div class="empty" style="padding:20px 0;"><div class="msg" style="color:var(--ink-soft);font-size:13px;">這段期間沒有排定行程</div></div>`;
+  } else {
+    html += `<div class="list-grid">${upcoming.map(renderRow).join('')}</div>`;
   }
+
   if(pastAll.length>0){
-    html += `<div class="exp-group-header" style="margin-top:18px;"><div class="exp-group-title">✅ 已結束 <span class="exp-group-count">(${pastAll.length} 筆)</span></div></div>
-    <div class="list-grid">${past.map(renderRow).join('')}</div>`;
-    if(pastAll.length > schedulePastShowCount){
-      html += `<div style="text-align:center;margin-top:12px;"><button class="chip-clear" id="schedulePastMoreBtn">顯示更多（還有 ${pastAll.length - schedulePastShowCount} 筆）</button></div>`;
-    }
+    // 已結束的行程自動依年份歸檔，預設收合成一行摘要，點一下才展開該年份的明細，
+    // 避免行程一多就要一直「顯示更多」捲很久才找得到舊行程。
+    const yearGroups = {};
+    pastAll.forEach(s=>{
+      const y = (effectiveEnd(s)||'').slice(0,4) || '未知年份';
+      (yearGroups[y] = yearGroups[y] || []).push(s);
+    });
+    const years = Object.keys(yearGroups).sort((a,b)=> b.localeCompare(a));
+
+    html += `<div class="exp-group-header" style="margin-top:18px;"><div class="exp-group-title">🗂️ 已結束（自動歸檔） <span class="exp-group-count">(${pastAll.length} 筆)</span></div></div>
+    <div class="list-grid">`;
+    years.forEach(y=>{
+      const items = yearGroups[y];
+      const isOpen = schedulePastOpenYears.has(y);
+      html += `
+      <div class="card sched-past-year-card" data-past-year="${esc(y)}" style="cursor:pointer;">
+        <div class="card-row">
+          <div class="card-title">${y==='未知年份'?y:`${esc(y)} 年`} <span class="pc-count">(${items.length} 筆)</span></div>
+          <div class="card-actions"><span style="font-size:12px;color:var(--ink-soft);">${isOpen?'收合 ▲':'展開 ▼'}</span></div>
+        </div>
+      </div>`;
+      if(isOpen){
+        html += items.map(renderRow).join('');
+      }
+    });
+    html += `</div>`;
   }
   return html;
 }
 
 function bindCalendarActions(){
-  const schedulePastMoreBtn = document.getElementById('schedulePastMoreBtn');
-  if(schedulePastMoreBtn){
-    schedulePastMoreBtn.addEventListener('click', ()=>{
-      schedulePastShowCount += PAST_LIST_PAGE_SIZE;
+  document.querySelectorAll('.sched-time-filter-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      scheduleTimeFilter = btn.dataset.time;
       render();
     });
-  }
+  });
+  document.querySelectorAll('.sched-past-year-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      const y = card.dataset.pastYear;
+      if(schedulePastOpenYears.has(y)) schedulePastOpenYears.delete(y);
+      else schedulePastOpenYears.add(y);
+      render();
+    });
+  });
   document.querySelectorAll('.sched-view-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       scheduleViewMode = btn.dataset.view;
@@ -5463,7 +5527,7 @@ function bindCalendarActions(){
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
       scheduleArtistFilter = b.dataset.filter;
-      schedulePastShowCount = PAST_LIST_PAGE_SIZE;
+      schedulePastOpenYears = new Set();
       render();
     });
   });
@@ -5587,7 +5651,7 @@ function renderPhotocardCard(pc, seriesLabel){
         <input type="checkbox" class="pc-owned-input" data-id="${pc.id}" ${owned?'checked':''}>
         已擁有
       </label>
-      ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span></div>` : ''}
+      ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span>${pc.price ? `<span class="tag gold">NT$ ${(parseFloat(pc.price)||0).toLocaleString()}</span>`:''}</div>` : (pc.price ? `<div><span class="tag gold">NT$ ${(parseFloat(pc.price)||0).toLocaleString()}</span></div>` : '')}
       <div class="pc-actions">
         <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
         <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="photocards" data-id="${pc.id}">✎</button>
@@ -5697,6 +5761,20 @@ function renderPhotocards(){
   if(Object.keys(displayGroups).length===0){
     html += `<div class="empty"><div class="stamp-big maru">卡</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
     return html;
+  }
+
+  // 願望清單估算花費：把目前篩選範圍內、有標價的願望清單小卡加總起來，方便抓「這些想收的還要花多少」
+  if(pcOwnedFilter==='wish'){
+    const wishItems = Object.values(displayGroups).flat();
+    const wishTotal = wishItems.reduce((sum,pc)=> sum + (parseFloat(pc.price)||0), 0);
+    const wishPricedCount = wishItems.filter(pc=> parseFloat(pc.price)>0).length;
+    if(wishTotal>0){
+      html += `<div class="mini-row" style="margin:0 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+        <span class="l" style="font-weight:700;">🌟 願望清單預估花費</span>
+        <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${wishTotal.toLocaleString()}</span>
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} 張願望清單中，${wishPricedCount} 張有填價格</div>`;
+    }
   }
 
   // 選了「已擁有」「願望清單」或指定卡別時，直接列出符合條件的小卡本身，並在每個圖鑑前顯示小計
@@ -5827,7 +5905,7 @@ function renderMerchCard(mc, seriesLabel){
         <input type="checkbox" class="mc-owned-input" data-id="${mc.id}" ${owned?'checked':''}>
         已擁有
       </label>
-      ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : ''}
+      ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : (mc.price ? `<div><span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span></div>` : '')}
       <div class="pc-actions">
         <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
         <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="merch" data-id="${mc.id}">✎</button>
@@ -5919,6 +5997,20 @@ function renderMerchTab(){
   if(Object.keys(displayGroups).length===0){
     html += `<div class="empty"><div class="stamp-big maru">周</div><div class="msg">目前沒有符合條件的品項</div></div>`;
     return html;
+  }
+
+  // 願望清單估算花費：把目前篩選範圍內、有標價的願望清單周邊加總起來
+  if(mcOwnedFilter==='wish'){
+    const wishItems = Object.values(displayGroups).flat();
+    const wishTotal = wishItems.reduce((sum,mc)=> sum + (parseFloat(mc.price)||0), 0);
+    const wishPricedCount = wishItems.filter(mc=> parseFloat(mc.price)>0).length;
+    if(wishTotal>0){
+      html += `<div class="mini-row" style="margin:0 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+        <span class="l" style="font-weight:700;">🌟 願望清單預估花費</span>
+        <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${wishTotal.toLocaleString()}</span>
+      </div>
+      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} 件願望清單中，${wishPricedCount} 件有填價格</div>`;
+    }
   }
 
   if(mcOwnedFilter !== '__all__'){
@@ -6593,6 +6685,9 @@ let magazineArtistFilter = '__all__';
 let movieArtistFilter = '__all__';
 let mediaSubTab = 'endorsement';
 let mediaSearchQuery = '';
+/* 「全部媒體」總覽子分頁用的篩選狀態：把代言/雜誌/影視合併成同一份清單一起看 */
+let mediaOverviewArtistFilter = '__all__';
+let mediaOverviewYearFilter = '__all__';
 
 function renderSupportTab(){
   const meta = TAB_META.support;
@@ -6986,6 +7081,7 @@ function renderMediaTab(){
   const meta = TAB_META.media;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   html += `<div class="cal-filter-row">
+    <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='all'?'active':''}" data-sub="all">🗂️ 全部媒體</button>
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='endorsement'?'active':''}" data-sub="endorsement">🤝 代言</button>
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='magazine'?'active':''}" data-sub="magazine">📔 雜誌</button>
     <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='movie'?'active':''}" data-sub="movie">🎬 影視</button>
@@ -6993,10 +7089,127 @@ function renderMediaTab(){
   <div class="field" style="margin:12px 0;">
     <input type="text" id="mediaSearchInput" placeholder="🔍 搜尋名稱、藝人、類型..." value="${esc(mediaSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>`;
-  if(mediaSubTab==='magazine') html += renderMagazineBody();
+  if(mediaSubTab==='all') html += renderMediaOverviewBody();
+  else if(mediaSubTab==='magazine') html += renderMagazineBody();
   else if(mediaSubTab==='movie') html += renderMovieBody();
   else html += renderEndorsementBody();
   return html;
+}
+
+/* ================= 全部媒體總覽（代言＋雜誌＋影視合併檢視） ================= */
+function mediaOverviewItems(){
+  // 統一把三種媒體資料轉成同一種格式，方便合併排序、篩選、加總，每筆保留原始資料 raw 供卡片渲染用
+  const endorsementItems = state.endorsement.map(e=> ({ type:'endorsement', date:e.startDate||'', raw:e }));
+  const magazineItems = state.magazine.map(m=> ({ type:'magazine', date:m.issueDate||'', raw:m }));
+  const movieItems = state.movie.map(x=> ({ type:'movie', date:x.startDate||'', raw:x }));
+  return [...endorsementItems, ...magazineItems, ...movieItems];
+}
+function mediaOverviewMatchesSearch(entry){
+  const extra = entry.type==='magazine' ? [entry.raw.issue, entry.raw.note]
+    : entry.type==='movie' ? [entry.raw.role, entry.raw.platform, entry.raw.note]
+    : [];
+  return mediaMatchesSearch(entry.raw, extra);
+}
+function renderMediaOverviewBody(){
+  const all = mediaOverviewItems();
+  if(all.length===0){
+    return `<div class="empty"><div class="stamp-big maru">媒</div><div class="msg">還沒有任何代言、雜誌或影視紀錄<br>切換上方分類新增一筆吧</div></div>`;
+  }
+
+  const artistNames = [...new Set(all.map(x=>x.raw.artist).filter(Boolean))];
+  if(mediaOverviewArtistFilter!=='__all__' && !artistNames.includes(mediaOverviewArtistFilter)) mediaOverviewArtistFilter = '__all__';
+
+  const years = [...new Set(all.map(x=>(x.date||'').slice(0,4)).filter(Boolean))].sort((a,b)=> b.localeCompare(a));
+  if(mediaOverviewYearFilter!=='__all__' && !years.includes(mediaOverviewYearFilter)) mediaOverviewYearFilter = '__all__';
+
+  let html = '';
+  if(artistNames.length>0){
+    html += `<div class="cal-filter-row">
+      <button class="cal-filter-btn media-ov-artist-btn ${mediaOverviewArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn media-ov-artist-btn ${mediaOverviewArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+    </div>`;
+  }
+  if(years.length>0){
+    html += `<div class="cal-filter-row" style="margin-top:8px;">
+      <button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${mediaOverviewYearFilter==='__all__'?'active':''}" data-year="__all__">全部年份</button>
+      ${years.map(y=>`<button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${mediaOverviewYearFilter===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
+    </div>`;
+  }
+
+  const filtered = all
+    .filter(x=> mediaOverviewArtistFilter==='__all__' || x.raw.artist===mediaOverviewArtistFilter)
+    .filter(x=> mediaOverviewYearFilter==='__all__' || (x.date||'').startsWith(mediaOverviewYearFilter))
+    .filter(x=> mediaOverviewMatchesSearch(x))
+    .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+
+  // 總覽統計：目前篩選範圍內，代言／雜誌／影視各有幾檔、合計幾檔——
+  // 這樣某藝人「今年總共有幾檔活動」一次就能看到，不用切三個分頁各自數。
+  const countBy = { endorsement:0, magazine:0, movie:0 };
+  filtered.forEach(x=> countBy[x.type]++);
+  const scopeLabel = [
+    mediaOverviewArtistFilter==='__all__' ? '全部藝人' : mediaOverviewArtistFilter,
+    mediaOverviewYearFilter==='__all__' ? '全部年份' : `${mediaOverviewYearFilter}年`
+  ].join('・');
+  html += `
+  <div class="mini-row" style="margin:12px 0 10px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm); flex-wrap:wrap; gap:6px;">
+    <span class="l" style="font-weight:700;">🗂️ ${esc(scopeLabel)} 媒體總覽</span>
+    <span class="r" style="font-weight:700; color:var(--rose-deep);">合計 ${filtered.length} 檔</span>
+  </div>
+  <div class="cal-filter-row" style="margin:0 0 14px;">
+    <span class="tag">🤝 代言 ${countBy.endorsement}</span>
+    <span class="tag matcha">📔 雜誌 ${countBy.magazine}</span>
+    <span class="tag gold">🎬 影視 ${countBy.movie}</span>
+  </div>`;
+
+  if(filtered.length===0){
+    html += `<div class="empty"><div class="stamp-big maru">查</div><div class="msg">找不到符合條件的媒體紀錄</div></div>`;
+    return html;
+  }
+
+  html += `<div class="support-grid">${filtered.map(x=>{
+    if(x.type==='endorsement') return renderEndorsementCard(x.raw);
+    if(x.type==='magazine') return renderMagazineCard(x.raw);
+    return renderMovieCard(x.raw);
+  }).join('')}</div>`;
+  return html;
+}
+function bindMediaOverviewFilterActions(){
+  document.querySelectorAll('.media-ov-artist-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      mediaOverviewArtistFilter = b.dataset.filter;
+      render();
+    });
+  });
+  document.querySelectorAll('.media-ov-year-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      mediaOverviewYearFilter = b.dataset.year;
+      render();
+    });
+  });
+}
+/* 在「全部媒體」總覽按＋新增時，因為混了三種類型，先跳出小選單讓使用者選要新增哪一種 */
+function openMediaOverviewAddChooser(){
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru" style="margin-bottom:14px;">要新增哪一種紀錄？</h3>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <button type="button" class="btn ghost media-ov-add-choice" data-type="endorsement" style="width:100%;text-align:left;">🤝 代言合作</button>
+      <button type="button" class="btn ghost media-ov-add-choice" data-type="magazine" style="width:100%;text-align:left;">📔 雜誌寫真</button>
+      <button type="button" class="btn ghost media-ov-add-choice" data-type="movie" style="width:100%;text-align:left;">🎬 影視作品</button>
+    </div>
+    <div class="modal-actions"><button class="btn ghost" id="cancelBtn">取消</button></div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  modal.querySelectorAll('.media-ov-add-choice').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const type = btn.dataset.type;
+      closeModal();
+      if(type==='endorsement') openEndorsementForm(null);
+      else if(type==='magazine') openMagazineForm(null);
+      else openMovieForm(null);
+    });
+  });
+  showModal();
 }
 
 function mediaMatchesSearch(item, extraFields){
@@ -7013,7 +7226,8 @@ function bindMediaTabActions(){
       render();
     });
   });
-  if(mediaSubTab==='magazine') bindMagazineFilterActions();
+  if(mediaSubTab==='all') bindMediaOverviewFilterActions();
+  else if(mediaSubTab==='magazine') bindMagazineFilterActions();
   else if(mediaSubTab==='movie') bindMovieFilterActions();
   else bindEndorsementFilterActions();
 
@@ -8078,6 +8292,7 @@ function openPhotocardForm(id, prefill){
       <datalist id="pcChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
     </div>
     <div class="field"><label>圖片網址</label><input type="url" id="pcImageUrl" value="${src?esc(src.imageUrl||''):''}" placeholder="貼上圖片連結"></div>
+    <div class="field"><label>價格 (NT$，選填)</label><input type="number" id="pcPrice" min="0" value="${src&&src.price?esc(src.price):''}" placeholder="還沒擁有時可先填預估價，方便算願望清單估算花費"></div>
     <div class="field"><label>建立時間</label><input type="date" id="pcCreatedAt" value="${existing?esc(existing.createdAt||todayStr()):todayStr()}"></div>
     <div class="field">
       <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -8141,6 +8356,7 @@ async function savePhotocardForm(existing){
     category,
     channel: document.getElementById('pcChannel').value.trim(),
     imageUrl: document.getElementById('pcImageUrl').value.trim(),
+    price: document.getElementById('pcPrice').value,
     createdAt: document.getElementById('pcCreatedAt').value || todayStr(),
     owned: document.getElementById('pcOwned').checked
   };
@@ -9443,6 +9659,9 @@ function openProfileForm(){
   });
   document.querySelectorAll('.playlist-del-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
+      // 這裡巢狀在「個人設定」彈窗裡，開第二層彈窗做確認會蓋掉整個設定畫面，
+      // 所以跟「放棄未儲存的編輯」那處一樣，直接借用瀏覽器原生 confirm() 做二次確認。
+      if(!confirm('確定要刪除這首歌嗎？')) return;
       const id = btn.dataset.id;
       state.playlist = state.playlist.filter(p=>p.id!==id);
       await saveKey('oshi-playlist', state.playlist);
@@ -9628,10 +9847,49 @@ async function applyImportedBackup(data){
   updateArrivalReminderBanner();
 }
 
+/* 算出某位藝人名下，各分頁分別掛了幾筆資料——刪除藝人前用來提醒使用者這些紀錄不會被連帶刪除，
+   只是選單裡少了這個藝人選項，紀錄本身的藝人文字還在（但之後不好篩選/統計） */
+function artistUsageCounts(name){
+  const counts = {};
+  ['schedule','expense','photocards','merch','support','endorsement','magazine','movie'].forEach(t=>{
+    counts[t] = (state[t]||[]).filter(item=> item.artist===name).length;
+  });
+  counts.fanlog = (state.fanlog||[]).filter(f=> splitArtistNames(f.artist).includes(name)).length;
+  return counts;
+}
+const ARTIST_USAGE_LABELS = {
+  schedule:'🗓️ 行程', expense:'💰 記帳', photocards:'🎴 小卡', merch:'🛍️ 周邊',
+  support:'📣 應援', fanlog:'📖 追星紀錄', endorsement:'🤝 代言', magazine:'📔 雜誌', movie:'🎬 影視'
+};
+
 function confirmDelete(tab, id){
   const modal = document.getElementById('modal');
+
+  // 刪除藝人是比較特殊的一種刪除：藝人底下常常已經掛了大量行程/記帳/小卡等關聯紀錄，
+  // 這些紀錄不會被連帶刪除，只是之後選單裡少了這個藝人，所以刪除前先讓使用者看到關聯筆數再決定。
+  let warningHtml = '';
+  if(tab==='artists'){
+    const artist = state.artists.find(a=>String(a.id)===String(id));
+    if(artist){
+      const counts = artistUsageCounts(artist.name);
+      const nonZero = Object.keys(counts).filter(k=>counts[k]>0);
+      const total = nonZero.reduce((sum,k)=> sum+counts[k], 0);
+      if(total>0){
+        warningHtml = `
+        <div style="background:var(--rose-pale, #FBEAEA);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+          <div style="font-size:13px;font-weight:700;color:var(--rose-deep);margin-bottom:6px;">⚠️ 「${esc(artist.name)}」名下還有 ${total} 筆關聯紀錄</div>
+          <div style="font-size:12px;color:var(--ink-soft);line-height:1.8;">
+            ${nonZero.map(k=> `${ARTIST_USAGE_LABELS[k]} ${counts[k]} 筆`).join('　')}
+          </div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px;">刪除藝人不會連帶刪除這些紀錄，但之後在各分頁會少了這個藝人可以篩選/歸類。</div>
+        </div>`;
+      }
+    }
+  }
+
   modal.innerHTML = `
     <h3 class="maru">確定要刪除嗎？</h3>
+    ${warningHtml}
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">刪除後資料將無法復原。</p>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
