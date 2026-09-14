@@ -451,6 +451,10 @@
     color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .bday-card .date{ font-size:11.5px; color:var(--ink-soft); }
+  .dday-artist{
+    font-size:10.5px; color:var(--ink-soft); display:flex; align-items:center; justify-content:center;
+    gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
   .bday-card .days{ font-size:12px; font-weight:700; color:var(--rose-deep); }
   .bday-card.today{ background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale)); }
   /* 「今天」的卡片右上角加個會呼吸的小圓點，比單純換底色更容易被注意到 */
@@ -480,6 +484,7 @@
     .bday-card .name{ font-size:14px; }
     .bday-card .date{ font-size:12px; }
     .bday-card .days{ font-size:13px; }
+    .dday-artist{ font-size:11.5px; }
   }
   /* 倒數計時卡片：依需求移除左側色條，改回一般置中卡片 */
   .dday-card.onsale .days{ color:var(--matcha); }
@@ -4055,11 +4060,11 @@ function renderHome(){
   state.schedule.forEach(s=>{
     if(s.date){
       const d = daysUntilDate(s.date);
-      if(d!==null && d>=0) ddayItems.push({type:'event', title:s.title, date:s.date, days:d, category:s.category});
+      if(d!==null && d>=0) ddayItems.push({type:'event', title:s.title, date:s.date, days:d, category:s.category, artist:s.artist});
     }
     if(s.onSaleDate){
       const d2 = daysUntilDate(s.onSaleDate);
-      if(d2!==null && d2>=0) ddayItems.push({type:'onsale', title:s.title, date:s.onSaleDate, days:d2, category:s.category});
+      if(d2!==null && d2>=0) ddayItems.push({type:'onsale', title:s.title, date:s.onSaleDate, days:d2, category:s.category, artist:s.artist});
     }
   });
   ddayItems.sort((a,b)=> a.days-b.days);
@@ -4075,8 +4080,10 @@ function renderHome(){
       const isToday = it.days===0;
       const icon = it.type==='onsale' ? '🎫' : '🎤';
       const label = isToday ? (it.type==='onsale' ? '🎉 開賣就是今天！' : '🎉 就是今天！') : `還有 ${it.days} 天`;
+      const artistLabel = it.artist ? `<div class="dday-artist">${esc(it.artist)}</div>` : '';
       main += `<div class="dday-card bday-card ${isToday?'today':''} ${it.type==='onsale'?'onsale':''}">
         <div class="name">${icon} ${esc(it.title)}</div>
+        ${artistLabel}
         <div class="date">${it.type==='onsale'?'開賣 ':''}${fmtDate(it.date)}</div>
         <div class="days">${label}</div>
       </div>`;
@@ -5388,6 +5395,17 @@ function renderScheduleListBody(filteredSchedule){
       ? `${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}`
       : fmtDate(s.date);
     const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, orderedCategoryList('schedule'))}">${esc(s.category)}</span>` : '';
+    let onSaleBadge = '';
+    if(s.onSaleDate){
+      const osDays = daysUntilDate(s.onSaleDate);
+      let osLabel = '';
+      if(osDays!==null){
+        if(osDays>0) osLabel = `（還有${osDays}天）`;
+        else if(osDays===0) osLabel = '（今天！）';
+        else osLabel = '（已開賣）';
+      }
+      onSaleBadge = `<span class="tag gold">🎫 開賣 ${fmtDate(s.onSaleDate)}${osLabel}</span>`;
+    }
     const checklist = Array.isArray(s.checklist) ? s.checklist : [];
     const doneCount = checklist.filter(it=>it.done).length;
     const checklistPct = checklist.length>0 ? Math.round(doneCount/checklist.length*100) : 0;
@@ -5400,11 +5418,12 @@ function renderScheduleListBody(filteredSchedule){
         <div>
           <div class="card-title">${esc(s.title)}</div>
           <div class="card-meta">${[s.artist, s.location].filter(Boolean).join(' · ')}</div>
-          <div style="margin-top:6px;">${catBadge} <span class="tag">🗓️ ${dateLabel}</span></div>
+          <div style="margin-top:6px;">${catBadge} <span class="tag">🗓️ ${dateLabel}</span> ${onSaleBadge}</div>
           ${s.note ? `<div class="card-meta" style="margin-top:6px;">${esc(s.note)}</div>` : ''}
           ${checklistHtml}
         </div>
         <div class="card-actions">
+          ${s.date && s.date<=today ? `<button class="icon-btn to-fanlog" title="轉成紀錄" aria-label="轉成紀錄" data-tab="schedule" data-id="${s.id}">📝</button>` : ''}
           <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="schedule" data-id="${s.id}">✎</button>
           <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="schedule" data-id="${s.id}">🗑</button>
         </div>
@@ -7597,6 +7616,12 @@ function bindListActions(tab){
     else if(b.dataset.tab==='merch') b.addEventListener('click', ()=> duplicateMerch(b.dataset.id));
     // 'expense' 的複製按鈕另外在 bindExpenseActions() 綁定，這裡略過避免重複綁定
   });
+  document.querySelectorAll('.icon-btn.to-fanlog').forEach(b=>{
+    b.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      convertScheduleToFanlog(b.dataset.id);
+    });
+  });
   /* 這兩個「已擁有」勾選框拉到條件外綁定：小卡/周邊圖鑑互相連動顯示時，
      不管目前在哪個分頁，卡片上的勾選框都要能正常運作 */
   document.querySelectorAll('.pc-owned-input').forEach(inp=>{
@@ -8629,6 +8654,23 @@ function duplicateFanlog(id){
 }
 
 /* ================= Schedule form ================= */
+/* 把一筆已經發生（或就是今天）的行程，一鍵轉成追星紀錄的新增表單並帶入資料，
+   避免同一場活動要在「行程」跟「紀錄」各打一次幾乎一樣的內容。
+   只帶「標題／藝人／日期／分類」這些兩邊都有、意義相同的欄位，
+   分類如果不在紀錄自己的分類清單裡，表單會自動退回「其他（自行輸入）」，不會硬塞一個不存在的選項。
+   跨天行程預設帶入開始日期，使用者可以在紀錄表單裡自行改成實際去的那天。 */
+function convertScheduleToFanlog(scheduleId){
+  const s = state.schedule.find(x=>String(x.id)===String(scheduleId));
+  if(!s) return;
+  const prefill = {
+    activity: s.title || '',
+    artist: s.artist || '',
+    date: s.date || todayStr(),
+    category: s.category || ''
+  };
+  openFanlogForm(null, prefill);
+}
+
 function openScheduleForm(id, prefill){
   const existing = id ? state.schedule.find(s=>String(s.id)===String(id)) : null;
   schChecklist = existing && Array.isArray(existing.checklist) ? existing.checklist.map(it=>({...it})) : [];
@@ -8690,7 +8732,10 @@ function openScheduleForm(id, prefill){
       <button type="button" class="btn ghost" id="schChecklistTemplateBtn" style="width:100%;margin-top:8px;padding:9px;font-size:12.5px;">✨ 套用演唱會/見面會常見待辦</button>
     </div>
     <div class="modal-actions">
-      ${existing ? `<button class="btn danger" id="schDeleteBtn" style="margin-right:auto;">🗑 刪除</button>` : ''}
+      <div style="display:flex;gap:8px;margin-right:auto;">
+        ${existing ? `<button class="btn danger" id="schDeleteBtn">🗑 刪除</button>` : ''}
+        ${existing && existing.date && existing.date<=todayStr() ? `<button class="btn ghost" id="schToFanlogBtn">📝 轉成紀錄</button>` : ''}
+      </div>
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
     </div>
@@ -8725,6 +8770,14 @@ function openScheduleForm(id, prefill){
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveScheduleForm(existing));
+  const toFanlogBtn = document.getElementById('schToFanlogBtn');
+  if(toFanlogBtn){
+    toFanlogBtn.addEventListener('click', ()=>{
+      const scheduleId = existing.id;
+      closeModal();
+      convertScheduleToFanlog(scheduleId);
+    });
+  }
   const deleteBtn = document.getElementById('schDeleteBtn');
   if(deleteBtn){
     deleteBtn.addEventListener('click', ()=> confirmDelete('schedule', existing.id));
