@@ -1154,6 +1154,10 @@
     <span id="backupReminderText"></span>
     <span class="storage-warn-close" id="backupReminderClose">✕</span>
   </div>
+  <div class="storage-warn" id="arrivalReminderBanner" style="cursor:pointer;">
+    <span id="arrivalReminderText"></span>
+    <span class="storage-warn-close" id="arrivalReminderClose">✕</span>
+  </div>
 
   <header class="top" id="petalHost">
     <div class="top-row">
@@ -1525,6 +1529,7 @@ const state = {
   magazine:[],
   movie:[],
   merch:[],
+  arrivals:[],
   playlist:[],
   profile:{ nickname:'', dailyReminder:true },
   theme:{ ...DEFAULT_THEME },
@@ -1885,6 +1890,71 @@ async function syncMediaExpense(type, item, name, artist, date, amount, addToExp
   await saveKey('oshi-expense', state.expense);
 }
 const TAG_CLASSES = ['', 'matcha', 'wisteria', 'gold', 'rose', 'sky', 'peach', 'lavender', 'mint', 'coral', 'amber', 'slate'];
+/* 到貨追蹤 ↔ 記帳本：一筆到貨可以同步成一筆記帳（跟代言/雜誌/影視同一套邏輯），
+   但多了「取消勾選時解除連結、記帳本身保留」的行為，且記帳卡片會即時讀到貨追蹤目前的狀態，不會存一份複本 */
+async function syncArrivalExpense(item, addToExpense){
+  const amt = parseFloat(item.price) || 0;
+  let linkedExpense = item.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(item.expenseLinkedId)) : null;
+
+  if(!addToExpense || amt<=0){
+    if(linkedExpense){
+      linkedExpense.arrivalLinkedId = '';
+      await saveKey('oshi-expense', state.expense);
+    }
+    item.expenseLinkedId = '';
+    return;
+  }
+
+  if(linkedExpense){
+    linkedExpense.name = item.name;
+    linkedExpense.artist = item.artist || '';
+    linkedExpense.unitPrice = amt;
+    linkedExpense.quantity = String(item.quantity||1);
+    linkedExpense.date = item.orderedAt || linkedExpense.date || todayStr();
+    linkedExpense.platform = item.channel || linkedExpense.platform || '';
+    linkedExpense.arrivalLinkedId = item.id;
+  } else {
+    const newExpense = {
+      id: 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000)+'a',
+      recordType: 'expense',
+      name: item.name,
+      artist: item.artist || '',
+      unitPrice: amt,
+      quantity: String(item.quantity||1),
+      shipping: '',
+      origCurrency: 'TWD',
+      origAmount: '',
+      category: (item.itemType==='photocard') ? '小卡' : '周邊商品',
+      date: item.orderedAt || todayStr(),
+      links: [],
+      supportLinkedId: '', fanlogLinkedId: '', pcSeriesLinkedId: '', mcSeriesLinkedId: '',
+      mediaType: '', mediaLinkedId: '',
+      platform: item.channel || '',
+      deliveryStatus: '',
+      paymentMethod: '',
+      tags: [],
+      note: '由到貨追蹤自動建立',
+      imageUrls: [],
+      arrivalLinkedId: item.id
+    };
+    state.expense.push(newExpense);
+    item.expenseLinkedId = newExpense.id;
+  }
+  await saveKey('oshi-expense', state.expense);
+}
+/* 記帳卡片／表單用：如果這筆記帳有連結到貨追蹤，即時算出目前的狀態標籤（不存複本） */
+function arrivalForLinkedExpense(expenseItem){
+  if(!expenseItem || !expenseItem.arrivalLinkedId) return null;
+  return state.arrivals.find(a=>String(a.id)===String(expenseItem.arrivalLinkedId)) || null;
+}
+function arrivalStatusTagHtml(arrival){
+  const st = ARRIVAL_STATUS_META[arrival.status] || ARRIVAL_STATUS_META.ordered;
+  const overdue = arrivalIsOverdue(arrival);
+  const label = overdue ? `⚠️ 已逾期 ${arrivalOverdueDays(arrival)} 天` : `${st.icon} ${st.label}`;
+  const style = overdue ? 'background:#FBE3EA;color:#B2465F;cursor:pointer;' : 'cursor:pointer;';
+  return `<span class="tag ${overdue?'':st.tagClass} arrival-status-tag" data-arrival-id="${esc(arrival.id)}" title="🔗 由到貨追蹤同步，點擊查看" style="${style}">${esc(label)}</span>`;
+}
+
 function tagColorClass(text, categoryList){
   if(!text) return '';
   if(categoryList && categoryList.length){
@@ -1992,7 +2062,7 @@ async function migrateLocalDataToCloudIfNeeded(){
 }
 
 async function loadAllData(){
-  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, exco, scco, pcco, mcco, flco, enco, exd, scd, pcd, mcd, fld, endd] = await Promise.all([
+  const [sc, ex, pc, mv, fl, ar, pf, cc, pcc, pcm, flc, scc, en, mg, mo, enc, exc, th, mc, mcc, mccov, mcmeta, exco, scco, pcco, mcco, flco, enco, exd, scd, pcd, mcd, fld, endd, arv] = await Promise.all([
     loadKey('oshi-schedule', []),
     loadKey('oshi-expense', []),
     loadKey('oshi-photocards', []),
@@ -2026,7 +2096,8 @@ async function loadAllData(){
     loadKey('oshi-pc-categories-disabled', []),
     loadKey('oshi-merch-categories-disabled', []),
     loadKey('oshi-fanlog-categories-disabled', []),
-    loadKey('oshi-endorsement-categories-disabled', [])
+    loadKey('oshi-endorsement-categories-disabled', []),
+    loadKey('oshi-arrivals', [])
   ]);
   state.schedule = sc; state.expense = ex; state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
@@ -2057,6 +2128,7 @@ async function loadAllData(){
   state.merchCategoryDisabled = mcd || [];
   state.fanlogCategoryDisabled = fld || [];
   state.endorsementCategoryDisabled = endd || [];
+  state.arrivals = arv || [];
   state.playlist = await loadKey('oshi-playlist', []);
 }
 
@@ -2075,6 +2147,7 @@ async function init(){
       updateStorageBanner();
       updatePendingUploadsBanner();
       updateBackupReminderBanner();
+      updateArrivalReminderBanner();
       renderProfile();
       render();
       maybeShowDailyReminder();
@@ -2089,6 +2162,7 @@ async function init(){
     updateStorageBanner();
     updatePendingUploadsBanner();
     updateBackupReminderBanner();
+    updateArrivalReminderBanner();
     renderProfile();
     render();
     maybeShowDailyReminder();
@@ -2235,7 +2309,7 @@ function daysSinceBackup(){
   return Math.floor((Date.now()-then)/86400000);
 }
 function hasAnyRealData(){
-  return ['schedule','expense','photocards','fanlog','support','merch','endorsement','magazine','movie']
+  return ['schedule','expense','photocards','fanlog','support','merch','arrivals','endorsement','magazine','movie']
     .some(k=> Array.isArray(state[k]) && state[k].length>0);
 }
 function updateBackupReminderBanner(){
@@ -2251,6 +2325,17 @@ function updateBackupReminderBanner(){
     el.style.display='none';
     return;
   }
+  el.style.display='block';
+}
+
+/* ================= 到貨逾期提醒 ================= */
+function updateArrivalReminderBanner(){
+  const el = document.getElementById('arrivalReminderBanner');
+  if(!el) return;
+  if(arrivalReminderDismissed){ el.style.display='none'; return; }
+  const overdue = arrivalOverdueList().length;
+  if(overdue<=0){ el.style.display='none'; return; }
+  document.getElementById('arrivalReminderText').textContent = `🚚 有 ${overdue} 件已逾期還沒到貨，點此查看到貨管理`;
   el.style.display='block';
 }
 
@@ -2277,12 +2362,18 @@ function bindNav(){
   });
   document.getElementById('fabAdd').addEventListener('click', ()=>{
     if(state.tab==='home'){ state.tab='schedule'; render(); }
-    if(state.tab==='photocards'){ openPhotocardForm(null); return; }
+    if(state.tab==='photocards'){
+      if(pcSubTab==='arrivals'){ openArrivalForm(null, 'photocard'); } else { openPhotocardForm(null); }
+      return;
+    }
     if(state.tab==='expense'){ openExpenseForm(null); return; }
     if(state.tab==='fanlog'){ openFanlogForm(null); return; }
     if(state.tab==='schedule'){ openScheduleForm(null); return; }
     if(state.tab==='support'){ openSupportForm(null); return; }
-    if(state.tab==='merch'){ openMerchForm(null); return; }
+    if(state.tab==='merch'){
+      if(merchSubTab==='arrivals'){ openArrivalForm(null, 'merch'); } else { openMerchForm(null); }
+      return;
+    }
     if(state.tab==='media'){
       if(mediaSubTab==='endorsement'){ openEndorsementForm(null); }
       else if(mediaSubTab==='magazine'){ openMagazineForm(null); }
@@ -2313,6 +2404,25 @@ function bindNav(){
     e.stopPropagation();
     backupReminderDismissed = true;
     document.getElementById('backupReminderBanner').style.display = 'none';
+  });
+  document.getElementById('arrivalReminderBanner').addEventListener('click', (e)=>{
+    if(e.target.id==='arrivalReminderClose') return;
+    const overdueMerch = arrivalOverdueList('merch').length;
+    const overduePc = arrivalOverdueList('photocard').length;
+    if(overduePc>0 && overdueMerch===0){
+      state.tab = 'photocards';
+      pcSubTab = 'arrivals';
+    } else {
+      state.tab = 'merch';
+      merchSubTab = 'arrivals';
+    }
+    arrivalStatusFilter = '__pending__';
+    render();
+  });
+  document.getElementById('arrivalReminderClose').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    arrivalReminderDismissed = true;
+    document.getElementById('arrivalReminderBanner').style.display = 'none';
   });
   document.getElementById('overlay').addEventListener('click', (e)=>{
     if(e.target.id!=='overlay') return;
@@ -2390,7 +2500,8 @@ function persistUiFilters(){
       pcArtistFilter, pcOwnedFilter, pcDrill, pcCategoryFilter,
       mcArtistFilter, mcOwnedFilter, mcDrill,
       supportArtistFilter, fanlogArtistFilter,
-      mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter
+      mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter,
+      merchSubTab, arrivalStatusFilter, pcSubTab
     };
     window.localStorage.setItem(LOCAL_PREFIX+'ui-filters', JSON.stringify(filters));
   }catch(e){}
@@ -2414,6 +2525,9 @@ function restoreUiFilters(){
     if(typeof f.endorsementArtistFilter==='string') endorsementArtistFilter = f.endorsementArtistFilter;
     if(typeof f.magazineArtistFilter==='string') magazineArtistFilter = f.magazineArtistFilter;
     if(typeof f.movieArtistFilter==='string') movieArtistFilter = f.movieArtistFilter;
+    if(typeof f.merchSubTab==='string') merchSubTab = f.merchSubTab;
+    if(typeof f.arrivalStatusFilter==='string') arrivalStatusFilter = f.arrivalStatusFilter;
+    if(typeof f.pcSubTab==='string') pcSubTab = f.pcSubTab;
   }catch(e){}
 }
 
@@ -4383,6 +4497,21 @@ function renderExpenseStats(items, statsYear){
 }
 
 function bindExpenseActions(){
+  document.querySelectorAll('.arrival-status-tag').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const arv = state.arrivals.find(a=>String(a.id)===String(el.dataset.arrivalId));
+      if(arv && (arv.itemType||'merch')==='photocard'){
+        state.tab = 'photocards';
+        pcSubTab = 'arrivals';
+      } else {
+        state.tab = 'merch';
+        merchSubTab = 'arrivals';
+      }
+      render();
+      openArrivalForm(el.dataset.arrivalId);
+    });
+  });
   document.querySelectorAll('.exp-view-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       expViewMode = btn.dataset.view;
@@ -4462,6 +4591,7 @@ function renderExpenseCard(item){
   const catIcon = EXPENSE_CATEGORY_ICON[item.category] || '💸';
   const catColor = chipColor(item.category);
   const statusColor = item.deliveryStatus ? expenseStatusColor(item.deliveryStatus) : null;
+  const linkedArrival = arrivalForLinkedExpense(item);
   const tags = (item.tags||[]);
   const footnoteParts = [];
   if(item.artist) footnoteParts.push('👤 '+item.artist);
@@ -4481,7 +4611,7 @@ function renderExpenseCard(item){
       <div class="exp-info">
         <div class="exp-badges">
           ${item.category ? `<span class="tag" style="background:${catColor.bg};color:${catColor.fg};">${catIcon} ${esc(item.category)}</span>` : ''}
-          ${item.deliveryStatus ? `<span class="tag" style="background:${statusColor.bg};color:${statusColor.fg};">${esc(item.deliveryStatus)}</span>` : ''}
+          ${linkedArrival ? arrivalStatusTagHtml(linkedArrival) : (item.deliveryStatus ? `<span class="tag" style="background:${statusColor.bg};color:${statusColor.fg};">${esc(item.deliveryStatus)}</span>` : '')}
         </div>
         <div class="card-title exp-name">${esc(item.name||'（未命名）')}</div>
         ${tags.length ? `<div>${tags.map(t=>`<span class="tag gold">#${esc(t)}</span>`).join('')}</div>` : ''}
@@ -4612,6 +4742,31 @@ function openExpenseForm(id, prefill){
 
   const platforms = [...new Set(state.expense.map(e=>e.platform).filter(Boolean))];
 
+  const linkedArrivalForForm = src ? arrivalForLinkedExpense(src) : null;
+  let deliveryStatusFieldHtml;
+  if(linkedArrivalForForm){
+    const mapStatusToExpense = { ordered:'未到貨', shipped:'未到貨', arrived:'已到貨', cancelled:'已取消' };
+    const mappedVal = mapStatusToExpense[linkedArrivalForForm.status] || '';
+    deliveryStatusFieldHtml = `
+    <div class="field"><label>到貨狀態</label>
+      <select id="expDeliveryStatus" disabled style="opacity:0.6;">
+        <option value="">請選擇</option>
+        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${mappedVal===s?'selected':''}>${esc(s)}</option>`).join('')}
+      </select>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">🔗 這筆已連結到貨追蹤「${esc(linkedArrivalForForm.name)}」，狀態會自動同步，如需更新請
+        <span id="expGotoArrivalLink" style="color:var(--rose-deep);text-decoration:underline;cursor:pointer;">前往到貨管理編輯</span>
+      </div>
+    </div>`;
+  } else {
+    deliveryStatusFieldHtml = `
+    <div class="field"><label>到貨狀態</label>
+      <select id="expDeliveryStatus">
+        <option value="">請選擇</option>
+        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${src&&src.deliveryStatus===s?'selected':''}>${esc(s)}</option>`).join('')}
+      </select>
+    </div>`;
+  }
+
   const curCategory = src ? (src.category||'') : '';
   const categoryOptions = selectableCategoryList('expense', curCategory);
   const isCustomCategory = curCategory && !categoryOptions.includes(curCategory);
@@ -4681,12 +4836,7 @@ function openExpenseForm(id, prefill){
       <input type="text" id="expPlatform" list="expPlatformList" placeholder="例：蝦皮、代購..." value="${src?esc(src.platform||''):''}">
       <datalist id="expPlatformList">${platforms.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
     </div>
-    <div class="field"><label>到貨狀態</label>
-      <select id="expDeliveryStatus">
-        <option value="">請選擇</option>
-        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${src&&src.deliveryStatus===s?'selected':''}>${esc(s)}</option>`).join('')}
-      </select>
-    </div>
+    ${deliveryStatusFieldHtml}
     <div class="field"><label>付款方式</label>
       <select id="expPaymentMethod">
         <option value="">請選擇</option>
@@ -4761,6 +4911,21 @@ function openExpenseForm(id, prefill){
 
   document.getElementById('cancelBtn').addEventListener('click', closeModal);
   document.getElementById('saveBtn').addEventListener('click', ()=> saveExpenseForm(existing));
+  const gotoArrivalLink = document.getElementById('expGotoArrivalLink');
+  if(gotoArrivalLink && linkedArrivalForForm){
+    gotoArrivalLink.addEventListener('click', ()=>{
+      closeModal();
+      if((linkedArrivalForForm.itemType||'merch')==='photocard'){
+        state.tab = 'photocards';
+        pcSubTab = 'arrivals';
+      } else {
+        state.tab = 'merch';
+        merchSubTab = 'arrivals';
+      }
+      render();
+      openArrivalForm(linkedArrivalForForm.id);
+    });
+  }
   showModal();
 }
 
@@ -5129,6 +5294,8 @@ let pcDrill = null;
 let pcArtistFilter = '__all__';
 let pcOwnedFilter = '__all__';
 let pcCategoryFilter = '__all__';
+/* 小卡分頁的子分頁：'catalog' 圖鑑／'arrivals' 到貨管理（跟周邊共用同一套到貨管理邏輯） */
+let pcSubTab = 'catalog';
 
 function normalizeSeriesKey(k){
   return (k||'').trim().toLowerCase().replace(/\s+/g,'');
@@ -5210,7 +5377,16 @@ function renderPhotocardCard(pc, seriesLabel){
 
 function renderPhotocards(){
   const meta = TAB_META.photocards;
-  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
+  const overdueCount = arrivalOverdueList('photocard').length;
+  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${pcSubTab==='arrivals' ? '到貨管理' : meta.label}</div>`;
+  html += `<div class="cal-filter-row">
+    <button class="cal-filter-btn pc-subtab-btn ${pcSubTab==='catalog'?'active':''}" data-sub="catalog">🎴 圖鑑</button>
+    <button class="cal-filter-btn pc-subtab-btn ${pcSubTab==='arrivals'?'active':''}" data-sub="arrivals">🚚 到貨管理${overdueCount>0?`（${overdueCount}）`:''}</button>
+  </div>`;
+  if(pcSubTab==='arrivals'){
+    html += renderArrivalsBody('photocard');
+    return html;
+  }
   if(state.photocards.length===0){
     html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一張吧</div></div>`;
     return html;
@@ -5347,6 +5523,34 @@ function renderPhotocards(){
 let mcDrill = null;
 let mcArtistFilter = '__all__';
 let mcOwnedFilter = '__all__';
+/* 周邊分頁的子分頁：'catalog' 圖鑑／'arrivals' 到貨管理 */
+let merchSubTab = 'catalog';
+let arrivalStatusFilter = '__pending__';
+let arrivalReminderDismissed = false;
+
+/* ================= 到貨管理 (Arrivals) ================= */
+const ARRIVAL_STATUS_META = {
+  ordered:   { label:'已下單', icon:'📝', tagClass:'gold' },
+  shipped:   { label:'出貨中', icon:'🚚', tagClass:'wisteria' },
+  arrived:   { label:'已到貨', icon:'✅', tagClass:'matcha' },
+  cancelled: { label:'已取消', icon:'🚫', tagClass:'' }
+};
+const ARRIVAL_STATUS_ORDER = ['ordered','shipped','arrived','cancelled'];
+function arrivalIsOverdue(a){
+  return (a.status==='ordered' || a.status==='shipped') && a.expectedAt && a.expectedAt < todayStr();
+}
+function arrivalOverdueDays(a){
+  if(!arrivalIsOverdue(a)) return 0;
+  const diff = Math.floor((new Date(todayStr()) - new Date(a.expectedAt)) / 86400000);
+  return diff>0 ? diff : 0;
+}
+/* itemType 不帶入時＝不分類型，回傳全部（提醒橫幅要合併小卡＋周邊時會用到） */
+function arrivalPendingList(itemType){
+  return state.arrivals.filter(a=> (a.status==='ordered' || a.status==='shipped') && (!itemType || (a.itemType||'merch')===itemType));
+}
+function arrivalOverdueList(itemType){
+  return state.arrivals.filter(a=> arrivalIsOverdue(a) && (!itemType || (a.itemType||'merch')===itemType));
+}
 
 function mcGroupKey(mc){
   return (mc.series && mc.series.trim()) || (mc.artist && mc.artist.trim()) || '未分類';
@@ -5413,7 +5617,16 @@ function renderMerchCard(mc, seriesLabel){
 
 function renderMerchTab(){
   const meta = TAB_META.merch;
-  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
+  const overdueCount = arrivalOverdueList('merch').length;
+  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${merchSubTab==='arrivals' ? '到貨管理' : meta.label}</div>`;
+  html += `<div class="cal-filter-row">
+    <button class="cal-filter-btn merch-subtab-btn ${merchSubTab==='catalog'?'active':''}" data-sub="catalog">🛍️ 圖鑑</button>
+    <button class="cal-filter-btn merch-subtab-btn ${merchSubTab==='arrivals'?'active':''}" data-sub="arrivals">🚚 到貨管理${overdueCount>0?`（${overdueCount}）`:''}</button>
+  </div>`;
+  if(merchSubTab==='arrivals'){
+    html += renderArrivalsBody('merch');
+    return html;
+  }
   if(state.merch.length===0){
     html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一件吧</div></div>`;
     return html;
@@ -5525,6 +5738,287 @@ function renderMerchTab(){
   });
   html += `</div>`;
   return html;
+}
+
+function renderArrivalsBody(itemType){
+  let html = '';
+  const overdue = arrivalOverdueList(itemType);
+  const pending = arrivalPendingList(itemType);
+  if(overdue.length>0){
+    html += `<div class="mini-row" style="margin:12px 0 16px; background:#FBE3EA; border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+      <span class="l" style="font-weight:700;color:#B2465F;">⚠️ 已逾期</span>
+      <span class="r" style="font-weight:700; color:#B2465F;">${overdue.length} 件還沒到貨</span>
+    </div>`;
+  }
+  html += `
+  <div class="mini-row" style="margin:${overdue.length>0?'0':'12px'} 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
+    <span class="l" style="font-weight:700;">🚚 待到貨</span>
+    <span class="r" style="font-weight:700; color:var(--rose-deep);">${pending.length} 件</span>
+  </div>`;
+
+  html += `<div class="cal-filter-row" style="margin-top:8px;">
+    <button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter==='__pending__'?'active':''}" data-status="__pending__">待到貨</button>
+    <button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter==='__all__'?'active':''}" data-status="__all__">全部</button>
+    ${ARRIVAL_STATUS_ORDER.map(s=>`<button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter===s?'active':''}" data-status="${s}">${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</button>`).join('')}
+  </div>`;
+
+  let items = state.arrivals.filter(a=> (a.itemType||'merch')===itemType);
+  const totalOfType = items.length;
+  if(arrivalStatusFilter==='__pending__') items = items.filter(a=> a.status==='ordered' || a.status==='shipped');
+  else if(arrivalStatusFilter!=='__all__') items = items.filter(a=> a.status===arrivalStatusFilter);
+
+  items.sort((a,b)=>{
+    const aOver = arrivalIsOverdue(a), bOver = arrivalIsOverdue(b);
+    if(aOver!==bOver) return aOver ? -1 : 1;
+    const ea = a.expectedAt || '9999-99-99', eb = b.expectedAt || '9999-99-99';
+    if(ea!==eb) return ea.localeCompare(eb);
+    return (b.orderedAt||'').localeCompare(a.orderedAt||'');
+  });
+
+  if(items.length===0){
+    html += `<div class="empty"><div class="stamp-big maru">貨</div><div class="msg">${totalOfType===0 ? '目前沒有到貨追蹤紀錄<br>點右下角的「＋」新增一筆吧' : '目前沒有符合條件的品項'}</div></div>`;
+    return html;
+  }
+
+  html += `<div class="list-grid">`;
+  items.forEach(a=>{ html += renderArrivalCard(a); });
+  html += `</div>`;
+  return html;
+}
+
+function renderArrivalCard(a){
+  const st = ARRIVAL_STATUS_META[a.status] || ARRIVAL_STATUS_META.ordered;
+  const overdue = arrivalIsOverdue(a);
+  const overdueDays = arrivalOverdueDays(a);
+  let dateLine = '';
+  if(a.status==='arrived' && a.arrivedAt){
+    dateLine = `📦 ${esc(a.arrivedAt)} 已到貨`;
+  } else if(overdue){
+    dateLine = `⚠️ 已逾期 ${overdueDays} 天（預計 ${esc(a.expectedAt)}）`;
+  } else if(a.expectedAt){
+    dateLine = `⏳ 預計 ${esc(a.expectedAt)} 到貨`;
+  } else if(a.orderedAt){
+    dateLine = `📝 ${esc(a.orderedAt)} 下單`;
+  }
+  const nextStatus = a.status==='ordered' ? 'shipped' : (a.status==='shipped' ? 'arrived' : null);
+  const linkedExpense = a.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(a.expenseLinkedId)) : null;
+  return `
+  <div class="card">
+    <div class="card-row">
+      <div>
+        <div class="card-title">${esc(a.name)}</div>
+        <div class="card-meta">
+          ${[a.artist, a.series].filter(Boolean).map(esc).join(' · ')}
+          ${a.channel ? `<br>🏬 ${esc(a.channel)}` : ''}
+          ${dateLine ? `<br>${dateLine}` : ''}
+          ${a.trackingNo ? `<br>🔖 單號：${esc(a.trackingNo)}` : ''}
+        </div>
+        <div style="margin-top:6px;">
+          <span class="tag ${st.tagClass}" style="${overdue?'background:#FBE3EA;color:#B2465F;':''}">${st.icon} ${st.label}</span>
+          ${a.quantity && a.quantity>1 ? `<span class="tag">x${esc(a.quantity)}</span>` : ''}
+          ${a.price ? `<span class="tag gold">NT$ ${(parseFloat(a.price)||0).toLocaleString()}</span>` : ''}
+          ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
+        </div>
+      </div>
+      <div class="pc-actions">
+        ${nextStatus ? `<button class="icon-btn arrival-advance-btn" data-id="${a.id}" title="標記為${ARRIVAL_STATUS_META[nextStatus].label}" aria-label="標記為${ARRIVAL_STATUS_META[nextStatus].label}">${ARRIVAL_STATUS_META[nextStatus].icon}</button>` : ''}
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="arrivals" data-id="${a.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="arrivals" data-id="${a.id}">🗑</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function advanceArrivalStatus(id){
+  const item = state.arrivals.find(a=>String(a.id)===String(id));
+  if(!item) return;
+  if(item.status==='ordered') item.status = 'shipped';
+  else if(item.status==='shipped'){
+    item.status = 'arrived';
+    item.arrivedAt = todayStr();
+    await applyArrivalArrivedSideEffect(item);
+  }
+  await saveKey('oshi-arrivals', state.arrivals);
+  render();
+  updateArrivalReminderBanner();
+  showToast(item.status==='arrived' ? '已標記到貨' : '已標記出貨中');
+}
+
+/* 到貨後如果有勾選「加入圖鑑」：第一次到貨會自動在對應圖鑑（小卡或周邊，依 itemType 決定）新增一筆品項（已擁有），
+   之後若又改回到貨狀態，就直接把原本連結到的那筆品項標記為已擁有，不會重複新增 */
+async function applyArrivalArrivedSideEffect(item){
+  if(!item.addToMerch) return;
+  if((item.itemType||'merch')==='photocard'){
+    if(item.linkedMerchId){
+      const linked = state.photocards.find(p=>String(p.id)===String(item.linkedMerchId));
+      if(linked){ linked.owned = true; await saveKey('oshi-photocards', state.photocards); return; }
+    }
+    const newPc = {
+      id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+      name:item.name, artist:item.artist||'', series:item.series||'',
+      category:'', channel:item.channel||'',
+      imageUrl:'', createdAt: todayStr(), owned:true
+    };
+    state.photocards.push(newPc);
+    item.linkedMerchId = newPc.id;
+    await saveKey('oshi-photocards', state.photocards);
+    return;
+  }
+  if(item.linkedMerchId){
+    const linked = state.merch.find(m=>String(m.id)===String(item.linkedMerchId));
+    if(linked){ linked.owned = true; await saveKey('oshi-merch', state.merch); return; }
+  }
+  const newMerch = {
+    id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    name:item.name, artist:item.artist||'', series:item.series||'',
+    category:item.category||'', channel:item.channel||'',
+    price:item.price||'', imageUrl:'', createdAt: todayStr(), owned:true
+  };
+  state.merch.push(newMerch);
+  item.linkedMerchId = newMerch.id;
+  await saveKey('oshi-merch', state.merch);
+}
+
+function openArrivalForm(id, itemType){
+  const existing = id ? state.arrivals.find(a=>String(a.id)===String(id)) : null;
+  const type = existing ? (existing.itemType||'merch') : (itemType||'merch');
+  const typeLabel = type==='photocard' ? '小卡' : '周邊';
+  const artistOptions = state.artists.map(a=>a.name);
+  const channels = [...new Set([
+    ...state.arrivals.filter(a=>(a.itemType||'merch')===type).map(a=>a.channel),
+    ...(type==='photocard' ? state.photocards.map(p=>p.channel) : state.merch.map(m=>m.channel))
+  ].filter(Boolean))];
+  const curArtist = existing ? existing.artist : '';
+
+  let artistFieldHtml = '';
+  if(artistOptions.length===0){
+    artistFieldHtml = `
+      <select id="avArtistSelect"><option value="">不指定</option><option value="__new__">＋ 直接輸入藝人名稱</option></select>
+      <input type="text" id="avNewArtistName" placeholder="輸入藝人名稱" style="margin-top:8px;" value="${esc(curArtist)}">`;
+  } else {
+    artistFieldHtml = `
+      <select id="avArtistSelect">
+        <option value="">不指定</option>
+        ${artistOptions.map(n=>`<option value="${esc(n)}" ${curArtist===n?'selected':''}>${esc(n)}</option>`).join('')}
+        <option value="__new__" ${curArtist && !artistOptions.includes(curArtist)?'selected':''}>＋ 新增藝人</option>
+      </select>
+      <input type="text" id="avNewArtistName" placeholder="輸入新藝人名稱" style="margin-top:8px; display:${curArtist && !artistOptions.includes(curArtist)?'block':'none'};" value="${curArtist && !artistOptions.includes(curArtist)?esc(curArtist):''}">`;
+  }
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
+    <div class="field"><label>名稱 *</label><input type="text" id="avName" value="${existing?esc(existing.name):''}" placeholder="例：官方商城預購小卡組"></div>
+    <div class="field"><label>藝人</label>${artistFieldHtml}</div>
+    <div class="field"><label>系列</label><input type="text" id="avSeries" value="${existing?esc(existing.series||''):''}" placeholder="選填"></div>
+    <div class="field"><label>購入通路</label>
+      <input type="text" id="avChannel" list="avChannelList" value="${existing?esc(existing.channel||''):''}" placeholder="例：官方商城、代購...">
+      <datalist id="avChannelList">${channels.map(c=>`<option value="${esc(c)}">`).join('')}</datalist>
+    </div>
+    <div class="field"><label>數量</label><input type="number" id="avQuantity" min="1" value="${existing&&existing.quantity?esc(existing.quantity):1}"></div>
+    <div class="field"><label>價格 (NT$)</label><input type="number" id="avPrice" min="0" value="${existing&&existing.price!==undefined?esc(existing.price):''}" placeholder="選填"></div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="avSyncExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing?(existing.expenseLinkedId?'checked':''):''}>
+        同步到記帳
+      </label>
+      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填價格且勾選時，會自動建立/更新一筆對應花費（分類：${type==='photocard'?'小卡':'周邊商品'}），記帳那筆會即時顯示這裡的到貨狀態；取消勾選只會解除連結，記帳紀錄本身不會被刪除</div>
+    </div>
+    <div class="field"><label>下單日期</label><input type="date" id="avOrderedAt" value="${existing?esc(existing.orderedAt||''):todayStr()}"></div>
+    <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
+    <div class="field"><label>追蹤單號</label><input type="text" id="avTrackingNo" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填"></div>
+    <div class="field"><label>狀態</label>
+      <select id="avStatus">
+        ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='ordered'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="avAddToMerch" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${existing?(existing.addToMerch?'checked':''):'checked'}>
+        到貨後自動加入${typeLabel}圖鑑（標記為已擁有）
+      </label>
+    </div>
+    <div class="field"><label>備註</label><input type="text" id="avNote" value="${existing?esc(existing.note||''):''}" placeholder="選填"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">取消</button>
+      <button class="btn primary" id="saveBtn">儲存</button>
+    </div>
+  `;
+
+  const artistSelect = document.getElementById('avArtistSelect');
+  const newArtistInput = document.getElementById('avNewArtistName');
+  artistSelect.addEventListener('change', ()=>{
+    newArtistInput.style.display = artistSelect.value==='__new__' ? 'block' : 'none';
+  });
+
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('saveBtn').addEventListener('click', ()=> saveArrivalForm(existing, type));
+  showModal();
+}
+
+async function saveArrivalForm(existing, itemType){
+  const name = document.getElementById('avName').value.trim();
+  if(!name){ showToast('請填寫名稱'); return; }
+
+  const artistSelect = document.getElementById('avArtistSelect');
+  let artist = artistSelect ? artistSelect.value : '';
+  if(artist==='__new__'){
+    const newName = document.getElementById('avNewArtistName').value.trim();
+    artist = newName;
+    if(newName && !state.artists.find(a=>a.name===newName)){
+      state.artists.push({ id:'id_'+Date.now()+'_'+Math.floor(Math.random()*1000), name:newName });
+      await saveKey('oshi-artists', state.artists);
+    }
+  }
+
+  const prevStatus = existing ? existing.status : null;
+  const newStatus = document.getElementById('avStatus').value;
+
+  const data = {
+    id: existing ? existing.id : 'id_'+Date.now()+'_'+Math.floor(Math.random()*1000),
+    itemType: existing ? (existing.itemType||'merch') : (itemType||'merch'),
+    name, artist,
+    series: document.getElementById('avSeries').value.trim(),
+    channel: document.getElementById('avChannel').value.trim(),
+    quantity: parseInt(document.getElementById('avQuantity').value,10) || 1,
+    price: document.getElementById('avPrice').value ? parseFloat(document.getElementById('avPrice').value) : '',
+    orderedAt: document.getElementById('avOrderedAt').value,
+    expectedAt: document.getElementById('avExpectedAt').value,
+    trackingNo: document.getElementById('avTrackingNo').value.trim(),
+    status: newStatus,
+    addToMerch: document.getElementById('avAddToMerch').checked,
+    note: document.getElementById('avNote').value.trim(),
+    arrivedAt: existing ? existing.arrivedAt : '',
+    linkedMerchId: existing ? existing.linkedMerchId : null,
+    expenseLinkedId: existing ? existing.expenseLinkedId : '',
+    category: existing ? existing.category : ''
+  };
+  const syncExpense = document.getElementById('avSyncExpense').checked;
+  if(newStatus==='arrived' && prevStatus!=='arrived'){
+    data.arrivedAt = todayStr();
+  }
+  if(newStatus!=='arrived'){
+    data.arrivedAt = '';
+  }
+
+  if(existing){
+    Object.assign(existing, data);
+  } else {
+    state.arrivals.push(data);
+  }
+  await saveKey('oshi-arrivals', state.arrivals);
+
+  const finalItem = existing || data;
+  await syncArrivalExpense(finalItem, syncExpense);
+  if(newStatus==='arrived' && prevStatus!=='arrived'){
+    await applyArrivalArrivedSideEffect(finalItem);
+  }
+  await saveKey('oshi-arrivals', state.arrivals);
+
+  closeModal();
+  render();
+  updateArrivalReminderBanner();
+  showToast(existing ? '已更新到貨紀錄' : '已新增到貨紀錄');
 }
 
 /* ================= Artists ================= */
@@ -6800,6 +7294,7 @@ function bindListActions(tab){
       else if(b.dataset.tab==='magazine') openMagazineForm(b.dataset.id);
       else if(b.dataset.tab==='movie') openMovieForm(b.dataset.id);
       else if(b.dataset.tab==='merch') openMerchForm(b.dataset.id);
+      else if(b.dataset.tab==='arrivals') openArrivalForm(b.dataset.id);
       else openForm(b.dataset.tab, b.dataset.id);
     });
   });
@@ -6848,6 +7343,35 @@ function bindListActions(tab){
     });
   });
   if(tab==='photocards'){
+    document.querySelectorAll('.pc-subtab-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        pcSubTab = b.dataset.sub;
+        render();
+      });
+    });
+    if(pcSubTab==='arrivals'){
+      document.querySelectorAll('.arrival-status-filter-btn').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          arrivalStatusFilter = b.dataset.status;
+          render();
+        });
+      });
+      document.querySelectorAll('.arrival-advance-btn').forEach(b=>{
+        b.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          advanceArrivalStatus(b.dataset.id);
+        });
+      });
+      document.querySelectorAll('.arrival-linked-expense-tag').forEach(el=>{
+        el.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          state.tab = 'expense';
+          render();
+          openExpenseForm(el.dataset.expenseId);
+        });
+      });
+      return;
+    }
     document.querySelectorAll('.pc-wish-btn').forEach(b=>{
       b.addEventListener('click', async (e)=>{
         e.stopPropagation();
@@ -6901,6 +7425,35 @@ function bindListActions(tab){
     }
   }
   if(tab==='merch'){
+    document.querySelectorAll('.merch-subtab-btn').forEach(b=>{
+      b.addEventListener('click', ()=>{
+        merchSubTab = b.dataset.sub;
+        render();
+      });
+    });
+    if(merchSubTab==='arrivals'){
+      document.querySelectorAll('.arrival-status-filter-btn').forEach(b=>{
+        b.addEventListener('click', ()=>{
+          arrivalStatusFilter = b.dataset.status;
+          render();
+        });
+      });
+      document.querySelectorAll('.arrival-advance-btn').forEach(b=>{
+        b.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          advanceArrivalStatus(b.dataset.id);
+        });
+      });
+      document.querySelectorAll('.arrival-linked-expense-tag').forEach(el=>{
+        el.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          state.tab = 'expense';
+          render();
+          openExpenseForm(el.dataset.expenseId);
+        });
+      });
+      return;
+    }
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
         mcArtistFilter = b.dataset.filter;
@@ -8662,6 +9215,7 @@ const BACKUP_FIELD_MAP = [
   ['customScheduleCategories','oshi-schedule-categories'],
   ['customExpenseCategories','oshi-expense-categories'],
   ['merch','oshi-merch'],
+  ['arrivals','oshi-arrivals'],
   ['customMerchCategories','oshi-merch-categories'],
   ['merchSeriesCovers','oshi-merch-covers'],
   ['merchSeriesMeta','oshi-merch-series-meta'],
@@ -8715,7 +9269,7 @@ function confirmImportBackup(data){
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">確定要匯入這份備份嗎？</h3>
-    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px;">匯入後將覆蓋目前所有資料（行程、記帳、小卡、周邊、到貨管理、應援、紀錄、藝人等），此動作無法復原。建議先匯出目前資料備份再繼續。</p>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn danger" id="importConfirmBtn">確定匯入並覆蓋</button>
@@ -8741,6 +9295,7 @@ async function applyImportedBackup(data){
   }
   updatePendingUploadsBanner();
   updateBackupReminderBanner();
+  updateArrivalReminderBanner();
 }
 
 function confirmDelete(tab, id){
@@ -8757,11 +9312,16 @@ function confirmDelete(tab, id){
   document.getElementById('delConfirmBtn').addEventListener('click', async ()=>{
     const item = state[tab].find(i=>String(i.id)===String(id));
     await deleteAllStorageImages(item);
+    if(tab==='arrivals' && item && item.expenseLinkedId){
+      const linkedExp = state.expense.find(e=>String(e.id)===String(item.expenseLinkedId));
+      if(linkedExp){ linkedExp.arrivalLinkedId = ''; await saveKey('oshi-expense', state.expense); }
+    }
     state[tab] = state[tab].filter(i=>String(i.id)!==String(id));
     await saveKey('oshi-'+tab, state[tab]);
     closeModal();
     render();
     updatePendingUploadsBanner();
+    updateArrivalReminderBanner();
     showToast('已刪除紀錄');
   });
   showModal();
