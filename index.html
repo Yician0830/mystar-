@@ -562,7 +562,19 @@
   .chip-filter-btn.active{ border-color:currentColor; }
   .chip-filter-btn:hover{ transform:translateY(-1px); }
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin:0 2px 14px;}
-  .cal-title{ font-weight:700; font-size:16px;}
+  .cal-title{ font-weight:700; font-size:16px; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:10px; }
+  .cal-title:hover{ background:var(--sakura-pale); color:var(--rose-deep); }
+  .cal-title-caret{ font-size:11px; color:var(--ink-soft); }
+  .cal-title:hover .cal-title-caret{ color:var(--rose-deep); }
+  .month-pick-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .month-pick-btn{
+    padding:11px 0; border-radius:12px; border:1px solid var(--sakura-pale);
+    background:var(--surface); color:var(--ink); font-family:'Noto Sans TC'; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .month-pick-btn:hover{ background:var(--sakura-pale); }
+  .month-pick-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700; }
+  .month-pick-year{ display:flex; align-items:center; justify-content:center; gap:18px; margin-bottom:16px; }
+  .month-pick-year .val{ font-size:18px; font-weight:700; min-width:70px; text-align:center; }
   .cal-nav-btn{
     width:32px;height:32px;border-radius:50%; border:none; background:var(--bg-deep);
     color:var(--ink-soft); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
@@ -573,7 +585,7 @@
   .cal-day{
     position:relative; min-height:78px; border-radius:12px; background:var(--surface);
     display:flex; flex-direction:column; align-items:stretch;
-    cursor:pointer; box-shadow:var(--shadow-sm); padding:6px 5px; gap:2px;
+    cursor:pointer; box-shadow:var(--shadow-sm); padding:6px 5px; gap:4px;
     overflow-x:visible; overflow-y:hidden;
   }
   .cal-day .daynum{ font-size:12px; font-weight:700; color:var(--ink); align-self:flex-start; }
@@ -586,15 +598,19 @@
     color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     cursor:pointer;
   }
-  .event-more{ font-size:9.5px; color:var(--ink-soft); padding:1px 6px; }
+  .event-pill-icon{ margin-right:2px; }
+  .event-pill-cat{ display:none; }
+  .event-more{ font-size:9.5px; color:var(--ink-soft); padding:1px 6px; cursor:pointer; text-decoration:underline; text-decoration-color:var(--ink-faint); }
+  .event-more:hover{ color:var(--rose-deep); }
   /* 跨天行程橫條：用負邊距把左右兩側的格線縫隙填滿，接上鄰居格子看起來像同一條連續色塊 */
   .event-pill.event-bar{ font-weight:700; }
   .event-pill.event-bar.bridge-left{ margin-left:-6px; padding-left:8px; border-top-left-radius:0; border-bottom-left-radius:0; }
   .event-pill.event-bar.bridge-right{ margin-right:-6px; border-top-right-radius:0; border-bottom-right-radius:0; }
   @media (min-width:700px){
-    .cal-day{ min-height:120px; padding:8px 7px; }
+    .cal-day{ min-height:120px; padding:8px 7px; gap:5px; }
     .cal-day .daynum{ font-size:13.5px; }
     .event-pill{ font-size:11.5px; padding:3px 8px; border-radius:8px; }
+    .event-pill-cat{ display:inline; opacity:0.85; font-weight:500; }
   }
   .cal-daylist-title{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:14.5px; margin:4px 2px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .chip-clear{
@@ -5139,6 +5155,17 @@ function scheduleEventColor(ev){
   if(!name) return SCHEDULE_NEUTRAL_COLOR;
   return artistChipColor(name);
 }
+/* 月曆色塊背景已經拿來表示「藝人」了，分類（類型）改用小圖示掛在標題前面，
+   不會跟藝人色互相搶顏色、也不用另外做一份分類色圖例。固定分類都有專屬圖示，
+   使用者自訂的分類（不在 FIXED_SCHEDULE_CATEGORIES 裡）就統一用 📌 當備用圖示。 */
+const SCHEDULE_CATEGORY_ICONS = {
+  '演唱會':'🎤', '見面會':'🤝', '生放送':'📺', '應援':'📣', '簽唱會':'🎶',
+  '簽售會':'✍️', '商演':'🏢', '站台':'🚩', '校唱':'🎓', '夜店':'🌙'
+};
+function scheduleCategoryIcon(category){
+  if(!category) return '';
+  return SCHEDULE_CATEGORY_ICONS[category] || '📌';
+}
 
 function renderScheduleTab(){
   ensureCalMonth();
@@ -5194,9 +5221,9 @@ function renderScheduleTab(){
   });
 
   html += `<div class="cal-head">
-    <button class="cal-nav-btn" data-nav="-1">‹</button>
-    <div class="cal-title maru">${monthLabel}</div>
-    <button class="cal-nav-btn" data-nav="1">›</button>
+    <button class="cal-nav-btn" data-nav="-1" aria-label="上一個月">‹</button>
+    <div class="cal-title maru" id="calMonthPickerBtn" role="button" tabindex="0" aria-label="選擇年月">${monthLabel} <span class="cal-title-caret">▾</span></div>
+    <button class="cal-nav-btn" data-nav="1" aria-label="下一個月">›</button>
   </div>`;
   if(calMonth !== today.slice(0,7)){
     html += `<div style="text-align:center; margin:-8px 0 14px;"><button class="chip-clear" id="calGoTodayBtn">📍 回到今天</button></div>`;
@@ -5216,8 +5243,12 @@ function renderScheduleTab(){
     const extra = dayEvents.length - shown.length;
     const pillsHtml = shown.map(ev=>{
       const color = scheduleEventColor(ev);
+      const icon = scheduleCategoryIcon(ev.category);
+      const iconHtml = icon ? `<span class="event-pill-icon">${icon}</span>` : '';
+      const catLabelHtml = ev.category ? `<span class="event-pill-cat">${esc(ev.category)}・</span>` : '';
+      const tooltip = ev.category ? `［${ev.category}］${ev.title}` : ev.title;
       if(!isMultiDaySchedule(ev)){
-        return `<span class="event-pill" style="background:${color};" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
+        return `<span class="event-pill" style="background:${color};" data-id="${ev.id}" title="${esc(tooltip)}">${iconHtml}${catLabelHtml}${esc(ev.title)}</span>`;
       }
       // 跨天行程：算出這一天是「這場活動」或「這一週」的開頭／結尾，決定橫條哪一側要接上鄰居、哪一側要收圓角
       const isEventStart = dateStr===ev.date;
@@ -5228,16 +5259,116 @@ function renderScheduleTab(){
       if(!capLeft) cls += ' bridge-left';
       if(!capRight) cls += ' bridge-right';
       // 每一天都完整顯示活動名稱，不只是開頭那天——避免中間幾天只剩一條細線看不出是什麼行程
-      return `<span class="${cls}" style="background:${color};" data-id="${ev.id}" title="${esc(ev.title)}">${esc(ev.title)}</span>`;
+      return `<span class="${cls}" style="background:${color};" data-id="${ev.id}" title="${esc(tooltip)}">${iconHtml}${catLabelHtml}${esc(ev.title)}</span>`;
     }).join('');
     html += `<div class="cal-day ${isToday?'today':''}" data-date="${dateStr}">
       <span class="daynum">${d}</span>
       ${pillsHtml}
-      ${extra>0 ? `<span class="event-more">+${extra} 更多</span>` : ''}
+      ${extra>0 ? `<span class="event-more" data-date="${dateStr}">+${extra} 更多</span>` : ''}
     </div>`;
   }
   html += `</div>`;
   return html;
+}
+
+/* 依日期取出「經過目前藝人篩選」後，會出現在那一天的所有行程（含跨天行程涵蓋到的日子）。
+   月曆格子渲染與「+N 更多」的當日行程彈窗共用同一套邏輯，避免兩邊算出不一致的結果。 */
+function getFilteredScheduleForDate(dateStr){
+  const filteredSchedule = state.schedule.filter(s=> scheduleArtistFilter==='__all__' || s.artist===scheduleArtistFilter);
+  const isMultiDaySchedule = s=> s.date && s.isMultiDay && s.endDate && s.endDate > s.date;
+  return filteredSchedule.filter(s=>{
+    if(!s.date) return false;
+    if(isMultiDaySchedule(s)) return dateStr >= s.date && dateStr <= s.endDate;
+    return s.date === dateStr;
+  });
+}
+
+/* 點月曆某一天的「+N 更多」時，跳出這一天完整行程清單，而不是直接誤觸新增表單 */
+function openDayDetailModal(dateStr){
+  const dayEvents = getFilteredScheduleForDate(dateStr);
+  const modal = document.getElementById('modal');
+  const itemsHtml = dayEvents.map(s=>{
+    const color = scheduleEventColor(s);
+    const catBadge = s.category ? `<span class="tag ${tagColorClass(s.category, orderedCategoryList('schedule'))}">${esc(s.category)}</span>` : '';
+    const rangeLabel = (s.isMultiDay && s.endDate && s.endDate!==s.date) ? `<span class="tag">🗓️ ${fmtDate(s.date)} ～ ${fmtDate(s.endDate)}</span>` : '';
+    return `
+    <div class="card day-detail-item" data-id="${s.id}" style="cursor:pointer;">
+      <div class="card-row">
+        <div>
+          <div class="card-title"><span class="cal-filter-dot" style="background:${color};"></span>${esc(s.title)}</div>
+          <div class="card-meta">${[s.artist, s.location].filter(Boolean).join(' · ') || '&nbsp;'}</div>
+          <div style="margin-top:6px;">${catBadge} ${rangeLabel}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  modal.innerHTML = `
+    <h3 class="maru">${fmtDate(dateStr)} 的行程</h3>
+    <div style="max-height:50vh;overflow-y:auto;margin:-4px -4px 4px;">${itemsHtml}</div>
+    <div class="modal-actions">
+      <button class="btn ghost" id="cancelBtn">關閉</button>
+      <button class="btn primary" id="dayDetailAddBtn">＋ 新增行程</button>
+    </div>
+  `;
+  document.getElementById('cancelBtn').addEventListener('click', closeModal);
+  document.getElementById('dayDetailAddBtn').addEventListener('click', ()=>{
+    closeModal();
+    openScheduleForm(null, { date: dateStr });
+  });
+  modal.querySelectorAll('.day-detail-item').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      closeModal();
+      openScheduleForm(card.dataset.id);
+    });
+  });
+  showModal();
+}
+
+/* 點月曆標題「◯年◯月 ▾」跳出年月選擇器：先選年份（‹ › 翻年），再點月份格子直接跳過去，
+   不用像原本的 ‹ › 月份導覽按鈕一次只能翻一個月 */
+function openMonthPickerModal(){
+  const [curY, curM] = calMonth.split('-').map(Number);
+  let pickYear = curY;
+  const monthLabels = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  const modal = document.getElementById('modal');
+
+  const renderBody = ()=>{
+    const monthGrid = monthLabels.map((label, idx)=>{
+      const mm = idx+1;
+      const isActive = pickYear===curY && mm===curM;
+      return `<button type="button" class="month-pick-btn ${isActive?'active':''}" data-month="${mm}">${label}</button>`;
+    }).join('');
+    modal.innerHTML = `
+      <h3 class="maru">跳到指定月份</h3>
+      <div class="month-pick-year">
+        <button type="button" class="cal-nav-btn" id="pickYearPrev" aria-label="上一年">‹</button>
+        <div class="maru val">${pickYear}年</div>
+        <button type="button" class="cal-nav-btn" id="pickYearNext" aria-label="下一年">›</button>
+      </div>
+      <div class="month-pick-grid">${monthGrid}</div>
+      <div style="text-align:center;margin-top:14px;"><button class="chip-clear" id="pickTodayBtn">📍 回到本月</button></div>
+      <div class="modal-actions">
+        <button class="btn ghost" id="cancelBtn">關閉</button>
+      </div>
+    `;
+    document.getElementById('cancelBtn').addEventListener('click', closeModal);
+    document.getElementById('pickYearPrev').addEventListener('click', ()=>{ pickYear--; renderBody(); });
+    document.getElementById('pickYearNext').addEventListener('click', ()=>{ pickYear++; renderBody(); });
+    document.getElementById('pickTodayBtn').addEventListener('click', ()=>{
+      calMonth = todayStr().slice(0,7);
+      closeModal();
+      render();
+    });
+    modal.querySelectorAll('.month-pick-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        calMonth = `${pickYear}-${String(btn.dataset.month).padStart(2,'0')}`;
+        closeModal();
+        render();
+      });
+    });
+  };
+  renderBody();
+  showModal();
 }
 
 function renderScheduleListBody(filteredSchedule){
@@ -5324,6 +5455,13 @@ function bindCalendarActions(){
       render();
     });
   }
+  const monthPickerBtn = document.getElementById('calMonthPickerBtn');
+  if(monthPickerBtn){
+    monthPickerBtn.addEventListener('click', openMonthPickerModal);
+    monthPickerBtn.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter' || e.key===' '){ e.preventDefault(); openMonthPickerModal(); }
+    });
+  }
   document.querySelectorAll('.cal-nav-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
       const [y,m] = calMonth.split('-').map(Number);
@@ -5339,6 +5477,12 @@ function bindCalendarActions(){
     p.addEventListener('click', (e)=>{
       e.stopPropagation();
       openScheduleForm(p.dataset.id);
+    });
+  });
+  document.querySelectorAll('.event-more').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openDayDetailModal(el.dataset.date);
     });
   });
   document.querySelectorAll('.cal-day:not(.empty)').forEach(d=>{
