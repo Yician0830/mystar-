@@ -510,6 +510,7 @@
   }
   .home-block .block-head a:hover{ text-decoration:underline; opacity:0.8; }
   .home-block .block-head a:hover::after{ transform:translateX(3px); }
+  .home-block .block-head a:focus-visible{ outline:2px solid var(--rose-deep); outline-offset:2px; border-radius:4px; }
   .mini-row{
     display:flex; justify-content:space-between; align-items:center;
     background:var(--surface); border-radius:14px; padding:10px 14px;
@@ -1379,6 +1380,17 @@ async function signOutOfGoogle(){
 
 const LOCAL_PREFIX = 'oshiapp:';
 
+/* 雲端讀取／同步失敗時的提示：init() 會同時平行呼叫幾十次 loadKey，
+   網路異常時很容易同時炸出一堆錯誤，這裡做個簡單節流，短時間內只跳一次 toast，
+   避免畫面被同一個訊息洗版，也讓使用者不會誤以為資料已經正常載入。 */
+let cloudErrorToastShownAt = 0;
+function notifyCloudError(msg){
+  const now = Date.now();
+  if(now - cloudErrorToastShownAt < 4000) return;
+  cloudErrorToastShownAt = now;
+  showToast(msg);
+}
+
 async function loadKey(key, fallback){
   if(useCloud && currentUser){
     try{
@@ -1390,6 +1402,7 @@ async function loadKey(key, fallback){
       return fallback;
     }catch(e){
       console.error("雲端讀取失敗", e);
+      notifyCloudError('雲端資料讀取失敗，部分內容可能顯示不完整，請檢查網路連線後重新整理');
       return fallback;
     }
   } else {
@@ -1470,6 +1483,7 @@ function attachCloudListener(){
     }
   }, (err)=>{
     console.error('雲端即時同步監聽失敗', err);
+    notifyCloudError('與雲端的即時同步中斷了，變更可能無法同步到其他裝置，請檢查網路後重新整理頁面');
   });
 }
 
@@ -1581,17 +1595,25 @@ const state = {
   endorsementCategoryDisabled:[]
 };
 
-/* 記帳頁面檢視模式: 'all' (全部明細), 'category' (分類明細), 'year' (歷年明細), 'stats' (統計圖表) */
-let expViewMode = 'all';
+/* 各分頁的篩選／檢視模式狀態，統一收在同一個物件裡管理（原本是 29 個分散在各分頁區塊、
+   命名各自為政的全域變數），方便一次讀寫、重置，也方便 persistUiFilters／restoreUiFilters
+   整包存讀 localStorage，不用每加一個篩選欄位就要多改好幾個地方。 */
+let uiFilters = {
+  expense: { view:'all', category:'__all__', year:'__all__', month:'__all__' },
+  schedule: { artist:'__all__', time:'__all__', view:'calendar' },
+  photocards: { drill:null, artist:'__all__', owned:'__all__', category:'__all__', subTab:'catalog' },
+  merch: { drill:null, artist:'__all__', owned:'__all__', subTab:'catalog' },
+  arrivals: { status:'__pending__', channel:'__all__' },
+  support: { artist:'__all__', year:'__all__', search:'' },
+  media: { subTab:'endorsement', artist:'__all__', year:'__all__' },
+  fanlog: { year:null, month:null, artist:'__all__' }
+};
 let expSearchQuery = '';
 /* 「待重新上傳照片」與「備份提醒」用的狀態：都只在本次瀏覽有效（重新整理頁面後會重新檢查一次） */
 let uploadPendingDismissed = false;
 let backupReminderDismissed = false;
 let lastBackupAt = null;
 const BACKUP_REMINDER_DAYS = 30;
-let expCategoryFilter = '__all__';
-let expYearFilter = '__all__';
-let expMonthFilter = '__all__';
 /* 首頁「追星總覽」花費排行要看本月還是本年 */
 let homeSpendScope = 'month';
 
@@ -2083,6 +2105,7 @@ async function migrateLocalDataToCloudIfNeeded(){
     showToast('已將本機資料同步到雲端帳號 ☁️');
   }catch(e){
     console.error('本機資料搬遷至雲端失敗', e);
+    notifyCloudError('本機資料搬遷到雲端帳號時失敗，你原本的本機資料仍在，請稍後重新整理再試一次');
   }
 }
 
@@ -2397,7 +2420,7 @@ function bindNav(){
   document.getElementById('fabAdd').addEventListener('click', ()=>{
     if(state.tab==='home'){ state.tab='schedule'; render(); }
     if(state.tab==='photocards'){
-      if(pcSubTab==='arrivals'){ openArrivalForm(null, 'photocard'); } else { openPhotocardForm(null); }
+      if(uiFilters.photocards.subTab==='arrivals'){ openArrivalForm(null, 'photocard'); } else { openPhotocardForm(null); }
       return;
     }
     if(state.tab==='expense'){ openExpenseForm(null); return; }
@@ -2405,13 +2428,13 @@ function bindNav(){
     if(state.tab==='schedule'){ openScheduleForm(null); return; }
     if(state.tab==='support'){ openSupportForm(null); return; }
     if(state.tab==='merch'){
-      if(merchSubTab==='arrivals'){ openArrivalForm(null, 'merch'); } else { openMerchForm(null); }
+      if(uiFilters.merch.subTab==='arrivals'){ openArrivalForm(null, 'merch'); } else { openMerchForm(null); }
       return;
     }
     if(state.tab==='media'){
-      if(mediaSubTab==='endorsement'){ openEndorsementForm(null); }
-      else if(mediaSubTab==='magazine'){ openMagazineForm(null); }
-      else if(mediaSubTab==='movie'){ openMovieForm(null); }
+      if(uiFilters.media.subTab==='endorsement'){ openEndorsementForm(null); }
+      else if(uiFilters.media.subTab==='magazine'){ openMagazineForm(null); }
+      else if(uiFilters.media.subTab==='movie'){ openMovieForm(null); }
       else { openMediaOverviewAddChooser(); }
       return;
     }
@@ -2446,12 +2469,12 @@ function bindNav(){
     const overduePc = arrivalOverdueList('photocard').length + arrivalUpcomingList('photocard').length;
     if(overduePc>0 && overdueMerch===0){
       state.tab = 'photocards';
-      pcSubTab = 'arrivals';
+      uiFilters.photocards.subTab = 'arrivals';
     } else {
       state.tab = 'merch';
-      merchSubTab = 'arrivals';
+      uiFilters.merch.subTab = 'arrivals';
     }
-    arrivalStatusFilter = '__pending__';
+    uiFilters.arrivals.status = '__pending__';
     render();
   });
   document.getElementById('arrivalReminderClose').addEventListener('click', (e)=>{
@@ -2527,42 +2550,25 @@ function restoreCurrentTab(){
   }catch(e){}
 }
 
-/* 記住各頁面目前選的篩選條件（藝人／已擁有等），重新整理後不用重新點一次 */
+/* 記住各頁面目前選的篩選條件（藝人／已擁有等），重新整理後不用重新點一次。
+   所有分頁的篩選狀態都收在 uiFilters 這個物件裡，這裡直接整包存讀，
+   不用像以前一樣每加一個篩選欄位就要在這裡多寫一行。 */
 function persistUiFilters(){
-  try{
-    const filters = {
-      scheduleArtistFilter,
-      pcArtistFilter, pcOwnedFilter, pcDrill, pcCategoryFilter,
-      mcArtistFilter, mcOwnedFilter, mcDrill,
-      supportArtistFilter, fanlogArtistFilter,
-      mediaSubTab, endorsementArtistFilter, magazineArtistFilter, movieArtistFilter,
-      merchSubTab, arrivalStatusFilter, pcSubTab
-    };
-    window.localStorage.setItem(LOCAL_PREFIX+'ui-filters', JSON.stringify(filters));
-  }catch(e){}
+  try{ window.localStorage.setItem(LOCAL_PREFIX+'ui-filters', JSON.stringify(uiFilters)); }catch(e){}
 }
 function restoreUiFilters(){
   try{
     const raw = window.localStorage.getItem(LOCAL_PREFIX+'ui-filters');
     if(!raw) return;
-    const f = JSON.parse(raw);
-    if(typeof f.scheduleArtistFilter==='string') scheduleArtistFilter = f.scheduleArtistFilter;
-    if(typeof f.pcArtistFilter==='string') pcArtistFilter = f.pcArtistFilter;
-    if(typeof f.pcOwnedFilter==='string') pcOwnedFilter = f.pcOwnedFilter;
-    if(typeof f.pcDrill==='string' || f.pcDrill===null) pcDrill = f.pcDrill;
-    if(typeof f.pcCategoryFilter==='string') pcCategoryFilter = f.pcCategoryFilter;
-    if(typeof f.mcArtistFilter==='string') mcArtistFilter = f.mcArtistFilter;
-    if(typeof f.mcOwnedFilter==='string') mcOwnedFilter = f.mcOwnedFilter;
-    if(typeof f.mcDrill==='string' || f.mcDrill===null) mcDrill = f.mcDrill;
-    if(typeof f.supportArtistFilter==='string') supportArtistFilter = f.supportArtistFilter;
-    if(typeof f.fanlogArtistFilter==='string') fanlogArtistFilter = f.fanlogArtistFilter;
-    if(typeof f.mediaSubTab==='string') mediaSubTab = f.mediaSubTab;
-    if(typeof f.endorsementArtistFilter==='string') endorsementArtistFilter = f.endorsementArtistFilter;
-    if(typeof f.magazineArtistFilter==='string') magazineArtistFilter = f.magazineArtistFilter;
-    if(typeof f.movieArtistFilter==='string') movieArtistFilter = f.movieArtistFilter;
-    if(typeof f.merchSubTab==='string') merchSubTab = f.merchSubTab;
-    if(typeof f.arrivalStatusFilter==='string') arrivalStatusFilter = f.arrivalStatusFilter;
-    if(typeof f.pcSubTab==='string') pcSubTab = f.pcSubTab;
+    const saved = JSON.parse(raw);
+    // 只把「目前物件裡已知道的欄位」覆蓋回去，避免舊版/壞掉的資料塞進未知欄位
+    Object.keys(uiFilters).forEach(group=>{
+      if(saved[group] && typeof saved[group]==='object'){
+        Object.keys(uiFilters[group]).forEach(key=>{
+          if(key in saved[group]) uiFilters[group][key] = saved[group][key];
+        });
+      }
+    });
   }catch(e){}
 }
 
@@ -4093,7 +4099,7 @@ function renderHome(){
   const topDdayItems = ddayItems.slice(0,3);
 
   main += `<div class="home-block">
-    <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule">查看全部</a></div>`;
+    <div class="block-head"><h3>⏳ 倒數計時</h3><a data-goto="schedule" role="button" tabindex="0">查看全部</a></div>`;
   if(topDdayItems.length===0){
     main += `<div class="mini-row" style="justify-content:center;"><span class="l" style="color:var(--ink-soft); font-size:13px;">📅 目前沒有排定行程</span></div>`;
   } else {
@@ -4117,7 +4123,7 @@ function renderHome(){
   let side = renderHomeOverviewBlock();
   if(upcomingBirthdays.length>0){
     side += `<div class="home-block">
-      <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists">查看全部</a></div>
+      <div class="block-head"><h3>🎂 即將到來的生日</h3><a data-goto="artists" role="button" tabindex="0">查看全部</a></div>
       <div class="bday-grid">`;
     upcomingBirthdays.forEach(({artist, info})=>{
       const isToday = info.diffDays===0;
@@ -4132,7 +4138,7 @@ function renderHome(){
   }
 
   side += `<div class="home-block">
-    <div class="block-head"><h3>💰 本月花費</h3><a data-goto="expense">查看全部</a></div>
+    <div class="block-head"><h3>💰 本月花費</h3><a data-goto="expense" role="button" tabindex="0">查看全部</a></div>
     <div class="mini-row"><span class="l">${thisMonth.replace('-','年')}月 消費總計</span><span class="r" style="font-weight:700;color:var(--rose-deep)">NT$ ${monthTotal.toLocaleString()}</span></div>`;
   if(monthItemsTop.length>0){
     monthItemsTop.forEach(item=>{ side += renderHomeExpenseThumb(item); });
@@ -4140,7 +4146,7 @@ function renderHome(){
   side += `</div>`;
 
   side += `<div class="home-block">
-    <div class="block-head"><h3>📖 最新追星紀錄</h3><a data-goto="fanlog">查看全部</a></div>`;
+    <div class="block-head"><h3>📖 最新追星紀錄</h3><a data-goto="fanlog" role="button" tabindex="0">查看全部</a></div>`;
   if(recentLog.length===0){
     side += `<div class="mini-row" style="justify-content:center;"><span class="l" style="color:var(--ink-soft); font-size:13px;">📖 最近一個月還沒有寫下任何紀錄</span></div>`;
   } else {
@@ -4303,8 +4309,6 @@ function renderExpenseTab(){
     });
   }
 
-  const grandTotal = items.reduce((sum, e) => sum + expenseAmount(e), 0);
-
   // 「全部明細」與「分類明細」永遠只算今年的資料，不提供切換其他年份
   // （要看以前的花費請去「歷年花費」頁籤）。
   const curYear = todayStr().slice(0,4);
@@ -4313,10 +4317,10 @@ function renderExpenseTab(){
   // 切換按鈕（累積消費總計僅在「全部明細」顯示，分類明細/歷年花費各自已有小計，不重複列出總計）
   html += `
   <div class="cal-filter-row" style="margin-bottom:14px;">
-    <button class="exp-view-btn cal-filter-btn ${expViewMode==='all'?'active':''}" data-view="all">📋 全部明細</button>
-    <button class="exp-view-btn cal-filter-btn ${expViewMode==='category'?'active':''}" data-view="category">🏷️ 分類明細</button>
-    <button class="exp-view-btn cal-filter-btn ${expViewMode==='year'?'active':''}" data-view="year">📅 歷年花費</button>
-    <button class="exp-view-btn cal-filter-btn ${expViewMode==='stats'?'active':''}" data-view="stats">📊 統計圖表</button>
+    <button class="exp-view-btn cal-filter-btn ${uiFilters.expense.view==='all'?'active':''}" data-view="all">📋 全部明細</button>
+    <button class="exp-view-btn cal-filter-btn ${uiFilters.expense.view==='category'?'active':''}" data-view="category">🏷️ 分類明細</button>
+    <button class="exp-view-btn cal-filter-btn ${uiFilters.expense.view==='year'?'active':''}" data-view="year">📅 歷年花費</button>
+    <button class="exp-view-btn cal-filter-btn ${uiFilters.expense.view==='stats'?'active':''}" data-view="stats">📊 統計圖表</button>
   </div>
   `;
   const expSearchBoxHtml = `
@@ -4331,20 +4335,20 @@ function renderExpenseTab(){
     return html;
   }
 
-  if(expViewMode==='all'){
+  if(uiFilters.expense.view==='all'){
     // 月份清單與累積消費總計都只反映今年（不提供切換年份）
     const yearItems = yearFilteredItems;
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
 
     // 依有紀錄的月份列出可篩選的月份（新到舊），只列出今年內的月份
     const months = [...new Set(yearItems.filter(e=>e.date).map(e=>e.date.slice(0,7)))].sort((a,b)=> b.localeCompare(a));
-    if(expMonthFilter!=='__all__' && !months.includes(expMonthFilter)) expMonthFilter = '__all__';
+    if(uiFilters.expense.month!=='__all__' && !months.includes(uiFilters.expense.month)) uiFilters.expense.month = '__all__';
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
-      <button class="chip-filter-btn cal-filter-btn ${expMonthFilter==='__all__'?'active':''}" data-month="__all__">📆 全部</button>
+      <button class="chip-filter-btn cal-filter-btn ${uiFilters.expense.month==='__all__'?'active':''}" data-month="__all__">📆 全部</button>
       ${months.map(m=>{
         const [y,mm] = m.split('-');
-        const active = expMonthFilter===m;
+        const active = uiFilters.expense.month===m;
         return `<button class="chip-filter-btn cal-filter-btn ${active?'active':''}" data-month="${m}">${y}/${parseInt(mm,10)}月</button>`;
       }).join('')}
     </div>`;
@@ -4362,10 +4366,10 @@ function renderExpenseTab(){
     `;
 
     // 選擇特定月份時，顯示該月明細
-    if(expMonthFilter!=='__all__'){
-      const monthItems = yearItems.filter(e=> e.date && e.date.startsWith(expMonthFilter));
+    if(uiFilters.expense.month!=='__all__'){
+      const monthItems = yearItems.filter(e=> e.date && e.date.startsWith(uiFilters.expense.month));
       const monthTotal = monthItems.reduce((sum,e)=> sum + expenseAmount(e), 0);
-      const [my, mm] = expMonthFilter.split('-');
+      const [my, mm] = uiFilters.expense.month.split('-');
 
       html += `
       <div class="exp-group-header">
@@ -4383,14 +4387,14 @@ function renderExpenseTab(){
     }
   }
 
-  if(expViewMode==='all'){
-    if(expMonthFilter==='__all__'){
+  if(uiFilters.expense.view==='all'){
+    if(uiFilters.expense.month==='__all__'){
       const yearItemsForGrid = yearFilteredItems;
       html += `<div class="exp-grid">`;
       yearItemsForGrid.forEach(item=>{ html += renderExpenseCard(item); });
       html += `</div>`;
     }
-  } else if(expViewMode==='category'){
+  } else if(uiFilters.expense.view==='category'){
     // 依分類分組：只用今年的資料分組與加總
     const catGroups = {};
     yearFilteredItems.forEach(item=>{
@@ -4409,14 +4413,14 @@ function renderExpenseTab(){
       return a.localeCompare(b);
     });
 
-    if(expCategoryFilter!=='__all__' && !categoryKeys.includes(expCategoryFilter)) expCategoryFilter = '__all__';
+    if(uiFilters.expense.category!=='__all__' && !categoryKeys.includes(uiFilters.expense.category)) uiFilters.expense.category = '__all__';
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
-      <button class="chip-filter-btn cal-filter-btn ${expCategoryFilter==='__all__'?'active':''}" data-cat="__all__">全部類別</button>
+      <button class="chip-filter-btn cal-filter-btn ${uiFilters.expense.category==='__all__'?'active':''}" data-cat="__all__">全部類別</button>
       ${categoryKeys.map(cat=>{
         const c = chipColor(cat);
         const icon = EXPENSE_CATEGORY_ICON[cat] || '🏷️';
-        const active = expCategoryFilter===cat;
+        const active = uiFilters.expense.category===cat;
         return `<button class="chip-filter-btn ${active?'active':''}" style="background:${c.bg};color:${c.fg};" data-cat="${esc(cat)}">${icon} ${esc(cat)}</button>`;
       }).join('')}
     </div>`;
@@ -4424,7 +4428,7 @@ function renderExpenseTab(){
     html += expSearchBoxHtml;
 
     // 分類佔比橫條圖：只在「全部類別」時顯示整體分佈，選了特定分類後就不重複顯示
-    if(expCategoryFilter==='__all__'){
+    if(uiFilters.expense.category==='__all__'){
       const catTotalsAll = categoryKeys.map(cat=>({
         cat,
         amt: catGroups[cat].reduce((s,e)=> s+expenseAmount(e), 0)
@@ -4451,9 +4455,9 @@ function renderExpenseTab(){
       }
     }
 
-    const catItems = expCategoryFilter==='__all__' ? yearFilteredItems : (catGroups[expCategoryFilter] || []);
+    const catItems = uiFilters.expense.category==='__all__' ? yearFilteredItems : (catGroups[uiFilters.expense.category] || []);
     const catTotal = catItems.reduce((sum, e) => sum + expenseAmount(e), 0);
-    const catLabel = (expCategoryFilter==='__all__' ? '全部類別' : expCategoryFilter) + `・${curYear}年`;
+    const catLabel = (uiFilters.expense.category==='__all__' ? '全部類別' : uiFilters.expense.category) + `・${curYear}年`;
 
     html += `
     <div class="exp-group-header">
@@ -4468,7 +4472,7 @@ function renderExpenseTab(){
       catItems.forEach(item=>{ html += renderExpenseCard(item); });
     }
     html += `</div>`;
-  } else if(expViewMode==='year'){
+  } else if(uiFilters.expense.view==='year'){
     // 依年份分組
     const yearGroups = {};
     items.forEach(item=>{
@@ -4480,18 +4484,18 @@ function renderExpenseTab(){
     // 年份由新到舊排序
     const yearKeys = Object.keys(yearGroups).sort((a,b)=> b.localeCompare(a));
 
-    if(expYearFilter!=='__all__' && !yearKeys.includes(expYearFilter)) expYearFilter = yearKeys[0] || '__all__';
+    if(uiFilters.expense.year!=='__all__' && !yearKeys.includes(uiFilters.expense.year)) uiFilters.expense.year = yearKeys[0] || '__all__';
 
     html += `<div class="cal-filter-row" style="margin-bottom:14px;">
-      <button class="chip-filter-btn cal-filter-btn ${expYearFilter==='__all__'?'active':''}" data-year="__all__">全部年份</button>
-      ${yearKeys.map(y=>`<button class="chip-filter-btn cal-filter-btn ${expYearFilter===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
+      <button class="chip-filter-btn cal-filter-btn ${uiFilters.expense.year==='__all__'?'active':''}" data-year="__all__">全部年份</button>
+      ${yearKeys.map(y=>`<button class="chip-filter-btn cal-filter-btn ${uiFilters.expense.year===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
     </div>`;
 
     html += expSearchBoxHtml;
 
-    const yearItems = expYearFilter==='__all__' ? items : yearGroups[expYearFilter];
+    const yearItems = uiFilters.expense.year==='__all__' ? items : yearGroups[uiFilters.expense.year];
     const yearTotal = yearItems.reduce((sum, e) => sum + expenseAmount(e), 0);
-    const yearLabel = expYearFilter==='__all__' ? '全部年份' : `${expYearFilter} 年`;
+    const yearLabel = uiFilters.expense.year==='__all__' ? '全部年份' : `${uiFilters.expense.year} 年`;
 
     html += `
     <div class="exp-group-header">
@@ -4502,7 +4506,7 @@ function renderExpenseTab(){
     `;
     yearItems.forEach(item=>{ html += renderExpenseCard(item); });
     html += `</div>`;
-  } else if(expViewMode==='stats'){
+  } else if(uiFilters.expense.view==='stats'){
     html += expSearchBoxHtml;
     html += renderExpenseStats(yearFilteredItems, curYear);
   }
@@ -4590,10 +4594,10 @@ function bindExpenseActions(){
       const arv = state.arrivals.find(a=>String(a.id)===String(el.dataset.arrivalId));
       if(arv && (arv.itemType||'merch')==='photocard'){
         state.tab = 'photocards';
-        pcSubTab = 'arrivals';
+        uiFilters.photocards.subTab = 'arrivals';
       } else {
         state.tab = 'merch';
-        merchSubTab = 'arrivals';
+        uiFilters.merch.subTab = 'arrivals';
       }
       render();
       openArrivalForm(el.dataset.arrivalId);
@@ -4601,25 +4605,25 @@ function bindExpenseActions(){
   });
   document.querySelectorAll('.exp-view-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      expViewMode = btn.dataset.view;
+      uiFilters.expense.view = btn.dataset.view;
       render();
     });
   });
   document.querySelectorAll('.chip-filter-btn[data-cat]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      expCategoryFilter = btn.dataset.cat;
+      uiFilters.expense.category = btn.dataset.cat;
       render();
     });
   });
   document.querySelectorAll('.chip-filter-btn[data-year]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      expYearFilter = btn.dataset.year;
+      uiFilters.expense.year = btn.dataset.year;
       render();
     });
   });
   document.querySelectorAll('.chip-filter-btn[data-month]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      expMonthFilter = btn.dataset.month;
+      uiFilters.expense.month = btn.dataset.month;
       render();
     });
   });
@@ -5004,10 +5008,10 @@ function openExpenseForm(id, prefill){
       closeModal();
       if((linkedArrivalForForm.itemType||'merch')==='photocard'){
         state.tab = 'photocards';
-        pcSubTab = 'arrivals';
+        uiFilters.photocards.subTab = 'arrivals';
       } else {
         state.tab = 'merch';
-        merchSubTab = 'arrivals';
+        uiFilters.merch.subTab = 'arrivals';
       }
       render();
       openArrivalForm(linkedArrivalForForm.id);
@@ -5150,12 +5154,8 @@ async function saveExpenseForm(existing){
 
 /* ================= Schedule (calendar view) ================= */
 let calMonth = null;
-let scheduleArtistFilter = '__all__';
-/* 清單檢視的時間快速篩選：'__all__' 全部／'week' 本週／'month' 本月，只影響「即將到來」區塊 */
-let scheduleTimeFilter = '__all__';
 /* 「已結束」行程改成依年份自動歸檔、預設收合，這裡記錄目前展開了哪些年份 */
 let schedulePastOpenYears = new Set();
-let scheduleViewMode = 'calendar';
 const PAST_LIST_PAGE_SIZE = 10;
 
 function ensureCalMonth(){
@@ -5199,25 +5199,31 @@ function scheduleCategoryIcon(category){
   return SCHEDULE_CATEGORY_ICONS[category] || '📌';
 }
 
+/* 判斷一筆行程是否為「跨天行程」：月曆渲染與「某一天有哪些行程」的查詢都要用到同一套判斷邏輯，
+   拉到檔案層級共用一份，避免兩邊各自維護一份定義、改一邊忘了改另一邊而不同步 */
+function isMultiDaySchedule(s){
+  return !!(s.date && s.isMultiDay && s.endDate && s.endDate > s.date);
+}
+
 function renderScheduleTab(){
   ensureCalMonth();
   const meta = TAB_META.schedule;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
 
   const artistNames = [...new Set(state.schedule.map(s=>s.artist).filter(Boolean))];
-  const filteredSchedule = state.schedule.filter(s=> scheduleArtistFilter==='__all__' || s.artist===scheduleArtistFilter);
+  const filteredSchedule = state.schedule.filter(s=> uiFilters.schedule.artist==='__all__' || s.artist===uiFilters.schedule.artist);
 
   html += `<div class="cal-filter-row" style="margin-bottom:10px;">
-    <button class="sched-view-btn cal-filter-btn ${scheduleViewMode==='calendar'?'active':''}" data-view="calendar">📅 月曆檢視</button>
-    <button class="sched-view-btn cal-filter-btn ${scheduleViewMode==='list'?'active':''}" data-view="list">📋 清單檢視</button>
+    <button class="sched-view-btn cal-filter-btn ${uiFilters.schedule.view==='calendar'?'active':''}" data-view="calendar">📅 月曆檢視</button>
+    <button class="sched-view-btn cal-filter-btn ${uiFilters.schedule.view==='list'?'active':''}" data-view="list">📋 清單檢視</button>
   </div>`;
 
   html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn ${scheduleArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部行程</button>
-    ${artistNames.map(n=>`<button class="cal-filter-btn ${scheduleArtistFilter===n?'active':''}" data-filter="${esc(n)}"><span class="cal-filter-dot" style="background:${artistChipColor(n)};"></span>${esc(n)}</button>`).join('')}
+    <button class="cal-filter-btn ${uiFilters.schedule.artist==='__all__'?'active':''}" data-filter="__all__">全部行程</button>
+    ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.schedule.artist===n?'active':''}" data-filter="${esc(n)}"><span class="cal-filter-dot" style="background:${artistChipColor(n)};"></span>${esc(n)}</button>`).join('')}
   </div>`;
 
-  if(scheduleViewMode==='list'){
+  if(uiFilters.schedule.view==='list'){
     html += renderScheduleListBody(filteredSchedule);
     return html;
   }
@@ -5231,7 +5237,6 @@ function renderScheduleTab(){
 
   /* 跨天行程排在最前面（依開始日期、id 穩定排序），確保同一場跨天行程在每一天的堆疊順序一致，
      這樣橫條才能在視覺上對齊、連成一條線；單日行程排在後面 */
-  const isMultiDaySchedule = s=> s.date && s.isMultiDay && s.endDate && s.endDate > s.date;
   const multiDayEvents = filteredSchedule.filter(isMultiDaySchedule)
     .sort((a,b)=> (a.date||'').localeCompare(b.date||'') || String(a.id).localeCompare(String(b.id)));
   const singleDayEvents = filteredSchedule.filter(s=> s.date && !isMultiDaySchedule(s));
@@ -5306,8 +5311,7 @@ function renderScheduleTab(){
 /* 依日期取出「經過目前藝人篩選」後，會出現在那一天的所有行程（含跨天行程涵蓋到的日子）。
    月曆格子渲染與「+N 更多」的當日行程彈窗共用同一套邏輯，避免兩邊算出不一致的結果。 */
 function getFilteredScheduleForDate(dateStr){
-  const filteredSchedule = state.schedule.filter(s=> scheduleArtistFilter==='__all__' || s.artist===scheduleArtistFilter);
-  const isMultiDaySchedule = s=> s.date && s.isMultiDay && s.endDate && s.endDate > s.date;
+  const filteredSchedule = state.schedule.filter(s=> uiFilters.schedule.artist==='__all__' || s.artist===uiFilters.schedule.artist);
   return filteredSchedule.filter(s=>{
     if(!s.date) return false;
     if(isMultiDaySchedule(s)) return dateStr >= s.date && dateStr <= s.endDate;
@@ -5416,11 +5420,11 @@ function renderScheduleListBody(filteredSchedule){
 
   // 「本週／本月」快速篩選：只影響「即將到來」的清單，方便只看近期要做的事
   let timeRangeLabel = '';
-  if(scheduleTimeFilter==='week'){
+  if(uiFilters.schedule.time==='week'){
     const {start,end} = currentWeekRange();
     upcoming = upcoming.filter(s=> s.date<=end && effectiveEnd(s)>=start);
     timeRangeLabel = `（本週 ${fmtDate(start)}～${fmtDate(end)}）`;
-  } else if(scheduleTimeFilter==='month'){
+  } else if(uiFilters.schedule.time==='month'){
     const thisMonth = today.slice(0,7);
     upcoming = upcoming.filter(s=> (s.date||'').startsWith(thisMonth) || (s.isMultiDay && (s.endDate||'').startsWith(thisMonth)));
     timeRangeLabel = '（本月）';
@@ -5470,9 +5474,9 @@ function renderScheduleListBody(filteredSchedule){
   let html = '';
 
   html += `<div class="cal-filter-row" style="margin-bottom:10px;">
-    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='__all__'?'active':''}" data-time="__all__">🗓️ 全部</button>
-    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='week'?'active':''}" data-time="week">📍 本週</button>
-    <button class="sched-time-filter-btn cal-filter-btn ${scheduleTimeFilter==='month'?'active':''}" data-time="month">📆 本月</button>
+    <button class="sched-time-filter-btn cal-filter-btn ${uiFilters.schedule.time==='__all__'?'active':''}" data-time="__all__">🗓️ 全部</button>
+    <button class="sched-time-filter-btn cal-filter-btn ${uiFilters.schedule.time==='week'?'active':''}" data-time="week">📍 本週</button>
+    <button class="sched-time-filter-btn cal-filter-btn ${uiFilters.schedule.time==='month'?'active':''}" data-time="month">📆 本月</button>
   </div>`;
 
   html += `<div class="exp-group-header"><div class="exp-group-title">📌 即將到來${timeRangeLabel} <span class="exp-group-count">(${upcoming.length} 筆)</span></div></div>`;
@@ -5516,7 +5520,7 @@ function renderScheduleListBody(filteredSchedule){
 function bindCalendarActions(){
   document.querySelectorAll('.sched-time-filter-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      scheduleTimeFilter = btn.dataset.time;
+      uiFilters.schedule.time = btn.dataset.time;
       render();
     });
   });
@@ -5530,13 +5534,13 @@ function bindCalendarActions(){
   });
   document.querySelectorAll('.sched-view-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
-      scheduleViewMode = btn.dataset.view;
+      uiFilters.schedule.view = btn.dataset.view;
       render();
     });
   });
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      scheduleArtistFilter = b.dataset.filter;
+      uiFilters.schedule.artist = b.dataset.filter;
       schedulePastOpenYears = new Set();
       render();
     });
@@ -5586,12 +5590,6 @@ function bindCalendarActions(){
 }
 
 /* ================= Photocards ================= */
-let pcDrill = null;
-let pcArtistFilter = '__all__';
-let pcOwnedFilter = '__all__';
-let pcCategoryFilter = '__all__';
-/* 小卡分頁的子分頁：'catalog' 圖鑑／'arrivals' 到貨管理（跟周邊共用同一套到貨管理邏輯） */
-let pcSubTab = 'catalog';
 
 function normalizeSeriesKey(k){
   return (k||'').trim().toLowerCase().replace(/\s+/g,'');
@@ -5603,8 +5601,8 @@ function pcGroupKey(pc){
 function pcGroups(){
   const groups = {};
   state.photocards
-    .filter(pc=> pcArtistFilter==='__all__' || pc.artist===pcArtistFilter)
-    .filter(pc=> pcCategoryFilter==='__all__' || pc.category===pcCategoryFilter)
+    .filter(pc=> uiFilters.photocards.artist==='__all__' || pc.artist===uiFilters.photocards.artist)
+    .filter(pc=> uiFilters.photocards.category==='__all__' || pc.category===uiFilters.photocards.category)
     .forEach(pc=>{
       const key = pcGroupKey(pc);
       (groups[key] = groups[key] || []).push(pc);
@@ -5642,203 +5640,262 @@ function pcOrderedKeys(groups){
   return ordered;
 }
 
-function renderPhotocardCard(pc, seriesLabel){
-  const catClass = tagColorClass(pc.category, orderedCategoryList('photocards'));
-  const owned = !!pc.owned;
-  const wished = !!pc.wished;
+/* ================= 收藏圖鑑通用渲染（小卡圖庫／周邊圖鑑共用邏輯） =================
+   小卡圖庫跟周邊圖鑑的畫面結構、篩選列、收藏進度、願望清單、drill-down、系列格線
+   幾乎一模一樣，原本兩邊各寫一份（各約 150 行），改一個地方常常忘記改另一個。
+   這裡抽成同一份 renderCollectionCard()／renderCollectionTab()，
+   兩邊的差異（欄位命名、有沒有卡別篩選、單位「張」/「件」、圖示、class 名稱等）
+   集中寫在 COLLECTION_CONFIG 裡，往後要調整這類頁面的邏輯，改一處、兩頁同時生效。
+   底下的 renderPhotocardCard／renderPhotocards／renderMerchCard／renderMerchTab
+   都只是薄薄一層呼叫共用函式的包裝，函式名稱維持不變，其他地方（render 分派、
+   drill-down 交叉引用、年度總結圖片等）呼叫這些名稱的地方完全不用跟著改。 */
+const COLLECTION_CONFIG = {
+  photocards: {
+    icon: '🎴',
+    unit: '張',
+    unitNoun: '小卡',
+    hasCategoryFilter: true,
+    subtabBtnClass: 'pc-subtab-btn',
+    ownedFilterBtnClass: 'pc-owned-filter-btn',
+    wishBtnClass: 'pc-wish-btn',
+    ownedInputClass: 'pc-owned-input',
+    seriesCardClass: 'pc-series-card',
+    editCoverBtnClass: 'pc-series-edit-cover',
+    seriesCoversKey: 'pcSeriesCovers',
+    arrivalItemType: 'photocard',
+    groupsFn: ()=>pcGroups(),
+    groupKeyFn: pc=>pcGroupKey(pc),
+    orderedKeysFn: groups=>pcOrderedKeys(groups),
+    seriesSpentFn: key=>pcSeriesSpentAmount(key),
+    linkedExpensesFn: key=>linkedExpensesForPcSeries(key),
+    relatedKind: 'merch',
+    relatedLabel: '相關周邊',
+  },
+  merch: {
+    icon: '🛍️',
+    unit: '件',
+    unitNoun: '周邊',
+    hasCategoryFilter: false,
+    subtabBtnClass: 'merch-subtab-btn',
+    ownedFilterBtnClass: 'mc-owned-filter-btn',
+    wishBtnClass: 'mc-wish-btn',
+    ownedInputClass: 'mc-owned-input',
+    seriesCardClass: 'pc-series-card mc-series-card',
+    editCoverBtnClass: 'mc-series-edit-cover',
+    seriesCoversKey: 'merchSeriesCovers',
+    arrivalItemType: 'merch',
+    groupsFn: ()=>mcGroups(),
+    groupKeyFn: mc=>mcGroupKey(mc),
+    orderedKeysFn: groups=>mcOrderedKeys(groups),
+    seriesSpentFn: key=>mcSeriesSpentAmount(key),
+    linkedExpensesFn: key=>linkedExpensesForMcSeries(key),
+    relatedKind: 'photocards',
+    relatedLabel: '相關小卡',
+  }
+};
+
+function renderCollectionCard(kind, item, seriesLabel){
+  const cfg = COLLECTION_CONFIG[kind];
+  const catClass = tagColorClass(item.category, orderedCategoryList(kind));
+  const owned = !!item.owned;
+  const wished = !!item.wished;
   return `
   <div class="pc-card">
     <div style="position:relative;">
-      ${pc.imageUrl
-        ? `<img class="pc-img" src="${esc(pc.imageUrl)}" alt="${esc(pc.name||'小卡')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🎴</div>'">`
-        : `<div class="pc-img ph">🎴</div>`}
-      <button class="pc-wish-btn" data-id="${pc.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
+      ${item.imageUrl
+        ? `<img class="pc-img" src="${esc(item.imageUrl)}" alt="${esc(item.name||cfg.unitNoun)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>${cfg.icon}</div>'">`
+        : `<div class="pc-img ph">${cfg.icon}</div>`}
+      <button class="${cfg.wishBtnClass}" data-id="${item.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
     </div>
     <div class="pc-body">
       ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
-      <div class="pc-name">${esc(pc.name)}</div>
+      <div class="pc-name">${esc(item.name)}</div>
       <label class="pc-owned">
-        <input type="checkbox" class="pc-owned-input" data-id="${pc.id}" ${owned?'checked':''}>
+        <input type="checkbox" class="${cfg.ownedInputClass}" data-id="${item.id}" ${owned?'checked':''}>
         已擁有
       </label>
-      ${pc.category ? `<div><span class="tag ${catClass}">${esc(pc.category)}</span>${pc.price ? `<span class="tag gold">NT$ ${(parseFloat(pc.price)||0).toLocaleString()}</span>`:''}</div>` : (pc.price ? `<div><span class="tag gold">NT$ ${(parseFloat(pc.price)||0).toLocaleString()}</span></div>` : '')}
+      ${item.category ? `<div><span class="tag ${catClass}">${esc(item.category)}</span>${item.price ? `<span class="tag gold">NT$ ${(parseFloat(item.price)||0).toLocaleString()}</span>`:''}</div>` : (item.price ? `<div><span class="tag gold">NT$ ${(parseFloat(item.price)||0).toLocaleString()}</span></div>` : '')}
       <div class="pc-actions">
-        <button class="icon-btn dup" data-tab="photocards" data-id="${pc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
-        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="photocards" data-id="${pc.id}">✎</button>
-        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="photocards" data-id="${pc.id}">🗑</button>
+        <button class="icon-btn dup" data-tab="${kind}" data-id="${item.id}" title="複製這筆" aria-label="複製這筆">📋</button>
+        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="${kind}" data-id="${item.id}">✎</button>
+        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="${kind}" data-id="${item.id}">🗑</button>
       </div>
     </div>
   </div>`;
 }
 
-function renderPhotocards(){
-  const meta = TAB_META.photocards;
-  const overdueCount = arrivalOverdueList('photocard').length;
-  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${pcSubTab==='arrivals' ? '到貨管理' : meta.label}</div>`;
+function renderCollectionTab(kind){
+  const cfg = COLLECTION_CONFIG[kind];
+  const meta = TAB_META[kind];
+  const f = uiFilters[kind];
+  const items = state[kind];
+  const overdueCount = arrivalOverdueList(cfg.arrivalItemType).length;
+  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${f.subTab==='arrivals' ? '到貨管理' : meta.label}</div>`;
   html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn pc-subtab-btn ${pcSubTab==='catalog'?'active':''}" data-sub="catalog">🎴 圖鑑</button>
-    <button class="cal-filter-btn pc-subtab-btn ${pcSubTab==='arrivals'?'active':''}" data-sub="arrivals">🚚 到貨管理${overdueCount>0?`（${overdueCount}）`:''}</button>
+    <button class="cal-filter-btn ${cfg.subtabBtnClass} ${f.subTab==='catalog'?'active':''}" data-sub="catalog">${cfg.icon} 圖鑑</button>
+    <button class="cal-filter-btn ${cfg.subtabBtnClass} ${f.subTab==='arrivals'?'active':''}" data-sub="arrivals">🚚 到貨管理${overdueCount>0?`（${overdueCount}）`:''}</button>
   </div>`;
-  if(pcSubTab==='arrivals'){
-    html += renderArrivalsBody('photocard');
+  if(f.subTab==='arrivals'){
+    html += renderArrivalsBody(cfg.arrivalItemType);
     return html;
   }
-  if(state.photocards.length===0){
-    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一張吧</div></div>`;
+  if(items.length===0){
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一${cfg.unit}吧</div></div>`;
     return html;
   }
 
-  const artistNames = [...new Set(state.photocards.map(p=>p.artist).filter(Boolean))];
-  if(pcArtistFilter!=='__all__' && !artistNames.includes(pcArtistFilter)) pcArtistFilter = '__all__';
+  const artistNames = [...new Set(items.map(p=>p.artist).filter(Boolean))];
+  if(f.artist!=='__all__' && !artistNames.includes(f.artist)) f.artist = '__all__';
   html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn ${pcArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-    ${artistNames.map(n=>`<button class="cal-filter-btn ${pcArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+    <button class="cal-filter-btn ${f.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+    ${artistNames.map(n=>`<button class="cal-filter-btn ${f.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
   </div>`;
   html += `<div class="cal-filter-row" style="margin-top:8px;">
-    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='__all__'?'active':''}" data-owned="__all__">全部</button>
-    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
-    <button class="pc-owned-filter-btn cal-filter-btn ${pcOwnedFilter==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
+    <button class="${cfg.ownedFilterBtnClass} cal-filter-btn ${f.owned==='__all__'?'active':''}" data-owned="__all__">全部</button>
+    <button class="${cfg.ownedFilterBtnClass} cal-filter-btn ${f.owned==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
+    <button class="${cfg.ownedFilterBtnClass} cal-filter-btn ${f.owned==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
   </div>`;
-  const pcCategoryOptions = [...new Set(state.photocards.map(p=>p.category).filter(Boolean))];
-  if(pcCategoryFilter!=='__all__' && !pcCategoryOptions.includes(pcCategoryFilter)) pcCategoryFilter = '__all__';
-  if(pcCategoryOptions.length>0){
-    html += `<div class="cal-filter-row" style="margin-top:8px;">
-      <button class="pc-category-filter-btn cal-filter-btn ${pcCategoryFilter==='__all__'?'active':''}" data-category="__all__">全部卡別</button>
-      ${pcCategoryOptions.map(c=>`<button class="pc-category-filter-btn cal-filter-btn ${pcCategoryFilter===c?'active':''}" data-category="${esc(c)}">${esc(c)}</button>`).join('')}
-    </div>`;
+
+  if(cfg.hasCategoryFilter){
+    const categoryOptions = [...new Set(items.map(p=>p.category).filter(Boolean))];
+    if(f.category!=='__all__' && !categoryOptions.includes(f.category)) f.category = '__all__';
+    if(categoryOptions.length>0){
+      html += `<div class="cal-filter-row" style="margin-top:8px;">
+        <button class="pc-category-filter-btn cal-filter-btn ${f.category==='__all__'?'active':''}" data-category="__all__">全部卡別</button>
+        ${categoryOptions.map(c=>`<button class="pc-category-filter-btn cal-filter-btn ${f.category===c?'active':''}" data-category="${esc(c)}">${esc(c)}</button>`).join('')}
+      </div>`;
+    }
   }
 
-  const groups = pcGroups();
+  const groups = cfg.groupsFn();
   const filteredItems = Object.values(groups).flat();
   const totalCount = filteredItems.length;
   const totalOwned = filteredItems.filter(p=>p.owned).length;
   const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
-  const filteredSeriesKeys = [...new Set(filteredItems.map(p=>pcGroupKey(p)))];
-  const totalPcSpent = filteredSeriesKeys.reduce((sum,key)=> sum + pcSeriesSpentAmount(key), 0);
+  const filteredSeriesKeys = [...new Set(filteredItems.map(p=>cfg.groupKeyFn(p)))];
+  const totalSpent = filteredSeriesKeys.reduce((sum,key)=> sum + cfg.seriesSpentFn(key), 0);
 
-  // 每個系列的完整張數（只套用藝人篩選，不受卡別/已擁有篩選影響），讓 flat 清單裡的小計能顯示「該系列共幾張」
+  // 每個系列的完整張數／件數（只套用藝人篩選，不受卡別/已擁有篩選影響），讓 flat 清單裡的小計能顯示「該系列共幾張/件」
   const seriesFullTotals = {};
-  state.photocards
-    .filter(pc=> pcArtistFilter==='__all__' || pc.artist===pcArtistFilter)
-    .forEach(pc=>{
-      const key = pcGroupKey(pc);
+  items
+    .filter(p=> f.artist==='__all__' || p.artist===f.artist)
+    .forEach(p=>{
+      const key = cfg.groupKeyFn(p);
       seriesFullTotals[key] = (seriesFullTotals[key]||0) + 1;
     });
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-    <span class="l" style="font-weight:700;">🎴 收藏進度</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} 張（${totalPct}%）</span>
+    <span class="l" style="font-weight:700;">${cfg.icon} 收藏進度</span>
+    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} ${cfg.unit}（${totalPct}%）</span>
   </div>
-  ${totalPcSpent>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalPcSpent.toLocaleString()}</div>` : ''}
+  ${totalSpent>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalSpent.toLocaleString()}</div>` : ''}
   `;
 
   // 願望清單篩選：只影響下方顯示的圖鑑/清單，收藏進度總覽維持顯示全部
   let displayGroups = groups;
-  if(pcOwnedFilter!=='__all__'){
+  if(f.owned!=='__all__'){
     displayGroups = {};
     Object.keys(groups).forEach(key=>{
-      const filtered = groups[key].filter(pc=> pcOwnedFilter==='owned' ? pc.owned : !!pc.wished);
+      const filtered = groups[key].filter(p=> f.owned==='owned' ? p.owned : !!p.wished);
       if(filtered.length>0) displayGroups[key] = filtered;
     });
   }
 
-  if(pcDrill && !displayGroups[pcDrill]) pcDrill = null;
+  if(f.drill && !displayGroups[f.drill]) f.drill = null;
 
-  if(pcDrill){
-    const items = displayGroups[pcDrill];
-    const drillOwned = items.filter(i=>i.owned).length;
-    const drillSpent = pcSeriesSpentAmount(pcDrill);
-    const drillLinked = linkedExpensesForPcSeries(pcDrill);
+  if(f.drill){
+    const drillItems = displayGroups[f.drill];
+    const drillOwned = drillItems.filter(i=>i.owned).length;
+    const drillSpent = cfg.seriesSpentFn(f.drill);
+    const drillLinked = cfg.linkedExpensesFn(f.drill);
     html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
-    html += `<div class="card-title" style="margin:0 2px 4px;font-size:16px;">${esc(pcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
+    html += `<div class="card-title" style="margin:0 2px 4px;font-size:16px;">${esc(f.drill)} <span class="pc-count">(${drillOwned}/${drillItems.length} 已收藏)</span></div>`;
     if(drillSpent>0){
       html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
     }
-    const relatedMerch = state.merch.filter(mc=> normalizeSeriesKey(mcGroupKey(mc))===normalizeSeriesKey(pcDrill));
-    if(relatedMerch.length>0){
-      html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🛍️ 相關周邊（${relatedMerch.length}）</div>`;
+    const relCfg = COLLECTION_CONFIG[cfg.relatedKind];
+    const relatedItems = state[cfg.relatedKind].filter(x=> normalizeSeriesKey(relCfg.groupKeyFn(x))===normalizeSeriesKey(f.drill));
+    if(relatedItems.length>0){
+      html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">${relCfg.icon} ${cfg.relatedLabel}（${relatedItems.length}）</div>`;
       html += `<div class="pc-grid">`;
-      relatedMerch.forEach(mc=>{ html += renderMerchCard(mc); });
+      relatedItems.forEach(x=>{ html += renderCollectionCard(cfg.relatedKind, x); });
       html += `</div>`;
-      html += `<div class="card-title" style="margin:18px 2px 8px;font-size:14px;">🎴 這個系列的小卡</div>`;
+      html += `<div class="card-title" style="margin:18px 2px 8px;font-size:14px;">${cfg.icon} 這個系列的${cfg.unitNoun}</div>`;
     }
     html += `<div class="pc-grid">`;
-    items.forEach(pc=>{ html += renderPhotocardCard(pc); });
+    drillItems.forEach(x=>{ html += renderCollectionCard(kind, x); });
     html += `</div>`;
     return html;
   }
 
   if(Object.keys(displayGroups).length===0){
-    html += `<div class="empty"><div class="stamp-big maru">卡</div><div class="msg">目前沒有符合條件的小卡</div></div>`;
+    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">目前沒有符合條件的${kind==='photocards'?'小卡':'品項'}</div></div>`;
     return html;
   }
 
-  // 願望清單估算花費：把目前篩選範圍內、有標價的願望清單小卡加總起來，方便抓「這些想收的還要花多少」
-  if(pcOwnedFilter==='wish'){
+  // 願望清單估算花費：把目前篩選範圍內、有標價的願望清單項目加總起來，方便抓「這些想收的還要花多少」
+  if(f.owned==='wish'){
     const wishItems = Object.values(displayGroups).flat();
-    const wishTotal = wishItems.reduce((sum,pc)=> sum + (parseFloat(pc.price)||0), 0);
-    const wishPricedCount = wishItems.filter(pc=> parseFloat(pc.price)>0).length;
+    const wishTotal = wishItems.reduce((sum,p)=> sum + (parseFloat(p.price)||0), 0);
+    const wishPricedCount = wishItems.filter(p=> parseFloat(p.price)>0).length;
     if(wishTotal>0){
       html += `<div class="mini-row" style="margin:0 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
         <span class="l" style="font-weight:700;">🌟 願望清單預估花費</span>
         <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${wishTotal.toLocaleString()}</span>
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} 張願望清單中，${wishPricedCount} 張有填價格</div>`;
+      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} ${cfg.unit}願望清單中，${wishPricedCount} ${cfg.unit}有填價格</div>`;
     }
   }
 
-  // 選了「已擁有」「願望清單」或指定卡別時，直接列出符合條件的小卡本身，並在每個圖鑑前顯示小計
-  if(pcOwnedFilter !== '__all__' || pcCategoryFilter !== '__all__'){
-    const orderedFlat = pcOrderedKeys(displayGroups);
+  // 選了「已擁有」「願望清單」或（限小卡圖庫）指定卡別時，直接列出符合條件的項目本身，並在每個圖鑑前顯示小計
+  if(f.owned !== '__all__' || (cfg.hasCategoryFilter && f.category !== '__all__')){
+    const orderedFlat = cfg.orderedKeysFn(displayGroups);
     orderedFlat.forEach((key, idx)=>{
       const total = seriesFullTotals[key] || (groups[key]||[]).length;
       const count = displayGroups[key].length;
-      html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} 張)</span></div>`;
+      html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} ${cfg.unit})</span></div>`;
       html += `<div class="pc-grid">`;
-      displayGroups[key].forEach(pc=>{ html += renderPhotocardCard(pc); });
+      displayGroups[key].forEach(x=>{ html += renderCollectionCard(kind, x); });
       html += `</div>`;
     });
     return html;
   }
 
-  const ordered = pcOrderedKeys(displayGroups);
+  const ordered = cfg.orderedKeysFn(displayGroups);
   html += `<div class="pc-series-grid">`;
   ordered.forEach(key=>{
-    const items = displayGroups[key];
-    const ownedCount = items.filter(i=>i.owned).length;
-    const pct = items.length>0 ? Math.round(ownedCount/items.length*100) : 0;
-    const manualCover = state.pcSeriesCovers && state.pcSeriesCovers[key];
-    const autoCover = items.find(i=>i.imageUrl);
+    const seriesItems = displayGroups[key];
+    const ownedCount = seriesItems.filter(i=>i.owned).length;
+    const pct = seriesItems.length>0 ? Math.round(ownedCount/seriesItems.length*100) : 0;
+    const seriesCovers = state[cfg.seriesCoversKey];
+    const manualCover = seriesCovers && seriesCovers[key];
+    const autoCover = seriesItems.find(i=>i.imageUrl);
     const coverUrl = manualCover || (autoCover ? autoCover.imageUrl : '');
-    const seriesSpent = pcSeriesSpentAmount(key);
+    const seriesSpent = cfg.seriesSpentFn(key);
     html += `
     <div class="pc-series-card-wrap">
-      <button class="pc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" alt="${esc(key)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🎴</div>'">`
-                : `<div class="pc-series-cover ph">🎴</div>`}
+      <button class="${cfg.seriesCardClass}" data-series="${esc(key)}">
+        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" alt="${esc(key)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>${cfg.icon}</div>'">`
+                : `<div class="pc-series-cover ph">${cfg.icon}</div>`}
         <div class="pc-series-body">
           <div class="pc-series-name">${esc(key)}</div>
-          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 張${seriesSpent>0?`　💰 NT$${seriesSpent.toLocaleString()}`:''}</div>
+          <div class="pc-series-count">已收藏 ${ownedCount}/${seriesItems.length} ${cfg.unit}${seriesSpent>0?`　💰 NT$${seriesSpent.toLocaleString()}`:''}</div>
           <div class="pc-series-progress-track"><div class="pc-series-progress-fill" style="width:${pct}%;"></div></div>
         </div>
       </button>
-      <button class="pc-series-edit-cover" data-series="${esc(key)}" title="編輯封面圖片網址">✎</button>
+      <button class="${cfg.editCoverBtnClass}" data-series="${esc(key)}" title="編輯封面圖片網址">✎</button>
     </div>`;
   });
   html += `</div>`;
   return html;
 }
 
+function renderPhotocardCard(pc, seriesLabel){ return renderCollectionCard('photocards', pc, seriesLabel); }
+function renderPhotocards(){ return renderCollectionTab('photocards'); }
+
 /* ================= 周邊/專輯圖鑑 (Merch) ================= */
-let mcDrill = null;
-let mcArtistFilter = '__all__';
-let mcOwnedFilter = '__all__';
-/* 周邊分頁的子分頁：'catalog' 圖鑑／'arrivals' 到貨管理 */
-let merchSubTab = 'catalog';
-let arrivalStatusFilter = '__pending__';
 let arrivalReminderDismissed = false;
 let arrivalSelectedIds = new Set(); // 到貨管理清單的批次選取（存字串 id）
-let arrivalChannelFilter = '__all__'; // 到貨管理依購入通路/賣家篩選
 let arrivalExpandedTimelineIds = new Set(); // 目前展開「時間軸」小視圖的到貨項目 id
 
 /* ================= 到貨管理 (Arrivals) ================= */
@@ -5966,7 +6023,7 @@ function mcGroupKey(mc){
 function mcGroups(){
   const groups = {};
   state.merch
-    .filter(mc=> mcArtistFilter==='__all__' || mc.artist===mcArtistFilter)
+    .filter(mc=> uiFilters.merch.artist==='__all__' || mc.artist===uiFilters.merch.artist)
     .forEach(mc=>{
       const key = mcGroupKey(mc);
       (groups[key] = groups[key] || []).push(mc);
@@ -5998,169 +6055,9 @@ function mcOrderedKeys(groups){
   return ordered;
 }
 
-function renderMerchCard(mc, seriesLabel){
-  const catClass = tagColorClass(mc.category, orderedCategoryList('merch'));
-  const owned = !!mc.owned;
-  return `
-  <div class="pc-card">
-    ${mc.imageUrl
-      ? `<img class="pc-img" src="${esc(mc.imageUrl)}" alt="${esc(mc.name||'周邊')}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-img ph&quot;>🛍️</div>'">`
-      : `<div class="pc-img ph">🛍️</div>`}
-    <div class="pc-body">
-      ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
-      <div class="pc-name">${esc(mc.name)}</div>
-      <label class="pc-owned">
-        <input type="checkbox" class="mc-owned-input" data-id="${mc.id}" ${owned?'checked':''}>
-        已擁有
-      </label>
-      ${mc.category ? `<div><span class="tag ${catClass}">${esc(mc.category)}</span>${mc.price ? `<span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span>`:''}</div>` : (mc.price ? `<div><span class="tag gold">NT$ ${(parseFloat(mc.price)||0).toLocaleString()}</span></div>` : '')}
-      <div class="pc-actions">
-        <button class="icon-btn dup" data-tab="merch" data-id="${mc.id}" title="複製這筆" aria-label="複製這筆">📋</button>
-        <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="merch" data-id="${mc.id}">✎</button>
-        <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="merch" data-id="${mc.id}">🗑</button>
-      </div>
-    </div>
-  </div>`;
-}
+function renderMerchCard(mc, seriesLabel){ return renderCollectionCard('merch', mc, seriesLabel); }
+function renderMerchTab(){ return renderCollectionTab('merch'); }
 
-function renderMerchTab(){
-  const meta = TAB_META.merch;
-  const overdueCount = arrivalOverdueList('merch').length;
-  let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${merchSubTab==='arrivals' ? '到貨管理' : meta.label}</div>`;
-  html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn merch-subtab-btn ${merchSubTab==='catalog'?'active':''}" data-sub="catalog">🛍️ 圖鑑</button>
-    <button class="cal-filter-btn merch-subtab-btn ${merchSubTab==='arrivals'?'active':''}" data-sub="arrivals">🚚 到貨管理${overdueCount>0?`（${overdueCount}）`:''}</button>
-  </div>`;
-  if(merchSubTab==='arrivals'){
-    html += renderArrivalsBody('merch');
-    return html;
-  }
-  if(state.merch.length===0){
-    html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一件吧</div></div>`;
-    return html;
-  }
-
-  const artistNames = [...new Set(state.merch.map(p=>p.artist).filter(Boolean))];
-  if(mcArtistFilter!=='__all__' && !artistNames.includes(mcArtistFilter)) mcArtistFilter = '__all__';
-  html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn ${mcArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-    ${artistNames.map(n=>`<button class="cal-filter-btn ${mcArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
-  </div>`;
-  html += `<div class="cal-filter-row" style="margin-top:8px;">
-    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='__all__'?'active':''}" data-owned="__all__">全部</button>
-    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='owned'?'active':''}" data-owned="owned">✅ 已擁有</button>
-    <button class="mc-owned-filter-btn cal-filter-btn ${mcOwnedFilter==='wish'?'active':''}" data-owned="wish">🌟 願望清單</button>
-  </div>`;
-
-  const groups = mcGroups();
-  const filteredItems = Object.values(groups).flat();
-  const totalCount = filteredItems.length;
-  const totalOwned = filteredItems.filter(p=>p.owned).length;
-  const totalPct = totalCount>0 ? Math.round(totalOwned/totalCount*100) : 0;
-  const filteredSeriesKeys = [...new Set(filteredItems.map(mc=>mcGroupKey(mc)))];
-  const totalMcSpent = filteredSeriesKeys.reduce((sum,key)=> sum + mcSeriesSpentAmount(key), 0);
-  html += `
-  <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-    <span class="l" style="font-weight:700;">🛍️ 收藏進度</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} 件（${totalPct}%）</span>
-  </div>
-  ${totalMcSpent>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalMcSpent.toLocaleString()}</div>` : ''}
-  `;
-
-  let displayGroups = groups;
-  if(mcOwnedFilter!=='__all__'){
-    displayGroups = {};
-    Object.keys(groups).forEach(key=>{
-      const filtered = groups[key].filter(mc=> mcOwnedFilter==='owned' ? mc.owned : !mc.owned);
-      if(filtered.length>0) displayGroups[key] = filtered;
-    });
-  }
-
-  if(mcDrill && !displayGroups[mcDrill]) mcDrill = null;
-
-  if(mcDrill){
-    const items = displayGroups[mcDrill];
-    const drillOwned = items.filter(i=>i.owned).length;
-    const drillSpent = mcSeriesSpentAmount(mcDrill);
-    const drillLinked = linkedExpensesForMcSeries(mcDrill);
-    html += `<div class="pc-back" data-back="1">← 返回圖鑑</div>`;
-    html += `<div class="card-title" style="margin:0 2px 4px;font-size:16px;">${esc(mcDrill)} <span class="pc-count">(${drillOwned}/${items.length} 已收藏)</span></div>`;
-    if(drillSpent>0){
-      html += `<div class="card-meta" style="margin:0 2px 12px;">💰 這個系列已花費 NT$ ${drillSpent.toLocaleString()}（連結了 ${drillLinked.length} 筆記帳）</div>`;
-    }
-    const relatedPc = state.photocards.filter(pc=> normalizeSeriesKey(pcGroupKey(pc))===normalizeSeriesKey(mcDrill));
-    if(relatedPc.length>0){
-      html += `<div class="card-title" style="margin:4px 2px 8px;font-size:14px;">🎴 相關小卡（${relatedPc.length}）</div>`;
-      html += `<div class="pc-grid">`;
-      relatedPc.forEach(pc=>{ html += renderPhotocardCard(pc); });
-      html += `</div>`;
-      html += `<div class="card-title" style="margin:18px 2px 8px;font-size:14px;">🛍️ 這個系列的周邊</div>`;
-    }
-    html += `<div class="pc-grid">`;
-    items.forEach(mc=>{ html += renderMerchCard(mc); });
-    html += `</div>`;
-    return html;
-  }
-
-  if(Object.keys(displayGroups).length===0){
-    html += `<div class="empty"><div class="stamp-big maru">周</div><div class="msg">目前沒有符合條件的品項</div></div>`;
-    return html;
-  }
-
-  // 願望清單估算花費：把目前篩選範圍內、有標價的願望清單周邊加總起來
-  if(mcOwnedFilter==='wish'){
-    const wishItems = Object.values(displayGroups).flat();
-    const wishTotal = wishItems.reduce((sum,mc)=> sum + (parseFloat(mc.price)||0), 0);
-    const wishPricedCount = wishItems.filter(mc=> parseFloat(mc.price)>0).length;
-    if(wishTotal>0){
-      html += `<div class="mini-row" style="margin:0 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-        <span class="l" style="font-weight:700;">🌟 願望清單預估花費</span>
-        <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${wishTotal.toLocaleString()}</span>
-      </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} 件願望清單中，${wishPricedCount} 件有填價格</div>`;
-    }
-  }
-
-  if(mcOwnedFilter !== '__all__'){
-    const orderedFlat = mcOrderedKeys(displayGroups);
-    orderedFlat.forEach((key, idx)=>{
-      const total = (groups[key]||[]).length;
-      const count = displayGroups[key].length;
-      html += `<div class="card-title" style="margin:${idx===0?'0':'18px'} 2px 8px;font-size:14px;">🗂️ ${esc(key)} <span class="pc-count">(${count}/${total} 件)</span></div>`;
-      html += `<div class="pc-grid">`;
-      displayGroups[key].forEach(mc=>{ html += renderMerchCard(mc); });
-      html += `</div>`;
-    });
-    return html;
-  }
-
-  const ordered = mcOrderedKeys(displayGroups);
-  html += `<div class="pc-series-grid">`;
-  ordered.forEach(key=>{
-    const items = displayGroups[key];
-    const ownedCount = items.filter(i=>i.owned).length;
-    const pct = items.length>0 ? Math.round(ownedCount/items.length*100) : 0;
-    const manualCover = state.merchSeriesCovers && state.merchSeriesCovers[key];
-    const autoCover = items.find(i=>i.imageUrl);
-    const coverUrl = manualCover || (autoCover ? autoCover.imageUrl : '');
-    const seriesSpent = mcSeriesSpentAmount(key);
-    html += `
-    <div class="pc-series-card-wrap">
-      <button class="pc-series-card mc-series-card" data-series="${esc(key)}">
-        ${coverUrl ? `<img class="pc-series-cover" src="${esc(coverUrl)}" alt="${esc(key)}" loading="lazy" onerror="this.outerHTML='<div class=&quot;pc-series-cover ph&quot;>🛍️</div>'">`
-                : `<div class="pc-series-cover ph">🛍️</div>`}
-        <div class="pc-series-body">
-          <div class="pc-series-name">${esc(key)}</div>
-          <div class="pc-series-count">已收藏 ${ownedCount}/${items.length} 件${seriesSpent>0?`　💰 NT$${seriesSpent.toLocaleString()}`:''}</div>
-          <div class="pc-series-progress-track"><div class="pc-series-progress-fill" style="width:${pct}%;"></div></div>
-        </div>
-      </button>
-      <button class="mc-series-edit-cover" data-series="${esc(key)}" title="編輯封面圖片網址">✎</button>
-    </div>`;
-  });
-  html += `</div>`;
-  return html;
-}
 
 function renderArrivalsBody(itemType){
   let html = '';
@@ -6200,25 +6097,25 @@ function renderArrivalsBody(itemType){
   </div>`;
 
   html += `<div class="cal-filter-row" style="margin-top:8px;">
-    <button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter==='__pending__'?'active':''}" data-status="__pending__">待到貨</button>
-    <button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter==='__all__'?'active':''}" data-status="__all__">全部</button>
-    ${ARRIVAL_STATUS_ORDER.map(s=>`<button class="arrival-status-filter-btn cal-filter-btn ${arrivalStatusFilter===s?'active':''}" data-status="${s}">${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</button>`).join('')}
+    <button class="arrival-status-filter-btn cal-filter-btn ${uiFilters.arrivals.status==='__pending__'?'active':''}" data-status="__pending__">待到貨</button>
+    <button class="arrival-status-filter-btn cal-filter-btn ${uiFilters.arrivals.status==='__all__'?'active':''}" data-status="__all__">全部</button>
+    ${ARRIVAL_STATUS_ORDER.map(s=>`<button class="arrival-status-filter-btn cal-filter-btn ${uiFilters.arrivals.status===s?'active':''}" data-status="${s}">${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</button>`).join('')}
   </div>`;
 
   const channelOptions = arrivalChannelOptions(itemType);
-  if(arrivalChannelFilter!=='__all__' && !channelOptions.includes(arrivalChannelFilter)) arrivalChannelFilter = '__all__';
+  if(uiFilters.arrivals.channel!=='__all__' && !channelOptions.includes(uiFilters.arrivals.channel)) uiFilters.arrivals.channel = '__all__';
   if(channelOptions.length>0){
     html += `<div class="cal-filter-row" style="margin-top:8px;">
-      <button class="arrival-channel-filter-btn cal-filter-btn ${arrivalChannelFilter==='__all__'?'active':''}" data-channel="__all__">🏬 全部通路</button>
-      ${channelOptions.map(c=>`<button class="arrival-channel-filter-btn cal-filter-btn ${arrivalChannelFilter===c?'active':''}" data-channel="${esc(c)}">${esc(c)}</button>`).join('')}
+      <button class="arrival-channel-filter-btn cal-filter-btn ${uiFilters.arrivals.channel==='__all__'?'active':''}" data-channel="__all__">🏬 全部通路</button>
+      ${channelOptions.map(c=>`<button class="arrival-channel-filter-btn cal-filter-btn ${uiFilters.arrivals.channel===c?'active':''}" data-channel="${esc(c)}">${esc(c)}</button>`).join('')}
     </div>`;
   }
 
   let items = state.arrivals.filter(a=> (a.itemType||'merch')===itemType);
   const totalOfType = items.length;
-  if(arrivalStatusFilter==='__pending__') items = items.filter(a=> a.status==='ordered' || a.status==='shipped');
-  else if(arrivalStatusFilter!=='__all__') items = items.filter(a=> a.status===arrivalStatusFilter);
-  if(arrivalChannelFilter!=='__all__') items = items.filter(a=> a.channel===arrivalChannelFilter);
+  if(uiFilters.arrivals.status==='__pending__') items = items.filter(a=> a.status==='ordered' || a.status==='shipped');
+  else if(uiFilters.arrivals.status!=='__all__') items = items.filter(a=> a.status===uiFilters.arrivals.status);
+  if(uiFilters.arrivals.channel!=='__all__') items = items.filter(a=> a.channel===uiFilters.arrivals.channel);
 
   items.sort((a,b)=>{
     const aOver = arrivalIsOverdue(a), bOver = arrivalIsOverdue(b);
@@ -6365,7 +6262,7 @@ function bindArrivalBatchControls(){
   });
   document.querySelectorAll('.arrival-channel-filter-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      arrivalChannelFilter = b.dataset.channel;
+      uiFilters.arrivals.channel = b.dataset.channel;
       render();
     });
   });
@@ -6917,9 +6814,9 @@ const GLOBAL_SEARCH_CONFIG = [
   { tab:'support', icon:'📣', label:'應援', fields:['title','artist','activity','location','content'], titleField:'title', openFn:(id)=>{ state.tab='support'; render(); openSupportForm(id); } },
   { tab:'fanlog', icon:'📖', label:'紀錄', fields:['activity','artist','category','flipTypes','flipPlatforms'], titleField:'activity', openFn:(id)=>{ state.tab='fanlog'; render(); openFanlogForm(id); } },
   { tab:'artists', icon:'✨', label:'藝人', fields:['name','group','bio'], titleField:'name', openFn:(id)=>{ openArtistDetail(id); } },
-  { tab:'endorsement', icon:'🤝', label:'代言', fields:['title','artist','category'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='endorsement'; render(); openEndorsementForm(id); } },
-  { tab:'magazine', icon:'📔', label:'雜誌', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='magazine'; render(); openMagazineForm(id); } },
-  { tab:'movie', icon:'🎬', label:'影視', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; mediaSubTab='movie'; render(); openMovieForm(id); } }
+  { tab:'endorsement', icon:'🤝', label:'代言', fields:['title','artist','category'], titleField:'title', openFn:(id)=>{ state.tab='media'; uiFilters.media.subTab='endorsement'; render(); openEndorsementForm(id); } },
+  { tab:'magazine', icon:'📔', label:'雜誌', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; uiFilters.media.subTab='magazine'; render(); openMagazineForm(id); } },
+  { tab:'movie', icon:'🎬', label:'影視', fields:['title','artist'], titleField:'title', openFn:(id)=>{ state.tab='media'; uiFilters.media.subTab='movie'; render(); openMovieForm(id); } }
 ];
 function globalSearch(query){
   const q = query.trim().toLowerCase();
@@ -7094,8 +6991,8 @@ function openArtistDetail(id){
     yearSpentBtn.addEventListener('click', ()=>{
       closeModal();
       state.tab = 'expense';
-      expViewMode = 'all';
-      expMonthFilter = '__all__';
+      uiFilters.expense.view = 'all';
+      uiFilters.expense.month = '__all__';
       expSearchQuery = a.name;
       render();
     });
@@ -7105,8 +7002,8 @@ function openArtistDetail(id){
     totalSpentBtn.addEventListener('click', ()=>{
       closeModal();
       state.tab = 'expense';
-      expViewMode = 'year';
-      expYearFilter = '__all__';
+      uiFilters.expense.view = 'year';
+      uiFilters.expense.year = '__all__';
       expSearchQuery = a.name;
       render();
     });
@@ -7116,8 +7013,9 @@ function openArtistDetail(id){
     supportLink.addEventListener('click', ()=>{
       closeModal();
       state.tab = 'support';
-      supportArtistFilter = a.name;
-      supportYearFilter = '__all__';
+      uiFilters.support.artist = a.name;
+      uiFilters.support.year = '__all__';
+      uiFilters.support.search = '';
       render();
     });
   }
@@ -7125,18 +7023,9 @@ function openArtistDetail(id){
 }
 
 /* ================= Support wall (應援牆) ================= */
-let supportArtistFilter = '__all__';
-let supportYearFilter = '__all__';
 let supportPastShowCount = PAST_LIST_PAGE_SIZE;
 let supImgUrls = [];
-let endorsementArtistFilter = '__all__';
-let magazineArtistFilter = '__all__';
-let movieArtistFilter = '__all__';
-let mediaSubTab = 'endorsement';
 let mediaSearchQuery = '';
-/* 「全部媒體」總覽子分頁用的篩選狀態：把代言/雜誌/影視合併成同一份清單一起看 */
-let mediaOverviewArtistFilter = '__all__';
-let mediaOverviewYearFilter = '__all__';
 
 function renderSupportTab(){
   const meta = TAB_META.support;
@@ -7149,30 +7038,47 @@ function renderSupportTab(){
   const artistNames = [...new Set(state.support.map(s=>s.artist).filter(Boolean))];
   if(artistNames.length>0){
     html += `<div class="cal-filter-row">
-      <button class="cal-filter-btn ${supportArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn ${supportArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn ${uiFilters.support.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.support.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
-  if(supportArtistFilter!=='__all__' && !artistNames.includes(supportArtistFilter)) supportArtistFilter = '__all__';
+  if(uiFilters.support.artist!=='__all__' && !artistNames.includes(uiFilters.support.artist)) uiFilters.support.artist = '__all__';
 
   const years = [...new Set(state.support.map(s=> s.date ? s.date.slice(0,4) : null).filter(Boolean))].sort((a,b)=> b.localeCompare(a));
-  if(supportYearFilter!=='__all__' && !years.includes(supportYearFilter)) supportYearFilter = '__all__';
+  if(uiFilters.support.year!=='__all__' && !years.includes(uiFilters.support.year)) uiFilters.support.year = '__all__';
   if(years.length>0){
     html += `<div class="cal-filter-row" style="margin-top:8px;">
-      <button class="cal-filter-btn year-filter-btn ${supportYearFilter==='__all__'?'active':''}" data-year="__all__">全部年份</button>
-      ${years.map(y=>`<button class="cal-filter-btn year-filter-btn ${supportYearFilter===y?'active':''}" data-year="${y}">${y}</button>`).join('')}
+      <button class="cal-filter-btn year-filter-btn ${uiFilters.support.year==='__all__'?'active':''}" data-year="__all__">全部年份</button>
+      ${years.map(y=>`<button class="cal-filter-btn year-filter-btn ${uiFilters.support.year===y?'active':''}" data-year="${y}">${y}</button>`).join('')}
     </div>`;
   }
+
+  html += `
+  <div class="field" style="margin:12px 0;">
+    <input type="text" id="supportSearchInput" placeholder="🔍 搜尋標題、活動、地點、內容..." value="${esc(uiFilters.support.search)}" style="width:100%;box-sizing:border-box;">
+  </div>
+  `;
 
   const today = todayStr();
   const effectiveEnd = s=> (s.isMultiDay && s.endDate) ? s.endDate : s.date;
-  const bySupportArtist = s=> supportArtistFilter==='__all__' || s.artist===supportArtistFilter;
-  const bySupportYear = s=> supportYearFilter==='__all__' || (s.date && s.date.startsWith(supportYearFilter));
-  const upcoming = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
-  const pastAll = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  const bySupportArtist = s=> uiFilters.support.artist==='__all__' || s.artist===uiFilters.support.artist;
+  const bySupportYear = s=> uiFilters.support.year==='__all__' || (s.date && s.date.startsWith(uiFilters.support.year));
+  const q = uiFilters.support.search.trim().toLowerCase();
+  const bySupportSearch = s=>{
+    if(!q) return true;
+    const hay = [s.title, s.artist, s.activity, s.location, s.condition, s.content].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  };
+  const scopedAll = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s) && bySupportSearch(s));
+  if(q && scopedAll.length===0){
+    html += `<div class="empty"><div class="stamp-big maru">查</div><div class="msg">找不到符合條件的應援紀錄</div></div>`;
+    return html;
+  }
+  const upcoming = scopedAll.filter(s=> effectiveEnd(s) >= today).sort((a,b)=> (a.date||'').localeCompare(b.date||''));
+  const pastAll = scopedAll.filter(s=> effectiveEnd(s) < today).sort((a,b)=> (b.date||'').localeCompare(a.date||''));
   const past = pastAll.slice(0, supportPastShowCount);
 
-  const scopedSupport = state.support.filter(s=> bySupportArtist(s) && bySupportYear(s));
+  const scopedSupport = scopedAll;
   const totalSpent = scopedSupport.reduce((sum,s)=> sum + supportSpentAmount(s), 0);
   const linkedEventCount = scopedSupport.filter(s=> linkedExpensesForSupport(s).length>0).length;
   const totalLinkedEntries = scopedSupport.reduce((sum,s)=> sum + linkedExpensesForSupport(s).length, 0);
@@ -7247,18 +7153,32 @@ function bindSupportFilterActions(){
   }
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      supportArtistFilter = b.dataset.filter;
+      uiFilters.support.artist = b.dataset.filter;
       supportPastShowCount = PAST_LIST_PAGE_SIZE;
       render();
     });
   });
   document.querySelectorAll('.cal-filter-btn[data-year]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      supportYearFilter = b.dataset.year;
+      uiFilters.support.year = b.dataset.year;
       supportPastShowCount = PAST_LIST_PAGE_SIZE;
       render();
     });
   });
+  const supportSearchInput = document.getElementById('supportSearchInput');
+  if(supportSearchInput){
+    supportSearchInput.addEventListener('input', (e)=>{
+      uiFilters.support.search = e.target.value;
+      supportPastShowCount = PAST_LIST_PAGE_SIZE;
+      const cursorPos = e.target.selectionStart;
+      render();
+      const newInput = document.getElementById('supportSearchInput');
+      if(newInput){
+        newInput.focus();
+        newInput.setSelectionRange(cursorPos, cursorPos);
+      }
+    });
+  }
 }
 
 function duplicateSupport(id){
@@ -7530,17 +7450,17 @@ function renderMediaTab(){
   const meta = TAB_META.media;
   let html = `<div class="section-title"><div class="stamp maru">${meta.stamp}</div>${meta.label}</div>`;
   html += `<div class="cal-filter-row">
-    <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='all'?'active':''}" data-sub="all">🗂️ 全部媒體</button>
-    <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='endorsement'?'active':''}" data-sub="endorsement">🤝 代言</button>
-    <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='magazine'?'active':''}" data-sub="magazine">📔 雜誌</button>
-    <button class="cal-filter-btn media-subtab-btn ${mediaSubTab==='movie'?'active':''}" data-sub="movie">🎬 影視</button>
+    <button class="cal-filter-btn media-subtab-btn ${uiFilters.media.subTab==='all'?'active':''}" data-sub="all">🗂️ 全部媒體</button>
+    <button class="cal-filter-btn media-subtab-btn ${uiFilters.media.subTab==='endorsement'?'active':''}" data-sub="endorsement">🤝 代言</button>
+    <button class="cal-filter-btn media-subtab-btn ${uiFilters.media.subTab==='magazine'?'active':''}" data-sub="magazine">📔 雜誌</button>
+    <button class="cal-filter-btn media-subtab-btn ${uiFilters.media.subTab==='movie'?'active':''}" data-sub="movie">🎬 影視</button>
   </div>
   <div class="field" style="margin:12px 0;">
     <input type="text" id="mediaSearchInput" placeholder="🔍 搜尋名稱、藝人、類型..." value="${esc(mediaSearchQuery)}" style="width:100%;box-sizing:border-box;">
   </div>`;
-  if(mediaSubTab==='all') html += renderMediaOverviewBody();
-  else if(mediaSubTab==='magazine') html += renderMagazineBody();
-  else if(mediaSubTab==='movie') html += renderMovieBody();
+  if(uiFilters.media.subTab==='all') html += renderMediaOverviewBody();
+  else if(uiFilters.media.subTab==='magazine') html += renderMagazineBody();
+  else if(uiFilters.media.subTab==='movie') html += renderMovieBody();
   else html += renderEndorsementBody();
   return html;
 }
@@ -7566,28 +7486,28 @@ function renderMediaOverviewBody(){
   }
 
   const artistNames = [...new Set(all.map(x=>x.raw.artist).filter(Boolean))];
-  if(mediaOverviewArtistFilter!=='__all__' && !artistNames.includes(mediaOverviewArtistFilter)) mediaOverviewArtistFilter = '__all__';
+  if(uiFilters.media.artist!=='__all__' && !artistNames.includes(uiFilters.media.artist)) uiFilters.media.artist = '__all__';
 
   const years = [...new Set(all.map(x=>(x.date||'').slice(0,4)).filter(Boolean))].sort((a,b)=> b.localeCompare(a));
-  if(mediaOverviewYearFilter!=='__all__' && !years.includes(mediaOverviewYearFilter)) mediaOverviewYearFilter = '__all__';
+  if(uiFilters.media.year!=='__all__' && !years.includes(uiFilters.media.year)) uiFilters.media.year = '__all__';
 
   let html = '';
   if(artistNames.length>0){
     html += `<div class="cal-filter-row">
-      <button class="cal-filter-btn media-ov-artist-btn ${mediaOverviewArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn media-ov-artist-btn ${mediaOverviewArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn media-ov-artist-btn ${uiFilters.media.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn media-ov-artist-btn ${uiFilters.media.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
   if(years.length>0){
     html += `<div class="cal-filter-row" style="margin-top:8px;">
-      <button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${mediaOverviewYearFilter==='__all__'?'active':''}" data-year="__all__">全部年份</button>
-      ${years.map(y=>`<button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${mediaOverviewYearFilter===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
+      <button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${uiFilters.media.year==='__all__'?'active':''}" data-year="__all__">全部年份</button>
+      ${years.map(y=>`<button class="chip-filter-btn cal-filter-btn media-ov-year-btn ${uiFilters.media.year===y?'active':''}" data-year="${esc(y)}">${esc(y)} 年</button>`).join('')}
     </div>`;
   }
 
   const filtered = all
-    .filter(x=> mediaOverviewArtistFilter==='__all__' || x.raw.artist===mediaOverviewArtistFilter)
-    .filter(x=> mediaOverviewYearFilter==='__all__' || (x.date||'').startsWith(mediaOverviewYearFilter))
+    .filter(x=> uiFilters.media.artist==='__all__' || x.raw.artist===uiFilters.media.artist)
+    .filter(x=> uiFilters.media.year==='__all__' || (x.date||'').startsWith(uiFilters.media.year))
     .filter(x=> mediaOverviewMatchesSearch(x))
     .sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
@@ -7596,8 +7516,8 @@ function renderMediaOverviewBody(){
   const countBy = { endorsement:0, magazine:0, movie:0 };
   filtered.forEach(x=> countBy[x.type]++);
   const scopeLabel = [
-    mediaOverviewArtistFilter==='__all__' ? '全部藝人' : mediaOverviewArtistFilter,
-    mediaOverviewYearFilter==='__all__' ? '全部年份' : `${mediaOverviewYearFilter}年`
+    uiFilters.media.artist==='__all__' ? '全部藝人' : uiFilters.media.artist,
+    uiFilters.media.year==='__all__' ? '全部年份' : `${uiFilters.media.year}年`
   ].join('・');
   html += `
   <div class="mini-row" style="margin:12px 0 10px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm); flex-wrap:wrap; gap:6px;">
@@ -7625,13 +7545,13 @@ function renderMediaOverviewBody(){
 function bindMediaOverviewFilterActions(){
   document.querySelectorAll('.media-ov-artist-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      mediaOverviewArtistFilter = b.dataset.filter;
+      uiFilters.media.artist = b.dataset.filter;
       render();
     });
   });
   document.querySelectorAll('.media-ov-year-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      mediaOverviewYearFilter = b.dataset.year;
+      uiFilters.media.year = b.dataset.year;
       render();
     });
   });
@@ -7671,13 +7591,13 @@ function mediaMatchesSearch(item, extraFields){
 function bindMediaTabActions(){
   document.querySelectorAll('.media-subtab-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
-      mediaSubTab = b.dataset.sub;
+      uiFilters.media.subTab = b.dataset.sub;
       render();
     });
   });
-  if(mediaSubTab==='all') bindMediaOverviewFilterActions();
-  else if(mediaSubTab==='magazine') bindMagazineFilterActions();
-  else if(mediaSubTab==='movie') bindMovieFilterActions();
+  if(uiFilters.media.subTab==='all') bindMediaOverviewFilterActions();
+  else if(uiFilters.media.subTab==='magazine') bindMagazineFilterActions();
+  else if(uiFilters.media.subTab==='movie') bindMovieFilterActions();
   else bindEndorsementFilterActions();
 
   const searchInput = document.getElementById('mediaSearchInput');
@@ -7706,14 +7626,14 @@ function renderEndorsementBody(){
   const artistNames = [...new Set(state.endorsement.map(e=>e.artist).filter(Boolean))];
   if(artistNames.length>0){
     html += `<div class="cal-filter-row">
-      <button class="cal-filter-btn ${endorsementArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn ${endorsementArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn ${uiFilters.media.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.media.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
-  if(endorsementArtistFilter!=='__all__' && !artistNames.includes(endorsementArtistFilter)) endorsementArtistFilter = '__all__';
+  if(uiFilters.media.artist!=='__all__' && !artistNames.includes(uiFilters.media.artist)) uiFilters.media.artist = '__all__';
 
   const filtered = state.endorsement
-    .filter(e=> endorsementArtistFilter==='__all__' || e.artist===endorsementArtistFilter)
+    .filter(e=> uiFilters.media.artist==='__all__' || e.artist===uiFilters.media.artist)
     .filter(e=> mediaMatchesSearch(e))
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
@@ -7752,7 +7672,7 @@ function renderEndorsementCard(e){
 function bindEndorsementFilterActions(){
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      endorsementArtistFilter = b.dataset.filter;
+      uiFilters.media.artist = b.dataset.filter;
       render();
     });
   });
@@ -7899,14 +7819,14 @@ function renderMagazineBody(){
   const artistNames = [...new Set(state.magazine.map(m=>m.artist).filter(Boolean))];
   if(artistNames.length>0){
     html += `<div class="cal-filter-row">
-      <button class="cal-filter-btn ${magazineArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn ${magazineArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn ${uiFilters.media.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.media.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
-  if(magazineArtistFilter!=='__all__' && !artistNames.includes(magazineArtistFilter)) magazineArtistFilter = '__all__';
+  if(uiFilters.media.artist!=='__all__' && !artistNames.includes(uiFilters.media.artist)) uiFilters.media.artist = '__all__';
 
   const filtered = state.magazine
-    .filter(m=> magazineArtistFilter==='__all__' || m.artist===magazineArtistFilter)
+    .filter(m=> uiFilters.media.artist==='__all__' || m.artist===uiFilters.media.artist)
     .filter(m=> mediaMatchesSearch(m, [m.issue, m.note]))
     .sort((a,b)=> (b.issueDate||'').localeCompare(a.issueDate||''));
 
@@ -7945,7 +7865,7 @@ function renderMagazineCard(m){
 function bindMagazineFilterActions(){
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      magazineArtistFilter = b.dataset.filter;
+      uiFilters.media.artist = b.dataset.filter;
       render();
     });
   });
@@ -8071,14 +7991,14 @@ function renderMovieBody(){
   const artistNames = [...new Set(state.movie.map(x=>x.artist).filter(Boolean))];
   if(artistNames.length>0){
     html += `<div class="cal-filter-row">
-      <button class="cal-filter-btn ${movieArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn ${movieArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn ${uiFilters.media.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.media.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
-  if(movieArtistFilter!=='__all__' && !artistNames.includes(movieArtistFilter)) movieArtistFilter = '__all__';
+  if(uiFilters.media.artist!=='__all__' && !artistNames.includes(uiFilters.media.artist)) uiFilters.media.artist = '__all__';
 
   const filtered = state.movie
-    .filter(x=> movieArtistFilter==='__all__' || x.artist===movieArtistFilter)
+    .filter(x=> uiFilters.media.artist==='__all__' || x.artist===uiFilters.media.artist)
     .filter(x=> mediaMatchesSearch(x, [x.role, x.platform, x.note]))
     .sort((a,b)=> (b.startDate||'').localeCompare(a.startDate||''));
 
@@ -8120,7 +8040,7 @@ function renderMovieCard(x){
 function bindMovieFilterActions(){
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      movieArtistFilter = b.dataset.filter;
+      uiFilters.media.artist = b.dataset.filter;
       render();
     });
   });
@@ -8310,15 +8230,15 @@ function bindListActions(tab){
   if(tab==='photocards'){
     document.querySelectorAll('.pc-subtab-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
-        pcSubTab = b.dataset.sub;
+        uiFilters.photocards.subTab = b.dataset.sub;
         arrivalSelectedIds.clear();
         render();
       });
     });
-    if(pcSubTab==='arrivals'){
+    if(uiFilters.photocards.subTab==='arrivals'){
       document.querySelectorAll('.arrival-status-filter-btn').forEach(b=>{
         b.addEventListener('click', ()=>{
-          arrivalStatusFilter = b.dataset.status;
+          uiFilters.arrivals.status = b.dataset.status;
           render();
         });
       });
@@ -8353,21 +8273,21 @@ function bindListActions(tab){
     });
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
-        pcArtistFilter = b.dataset.filter;
-        pcDrill = null;
+        uiFilters.photocards.artist = b.dataset.filter;
+        uiFilters.photocards.drill = null;
         render();
       });
     });
     document.querySelectorAll('.pc-owned-filter-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
-        pcOwnedFilter = b.dataset.owned;
+        uiFilters.photocards.owned = b.dataset.owned;
         render();
       });
     });
     document.querySelectorAll('.pc-category-filter-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
-        pcCategoryFilter = b.dataset.category;
-        pcDrill = null;
+        uiFilters.photocards.category = b.dataset.category;
+        uiFilters.photocards.drill = null;
         render();
       });
     });
@@ -8379,14 +8299,14 @@ function bindListActions(tab){
     });
     document.querySelectorAll('.pc-series-card').forEach(c=>{
       c.addEventListener('click', ()=>{
-        pcDrill = c.dataset.series;
+        uiFilters.photocards.drill = c.dataset.series;
         render();
       });
     });
     const backBtn = document.querySelector('.pc-back');
     if(backBtn){
       backBtn.addEventListener('click', ()=>{
-        pcDrill = null;
+        uiFilters.photocards.drill = null;
         render();
       });
     }
@@ -8394,15 +8314,15 @@ function bindListActions(tab){
   if(tab==='merch'){
     document.querySelectorAll('.merch-subtab-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
-        merchSubTab = b.dataset.sub;
+        uiFilters.merch.subTab = b.dataset.sub;
         arrivalSelectedIds.clear();
         render();
       });
     });
-    if(merchSubTab==='arrivals'){
+    if(uiFilters.merch.subTab==='arrivals'){
       document.querySelectorAll('.arrival-status-filter-btn').forEach(b=>{
         b.addEventListener('click', ()=>{
-          arrivalStatusFilter = b.dataset.status;
+          uiFilters.arrivals.status = b.dataset.status;
           render();
         });
       });
@@ -8423,16 +8343,28 @@ function bindListActions(tab){
       bindArrivalBatchControls();
       return;
     }
+    document.querySelectorAll('.mc-wish-btn').forEach(b=>{
+      b.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        const item = state.merch.find(p=>String(p.id)===String(b.dataset.id));
+        if(item){
+          item.wished = !item.wished;
+          await saveKey('oshi-merch', state.merch);
+          showToast(item.wished ? '已加入願望清單' : '已從願望清單移除');
+          render();
+        }
+      });
+    });
     document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
       b.addEventListener('click', ()=>{
-        mcArtistFilter = b.dataset.filter;
-        mcDrill = null;
+        uiFilters.merch.artist = b.dataset.filter;
+        uiFilters.merch.drill = null;
         render();
       });
     });
     document.querySelectorAll('.mc-owned-filter-btn').forEach(b=>{
       b.addEventListener('click', ()=>{
-        mcOwnedFilter = b.dataset.owned;
+        uiFilters.merch.owned = b.dataset.owned;
         render();
       });
     });
@@ -8444,14 +8376,14 @@ function bindListActions(tab){
     });
     document.querySelectorAll('.mc-series-card').forEach(c=>{
       c.addEventListener('click', ()=>{
-        mcDrill = c.dataset.series;
+        uiFilters.merch.drill = c.dataset.series;
         render();
       });
     });
     const mcBackBtn = document.querySelector('.pc-back');
     if(mcBackBtn){
       mcBackBtn.addEventListener('click', ()=>{
-        mcDrill = null;
+        uiFilters.merch.drill = null;
         render();
       });
     }
@@ -9507,9 +9439,6 @@ async function saveScheduleForm(existing){
 }
 
 /* ================= Fanlog tab (年度／月份回顧) ================= */
-let fanlogYearFilter = null;
-let fanlogMonthFilter = null;
-let fanlogArtistFilter = '__all__';
 let fanlogYearsExpanded = false;
 
 const FANLOG_YEAR_QUALIFY_COUNT = 8;
@@ -9524,16 +9453,16 @@ function renderFanlogTab(){
   const thisYear = today.slice(0,4);
   const dated = state.fanlog.filter(f=>f.date);
 
-  if(dated.length===0 && !fanlogYearFilter){
+  if(dated.length===0 && !uiFilters.fanlog.year){
     html += `<div class="empty"><div class="stamp-big maru">${meta.stamp}</div><div class="msg">${meta.empty}<br>點右下角的「＋」新增一筆吧</div></div>`;
     return html;
   }
 
   const years = [...new Set([thisYear, ...dated.map(f=>f.date.slice(0,4))])].sort((a,b)=> b.localeCompare(a));
-  if(!fanlogYearFilter || !years.includes(fanlogYearFilter)){
-    fanlogYearFilter = years.includes(thisYear) ? thisYear : years[0];
+  if(!uiFilters.fanlog.year || !years.includes(uiFilters.fanlog.year)){
+    uiFilters.fanlog.year = years.includes(thisYear) ? thisYear : years[0];
   }
-  if(fanlogMonthFilter && !fanlogMonthFilter.startsWith(fanlogYearFilter)) fanlogMonthFilter = null;
+  if(uiFilters.fanlog.month && !uiFilters.fanlog.month.startsWith(uiFilters.fanlog.year)) uiFilters.fanlog.month = null;
 
   /* ---- 年度回顧：最多顯示 7 個年份，超過的用「更多」按鈕展開，固定 4 欄換行不橫向捲動 ---- */
   const showAllYears = fanlogYearsExpanded || years.length <= FANLOG_YEAR_ROW_MAX;
@@ -9543,7 +9472,7 @@ function renderFanlogTab(){
     const flipCount = dated.filter(f=>f.date.slice(0,4)===y && f.isFlipped).length;
     const isThisYear = y===thisYear;
     const qualify = !isThisYear && count>=FANLOG_YEAR_QUALIFY_COUNT;
-    const active = y===fanlogYearFilter ? 'active' : '';
+    const active = y===uiFilters.fanlog.year ? 'active' : '';
     return `<button class="cal-filter-btn year-filter-btn ${qualify?'qualify':''} ${active}" data-year="${y}">${y} · ${count}場</button>`;
   }).join('');
   if(!showAllYears){
@@ -9554,13 +9483,13 @@ function renderFanlogTab(){
   let monthListHtml = '';
   for(let m=1;m<=12;m++){
     const mm = String(m).padStart(2,'0');
-    const ym = `${fanlogYearFilter}-${mm}`;
+    const ym = `${uiFilters.fanlog.year}-${mm}`;
     const count = dated.filter(f=>f.date.startsWith(ym)).length;
     const flipCount = dated.filter(f=>f.date.startsWith(ym) && f.isFlipped).length;
     const happy = count>=FANLOG_MONTH_HAPPY_COUNT;
-    const active = ym===fanlogMonthFilter ? 'active' : '';
+    const active = ym===uiFilters.fanlog.month ? 'active' : '';
     monthListHtml += `<div class="month-card ${happy?'happy':''} ${active}" data-ym="${ym}">
-      <div class="month-num maru">${fanlogYearFilter}/${m}月</div>
+      <div class="month-num maru">${uiFilters.fanlog.year}/${m}月</div>
       <div class="month-count">本月參加：${count}場</div>
       ${flipCount>0 ? `<div class="month-count">💌 被翻牌：${flipCount}次</div>` : ''}
     </div>`;
@@ -9577,28 +9506,28 @@ function renderFanlogTab(){
     </div>`;
 
   /* ---- 詳細內容（右側列表） ---- */
-  let filtered = dated.filter(f=>f.date.startsWith(fanlogMonthFilter || fanlogYearFilter));
+  let filtered = dated.filter(f=>f.date.startsWith(uiFilters.fanlog.month || uiFilters.fanlog.year));
 
   const artistCountMap = {};
   filtered.forEach(f=> splitArtistNames(f.artist).forEach(n=>{ artistCountMap[n] = (artistCountMap[n]||0) + 1; }));
   const artistNames = Object.keys(artistCountMap).sort((a,b)=> artistCountMap[b]-artistCountMap[a] || a.localeCompare(b,'zh-Hant'));
-  if(fanlogArtistFilter!=='__all__' && !artistNames.includes(fanlogArtistFilter)) fanlogArtistFilter = '__all__';
+  if(uiFilters.fanlog.artist!=='__all__' && !artistNames.includes(uiFilters.fanlog.artist)) uiFilters.fanlog.artist = '__all__';
 
-  if(fanlogArtistFilter!=='__all__') filtered = filtered.filter(f=>splitArtistNames(f.artist).includes(fanlogArtistFilter));
+  if(uiFilters.fanlog.artist!=='__all__') filtered = filtered.filter(f=>splitArtistNames(f.artist).includes(uiFilters.fanlog.artist));
 
   /* 依日期排序：日期新到舊排列 */
   filtered.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
 
-  const filterLabel = fanlogMonthFilter ? `${fanlogMonthFilter.replace('-','/')}` : `${fanlogYearFilter}`;
+  const filterLabel = uiFilters.fanlog.month ? `${uiFilters.fanlog.month.replace('-','/')}` : `${uiFilters.fanlog.year}`;
   let listHtml = `<div class="cal-daylist-title">
     ${filterLabel} 的活動
-    ${fanlogMonthFilter ? `<button class="chip-clear" id="clearFanlogMonthFilter">清除月份篩選 ✕</button>` : ''}
+    ${uiFilters.fanlog.month ? `<button class="chip-clear" id="clearFanlogMonthFilter">清除月份篩選 ✕</button>` : ''}
   </div>`;
 
   if(artistNames.length>0){
     listHtml += `<div class="cal-filter-row">
-      <button class="cal-filter-btn ${fanlogArtistFilter==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
-      ${artistNames.map(n=>`<button class="cal-filter-btn ${fanlogArtistFilter===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
+      <button class="cal-filter-btn ${uiFilters.fanlog.artist==='__all__'?'active':''}" data-filter="__all__">全部藝人</button>
+      ${artistNames.map(n=>`<button class="cal-filter-btn ${uiFilters.fanlog.artist===n?'active':''}" data-filter="${esc(n)}">${esc(n)}</button>`).join('')}
     </div>`;
   }
 
@@ -9628,27 +9557,27 @@ function renderFanlogTab(){
 function bindFanlogReviewActions(){
   document.querySelectorAll('.year-filter-btn').forEach(el=>{
     el.addEventListener('click', ()=>{
-      fanlogYearFilter = el.dataset.year;
-      fanlogMonthFilter = null;
+      uiFilters.fanlog.year = el.dataset.year;
+      uiFilters.fanlog.month = null;
       render();
     });
   });
   document.querySelectorAll('.month-card').forEach(el=>{
     el.addEventListener('click', ()=>{
-      fanlogMonthFilter = el.dataset.ym;
+      uiFilters.fanlog.month = el.dataset.ym;
       render();
     });
   });
   const clearBtn = document.getElementById('clearFanlogMonthFilter');
   if(clearBtn){
     clearBtn.addEventListener('click', ()=>{
-      fanlogMonthFilter = null;
+      uiFilters.fanlog.month = null;
       render();
     });
   }
   document.querySelectorAll('.cal-filter-btn[data-filter]').forEach(b=>{
     b.addEventListener('click', ()=>{
-      fanlogArtistFilter = b.dataset.filter;
+      uiFilters.fanlog.artist = b.dataset.filter;
       render();
     });
   });
