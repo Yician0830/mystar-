@@ -173,6 +173,24 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .genreOpt{display:flex; align-items:center; gap:8px; padding:7px 6px; font-size:13px; border-radius:8px; cursor:pointer;}
 .genreOpt:hover{background:var(--surface-soft);}
 .genreOpt input{width:auto; margin:0;}
+.tagChips{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;}
+.tagChips:empty{display:none; margin:0;}
+.tagChip{display:inline-flex; align-items:center; gap:4px; background:var(--wisteria-pale); color:var(--wisteria); border-radius:999px; padding:4px 6px 4px 10px; font-size:12px;}
+.tagChip button{background:none; border:none; color:inherit; cursor:pointer; font-size:13px; line-height:1; padding:0 2px;}
+#fTagInput{width:100%; padding:9px 10px; border-radius:10px; border:1px solid var(--ink-faint); background:var(--bg); font-family:inherit; font-size:13.5px; color:var(--ink);}
+.tagPresets{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px;}
+.tagPresetBtn{background:var(--surface-soft); border:1px solid var(--ink-faint); border-radius:999px; padding:4px 10px; font-size:11.5px; color:var(--ink-soft); cursor:pointer; font-family:inherit;}
+.tagPresetBtn:hover{background:var(--wisteria-pale); color:var(--wisteria); border-color:var(--wisteria);}
+.g-tags{display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;}
+.g-tag{background:var(--wisteria-pale); color:var(--wisteria); font-size:10.5px; padding:2px 8px; border-radius:999px;}
+.updateBanner{display:none; align-items:center; gap:8px; flex-wrap:wrap; background:var(--rose-pale); color:var(--rose-deep); border-radius:14px; padding:10px 14px; font-size:12.5px; font-weight:700; margin-bottom:16px; font-family:'Zen Maru Gothic';}
+.updateBanner .ub-enable{margin-left:auto; background:var(--rose-deep); color:#fff; border:none; border-radius:999px; padding:5px 12px; font-size:11px; font-family:'Noto Sans TC'; font-weight:500; cursor:pointer;}
+.weekdayPick{display:flex; gap:6px;}
+.wdBtn{width:34px; height:34px; border-radius:50%; border:1px solid var(--ink-faint); background:var(--bg); color:var(--ink-soft); font-size:13px; cursor:pointer; font-family:inherit;}
+.wdBtn.on{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
+.f-update{font-size:10.5px; color:var(--ink-soft); margin-top:4px;}
+.f-update.today{color:var(--rose-deep); font-weight:700;}
+.f-card.due-today{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
 .imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
 .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; font-family:'Zen Maru Gothic'; font-weight:700; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:80;}
@@ -191,6 +209,18 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .wrapHighlights .hl-row b{font-weight:700;}
 .wrapFoot{margin-top:16px; font-size:10.5px; opacity:.75;}
 .modal-actions.wrap-actions{margin-top:14px;}
+.wrapTop5{text-align:left; background:rgba(255,255,255,.15); border-radius:14px; padding:12px 16px; font-size:12.5px; margin-top:12px;}
+.wrapTop5Title{font-family:'Zen Maru Gothic'; font-weight:700; margin-bottom:6px;}
+.wrapTop5Row{display:flex; align-items:center; gap:8px; padding:3px 0;}
+.wrapTop5Row .rank{width:18px; height:18px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex:none;}
+.wrapTop5Row .t5-title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.wrapTop5Row .t5-stars{color:var(--gold); font-size:11px; flex:none;}
+.bestPickList{max-height:180px; overflow-y:auto; border:1px solid var(--ink-faint); border-radius:10px; padding:6px;}
+.bestPickRow{display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:12.5px; border-radius:8px; cursor:pointer;}
+.bestPickRow:hover{background:var(--surface-soft);}
+.bestPickRow input{width:auto; margin:0;}
+.bestPickRow span:first-of-type{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.bp-stars{color:var(--gold); font-size:11px; flex:none;}
 </style>
 </head>
 <body>
@@ -198,8 +228,13 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <h1><span>🎬</span> 追劇紀錄</h1>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
   <a href="https://yician0830.github.io/" style="text-decoration:none;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;" title="回到入口頁">🏠</a>
-  <div id="authBar"></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button id="notifyBtn" onclick="enableNotifications()" style="background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;border:none;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;" title="開啟追劇提醒通知">🔕</button>
+    <div id="authBar"></div>
+  </div>
 </div>
+
+<div id="updateBanner" class="updateBanner"></div>
 
 <div class="grid4" id="statsBar" style="margin-bottom:20px;"></div>
 
@@ -246,6 +281,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <div class="chipRow" id="statusFilter"></div>
 <div class="chipRow" id="platformFilter"></div>
 <div class="chipRow" id="ratingFilter"></div>
+<div class="chipRow" id="tagFilter"></div>
 <div class="searchRow">
   <input type="text" id="searchBox" placeholder="🔍 搜尋劇名或演員..." oninput="filters.search=this.value; renderList();">
   <select id="sortSelect" onchange="filters.sort=this.value; renderList();">
@@ -323,7 +359,7 @@ function renderAuthBar(){
 }
 
 let state = [];
-let filters = { status:'__all__', platform:'__all__', rating:'__all__', search:'', sort:'date_desc' };
+let filters = { status:'__all__', platform:'__all__', rating:'__all__', tag:'__all__', search:'', sort:'date_desc' };
 const CHART_COLORS=['var(--rose-deep)','var(--matcha)','var(--wisteria)','var(--gold)','var(--sky)','var(--rose)','#B98B56','#6B8E9E','#A97C9E','#8FA85C'];
 const COVER_GRADIENTS=[
   'linear-gradient(155deg, var(--rose-pale), var(--gold-pale))',
@@ -336,13 +372,97 @@ function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
 const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
+const TAG_PRESETS=['必刷神作','配樂超棒','下飯劇','已棄坑'];
+const WEEKDAY_LABELS=['日','一','二','三','四','五','六'];
+let currentFormTags = [];
+let currentFormWeekdays = [];
+function toggleWeekday(i, btn){
+  const idx = currentFormWeekdays.indexOf(i);
+  if(idx>=0){ currentFormWeekdays.splice(idx,1); btn.classList.remove('on'); }
+  else { currentFormWeekdays.push(i); btn.classList.add('on'); }
+}
+function isWatching(x){
+  return x.status==='追劇中' || (x.status==='已完結' && !!x.startDate && !x.endDate);
+}
+function syncWeekdayFieldVisibility(){
+  const statusEl = document.getElementById('fStatus');
+  const field = document.getElementById('weekdayField');
+  if(!statusEl || !field) return;
+  const startEl = document.getElementById('fStart');
+  const endEl = document.getElementById('fEnd');
+  const watching = statusEl.value==='追劇中' || (statusEl.value==='已完結' && startEl && startEl.value && endEl && !endEl.value);
+  field.style.display = watching ? 'block' : 'none';
+}
+function enableNotifications(){
+  if(!('Notification' in window)){ showToast('此瀏覽器不支援通知'); return; }
+  Notification.requestPermission().then(p=>{
+    showToast(p==='granted' ? '通知已開啟 ✓' : '未開啟通知權限');
+    renderNotifyBtn();
+    renderUpdateBanner();
+  });
+}
+function renderNotifyBtn(){
+  const btn = document.getElementById('notifyBtn');
+  if(!btn) return;
+  const granted = ('Notification' in window) && Notification.permission==='granted';
+  btn.textContent = granted ? '🔔' : '🔕';
+  btn.title = granted ? '已開啟追劇提醒通知' : '點擊開啟追劇提醒通知';
+}
+function maybeNotifyToday(dueTitles){
+  if(!dueTitles.length) return;
+  if(!('Notification' in window) || Notification.permission!=='granted') return;
+  const todayStr = new Date().toISOString().slice(0,10);
+  const key = LOCAL_PREFIX+'lastNotifyDate';
+  if(localStorage.getItem(key)===todayStr) return;
+  try{ new Notification('追劇提醒', {body:`今天更新：${dueTitles.join('、')}`}); }catch(e){}
+  localStorage.setItem(key, todayStr);
+}
+function renderUpdateBanner(){
+  const el = document.getElementById('updateBanner');
+  if(!el) return;
+  const today = new Date().getDay();
+  const due = state.filter(x=>isWatching(x) && Array.isArray(x.updateDays) && x.updateDays.includes(today));
+  if(!due.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='flex';
+  const needsEnable = ('Notification' in window) && Notification.permission!=='granted';
+  el.innerHTML = `<span>🔔 今天更新：${due.map(x=>esc(x.title)).join('、')}</span>${needsEnable?'<button type="button" class="ub-enable" onclick="enableNotifications()">開啟通知提醒</button>':''}`;
+  maybeNotifyToday(due.map(x=>x.title));
+}
+function allKnownTags(){
+  const set = new Set(TAG_PRESETS);
+  state.forEach(x=>(x.tags||[]).forEach(t=>set.add(t)));
+  return [...set];
+}
+function renderTagChips(){
+  const wrap = document.getElementById('tagChips');
+  if(!wrap) return;
+  wrap.innerHTML = currentFormTags.map(t=>`<span class="tagChip">${esc(t)}<button type="button" onclick="removeTag('${esc(t).replace(/'/g,"\\'")}')">×</button></span>`).join('');
+}
+function addTag(t){
+  t = (t||'').trim();
+  if(!t || currentFormTags.includes(t)) { const input=document.getElementById('fTagInput'); if(input) input.value=''; return; }
+  currentFormTags.push(t);
+  const input = document.getElementById('fTagInput');
+  if(input) input.value='';
+  renderTagChips();
+}
+function removeTag(t){
+  currentFormTags = currentFormTags.filter(x=>x!==t);
+  renderTagChips();
+}
+function handleTagKeydown(e){
+  if(e.key==='Enter' || e.key===','){
+    e.preventDefault();
+    addTag(e.target.value);
+  }
+}
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
   renderFeatured(); renderStats(); renderChart(); renderActors(); renderWishlist(); renderFilters(); renderList();
-  renderYearArchive(); renderPlatforms(); renderMonthGrid();
+  renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner();
 }
 function renderActors(){
   const counts = {};
@@ -360,12 +480,15 @@ function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
 function renderFeatured(){
   const sec = document.getElementById('featuredSec');
-  const items = state.filter(x=>x.status==='追劇中').sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  const items = state.filter(isWatching).sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   if(!items.length){ sec.style.display='none'; return; }
   sec.style.display='block';
+  const today = new Date().getDay();
   document.getElementById('featuredArea').innerHTML = items.map((x,i)=>{
     const pct = progressPct(x);
-    return `<div class="f-card" onclick="openForm('${x.id}')">
+    const hasUpdateDays = Array.isArray(x.updateDays) && x.updateDays.length;
+    const dueToday = hasUpdateDays && x.updateDays.includes(today);
+    return `<div class="f-card ${dueToday?'due-today':''}" onclick="openForm('${x.id}')">
       <div class="f-cover" style="background:${coverGrad(i)}">
         <span class="f-fav ${Number(x.rating)===5?'on':''}" onclick="toggleFavorite('${x.id}', event)">${Number(x.rating)===5?'❤':'♡'}</span>
         ${x.image?`<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;f-fav ${Number(x.rating)===5?'on':''}&quot; onclick=&quot;toggleFavorite(\\'${x.id}\\', event)&quot;>${Number(x.rating)===5?'❤':'♡'}</span><div class=&quot;ph&quot;>🎬</div>'">`:'<div class="ph">🎬</div>'}
@@ -374,6 +497,7 @@ function renderFeatured(){
         <div class="f-title">${esc(x.title)}</div>
         <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        ${hasUpdateDays?`<div class="f-update ${dueToday?'today':''}">${dueToday?'🔴 今天更新':'🔔 每週'+x.updateDays.map(d=>WEEKDAY_LABELS[d]).join('、')+'更新'}</div>`:''}
       </div>
     </div>`;
   }).join('');
@@ -385,8 +509,8 @@ const STAT_ICONS={
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>'
 };
 function renderStats(){
-  const watching = state.filter(x=>x.status==='追劇中').length;
-  const done = state.filter(x=>x.status==='已完結').length;
+  const watching = state.filter(isWatching).length;
+  const done = state.filter(x=>x.status==='已完結' && !isWatching(x)).length;
   const totalEp = state.reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const thisMonth = new Date().toISOString().slice(0,7);
   const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
@@ -427,6 +551,9 @@ function renderFilters(){
   const ratingOpts = [['__all__','全部評分'],['5','★5'],['4','★4以上']];
   document.getElementById('ratingFilter').innerHTML = ratingOpts.map(([v,l])=>
     `<button class="chip ${filters.rating===v?'active':''}" data-f="rating" data-v="${v}">${l}</button>`).join('');
+  const tagOpts = ['__all__',...new Set(state.flatMap(x=>x.tags||[]))];
+  document.getElementById('tagFilter').innerHTML = tagOpts.map(t=>
+    `<button class="chip ${filters.tag===t?'active':''}" data-f="tag" data-v="${esc(t)}">${t==='__all__'?'全部標籤':esc(t)}</button>`).join('');
   document.querySelectorAll('.chip').forEach(b=> b.onclick=()=>{ filters[b.dataset.f]=b.dataset.v; render(); });
 }
 function renderList(){
@@ -441,9 +568,10 @@ function renderList(){
   if(filters.platform!=='__all__') items = items.filter(x=>x.platform===filters.platform);
   if(filters.rating==='5') items = items.filter(x=>Number(x.rating)===5);
   if(filters.rating==='4') items = items.filter(x=>Number(x.rating)>=4);
+  if(filters.tag!=='__all__') items = items.filter(x=>(x.tags||[]).includes(filters.tag));
   if(filters.search && filters.search.trim()){
     const q = filters.search.trim().toLowerCase();
-    items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q));
+    items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q) || (x.tags||[]).some(t=>t.toLowerCase().includes(q)));
   }
   if(items.length===0){ document.getElementById('listArea').innerHTML = '<div class="empty">找不到符合條件的紀錄</div>'; return; }
   document.getElementById('listArea').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
@@ -462,6 +590,7 @@ function cardTemplate(x,i){
         <div class="g-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
         ${x.rating?`<div class="g-rating">${stars(x.rating)}</div>`:''}
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        ${x.tags&&x.tags.length?`<div class="g-tags">${x.tags.map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}</div>`:''}
       </div>
       <div class="g-actions">
         <button class="edit" onclick="event.stopPropagation();openForm('${x.id}')">編輯</button>
@@ -478,7 +607,7 @@ function renderWishlist(){
 }
 function renderYearArchive(){
   const years = {};
-  state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結') years[y].done++; });
+  state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結' && x.endDate) years[y].done++; });
   const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
   document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>`
     <div class="card clickable" onclick="openYearDetail('${y}')"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
@@ -568,22 +697,55 @@ function buildYearWrap(year){
   const actorCounts={}; items.forEach(x=>(x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=>actorCounts[a]=(actorCounts[a]||0)+1));
   const topActor = Object.entries(actorCounts).sort((a,b)=>b[1]-a[1])[0];
   const topRated = [...items].filter(x=>Number(x.rating)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0];
-  return {year,count,ep,hrs,topGenre,topPlat,topActor,topRated};
+  const manualPicks = items.filter(x=>x.bestYear===year);
+  const isManualPicks = manualPicks.length>0;
+  const topPicks = (isManualPicks ? manualPicks : items.filter(x=>Number(x.rating)>0))
+    .slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,5);
+  return {year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topPicks,isManualPicks};
 }
 function openYearWrap(){
   const years = getYearsWithData();
   document.getElementById('modal').innerHTML = `
     <div class="wrapHead">
       <h3 class="maru" style="margin:0;">年度總結卡</h3>
-      <select id="wrapYearSel" onchange="renderWrapCard(this.value)">${years.map(y=>`<option value="${y}">${y} 年</option>`).join('')}</select>
+      <select id="wrapYearSel" onchange="renderWrapCard(this.value); renderBestPickList(this.value);">${years.map(y=>`<option value="${y}">${y} 年</option>`).join('')}</select>
     </div>
     <div id="wrapCardBody"></div>
+    <div class="field" style="margin-top:14px;">
+      <label>🌟 手動挑選本年度最佳代表作（最多5部，不選則自動依評分挑選 Top5）</label>
+      <div class="bestPickList" id="bestPickList"></div>
+    </div>
     <div class="modal-actions wrap-actions">
       <button class="btn ghost" onclick="closeModal()">關閉</button>
       <button class="btn save" onclick="downloadWrapCard()">下載圖片</button>
     </div>`;
   renderWrapCard(years[0]);
+  renderBestPickList(years[0]);
   document.getElementById('overlay').classList.add('show');
+}
+function renderBestPickList(year){
+  const wrap = document.getElementById('bestPickList');
+  if(!wrap) return;
+  const items = state.filter(x=>(x.startDate||'').startsWith(year));
+  if(!items.length){ wrap.innerHTML = '<div class="empty" style="padding:6px 0;">這年還沒有紀錄</div>'; return; }
+  const pickedCount = items.filter(x=>x.bestYear===year).length;
+  wrap.innerHTML = items.map(x=>{
+    const checked = x.bestYear===year;
+    const disable = (!checked && pickedCount>=5) ? 'disabled' : '';
+    return `<label class="bestPickRow"><input type="checkbox" ${checked?'checked':''} ${disable} onchange="toggleBestPick('${x.id}','${year}',this.checked)"><span>${esc(x.title)}</span>${x.rating?`<span class="bp-stars">${stars(x.rating)}</span>`:''}</label>`;
+  }).join('');
+}
+function toggleBestPick(id, year, checked){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  if(checked){
+    const currentCount = state.filter(x=>x.bestYear===year).length;
+    if(currentCount>=5){ showToast('最多只能選5部喔'); renderBestPickList(year); return; }
+    it.bestYear = year;
+  } else if(it.bestYear===year){
+    it.bestYear = '';
+  }
+  save().then(()=>{ renderWrapCard(year); renderBestPickList(year); });
 }
 function renderWrapCard(year){
   const d = buildYearWrap(year);
@@ -593,6 +755,10 @@ function renderWrapCard(year){
     d.topActor ? `<div class="hl-row">🌟 常看演員：<b>${esc(d.topActor[0])}</b>（${d.topActor[1]} 部）</div>` : '',
     d.topRated ? `<div class="hl-row">🏆 最高評分：<b>${esc(d.topRated.title)}</b>（${stars(d.topRated.rating)}）</div>` : ''
   ].filter(Boolean).join('');
+  const topPicksHtml = d.topPicks.length ? `<div class="wrapTop5">
+      <div class="wrapTop5Title">${d.isManualPicks?'⭐ 年度最佳代表作':'🏅 年度 Top '+d.topPicks.length}</div>
+      ${d.topPicks.map((x,i)=>`<div class="wrapTop5Row"><span class="rank">${i+1}</span><span class="t5-title">${esc(x.title)}</span>${x.rating?`<span class="t5-stars">${stars(x.rating)}</span>`:''}</div>`).join('')}
+    </div>` : '';
   document.getElementById('wrapCardBody').innerHTML = `
     <div class="wrapCard" id="wrapCardImg">
       <div class="maru">MY DRAMA WRAPPED</div>
@@ -603,6 +769,7 @@ function renderWrapCard(year){
         <div class="wrapStat"><div class="num">${d.hrs}</div><div class="lab">小時</div></div>
       </div>
       ${highlights ? `<div class="wrapHighlights">${highlights}</div>` : '<div class="wrapHighlights">今年還沒有足夠的紀錄可以分析，多新增幾部吧！</div>'}
+      ${topPicksHtml}
       <div class="wrapFoot">追劇紀錄｜我的影視手帳</div>
     </div>`;
 }
@@ -636,13 +803,15 @@ function downloadWrapCard(){
 
 function openForm(id){
   const existing = id ? state.find(x=>x.id===id) : null;
+  currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
+  currentFormWeekdays = existing && Array.isArray(existing.updateDays) ? [...existing.updateDays] : [];
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
     <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
     <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）" oninput="updateImgPreview()"></div>
     <div class="imgPreview" id="fImagePreview"></div>
     <div class="row2">
-      <div class="field"><label>狀態</label><select id="fStatus">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+      <div class="field"><label>狀態</label><select id="fStatus" onchange="syncWeekdayFieldVisibility()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       <div class="field"><label>平台</label><input id="fPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="Netflix / Disney+ ..."></div>
     </div>
     <div class="field"><label>我的評分</label>
@@ -658,13 +827,26 @@ function openForm(id){
         </div>
       </div>
     </div>
+    <div class="field" id="weekdayField" style="display:none;">
+      <label>每週更新日（可複選，追劇中會顯示提醒）</label>
+      <div class="weekdayPick" id="weekdayPick">
+        ${WEEKDAY_LABELS.map((l,i)=>`<button type="button" class="wdBtn ${existing&&(existing.updateDays||[]).includes(i)?'on':''}" onclick="toggleWeekday(${i}, this)">${l}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field">
+      <label>自訂標籤</label>
+      <div class="tagChips" id="tagChips"></div>
+      <input type="text" id="fTagInput" placeholder="輸入標籤後按 Enter 新增" list="tagSuggestions" onkeydown="handleTagKeydown(event)">
+      <datalist id="tagSuggestions">${allKnownTags().map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
+      <div class="tagPresets">${TAG_PRESETS.map(t=>`<button type="button" class="tagPresetBtn" onclick="addTag('${esc(t).replace(/'/g,"\\'")}')">+ ${esc(t)}</button>`).join('')}</div>
+    </div>
     <div class="row2">
       <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
     </div>
     <div class="row2">
-      <div class="field"><label>開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}"></div>
-      <div class="field"><label>看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}"></div>
+      <div class="field"><label>開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
+      <div class="field"><label>看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
     </div>
     <div class="row2">
       <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
@@ -677,6 +859,8 @@ function openForm(id){
   paintStars(existing?Number(existing.rating)||0:0);
   updateImgPreview();
   syncGenreSelectBtn();
+  renderTagChips();
+  syncWeekdayFieldVisibility();
   document.getElementById('overlay').classList.add('show');
 }
 function toggleGenreDropdown(e){
@@ -732,6 +916,8 @@ function saveForm(id){
     document.getElementById('fTitle').focus();
     return;
   }
+  const leftoverTag = document.getElementById('fTagInput').value.trim();
+  if(leftoverTag && !currentFormTags.includes(leftoverTag)) currentFormTags.push(leftoverTag);
   const data = {
     id: id || uid(),
     title,
@@ -740,6 +926,8 @@ function saveForm(id){
     status: document.getElementById('fStatus').value,
     platform: document.getElementById('fPlatform').value.trim(),
     genres: [...document.querySelectorAll('#genreDropdown input:checked')].map(el=>el.value),
+    tags: [...currentFormTags],
+    updateDays: [...currentFormWeekdays].sort((a,b)=>a-b),
     epWatched: Number(document.getElementById('fEpW').value)||0,
     epTotal: Number(document.getElementById('fEpT').value)||0,
     startDate: document.getElementById('fStart').value,
@@ -748,6 +936,7 @@ function saveForm(id){
     actor: document.getElementById('fActor').value.trim()
   };
   const idx = state.findIndex(x=>x.id===data.id);
+  if(idx>=0 && state[idx].bestYear) data.bestYear = state[idx].bestYear;
   if(idx>=0) state[idx]=data; else state.push(data);
   closeModal(); save();
   showToast('已儲存 ✓');
@@ -759,6 +948,7 @@ function delItem(id){
 
 async function init(){
   renderAuthBar();
+  renderNotifyBtn();
   state = await loadKey(STORE_KEY, []);
   render();
   if(useCloud && auth){
