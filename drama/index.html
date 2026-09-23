@@ -22,7 +22,7 @@
   --shadow:0 4px 16px rgba(90,60,45,0.10); --radius:18px;
 }
 *{box-sizing:border-box;}
-body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px 60px;}
+body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
 .maru{font-family:'Zen Maru Gothic',sans-serif;}
 h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:flex; align-items:center; gap:8px;}
 .sec{margin:26px 0 12px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px; display:flex; justify-content:space-between; align-items:center;}
@@ -30,9 +30,12 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .grid4{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
 @media(min-width:640px){.grid4{grid-template-columns:repeat(4,1fr);}}
 .stat{background:var(--surface); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);}
+.stat .ic{font-size:18px; margin-bottom:2px;}
 .stat .n{font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; color:var(--rose-deep);}
 .stat .l{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
 .addBtn{background:var(--rose-deep); color:#fff; border:none; border-radius:999px; padding:10px 18px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; cursor:pointer;}
+.fab{position:fixed; right:18px; bottom:calc(20px + env(safe-area-inset-bottom)); width:54px; height:54px; border-radius:50%; background:var(--rose-deep); color:#fff; border:none; font-size:26px; line-height:1; box-shadow:0 6px 18px rgba(90,60,45,0.28); cursor:pointer; z-index:60; display:none; align-items:center; justify-content:center; font-family:'Zen Maru Gothic';}
+@media(max-width:700px){.fab{display:flex;}}
 .chipRow{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
 .chip{background:var(--surface-soft); border:1px solid var(--ink-faint); border-radius:999px; padding:5px 12px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
 .chip.active{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
@@ -52,10 +55,12 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 @media(min-width:1080px){.galleryGrid{grid-template-columns:repeat(5,1fr);}}
 @media(min-width:1320px){.galleryGrid{grid-template-columns:repeat(6,1fr);}}
 .g-card{background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; cursor:pointer; position:relative;}
-.g-cover{width:100%; aspect-ratio:2/3; background:var(--surface-soft); overflow:hidden; position:relative;}
+.g-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .g-cover img{width:100%; height:100%; object-fit:cover; display:block;}
-.g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--ink-faint);}
+.g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(74,61,54,0.35);}
 .g-badge{position:absolute; top:6px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+.g-fav{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.g-fav.on{color:var(--rose-deep);}
 .g-body{padding:9px 10px 10px;}
 .g-title{font-weight:700; font-size:13px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .g-meta{font-size:11px; color:var(--ink-soft); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -70,6 +75,37 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .st-drop{background:var(--surface-soft); color:var(--ink-faint);}
 .progress-track{background:var(--surface-soft); border-radius:6px; height:6px; margin-top:8px; overflow:hidden;}
 .progress-fill{height:100%; background:var(--rose-deep); border-radius:6px;}
+.g-rating{color:var(--gold); font-size:11px; letter-spacing:1px; margin-top:3px;}
+.starPick{display:flex; gap:4px; font-size:24px; line-height:1; margin:2px 0 4px;}
+.starPick span{cursor:pointer; color:var(--ink-faint); transition:color .1s;}
+.starPick span.on{color:var(--gold);}
+.donutWrap{display:flex; align-items:center; gap:18px; flex-wrap:wrap;}
+.donut{width:120px; height:120px; border-radius:50%; flex:0 0 120px; position:relative;}
+.donut .hole{position:absolute; inset:18px; background:var(--surface); border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.donut .hole .n{font-family:'Zen Maru Gothic'; font-weight:900; font-size:20px; color:var(--ink);}
+.donut .hole .l{font-size:10px; color:var(--ink-soft);}
+.legend{display:flex; flex-direction:column; gap:6px; flex:1; min-width:120px;}
+.legend-row{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink);}
+.legend-dot{width:10px; height:10px; border-radius:50%; flex:0 0 10px;}
+.legend-n{margin-left:auto; color:var(--ink-soft);}
+.plat-sub{font-weight:400; color:var(--ink-soft); font-size:10.5px; margin-top:4px; line-height:1.5;}
+.trendCard{margin-bottom:10px;}
+.trendCard .cap{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
+.featuredScroll{display:flex; gap:12px; overflow-x:auto; padding:2px 2px 10px; margin-bottom:2px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
+.featuredScroll::-webkit-scrollbar{height:5px;}
+.featuredScroll::-webkit-scrollbar-thumb{background:var(--ink-faint); border-radius:999px;}
+.f-card{flex:0 0 130px; scroll-snap-align:start; background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; position:relative;}
+.f-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
+.f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
+.f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
+.f-fav{position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.f-fav.on{color:var(--rose-deep);}
+.f-body{padding:8px 9px 9px;}
+.f-title{font-weight:700; font-size:12.5px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.f-meta{font-size:10.5px; color:var(--ink-soft); margin-top:3px;}
+.searchRow{display:flex; gap:8px; margin-bottom:14px;}
+.searchRow input{flex:1; min-width:0; padding:9px 14px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); font-family:inherit; font-size:13px; color:var(--ink);}
+.searchRow select{flex:0 0 auto; padding:9px 10px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); font-family:inherit; font-size:12px; color:var(--ink-soft);}
 .twoCol{display:grid; grid-template-columns:1fr; gap:20px;}
 @media(min-width:480px){.twoCol{grid-template-columns:1fr 1fr; gap:16px;}}
 .archYear{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
@@ -102,6 +138,13 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .authBtn{display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:999px; padding:6px 14px 6px 6px; box-shadow:var(--shadow); font-size:12.5px; color:var(--ink-soft); cursor:pointer; border:none; font-family:'Noto Sans TC';}
 .authBtn img{width:24px;height:24px;border-radius:50%;}
 .authBtn .g{width:24px;height:24px;border-radius:50%;background:var(--rose-pale);display:flex;align-items:center;justify-content:center;font-size:13px;}
+.field-err{color:#B14B3F; font-size:11.5px; margin-top:4px; display:none;}
+.field.err input{border-color:#B14B3F;}
+.field.err .field-err{display:block;}
+.imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
+.imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
+.toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; font-family:'Zen Maru Gothic'; font-weight:700; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:80;}
+.toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -111,17 +154,24 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 </div>
 <h1><span>🎬</span> 追劇紀錄</h1>
 
+<div id="featuredSec" style="display:none;">
+  <div class="sec" style="margin-top:0;">📺 正在觀看</div>
+  <div class="featuredScroll" id="featuredArea"></div>
+</div>
+
 <div class="grid4" id="statsBar"></div>
 
 <div class="sec">📊 類型分布</div>
 <div class="card" id="genreChart"></div>
 
 <div class="sec">📺 平台總覽</div>
+<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（每集以 45 分鐘計算）</div>
 <div class="platGrid" id="platGrid"></div>
 
 <div class="twoCol">
   <div>
     <div class="sec">📅 年度檔案</div>
+    <div class="card trendCard" id="yearTrend"></div>
     <div class="archYear" id="yearArchive"></div>
   </div>
   <div>
@@ -133,9 +183,22 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
 <div class="chipRow" id="statusFilter"></div>
 <div class="chipRow" id="platformFilter"></div>
+<div class="chipRow" id="ratingFilter"></div>
+<div class="searchRow">
+  <input type="text" id="searchBox" placeholder="🔍 搜尋劇名或演員..." oninput="filters.search=this.value; renderList();">
+  <select id="sortSelect" onchange="filters.sort=this.value; renderList();">
+    <option value="date_desc">日期新→舊</option>
+    <option value="date_asc">日期舊→新</option>
+    <option value="progress_desc">進度高→低</option>
+    <option value="progress_asc">進度低→高</option>
+    <option value="title">劇名筆畫</option>
+  </select>
+</div>
 <div class="galleryGrid" id="listArea"></div>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<button class="fab" onclick="openForm()" aria-label="新增影視劇" title="新增影視劇">＋</button>
 
 <script>
 /* ================= 與手帳共用的 Firebase 專案 ================= */
@@ -196,7 +259,16 @@ function renderAuthBar(){
 }
 
 let state = [];
-let filters = { status:'__all__', platform:'__all__' };
+let filters = { status:'__all__', platform:'__all__', rating:'__all__', search:'', sort:'date_desc' };
+const CHART_COLORS=['var(--rose-deep)','var(--matcha)','var(--wisteria)','var(--gold)','var(--sky)','var(--rose)','#B98B56','#6B8E9E','#A97C9E','#8FA85C'];
+const COVER_GRADIENTS=[
+  'linear-gradient(155deg, var(--rose-pale), var(--gold-pale))',
+  'linear-gradient(155deg, var(--wisteria-pale), var(--sky-pale))',
+  'linear-gradient(155deg, var(--matcha-pale), var(--gold-pale))',
+  'linear-gradient(155deg, var(--sky-pale), var(--rose-pale))',
+  'linear-gradient(155deg, var(--gold-pale), var(--wisteria-pale))'
+];
+function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -204,8 +276,30 @@ async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
-  renderStats(); renderChart(); renderFilters(); renderList();
+  renderFeatured(); renderStats(); renderChart(); renderFilters(); renderList();
   renderYearArchive(); renderPlatforms(); renderMonthGrid();
+}
+function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
+function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
+function renderFeatured(){
+  const sec = document.getElementById('featuredSec');
+  const items = state.filter(x=>x.status==='追劇中').sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  if(!items.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('featuredArea').innerHTML = items.map((x,i)=>{
+    const pct = progressPct(x);
+    return `<div class="f-card" onclick="openForm('${x.id}')">
+      <div class="f-cover" style="background:${coverGrad(i)}">
+        <span class="f-fav ${Number(x.rating)===5?'on':''}" onclick="toggleFavorite('${x.id}', event)">${Number(x.rating)===5?'❤':'♡'}</span>
+        ${x.image?`<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;f-fav ${Number(x.rating)===5?'on':''}&quot; onclick=&quot;toggleFavorite(\\'${x.id}\\', event)&quot;>${Number(x.rating)===5?'❤':'♡'}</span><div class=&quot;ph&quot;>🎬</div>'">`:'<div class="ph">🎬</div>'}
+      </div>
+      <div class="f-body">
+        <div class="f-title">${esc(x.title)}</div>
+        <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
+        ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 }
 function renderStats(){
   const watching = state.filter(x=>x.status==='追劇中').length;
@@ -214,18 +308,29 @@ function renderStats(){
   const thisMonth = new Date().toISOString().slice(0,7);
   const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
   document.getElementById('statsBar').innerHTML = [
-    ['追劇中',watching],['已看完',done],['累積集數',totalEp],['本月新增',addedThisMonth]
-  ].map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+    ['📺','追劇中',watching],['✅','已看完',done],['🎞️','累積集數',totalEp],['🆕','本月新增',addedThisMonth]
+  ].map(([ic,l,n])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 }
 function renderChart(){
   const counts = {};
   state.forEach(x=> (x.genres||[]).forEach(g=> counts[g]=(counts[g]||0)+1));
   const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
-  const max = entries.length? entries[0][1] : 1;
-  document.getElementById('genreChart').innerHTML = entries.length ? entries.map(([g,n])=>`
-    <div class="bar-row"><span class="bar-label">${esc(g)}</span>
-      <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100)}%"></div></div>
-      <span class="bar-num">${n}</span></div>`).join('') : '<div class="empty">還沒有紀錄,新增後這裡會自動統計</div>';
+  const el = document.getElementById('genreChart');
+  if(!entries.length){ el.innerHTML = '<div class="empty">還沒有紀錄,新增後這裡會自動統計</div>'; return; }
+  const total = entries.reduce((s,[,n])=>s+n,0);
+  let acc = 0;
+  const stops = entries.map(([g,n],i)=>{
+    const from = acc/total*360; acc += n; const to = acc/total*360;
+    return `${CHART_COLORS[i%CHART_COLORS.length]} ${from}deg ${to}deg`;
+  }).join(', ');
+  const legend = entries.map(([g,n],i)=>`
+    <div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>${esc(g)}<span class="legend-n">${n}</span></div>`).join('');
+  el.innerHTML = `<div class="donutWrap">
+    <div class="donut" style="background:conic-gradient(${stops});">
+      <div class="hole"><div class="n">${total}</div><div class="l">部次</div></div>
+    </div>
+    <div class="legend">${legend}</div>
+  </div>`;
 }
 function renderFilters(){
   const statusEl = document.getElementById('statusFilter');
@@ -234,24 +339,40 @@ function renderFilters(){
   const plats = ['__all__',...new Set(state.map(x=>x.platform).filter(Boolean))];
   document.getElementById('platformFilter').innerHTML = plats.map(p=>
     `<button class="chip ${filters.platform===p?'active':''}" data-f="platform" data-v="${p}">${p==='__all__'?'全部平台':p}</button>`).join('');
+  const ratingOpts = [['__all__','全部評分'],['5','★5'],['4','★4以上']];
+  document.getElementById('ratingFilter').innerHTML = ratingOpts.map(([v,l])=>
+    `<button class="chip ${filters.rating===v?'active':''}" data-f="rating" data-v="${v}">${l}</button>`).join('');
   document.querySelectorAll('.chip').forEach(b=> b.onclick=()=>{ filters[b.dataset.f]=b.dataset.v; render(); });
 }
 function renderList(){
-  let items = [...state].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  let items = [...state];
+  if(filters.sort==='date_asc') items.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||''));
+  else if(filters.sort==='progress_desc') items.sort((a,b)=>progressPct(b)-progressPct(a));
+  else if(filters.sort==='progress_asc') items.sort((a,b)=>progressPct(a)-progressPct(b));
+  else if(filters.sort==='title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||'','zh-Hant'));
+  else items.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   if(filters.status!=='__all__') items = items.filter(x=>x.status===filters.status);
   if(filters.platform!=='__all__') items = items.filter(x=>x.platform===filters.platform);
+  if(filters.rating==='5') items = items.filter(x=>Number(x.rating)===5);
+  if(filters.rating==='4') items = items.filter(x=>Number(x.rating)>=4);
+  if(filters.search && filters.search.trim()){
+    const q = filters.search.trim().toLowerCase();
+    items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q));
+  }
   if(items.length===0){ document.getElementById('listArea').innerHTML = '<div class="empty">找不到符合條件的紀錄</div>'; return; }
-  document.getElementById('listArea').innerHTML = items.map(x=>{
+  document.getElementById('listArea').innerHTML = items.map((x,i)=>{
     const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
-    const pct = x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0;
+    const pct = progressPct(x);
     return `<div class="g-card">
-      <div class="g-cover" onclick="openForm('${x.id}')">
+      <div class="g-cover" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
         <span class="status-badge g-badge ${stCls}">${esc(x.status)}</span>
-        ${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;status-badge g-badge ${stCls}&quot;>${esc(x.status)}</span><div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}
+        <span class="g-fav ${Number(x.rating)===5?'on':''}" onclick="toggleFavorite('${x.id}', event)">${Number(x.rating)===5?'❤':'♡'}</span>
+        ${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;status-badge g-badge ${stCls}&quot;>${esc(x.status)}</span><span class=&quot;g-fav ${Number(x.rating)===5?'on':''}&quot; onclick=&quot;toggleFavorite(\\'${x.id}\\', event)&quot;>${Number(x.rating)===5?'❤':'♡'}</span><div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
         <div class="g-title">${esc(x.title)}</div>
         <div class="g-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
+        ${x.rating?`<div class="g-rating">${stars(x.rating)}</div>`:''}
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
       </div>
       <div class="g-actions">
@@ -264,16 +385,38 @@ function renderList(){
 function renderYearArchive(){
   const years = {};
   state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結') years[y].done++; });
-  const list = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
-  document.getElementById('yearArchive').innerHTML = list.length ? list.map(([y,v])=>`
+  const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
+  document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>`
     <div class="card"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
     : '<div class="empty">還沒有可以彙整的年度資料</div>';
+  const listAsc = [...listDesc].reverse();
+  renderYearTrend(listAsc);
+}
+function renderYearTrend(listAsc){
+  const el = document.getElementById('yearTrend');
+  if(listAsc.length<2){ el.innerHTML=''; el.style.display='none'; return; }
+  el.style.display='block';
+  const max = Math.max(...listAsc.map(([,v])=>v.n),1);
+  const w=300,h=70,pad=14;
+  const stepX = (w-2*pad)/(listAsc.length-1);
+  const pts = listAsc.map(([y,v],i)=>{
+    const x = pad+i*stepX;
+    const yy = h-pad-((v.n/max)*(h-2*pad));
+    return {x,y:yy,label:y,val:v.n};
+  });
+  const poly = pts.map(p=>`${p.x},${p.y}`).join(' ');
+  const marks = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--rose-deep)"></circle><text x="${p.x}" y="${p.y-8}" font-size="9" fill="var(--ink-soft)" text-anchor="middle">${p.val}</text><text x="${p.x}" y="${h+10}" font-size="9" fill="var(--ink-soft)" text-anchor="middle">${p.label}</text>`).join('');
+  el.innerHTML = `<div class="cap">年度觀看量趨勢</div><svg viewBox="0 0 ${w} ${h+16}" style="width:100%;height:auto;display:block;">
+    <polyline points="${poly}" fill="none" stroke="var(--rose)" stroke-width="2"/>${marks}</svg>`;
 }
 function renderPlatforms(){
   const plats = [...new Set(state.map(x=>x.platform).filter(Boolean))];
   document.getElementById('platGrid').innerHTML = plats.length ? plats.map(p=>{
-    const n = state.filter(x=>x.platform===p).length;
-    return `<div class="platCard">${esc(p)}<div style="font-weight:400;color:var(--ink-soft);font-size:11px;margin-top:4px;">${n} 部</div></div>`;
+    const items = state.filter(x=>x.platform===p);
+    const n = items.length;
+    const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
+    const hrs = Math.round(ep*45/60*10)/10;
+    return `<div class="platCard">${esc(p)}<div class="plat-sub">${n} 部<br>${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
   }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
 }
 function renderMonthGrid(){
@@ -293,12 +436,16 @@ function openForm(id){
   const existing = id ? state.find(x=>x.id===id) : null;
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
-    <div class="field"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀"></div>
-    <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）"></div>
-    ${existing&&existing.image?`<img src="${esc(existing.image)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 10px;">`:''}
+    <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
+    <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）" oninput="updateImgPreview()"></div>
+    <div class="imgPreview" id="fImagePreview"></div>
     <div class="row2">
       <div class="field"><label>狀態</label><select id="fStatus">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       <div class="field"><label>平台</label><input id="fPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="Netflix / Disney+ ..."></div>
+    </div>
+    <div class="field"><label>我的評分</label>
+      <div class="starPick" id="fRatingWrap">${[1,2,3,4,5].map(n=>`<span data-v="${n}" onclick="setRating(${n})">★</span>`).join('')}</div>
+      <input type="hidden" id="fRating" value="${existing?existing.rating||0:0}">
     </div>
     <div class="field"><label>類型（可複選，用逗號分隔）</label><input id="fGenres" value="${existing?esc((existing.genres||[]).join('、')):''}" placeholder="例：愛情、偶像劇"></div>
     <div class="row2">
@@ -313,21 +460,57 @@ function openForm(id){
       <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
       <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
     </div>
-    <div class="field"><label>心得筆記</label><textarea id="fNote">${existing?esc(existing.note||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
       <button class="btn save" onclick="saveForm('${existing?existing.id:''}')">儲存</button>
     </div>`;
+  paintStars(existing?Number(existing.rating)||0:0);
+  updateImgPreview();
   document.getElementById('overlay').classList.add('show');
+}
+function updateImgPreview(){
+  const url = document.getElementById('fImage').value.trim();
+  const box = document.getElementById('fImagePreview');
+  if(!url){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='block';
+  box.innerHTML = `<img src="${esc(url)}" onerror="this.parentElement.style.display='none'">`;
+}
+function clearTitleErr(){ document.getElementById('fTitleField').classList.remove('err'); }
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
+}
+function paintStars(n){
+  document.getElementById('fRating').value = n;
+  document.querySelectorAll('#fRatingWrap span').forEach(s=> s.classList.toggle('on', Number(s.dataset.v)<=n));
+}
+function toggleFavorite(id, ev){
+  if(ev) ev.stopPropagation();
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  it.rating = Number(it.rating)===5 ? 0 : 5;
+  save();
+}
+function setRating(n){
+  const cur = Number(document.getElementById('fRating').value)||0;
+  paintStars(cur===n ? 0 : n);
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 function saveForm(id){
   const title = document.getElementById('fTitle').value.trim();
-  if(!title){ alert('請輸入劇名'); return; }
+  if(!title){
+    document.getElementById('fTitleField').classList.add('err');
+    document.getElementById('fTitle').focus();
+    return;
+  }
   const data = {
     id: id || uid(),
     title,
     image: document.getElementById('fImage').value.trim(),
+    rating: Number(document.getElementById('fRating').value)||0,
     status: document.getElementById('fStatus').value,
     platform: document.getElementById('fPlatform').value.trim(),
     genres: document.getElementById('fGenres').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
@@ -336,12 +519,12 @@ function saveForm(id){
     startDate: document.getElementById('fStart').value,
     endDate: document.getElementById('fEnd').value,
     country: document.getElementById('fCountry').value.trim(),
-    actor: document.getElementById('fActor').value.trim(),
-    note: document.getElementById('fNote').value.trim()
+    actor: document.getElementById('fActor').value.trim()
   };
   const idx = state.findIndex(x=>x.id===data.id);
   if(idx>=0) state[idx]=data; else state.push(data);
   closeModal(); save();
+  showToast('已儲存 ✓');
 }
 function delItem(id){
   if(!confirm('確定要刪除這筆紀錄嗎？')) return;
