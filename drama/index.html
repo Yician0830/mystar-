@@ -86,6 +86,8 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .g-actions button{flex:1; padding:5px; font-size:11px; border-radius:8px; border:none; cursor:pointer; font-family:'Zen Maru Gothic';}
 .g-actions .edit{background:var(--surface-soft); color:var(--ink-soft);}
 .g-actions .del{background:#F4DCD9; color:#B14B3F;}
+.g-actions .start{background:var(--matcha-pale); color:var(--matcha);}
+.g-actions .share{background:var(--sky-pale); color:var(--sky);}
 .status-badge{font-size:11px; padding:3px 10px; border-radius:999px; font-weight:700; flex:0 0 auto;}
 .st-watching{background:var(--sky-pale); color:var(--sky);}
 .st-done{background:var(--matcha-pale); color:var(--matcha);}
@@ -215,6 +217,21 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .wrapTop5Row .rank{width:18px; height:18px; border-radius:50%; background:rgba(255,255,255,.25); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex:none;}
 .wrapTop5Row .t5-title{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .wrapTop5Row .t5-stars{color:var(--gold); font-size:11px; flex:none;}
+/* single-show share card */
+.shareCard{width:100%; max-width:300px; margin:0 auto; aspect-ratio:9/16; border-radius:22px; overflow:hidden; position:relative; box-shadow:var(--shadow); display:flex; flex-direction:column; background:var(--surface);}
+.shareCover{flex:0 0 56%; position:relative; overflow:hidden; background:var(--surface-soft);}
+.shareCover img{width:100%; height:100%; object-fit:cover; display:block;}
+.shareCover .ph{width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:58px; color:rgba(74,61,54,0.3);}
+.shareBadge{position:absolute; top:12px; left:12px;}
+.sharePanel{flex:1; background:linear-gradient(160deg, var(--rose-deep), var(--wisteria)); color:#fff; padding:16px 18px; display:flex; flex-direction:column; gap:7px; position:relative; overflow:hidden;}
+.sharePanel::before{content:''; position:absolute; inset:0; background:radial-gradient(circle at 88% 6%, rgba(255,255,255,.18), transparent 45%); pointer-events:none;}
+.shareTitle{font-family:'Zen Maru Gothic'; font-weight:900; font-size:16px; line-height:1.3;}
+.shareMeta{font-size:11px; opacity:.85;}
+.shareStars{color:#FFD873; font-size:14px; letter-spacing:2px;}
+.shareReview{font-size:11.5px; line-height:1.6; background:rgba(255,255,255,.16); border-radius:12px; padding:9px 11px; flex:1; overflow:hidden; display:-webkit-box; -webkit-line-clamp:5; -webkit-box-orient:vertical;}
+.shareTags{display:flex; flex-wrap:wrap; gap:5px;}
+.shareTag{font-size:10px; background:rgba(255,255,255,.22); padding:3px 9px; border-radius:999px;}
+.shareFoot{font-size:9.5px; opacity:.75; margin-top:auto; text-align:right;}
 .bestPickList{max-height:180px; overflow-y:auto; border:1px solid var(--ink-faint); border-radius:10px; padding:6px;}
 .bestPickRow{display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:12.5px; border-radius:8px; cursor:pointer;}
 .bestPickRow:hover{background:var(--surface-soft);}
@@ -255,7 +272,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 </div>
 
 <div class="sec">📺 平台總覽</div>
-<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（每集以 45 分鐘計算）</div>
+<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算，未設定則以 45 分鐘估算）</div>
 <div class="platGrid" id="platGrid"></div>
 
 <div class="twoCol">
@@ -478,6 +495,7 @@ function renderActors(){
 }
 function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
+function epMinutes(x){ const n = Number(x.epLength); return n>0 ? n : 45; }
 function renderFeatured(){
   const sec = document.getElementById('featuredSec');
   const items = state.filter(isWatching).sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
@@ -593,10 +611,19 @@ function cardTemplate(x,i){
         ${x.tags&&x.tags.length?`<div class="g-tags">${x.tags.map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}</div>`:''}
       </div>
       <div class="g-actions">
+        ${x.status==='想看'?`<button class="start" onclick="event.stopPropagation();startWatching('${x.id}')">▶ 開始追劇</button>`:`<button class="share" onclick="event.stopPropagation();openShareCard('${x.id}')">📤 分享</button>`}
         <button class="edit" onclick="event.stopPropagation();openForm('${x.id}')">編輯</button>
         <button class="del" onclick="event.stopPropagation();delItem('${x.id}')">刪除</button>
       </div>
     </div>`;
+}
+function startWatching(id){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  it.status = '追劇中';
+  if(!it.startDate) it.startDate = new Date().toISOString().slice(0,10);
+  save();
+  showToast('已加入追劇中 ✓');
 }
 function renderWishlist(){
   const sec = document.getElementById('wishSec');
@@ -647,7 +674,8 @@ function renderPlatforms(){
     const items = state.filter(x=>x.platform===p);
     const n = items.length;
     const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
-    const hrs = Math.round(ep*45/60*10)/10;
+    const mins = items.reduce((s,x)=>s+(Number(x.epWatched)||0)*epMinutes(x),0);
+    const hrs = Math.round(mins/60*10)/10;
     return `<div class="platCard" style="cursor:pointer;" onclick="filterByPlatform('${esc(p).replace(/'/g,"\\'")}')">${esc(p)}<div class="plat-sub">${n} 部<br>${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
   }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
 }
@@ -689,7 +717,8 @@ function buildYearWrap(year){
   const items = state.filter(x=>(x.startDate||'').startsWith(year));
   const count = items.length;
   const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
-  const hrs = Math.round(ep*45/60*10)/10;
+  const mins = items.reduce((s,x)=>s+(Number(x.epWatched)||0)*epMinutes(x),0);
+  const hrs = Math.round(mins/60*10)/10;
   const genreCounts={}; items.forEach(x=>(x.genres||[]).forEach(g=>genreCounts[g]=(genreCounts[g]||0)+1));
   const topGenre = Object.entries(genreCounts).sort((a,b)=>b[1]-a[1])[0];
   const platCounts={}; items.forEach(x=>{ if(x.platform) platCounts[x.platform]=(platCounts[x.platform]||0)+1; });
@@ -773,6 +802,64 @@ function renderWrapCard(year){
       <div class="wrapFoot">追劇紀錄｜我的影視手帳</div>
     </div>`;
 }
+function openShareCard(id){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru" style="margin:0 0 14px;">分享圖卡</h3>
+    <div id="shareCardBody"></div>
+    <div class="field" style="margin-top:14px;">
+      <label>我的心得（會顯示在圖卡上，可直接在此修改）</label>
+      <textarea id="shareReviewInput" rows="3" placeholder="寫下這部劇打動你的地方…" oninput="renderShareCard('${id}')">${esc(it.review||'')}</textarea>
+    </div>
+    <div class="modal-actions wrap-actions">
+      <button class="btn ghost" onclick="closeModal()">關閉</button>
+      <button class="btn save" onclick="downloadShareCard('${id}')">下載圖片（限動尺寸）</button>
+    </div>`;
+  renderShareCard(id);
+  document.getElementById('overlay').classList.add('show');
+}
+function renderShareCard(id){
+  const it = state.find(x=>x.id===id);
+  const body = document.getElementById('shareCardBody');
+  if(!it || !body) return;
+  const reviewInput = document.getElementById('shareReviewInput');
+  const review = reviewInput ? reviewInput.value.trim() : (it.review||'');
+  const stCls = (STATUSES.find(s=>s[0]===it.status)||['','st-want'])[1];
+  const metaBits = [it.platform, (it.genres||[]).join('/')].filter(Boolean).join(' ・ ');
+  body.innerHTML = `
+    <div class="shareCard" id="shareCardImg">
+      <div class="shareCover">
+        ${it.image ? `<img src="${esc(it.image)}" alt="${esc(it.title)}" onerror="this.parentElement.innerHTML='<div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}
+        <span class="status-badge shareBadge ${stCls}">${esc(it.status)}</span>
+      </div>
+      <div class="sharePanel">
+        <div class="shareTitle">${esc(it.title)}</div>
+        ${metaBits?`<div class="shareMeta">${esc(metaBits)}</div>`:''}
+        ${Number(it.rating)>0?`<div class="shareStars">${stars(it.rating)}</div>`:''}
+        ${review?`<div class="shareReview">「${esc(review)}」</div>`:''}
+        ${it.tags&&it.tags.length?`<div class="shareTags">${it.tags.map(t=>`<span class="shareTag">#${esc(t)}</span>`).join('')}</div>`:''}
+        <div class="shareFoot">追劇紀錄｜我的影視手帳</div>
+      </div>
+    </div>`;
+}
+function downloadShareCard(id){
+  const it = state.find(x=>x.id===id);
+  const el = document.getElementById('shareCardImg');
+  if(!el) return;
+  if(it){ it.review = (document.getElementById('shareReviewInput')?.value||'').trim(); save(); }
+  showToast('圖片產生中…');
+  loadHtml2Canvas().then(()=>{
+    return window.html2canvas(el, {backgroundColor:null, scale:3, useCORS:true});
+  }).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = 'share-'+((it&&it.title)||'drama').replace(/[^\w\u4e00-\u9fa5]+/g,'')+'.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(()=>{
+    showToast('圖片產生失敗，請改用截圖分享');
+  });
+}
 let _h2cLoading=null;
 function loadHtml2Canvas(){
   if(window.html2canvas) return Promise.resolve();
@@ -844,6 +931,7 @@ function openForm(id){
       <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
     </div>
+    <div class="field"><label>每集片長（分鐘，不填預設 45 分鐘）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder="例：電影 120／動漫 24／短劇 15"></div>
     <div class="row2">
       <div class="field"><label>開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
       <div class="field"><label>看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
@@ -852,6 +940,7 @@ function openForm(id){
       <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
       <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
     </div>
+    <div class="field"><label>我的心得（會顯示在分享圖卡上）</label><textarea id="fReview" rows="3" placeholder="寫下這部劇打動你的地方…">${existing?esc(existing.review||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
       <button class="btn save" onclick="saveForm('${existing?existing.id:''}')">儲存</button>
@@ -930,10 +1019,12 @@ function saveForm(id){
     updateDays: [...currentFormWeekdays].sort((a,b)=>a-b),
     epWatched: Number(document.getElementById('fEpW').value)||0,
     epTotal: Number(document.getElementById('fEpT').value)||0,
+    epLength: Number(document.getElementById('fEpLen').value)||0,
     startDate: document.getElementById('fStart').value,
     endDate: document.getElementById('fEnd').value,
     country: document.getElementById('fCountry').value.trim(),
-    actor: document.getElementById('fActor').value.trim()
+    actor: document.getElementById('fActor').value.trim(),
+    review: document.getElementById('fReview').value.trim()
   };
   const idx = state.findIndex(x=>x.id===data.id);
   if(idx>=0 && state[idx].bestYear) data.bestYear = state[idx].bestYear;
