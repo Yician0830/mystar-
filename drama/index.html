@@ -127,10 +127,13 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .searchRow select{flex:0 0 auto; padding:9px 10px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); font-family:inherit; font-size:12px; color:var(--ink-soft);}
 .twoCol{display:grid; grid-template-columns:1fr; gap:20px;}
 @media(min-width:480px){.twoCol{grid-template-columns:1fr 1fr; gap:16px;}}
-.archYear{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
-@media(min-width:900px){.archYear{grid-template-columns:repeat(4,1fr);}}
+.archYear{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:10px;}
 .archYear .card .y{font-family:'Zen Maru Gothic'; font-weight:900; font-size:18px;}
-.archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px;}
+.archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:nowrap;}
+.clickable{cursor:pointer; transition:transform .12s ease, box-shadow .12s ease;}
+.clickable:hover{transform:translateY(-2px); box-shadow:0 8px 20px rgba(90,60,45,0.14);}
+.yearDetailGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; max-height:60vh; overflow-y:auto; padding:2px;}
+@media(min-width:480px){.yearDetailGrid{grid-template-columns:repeat(3,1fr);}}
 .platGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
 @media(min-width:640px){.platGrid{grid-template-columns:repeat(6,1fr);}}
 .platCard{background:var(--surface); border-radius:14px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px; border:1px solid rgba(0,0,0,.04);}
@@ -160,6 +163,15 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .field-err{color:#B14B3F; font-size:11.5px; margin-top:4px; display:none;}
 .field.err input{border-color:#B14B3F;}
 .field.err .field-err{display:block;}
+.genreSelect{position:relative;}
+.genreSelectBtn{width:100%; text-align:left; padding:9px 32px 9px 10px; border-radius:10px; border:1px solid var(--ink-faint); background:var(--bg); font-family:inherit; font-size:13.5px; color:var(--ink); cursor:pointer; position:relative;}
+.genreSelectBtn::after{content:'▾'; position:absolute; right:10px; top:50%; transform:translateY(-50%); color:var(--ink-soft); font-size:11px;}
+.genreSelectBtn.placeholder{color:var(--ink-soft);}
+.genreDropdown{display:none; position:absolute; z-index:20; top:calc(100% + 6px); left:0; right:0; background:var(--surface); border:1px solid var(--ink-faint); border-radius:12px; box-shadow:var(--shadow); padding:8px; max-height:220px; overflow-y:auto;}
+.genreDropdown.open{display:block;}
+.genreOpt{display:flex; align-items:center; gap:8px; padding:7px 6px; font-size:13px; border-radius:8px; cursor:pointer;}
+.genreOpt:hover{background:var(--surface-soft);}
+.genreOpt input{width:auto; margin:0;}
 .imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
 .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; font-family:'Zen Maru Gothic'; font-weight:700; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:80;}
@@ -182,11 +194,11 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 </head>
 <body>
 <div class="page">
+<h1><span>🎬</span> 追劇紀錄</h1>
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
   <a href="https://yician0830.github.io/" style="text-decoration:none;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;" title="回到入口頁">🏠</a>
   <div id="authBar"></div>
 </div>
-<h1><span>🎬</span> 追劇紀錄</h1>
 
 <div id="featuredSec" style="display:none;">
   <div class="sec" style="margin-top:0;">📺 正在觀看</div>
@@ -317,6 +329,7 @@ const COVER_GRADIENTS=[
 function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
+const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
 function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
@@ -462,10 +475,19 @@ function renderYearArchive(){
   state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結') years[y].done++; });
   const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
   document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>`
-    <div class="card"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
+    <div class="card clickable" onclick="openYearDetail('${y}')"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
     : '<div class="empty">還沒有可以彙整的年度資料</div>';
   const listAsc = [...listDesc].reverse();
   renderYearTrend(listAsc);
+}
+function openYearDetail(year){
+  const items = state.filter(x=>(x.startDate||'').startsWith(year))
+    .sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  document.getElementById('modal').innerHTML = `
+    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${esc(year)} 年看過的劇（${items.length} 部）</h3>
+    <div class="yearDetailGrid">${items.map((x,i)=>cardTemplate(x,i)).join('') || '<div class="empty">這年還沒有紀錄</div>'}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button></div>`;
+  document.getElementById('overlay').classList.add('show');
 }
 function renderYearTrend(listAsc){
   const el = document.getElementById('yearTrend');
@@ -502,9 +524,19 @@ function renderMonthGrid(){
     const mm = String(m).padStart(2,'0'); const key = y+'-'+mm;
     const started = state.filter(x=>(x.startDate||'').startsWith(key)).length;
     const done = state.filter(x=>(x.endDate||'').startsWith(key) && x.status==='已完結').length;
-    html += `<div class="monthCard"><div class="mt">${y}/${mm}</div><div class="mm">本月觀看：${started} 部<br>本月看完：${done} 部</div></div>`;
+    html += `<div class="monthCard clickable" onclick="openMonthDetail('${key}')"><div class="mt">${y}/${mm}</div><div class="mm">本月觀看：${started} 部<br>本月看完：${done} 部</div></div>`;
   }
   document.getElementById('monthGrid').innerHTML = html;
+}
+function openMonthDetail(key){
+  const items = state.filter(x=>(x.startDate||'').startsWith(key) || (x.endDate||'').startsWith(key))
+    .sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  const [yy,mm] = key.split('-');
+  document.getElementById('modal').innerHTML = `
+    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${yy}/${mm} 看過的劇（${items.length} 部）</h3>
+    <div class="yearDetailGrid">${items.map((x,i)=>cardTemplate(x,i)).join('') || '<div class="empty">這個月還沒有紀錄</div>'}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button></div>`;
+  document.getElementById('overlay').classList.add('show');
 }
 
 function getYearsWithData(){
@@ -605,14 +637,22 @@ function openForm(id){
       <div class="starPick" id="fRatingWrap">${[1,2,3,4,5].map(n=>`<span data-v="${n}" onclick="setRating(${n})">★</span>`).join('')}</div>
       <input type="hidden" id="fRating" value="${existing?existing.rating||0:0}">
     </div>
-    <div class="field"><label>類型（可複選，用逗號分隔）</label><input id="fGenres" value="${existing?esc((existing.genres||[]).join('、')):''}" placeholder="例：愛情、偶像劇"></div>
+    <div class="field">
+      <label>類型（可複選）</label>
+      <div class="genreSelect" id="genreSelect">
+        <button type="button" class="genreSelectBtn placeholder" id="genreSelectBtn" onclick="toggleGenreDropdown(event)">請選擇類型</button>
+        <div class="genreDropdown" id="genreDropdown">
+          ${GENRE_OPTIONS.map(g=>`<label class="genreOpt"><input type="checkbox" value="${esc(g)}" onchange="syncGenreSelectBtn()" ${existing&&(existing.genres||[]).includes(g)?'checked':''}> ${esc(g)}</label>`).join('')}
+        </div>
+      </div>
+    </div>
     <div class="row2">
       <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
     </div>
     <div class="row2">
-      <div class="field"><label>開播/開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}"></div>
-      <div class="field"><label>完結/看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}"></div>
+      <div class="field"><label>開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}"></div>
+      <div class="field"><label>看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}"></div>
     </div>
     <div class="row2">
       <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
@@ -624,8 +664,24 @@ function openForm(id){
     </div>`;
   paintStars(existing?Number(existing.rating)||0:0);
   updateImgPreview();
+  syncGenreSelectBtn();
   document.getElementById('overlay').classList.add('show');
 }
+function toggleGenreDropdown(e){
+  if(e) e.stopPropagation();
+  document.getElementById('genreDropdown').classList.toggle('open');
+}
+function syncGenreSelectBtn(){
+  const btn = document.getElementById('genreSelectBtn');
+  if(!btn) return;
+  const picked = [...document.querySelectorAll('#genreDropdown input:checked')].map(el=>el.value);
+  if(picked.length){ btn.textContent = picked.join('、'); btn.classList.remove('placeholder'); }
+  else { btn.textContent = '請選擇類型'; btn.classList.add('placeholder'); }
+}
+document.addEventListener('click', e=>{
+  const sel = document.getElementById('genreSelect');
+  if(sel && !sel.contains(e.target)) { const dd=document.getElementById('genreDropdown'); if(dd) dd.classList.remove('open'); }
+});
 function updateImgPreview(){
   const url = document.getElementById('fImage').value.trim();
   const box = document.getElementById('fImagePreview');
@@ -671,7 +727,7 @@ function saveForm(id){
     rating: Number(document.getElementById('fRating').value)||0,
     status: document.getElementById('fStatus').value,
     platform: document.getElementById('fPlatform').value.trim(),
-    genres: document.getElementById('fGenres').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
+    genres: [...document.querySelectorAll('#genreDropdown input:checked')].map(el=>el.value),
     epWatched: Number(document.getElementById('fEpW').value)||0,
     epTotal: Number(document.getElementById('fEpT').value)||0,
     startDate: document.getElementById('fStart').value,
