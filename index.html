@@ -1682,7 +1682,7 @@ const SCHEMAS = {
     {key:'title', label:'作品名稱', type:'text', required:true, ph:'例：某某電視劇'},
     {key:'artist', label:'相關藝人', type:'text'},
     {key:'role', label:'角色/身份', type:'text', ph:'例：女主角 / 特別出演 / 固定班底'},
-    {key:'category', label:'類型', type:'select', options:['電視劇','電影','綜藝','廣播/podcast','紀錄片','其他']},
+    {key:'category', label:'類型', type:'select', options:['電視劇','電影','影集','綜藝','廣播/podcast','紀錄片','其他']},
     {key:'platform', label:'播出平台', type:'text', ph:'例：Netflix、台視、YouTube'},
     {key:'startDate', label:'開播/上映日期', type:'date'},
     {key:'endDate', label:'完結日期', type:'date'},
@@ -8078,7 +8078,7 @@ function openMovieForm(id){
     <div class="field"><label>類型</label>
       <select id="movCategory">
         <option value="">請選擇</option>
-        ${['電視劇','電影','綜藝','廣播/podcast','紀錄片','其他'].map(c=>`<option value="${c}" ${existing&&existing.category===c?'selected':''}>${c}</option>`).join('')}
+        ${['電視劇','電影','影集','綜藝','廣播/podcast','紀錄片','其他'].map(c=>`<option value="${c}" ${existing&&existing.category===c?'selected':''}>${c}</option>`).join('')}
       </select>
     </div>
     <div class="field"><label>播出平台</label><input type="text" id="movPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="例：Netflix、台視、YouTube"></div>
