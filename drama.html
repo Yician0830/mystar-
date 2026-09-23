@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>追劇紀錄｜我的影視手帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<!-- 跟手帳共用同一個 Firebase 專案，登入狀態與資料都存在同一個帳號底下 -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#FBF4EC; --surface:#FFFDF9; --surface-soft:#F8EFE2;
+  --ink:#4A3D36; --ink-soft:#9C8977; --ink-faint:#DCCDB8;
+  --rose:#DD8AA0; --rose-deep:#C15B79; --rose-pale:#FCEDF1;
+  --matcha:#7FA05F; --matcha-pale:#E8F0DE;
+  --wisteria:#9584C2; --wisteria-pale:#F0ECF8;
+  --gold:#C6A13A; --gold-pale:#F6E9CE;
+  --sky:#5E9AAE; --sky-pale:#DCEBEF;
+  --shadow:0 4px 16px rgba(90,60,45,0.10); --radius:18px;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px 60px;}
+.maru{font-family:'Zen Maru Gothic',sans-serif;}
+h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:flex; align-items:center; gap:8px;}
+.sec{margin:26px 0 12px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px; display:flex; justify-content:space-between; align-items:center;}
+.card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);}
+.grid4{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+@media(min-width:640px){.grid4{grid-template-columns:repeat(4,1fr);}}
+.stat{background:var(--surface); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);}
+.stat .n{font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; color:var(--rose-deep);}
+.stat .l{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
+.addBtn{background:var(--rose-deep); color:#fff; border:none; border-radius:999px; padding:10px 18px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; cursor:pointer;}
+.chipRow{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;}
+.chip{background:var(--surface-soft); border:1px solid var(--ink-faint); border-radius:999px; padding:5px 12px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
+.chip.active{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
+.bar-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px;}
+.bar-label{width:56px; flex:0 0 56px; color:var(--ink-soft); text-align:right;}
+.bar-track{flex:1; background:var(--surface-soft); border-radius:6px; height:14px; overflow:hidden;}
+.bar-fill{height:100%; background:linear-gradient(90deg,var(--rose),var(--rose-deep)); border-radius:6px;}
+.bar-num{width:20px; flex:0 0 20px; color:var(--ink-soft);}
+.d-card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); margin-bottom:10px;}
+.d-row{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
+.d-title{font-weight:700; font-size:15px;}
+.d-meta{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.7;}
+.d-tag{display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:999px; background:var(--rose-pale); color:var(--rose-deep); margin:2px 4px 0 0;}
+.status-badge{font-size:11px; padding:3px 10px; border-radius:999px; font-weight:700; flex:0 0 auto;}
+.st-watching{background:var(--sky-pale); color:var(--sky);}
+.st-done{background:var(--matcha-pale); color:var(--matcha);}
+.st-want{background:var(--wisteria-pale); color:var(--wisteria);}
+.st-drop{background:var(--surface-soft); color:var(--ink-faint);}
+.progress-track{background:var(--surface-soft); border-radius:6px; height:6px; margin-top:8px; overflow:hidden;}
+.progress-fill{height:100%; background:var(--rose-deep); border-radius:6px;}
+.archYear{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+@media(min-width:640px){.archYear{grid-template-columns:repeat(4,1fr);}}
+.archYear .card .y{font-family:'Zen Maru Gothic'; font-weight:900; font-size:18px;}
+.archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px;}
+.platGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
+@media(min-width:640px){.platGrid{grid-template-columns:repeat(6,1fr);}}
+.platCard{background:var(--surface); border-radius:14px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px;}
+.monthGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
+@media(min-width:640px){.monthGrid{grid-template-columns:repeat(4,1fr);}}
+.monthCard{background:var(--surface); border-radius:14px; padding:12px; box-shadow:var(--shadow);}
+.monthCard .mt{font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;}
+.monthCard .mm{font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.6;}
+.empty{text-align:center; color:var(--ink-soft); font-size:13px; padding:30px 0;}
+/* modal */
+.overlay{position:fixed; inset:0; background:rgba(30,20,15,0.4); display:none; align-items:flex-end; justify-content:center; z-index:50;}
+.overlay.show{display:flex;}
+.modal{background:var(--surface); width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:20px; max-height:88vh; overflow-y:auto;}
+.field{margin-bottom:12px;}
+.field label{display:block; font-size:12.5px; color:var(--ink-soft); margin-bottom:4px;}
+.field input,.field select,.field textarea{width:100%; padding:9px 10px; border-radius:10px; border:1px solid var(--ink-faint); background:var(--bg); font-family:inherit; font-size:13.5px; color:var(--ink);}
+.field textarea{resize:vertical; min-height:50px;}
+.row2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+.modal-actions{display:flex; gap:10px; margin-top:16px;}
+.btn{flex:1; padding:11px; border-radius:12px; border:none; font-family:'Zen Maru Gothic'; font-weight:700; font-size:13.5px; cursor:pointer;}
+.btn.save{background:var(--rose-deep); color:#fff;}
+.btn.ghost{background:var(--surface-soft); color:var(--ink-soft);}
+.btn.danger{background:#F4DCD9; color:#B14B3F;}
+.authBtn{display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:999px; padding:6px 14px 6px 6px; box-shadow:var(--shadow); font-size:12.5px; color:var(--ink-soft); cursor:pointer; border:none; font-family:'Noto Sans TC';}
+.authBtn img{width:24px;height:24px;border-radius:50%;}
+.authBtn .g{width:24px;height:24px;border-radius:50%;background:var(--rose-pale);display:flex;align-items:center;justify-content:center;font-size:13px;}
+</style>
+</head>
+<body>
+<div id="authBar" style="display:flex;justify-content:flex-end;margin-bottom:10px;"></div>
+<h1><span>🎬</span> 追劇紀錄</h1>
+
+<div class="grid4" id="statsBar"></div>
+
+<div class="sec">📊 類型分布</div>
+<div class="card" id="genreChart"></div>
+
+<div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
+<div class="chipRow" id="statusFilter"></div>
+<div class="chipRow" id="platformFilter"></div>
+<div id="listArea"></div>
+
+<div class="sec">📅 年度檔案</div>
+<div class="archYear" id="yearArchive"></div>
+
+<div class="sec">📺 平台總覽</div>
+<div class="platGrid" id="platGrid"></div>
+
+<div class="sec">🗓️ 月度檔案（<span id="curYear"></span>）</div>
+<div class="monthGrid" id="monthGrid"></div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+
+<script>
+/* ================= 與手帳共用的 Firebase 專案 ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBjclP4efWWcOTO88W_3tlcC4Za_hEIzW0",
+  authDomain: "mystarlifeapp.firebaseapp.com",
+  projectId: "mystarlifeapp",
+  storageBucket: "mystarlifeapp.firebasestorage.app",
+  messagingSenderId: "941753508434",
+  appId: "1:941753508434:web:5bdf24eac9ee4514d8758b",
+  measurementId: "G-FDX9867N4N"
+};
+let db=null, auth=null, currentUser=null, useCloud=false;
+try{
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  auth = firebase.auth();
+  useCloud = true;
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+  auth.getRedirectResult().catch(()=>{});
+}catch(e){ console.log('Firebase 初始化失敗，改用本機模式', e); }
+
+const STORE_KEY='oshi-drama-list';
+const LOCAL_PREFIX='oshiapp:';
+async function loadKey(key, fallback){
+  if(useCloud && currentUser){
+    try{
+      const doc = await db.collection('users').doc(currentUser.uid).collection('data').doc(key).get();
+      return (doc.exists && doc.data().value!==undefined) ? doc.data().value : fallback;
+    }catch(e){ console.error('雲端讀取失敗', e); return fallback; }
+  }
+  try{ const raw = localStorage.getItem(LOCAL_PREFIX+key); return raw ? JSON.parse(raw) : fallback; }catch(e){ return fallback; }
+}
+async function saveKeyCloud(key, value){
+  if(useCloud && currentUser){
+    try{ await db.collection('users').doc(currentUser.uid).collection('data').doc(key).set({value}); }
+    catch(e){ console.error('雲端儲存失敗', e); }
+    return;
+  }
+  try{ localStorage.setItem(LOCAL_PREFIX+key, JSON.stringify(value)); }catch(e){}
+}
+async function signInWithGoogle(){
+  if(!useCloud){ alert('雲端服務尚未設定完成'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try{ await auth.signInWithPopup(provider); }
+  catch(e){
+    if(e.code==='auth/popup-blocked') await auth.signInWithRedirect(provider);
+  }
+}
+async function signOutUser(){ if(auth) await auth.signOut(); }
+function renderAuthBar(){
+  const el = document.getElementById('authBar');
+  if(currentUser){
+    el.innerHTML = `<button class="authBtn" onclick="signOutUser()">${currentUser.photoURL?`<img src="${currentUser.photoURL}">`:'<span class="g">🙂</span>'}${esc(currentUser.displayName||'已登入')} · 登出</button>`;
+  } else {
+    el.innerHTML = `<button class="authBtn" onclick="signInWithGoogle()"><span class="g">G</span>用 Google 帳號登入同步</button>`;
+  }
+}
+
+let state = [];
+let filters = { status:'__all__', platform:'__all__' };
+const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
+const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
+function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
+
+function render(){
+  renderStats(); renderChart(); renderFilters(); renderList();
+  renderYearArchive(); renderPlatforms(); renderMonthGrid();
+}
+function renderStats(){
+  const watching = state.filter(x=>x.status==='追劇中').length;
+  const done = state.filter(x=>x.status==='已完結').length;
+  const totalEp = state.reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
+  const thisMonth = new Date().toISOString().slice(0,7);
+  const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
+  document.getElementById('statsBar').innerHTML = [
+    ['追劇中',watching],['已看完',done],['累積集數',totalEp],['本月新增',addedThisMonth]
+  ].map(([l,n])=>`<div class="stat"><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+}
+function renderChart(){
+  const counts = {};
+  state.forEach(x=> (x.genres||[]).forEach(g=> counts[g]=(counts[g]||0)+1));
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const max = entries.length? entries[0][1] : 1;
+  document.getElementById('genreChart').innerHTML = entries.length ? entries.map(([g,n])=>`
+    <div class="bar-row"><span class="bar-label">${esc(g)}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${(n/max*100)}%"></div></div>
+      <span class="bar-num">${n}</span></div>`).join('') : '<div class="empty">還沒有紀錄,新增後這裡會自動統計</div>';
+}
+function renderFilters(){
+  const statusEl = document.getElementById('statusFilter');
+  statusEl.innerHTML = ['__all__',...STATUSES.map(s=>s[0])].map(s=>
+    `<button class="chip ${filters.status===s?'active':''}" data-f="status" data-v="${s}">${s==='__all__'?'全部狀態':s}</button>`).join('');
+  const plats = ['__all__',...new Set(state.map(x=>x.platform).filter(Boolean))];
+  document.getElementById('platformFilter').innerHTML = plats.map(p=>
+    `<button class="chip ${filters.platform===p?'active':''}" data-f="platform" data-v="${p}">${p==='__all__'?'全部平台':p}</button>`).join('');
+  document.querySelectorAll('.chip').forEach(b=> b.onclick=()=>{ filters[b.dataset.f]=b.dataset.v; render(); });
+}
+function renderList(){
+  let items = [...state].sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  if(filters.status!=='__all__') items = items.filter(x=>x.status===filters.status);
+  if(filters.platform!=='__all__') items = items.filter(x=>x.platform===filters.platform);
+  if(items.length===0){ document.getElementById('listArea').innerHTML = '<div class="empty">找不到符合條件的紀錄</div>'; return; }
+  document.getElementById('listArea').innerHTML = items.map(x=>{
+    const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
+    const pct = x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0;
+    return `<div class="d-card">
+      <div class="d-row">
+        <div>
+          <div class="d-title">${esc(x.title)}</div>
+          <div class="d-meta">${esc(x.platform||'')}${x.country?' ・ '+esc(x.country):''}${x.actor?' ・ '+esc(x.actor):''}</div>
+          ${x.epTotal?`<div class="d-meta">${x.epWatched||0} / ${x.epTotal} 集</div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+          <div>${(x.genres||[]).map(g=>`<span class="d-tag">${esc(g)}</span>`).join('')}</div>
+        </div>
+        <span class="status-badge ${stCls}">${esc(x.status)}</span>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button class="btn ghost" style="padding:6px 12px;font-size:12px;" onclick="openForm('${x.id}')">編輯</button>
+        <button class="btn danger" style="padding:6px 12px;font-size:12px;" onclick="delItem('${x.id}')">刪除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderYearArchive(){
+  const years = {};
+  state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結') years[y].done++; });
+  const list = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
+  document.getElementById('yearArchive').innerHTML = list.length ? list.map(([y,v])=>`
+    <div class="card"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
+    : '<div class="empty">還沒有可以彙整的年度資料</div>';
+}
+function renderPlatforms(){
+  const plats = [...new Set(state.map(x=>x.platform).filter(Boolean))];
+  document.getElementById('platGrid').innerHTML = plats.length ? plats.map(p=>{
+    const n = state.filter(x=>x.platform===p).length;
+    return `<div class="platCard">${esc(p)}<div style="font-weight:400;color:var(--ink-soft);font-size:11px;margin-top:4px;">${n} 部</div></div>`;
+  }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
+}
+function renderMonthGrid(){
+  const y = new Date().getFullYear();
+  document.getElementById('curYear').textContent = y;
+  let html = '';
+  for(let m=1;m<=12;m++){
+    const mm = String(m).padStart(2,'0'); const key = y+'-'+mm;
+    const started = state.filter(x=>(x.startDate||'').startsWith(key)).length;
+    const done = state.filter(x=>(x.endDate||'').startsWith(key) && x.status==='已完結').length;
+    html += `<div class="monthCard"><div class="mt">${y}/${mm}</div><div class="mm">本月觀看：${started} 部<br>本月看完：${done} 部</div></div>`;
+  }
+  document.getElementById('monthGrid').innerHTML = html;
+}
+
+function openForm(id){
+  const existing = id ? state.find(x=>x.id===id) : null;
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
+    <div class="field"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀"></div>
+    <div class="row2">
+      <div class="field"><label>狀態</label><select id="fStatus">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+      <div class="field"><label>平台</label><input id="fPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="Netflix / Disney+ ..."></div>
+    </div>
+    <div class="field"><label>類型（可複選，用逗號分隔）</label><input id="fGenres" value="${existing?esc((existing.genres||[]).join('、')):''}" placeholder="例：愛情、偶像劇"></div>
+    <div class="row2">
+      <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
+      <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>開播/開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}"></div>
+      <div class="field"><label>完結/看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
+      <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
+    </div>
+    <div class="field"><label>心得筆記</label><textarea id="fNote">${existing?esc(existing.note||''):''}</textarea></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn save" onclick="saveForm('${existing?existing.id:''}')">儲存</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function saveForm(id){
+  const title = document.getElementById('fTitle').value.trim();
+  if(!title){ alert('請輸入劇名'); return; }
+  const data = {
+    id: id || uid(),
+    title,
+    status: document.getElementById('fStatus').value,
+    platform: document.getElementById('fPlatform').value.trim(),
+    genres: document.getElementById('fGenres').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
+    epWatched: Number(document.getElementById('fEpW').value)||0,
+    epTotal: Number(document.getElementById('fEpT').value)||0,
+    startDate: document.getElementById('fStart').value,
+    endDate: document.getElementById('fEnd').value,
+    country: document.getElementById('fCountry').value.trim(),
+    actor: document.getElementById('fActor').value.trim(),
+    note: document.getElementById('fNote').value.trim()
+  };
+  const idx = state.findIndex(x=>x.id===data.id);
+  if(idx>=0) state[idx]=data; else state.push(data);
+  closeModal(); save();
+}
+function delItem(id){
+  if(!confirm('確定要刪除這筆紀錄嗎？')) return;
+  state = state.filter(x=>x.id!==id); save();
+}
+
+async function init(){
+  renderAuthBar();
+  state = await loadKey(STORE_KEY, []);
+  render();
+  if(useCloud && auth){
+    auth.onAuthStateChanged(async (user)=>{
+      currentUser = user;
+      renderAuthBar();
+      state = await loadKey(STORE_KEY, []);
+      render();
+    });
+  }
+}
+init();
+</script>
+</body>
+</html>
