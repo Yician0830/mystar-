@@ -46,6 +46,23 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .d-title{font-weight:700; font-size:15px;}
 .d-meta{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.7;}
 .d-tag{display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:999px; background:var(--rose-pale); color:var(--rose-deep); margin:2px 4px 0 0;}
+.galleryGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
+@media(min-width:560px){.galleryGrid{grid-template-columns:repeat(3,1fr);}}
+@media(min-width:820px){.galleryGrid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:1080px){.galleryGrid{grid-template-columns:repeat(5,1fr);}}
+@media(min-width:1320px){.galleryGrid{grid-template-columns:repeat(6,1fr);}}
+.g-card{background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; cursor:pointer; position:relative;}
+.g-cover{width:100%; aspect-ratio:2/3; background:var(--surface-soft); overflow:hidden; position:relative;}
+.g-cover img{width:100%; height:100%; object-fit:cover; display:block;}
+.g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:var(--ink-faint);}
+.g-badge{position:absolute; top:6px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
+.g-body{padding:9px 10px 10px;}
+.g-title{font-weight:700; font-size:13px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
+.g-meta{font-size:11px; color:var(--ink-soft); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.g-actions{display:flex; gap:6px; padding:0 10px 10px;}
+.g-actions button{flex:1; padding:5px; font-size:11px; border-radius:8px; border:none; cursor:pointer; font-family:'Zen Maru Gothic';}
+.g-actions .edit{background:var(--surface-soft); color:var(--ink-soft);}
+.g-actions .del{background:#F4DCD9; color:#B14B3F;}
 .status-badge{font-size:11px; padding:3px 10px; border-radius:999px; font-weight:700; flex:0 0 auto;}
 .st-watching{background:var(--sky-pale); color:var(--sky);}
 .st-done{background:var(--matcha-pale); color:var(--matcha);}
@@ -53,15 +70,17 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .st-drop{background:var(--surface-soft); color:var(--ink-faint);}
 .progress-track{background:var(--surface-soft); border-radius:6px; height:6px; margin-top:8px; overflow:hidden;}
 .progress-fill{height:100%; background:var(--rose-deep); border-radius:6px;}
+.twoCol{display:grid; grid-template-columns:1fr; gap:20px;}
+@media(min-width:480px){.twoCol{grid-template-columns:1fr 1fr; gap:16px;}}
 .archYear{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
-@media(min-width:640px){.archYear{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:900px){.archYear{grid-template-columns:repeat(4,1fr);}}
 .archYear .card .y{font-family:'Zen Maru Gothic'; font-weight:900; font-size:18px;}
 .archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px;}
 .platGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
 @media(min-width:640px){.platGrid{grid-template-columns:repeat(6,1fr);}}
 .platCard{background:var(--surface); border-radius:14px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px;}
 .monthGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
-@media(min-width:640px){.monthGrid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:900px){.monthGrid{grid-template-columns:repeat(3,1fr);}}
 .monthCard{background:var(--surface); border-radius:14px; padding:12px; box-shadow:var(--shadow);}
 .monthCard .mt{font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;}
 .monthCard .mm{font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.6;}
@@ -97,19 +116,24 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <div class="sec">📊 類型分布</div>
 <div class="card" id="genreChart"></div>
 
-<div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
-<div class="chipRow" id="statusFilter"></div>
-<div class="chipRow" id="platformFilter"></div>
-<div id="listArea"></div>
-
-<div class="sec">📅 年度檔案</div>
-<div class="archYear" id="yearArchive"></div>
-
 <div class="sec">📺 平台總覽</div>
 <div class="platGrid" id="platGrid"></div>
 
-<div class="sec">🗓️ 月度檔案（<span id="curYear"></span>）</div>
-<div class="monthGrid" id="monthGrid"></div>
+<div class="twoCol">
+  <div>
+    <div class="sec">📅 年度檔案</div>
+    <div class="archYear" id="yearArchive"></div>
+  </div>
+  <div>
+    <div class="sec">🗓️ 月度檔案（<span id="curYear"></span>）</div>
+    <div class="monthGrid" id="monthGrid"></div>
+  </div>
+</div>
+
+<div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
+<div class="chipRow" id="statusFilter"></div>
+<div class="chipRow" id="platformFilter"></div>
+<div class="galleryGrid" id="listArea"></div>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 
@@ -220,19 +244,19 @@ function renderList(){
   document.getElementById('listArea').innerHTML = items.map(x=>{
     const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
     const pct = x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0;
-    return `<div class="d-card">
-      <div class="d-row">
-        <div>
-          <div class="d-title">${esc(x.title)}</div>
-          <div class="d-meta">${esc(x.platform||'')}${x.country?' ・ '+esc(x.country):''}${x.actor?' ・ '+esc(x.actor):''}</div>
-          ${x.epTotal?`<div class="d-meta">${x.epWatched||0} / ${x.epTotal} 集</div><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
-          <div>${(x.genres||[]).map(g=>`<span class="d-tag">${esc(g)}</span>`).join('')}</div>
-        </div>
-        <span class="status-badge ${stCls}">${esc(x.status)}</span>
+    return `<div class="g-card">
+      <div class="g-cover" onclick="openForm('${x.id}')">
+        <span class="status-badge g-badge ${stCls}">${esc(x.status)}</span>
+        ${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;status-badge g-badge ${stCls}&quot;>${esc(x.status)}</span><div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}
       </div>
-      <div style="margin-top:10px; display:flex; gap:8px;">
-        <button class="btn ghost" style="padding:6px 12px;font-size:12px;" onclick="openForm('${x.id}')">編輯</button>
-        <button class="btn danger" style="padding:6px 12px;font-size:12px;" onclick="delItem('${x.id}')">刪除</button>
+      <div class="g-body" onclick="openForm('${x.id}')">
+        <div class="g-title">${esc(x.title)}</div>
+        <div class="g-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
+        ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+      </div>
+      <div class="g-actions">
+        <button class="edit" onclick="event.stopPropagation();openForm('${x.id}')">編輯</button>
+        <button class="del" onclick="event.stopPropagation();delItem('${x.id}')">刪除</button>
       </div>
     </div>`;
   }).join('');
@@ -270,6 +294,8 @@ function openForm(id){
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
     <div class="field"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀"></div>
+    <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）"></div>
+    ${existing&&existing.image?`<img src="${esc(existing.image)}" style="width:100%;max-height:160px;object-fit:cover;border-radius:10px;margin:-4px 0 10px;">`:''}
     <div class="row2">
       <div class="field"><label>狀態</label><select id="fStatus">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       <div class="field"><label>平台</label><input id="fPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="Netflix / Disney+ ..."></div>
@@ -301,6 +327,7 @@ function saveForm(id){
   const data = {
     id: id || uid(),
     title,
+    image: document.getElementById('fImage').value.trim(),
     status: document.getElementById('fStatus').value,
     platform: document.getElementById('fPlatform').value.trim(),
     genres: document.getElementById('fGenres').value.split(/[、,]/).map(s=>s.trim()).filter(Boolean),
