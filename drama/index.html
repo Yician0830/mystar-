@@ -127,6 +127,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .searchRow select{flex:0 0 auto; padding:9px 10px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); font-family:inherit; font-size:12px; color:var(--ink-soft);}
 .twoCol{display:grid; grid-template-columns:1fr; gap:20px;}
 @media(min-width:480px){.twoCol{grid-template-columns:1fr 1fr; gap:16px;}}
+.twoCol.top{align-items:start;}
 .archYear{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:10px;}
 .archYear .card .y{font-family:'Zen Maru Gothic'; font-weight:900; font-size:18px;}
 .archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px; white-space:nowrap;}
@@ -200,18 +201,23 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
   <div id="authBar"></div>
 </div>
 
+<div class="grid4" id="statsBar" style="margin-bottom:20px;"></div>
+
 <div id="featuredSec" style="display:none;">
   <div class="sec" style="margin-top:0;">📺 正在觀看</div>
   <div class="featuredScroll" id="featuredArea"></div>
 </div>
 
-<div class="grid4" id="statsBar"></div>
-
-<div class="sec">📊 類型分布</div>
-<div class="card" id="genreChart"></div>
-
-<div class="sec">🎭 常看演員 Top5</div>
-<div class="card" id="actorChart"></div>
+<div class="twoCol top">
+  <div>
+    <div class="sec">📊 類型分布</div>
+    <div class="card" id="genreChart"></div>
+  </div>
+  <div>
+    <div class="sec">🎭 常看演員 Top5</div>
+    <div class="card" id="actorChart"></div>
+  </div>
+</div>
 
 <div class="sec">📺 平台總覽</div>
 <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（每集以 45 分鐘計算）</div>
@@ -224,7 +230,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
     <div class="archYear" id="yearArchive"></div>
   </div>
   <div>
-    <div class="sec">🗓️ 月度檔案（<span id="curYear"></span>）</div>
+    <div class="sec"><span>🗓️ 月度檔案（<span id="curYear"></span>）</span></div>
     <div class="monthGrid" id="monthGrid"></div>
   </div>
 </div>
@@ -513,8 +519,14 @@ function renderPlatforms(){
     const n = items.length;
     const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
     const hrs = Math.round(ep*45/60*10)/10;
-    return `<div class="platCard">${esc(p)}<div class="plat-sub">${n} 部<br>${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
+    return `<div class="platCard" style="cursor:pointer;" onclick="filterByPlatform('${esc(p).replace(/'/g,"\\'")}')">${esc(p)}<div class="plat-sub">${n} 部<br>${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
   }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
+}
+function filterByPlatform(p){
+  filters.platform = p;
+  render();
+  const target = document.getElementById('platformFilter');
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function renderMonthGrid(){
   const y = new Date().getFullYear();
