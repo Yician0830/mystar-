@@ -21,16 +21,32 @@
   --sky:#5E9AAE; --sky-pale:#DCEBEF;
   --shadow:0 4px 16px rgba(90,60,45,0.10); --radius:18px;
 }
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1E1A17; --surface:#2A2420; --surface-soft:#332C26;
+    --ink:#EDE6DD; --ink-soft:#B8A996; --ink-faint:#4A4038;
+    --rose:#E39CB0; --rose-deep:#E6A0B4; --rose-pale:#3A2830;
+    --matcha:#9BC17C; --matcha-pale:#26301F;
+    --wisteria:#B3A0DE; --wisteria-pale:#2B2438;
+    --gold:#D9B95C; --gold-pale:#332B18;
+    --sky:#7FC0D6; --sky-pale:#1F2E32;
+    --shadow:0 4px 16px rgba(0,0,0,0.35);
+  }
+  .card,.stat,.d-card,.g-card,.f-card,.platCard,.monthCard{border-color:rgba(255,255,255,.06);}
+  .toast{background:#3A322B; color:#F5EFE7;}
+}
 *{box-sizing:border-box;}
 body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
+.page{max-width:1080px; margin:0 auto;}
 .maru{font-family:'Zen Maru Gothic',sans-serif;}
 h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:flex; align-items:center; gap:8px;}
-.sec{margin:26px 0 12px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px; display:flex; justify-content:space-between; align-items:center;}
-.card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow);}
+.sec{margin:34px 0 14px; padding-bottom:9px; border-bottom:1px solid rgba(74,61,54,0.09); font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px; display:flex; justify-content:space-between; align-items:center;}
+.card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); border:1px solid rgba(0,0,0,.04);}
 .grid4{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
 @media(min-width:640px){.grid4{grid-template-columns:repeat(4,1fr);}}
-.stat{background:var(--surface); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow);}
-.stat .ic{font-size:18px; margin-bottom:2px;}
+.stat{background:var(--surface); border-radius:var(--radius); padding:16px; text-align:center; box-shadow:var(--shadow); border:1px solid rgba(0,0,0,.04);}
+.stat .ic{margin-bottom:4px; color:var(--rose-deep); display:flex; align-items:center; justify-content:center;}
+.stat .ic svg{width:20px; height:20px;}
 .stat .n{font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; color:var(--rose-deep);}
 .stat .l{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
 .addBtn{background:var(--rose-deep); color:#fff; border:none; border-radius:999px; padding:10px 18px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; cursor:pointer;}
@@ -40,21 +56,21 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .chip{background:var(--surface-soft); border:1px solid var(--ink-faint); border-radius:999px; padding:5px 12px; font-size:12px; color:var(--ink-soft); cursor:pointer;}
 .chip.active{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
 .bar-row{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:12.5px;}
-.bar-label{width:56px; flex:0 0 56px; color:var(--ink-soft); text-align:right;}
+.bar-label{width:74px; flex:0 0 74px; color:var(--ink-soft); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .bar-track{flex:1; background:var(--surface-soft); border-radius:6px; height:14px; overflow:hidden;}
 .bar-fill{height:100%; background:linear-gradient(90deg,var(--rose),var(--rose-deep)); border-radius:6px;}
 .bar-num{width:20px; flex:0 0 20px; color:var(--ink-soft);}
-.d-card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); margin-bottom:10px;}
+.d-card{background:var(--surface); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow); margin-bottom:10px; border:1px solid rgba(0,0,0,.04);}
 .d-row{display:flex; justify-content:space-between; gap:10px; align-items:flex-start;}
 .d-title{font-weight:700; font-size:15px;}
 .d-meta{font-size:12px; color:var(--ink-soft); margin-top:3px; line-height:1.7;}
 .d-tag{display:inline-block; font-size:10.5px; padding:2px 8px; border-radius:999px; background:var(--rose-pale); color:var(--rose-deep); margin:2px 4px 0 0;}
 .galleryGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:12px;}
-@media(min-width:560px){.galleryGrid{grid-template-columns:repeat(3,1fr);}}
-@media(min-width:820px){.galleryGrid{grid-template-columns:repeat(4,1fr);}}
-@media(min-width:1080px){.galleryGrid{grid-template-columns:repeat(5,1fr);}}
-@media(min-width:1320px){.galleryGrid{grid-template-columns:repeat(6,1fr);}}
-.g-card{background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; cursor:pointer; position:relative;}
+@media(min-width:560px){.galleryGrid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:820px){.galleryGrid{grid-template-columns:repeat(6,1fr);}}
+@media(min-width:1080px){.galleryGrid{grid-template-columns:repeat(8,1fr);}}
+@media(min-width:1320px){.galleryGrid{grid-template-columns:repeat(8,1fr);}}
+.g-card{background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); display:flex; flex-direction:column; cursor:pointer; position:relative; border:1px solid rgba(0,0,0,.04);}
 .g-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .g-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(74,61,54,0.35);}
@@ -64,7 +80,9 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .g-body{padding:9px 10px 10px;}
 .g-title{font-weight:700; font-size:13px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .g-meta{font-size:11px; color:var(--ink-soft); margin-top:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.g-actions{display:flex; gap:6px; padding:0 10px 10px;}
+.g-actions{display:flex; gap:6px; padding:0 10px 10px; opacity:0; transform:translateY(2px); transition:opacity .15s ease, transform .15s ease;}
+.g-card:hover .g-actions, .g-card:focus-within .g-actions{opacity:1; transform:translateY(0);}
+@media(hover:none){ .g-actions{opacity:1; transform:none;} }
 .g-actions button{flex:1; padding:5px; font-size:11px; border-radius:8px; border:none; cursor:pointer; font-family:'Zen Maru Gothic';}
 .g-actions .edit{background:var(--surface-soft); color:var(--ink-soft);}
 .g-actions .del{background:#F4DCD9; color:#B14B3F;}
@@ -87,14 +105,15 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .legend{display:flex; flex-direction:column; gap:6px; flex:1; min-width:120px;}
 .legend-row{display:flex; align-items:center; gap:7px; font-size:12px; color:var(--ink);}
 .legend-dot{width:10px; height:10px; border-radius:50%; flex:0 0 10px;}
-.legend-n{margin-left:auto; color:var(--ink-soft);}
+.legend-name{flex:1;}
+.legend-n{color:var(--ink-soft); font-size:11.5px;}
 .plat-sub{font-weight:400; color:var(--ink-soft); font-size:10.5px; margin-top:4px; line-height:1.5;}
 .trendCard{margin-bottom:10px;}
 .trendCard .cap{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
 .featuredScroll{display:flex; gap:12px; overflow-x:auto; padding:2px 2px 10px; margin-bottom:2px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
 .featuredScroll::-webkit-scrollbar{height:5px;}
 .featuredScroll::-webkit-scrollbar-thumb{background:var(--ink-faint); border-radius:999px;}
-.f-card{flex:0 0 130px; scroll-snap-align:start; background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; position:relative;}
+.f-card{flex:0 0 130px; scroll-snap-align:start; background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; position:relative; border:1px solid rgba(0,0,0,.04);}
 .f-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
@@ -114,10 +133,10 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .archYear .card .m{font-size:12px; color:var(--ink-soft); margin-top:6px;}
 .platGrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
 @media(min-width:640px){.platGrid{grid-template-columns:repeat(6,1fr);}}
-.platCard{background:var(--surface); border-radius:14px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px;}
+.platCard{background:var(--surface); border-radius:14px; padding:14px 8px; text-align:center; box-shadow:var(--shadow); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px; border:1px solid rgba(0,0,0,.04);}
 .monthGrid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
 @media(min-width:900px){.monthGrid{grid-template-columns:repeat(3,1fr);}}
-.monthCard{background:var(--surface); border-radius:14px; padding:12px; box-shadow:var(--shadow);}
+.monthCard{background:var(--surface); border-radius:14px; padding:12px; box-shadow:var(--shadow); border:1px solid rgba(0,0,0,.04);}
 .monthCard .mt{font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;}
 .monthCard .mm{font-size:11px; color:var(--ink-soft); margin-top:4px; line-height:1.6;}
 .empty{text-align:center; color:var(--ink-soft); font-size:13px; padding:30px 0;}
@@ -145,9 +164,24 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
 .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; font-family:'Zen Maru Gothic'; font-weight:700; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:80;}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+/* year wrap card */
+.wrapHead{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:14px;}
+.wrapHead select{padding:7px 10px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); font-family:inherit; font-size:12.5px; color:var(--ink);}
+.wrapCard{background:linear-gradient(160deg, var(--rose-deep), var(--wisteria)); color:#fff; border-radius:20px; padding:26px 22px; text-align:center; position:relative; overflow:hidden;}
+.wrapCard::before{content:''; position:absolute; inset:0; background:radial-gradient(circle at 85% 8%, rgba(255,255,255,.18), transparent 45%); pointer-events:none;}
+.wrapCard .maru{font-size:12px; letter-spacing:2px; opacity:.85; text-transform:uppercase;}
+.wrapCard h2{font-family:'Zen Maru Gothic'; font-size:24px; margin:4px 0 20px;}
+.wrapRow{display:flex; justify-content:space-around; margin-bottom:16px;}
+.wrapStat .num{font-family:'Zen Maru Gothic'; font-weight:900; font-size:32px; line-height:1;}
+.wrapStat .lab{font-size:11px; opacity:.85; margin-top:4px;}
+.wrapHighlights{text-align:left; background:rgba(255,255,255,.15); border-radius:14px; padding:14px 16px; font-size:12.5px; line-height:2.1;}
+.wrapHighlights .hl-row b{font-weight:700;}
+.wrapFoot{margin-top:16px; font-size:10.5px; opacity:.75;}
+.modal-actions.wrap-actions{margin-top:14px;}
 </style>
 </head>
 <body>
+<div class="page">
 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
   <a href="https://yician0830.github.io/" style="text-decoration:none;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;" title="回到入口頁">🏠</a>
   <div id="authBar"></div>
@@ -163,6 +197,9 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 
 <div class="sec">📊 類型分布</div>
 <div class="card" id="genreChart"></div>
+
+<div class="sec">🎭 常看演員 Top5</div>
+<div class="card" id="actorChart"></div>
 
 <div class="sec">📺 平台總覽</div>
 <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（每集以 45 分鐘計算）</div>
@@ -180,6 +217,13 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
   </div>
 </div>
 
+<div class="sec">🎉 年度總結 <button class="addBtn" onclick="openYearWrap()">✨ 產生年度總結卡</button></div>
+
+<div id="wishSec" style="display:none;">
+  <div class="sec">📋 片單（想看）</div>
+  <div class="galleryGrid" id="wishGrid"></div>
+</div>
+
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
 <div class="chipRow" id="statusFilter"></div>
 <div class="chipRow" id="platformFilter"></div>
@@ -191,10 +235,12 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
     <option value="date_asc">日期舊→新</option>
     <option value="progress_desc">進度高→低</option>
     <option value="progress_asc">進度低→高</option>
+    <option value="rating_desc">評分高→低</option>
     <option value="title">劇名筆畫</option>
   </select>
 </div>
 <div class="galleryGrid" id="listArea"></div>
+</div>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
@@ -276,8 +322,20 @@ async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
-  renderFeatured(); renderStats(); renderChart(); renderFilters(); renderList();
+  renderFeatured(); renderStats(); renderChart(); renderActors(); renderWishlist(); renderFilters(); renderList();
   renderYearArchive(); renderPlatforms(); renderMonthGrid();
+}
+function renderActors(){
+  const counts = {};
+  state.forEach(x=>{
+    (x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=> counts[a]=(counts[a]||0)+1);
+  });
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const el = document.getElementById('actorChart');
+  if(!entries.length){ el.innerHTML = '<div class="empty">還沒有演員紀錄，新增劇集時填寫演員欄位就會統計在這裡</div>'; return; }
+  const max = entries[0][1];
+  el.innerHTML = entries.map(([a,n])=>`
+    <div class="bar-row"><span class="bar-label" title="${esc(a)}">${esc(a)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><span class="bar-num">${n}</span></div>`).join('');
 }
 function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
@@ -301,6 +359,12 @@ function renderFeatured(){
     </div>`;
   }).join('');
 }
+const STAT_ICONS={
+  tv:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2 12 7 7 2"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>',
+  film:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="3" x2="7" y2="21"/><line x1="17" y1="3" x2="17" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>'
+};
 function renderStats(){
   const watching = state.filter(x=>x.status==='追劇中').length;
   const done = state.filter(x=>x.status==='已完結').length;
@@ -308,7 +372,7 @@ function renderStats(){
   const thisMonth = new Date().toISOString().slice(0,7);
   const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
   document.getElementById('statsBar').innerHTML = [
-    ['📺','追劇中',watching],['✅','已看完',done],['🎞️','累積集數',totalEp],['🆕','本月新增',addedThisMonth]
+    [STAT_ICONS.tv,'追劇中',watching],[STAT_ICONS.check,'已看完',done],[STAT_ICONS.film,'累積集數',totalEp],[STAT_ICONS.plus,'本月新增',addedThisMonth]
   ].map(([ic,l,n])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
 }
 function renderChart(){
@@ -323,8 +387,10 @@ function renderChart(){
     const from = acc/total*360; acc += n; const to = acc/total*360;
     return `${CHART_COLORS[i%CHART_COLORS.length]} ${from}deg ${to}deg`;
   }).join(', ');
-  const legend = entries.map(([g,n],i)=>`
-    <div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span>${esc(g)}<span class="legend-n">${n}</span></div>`).join('');
+  const legend = entries.map(([g,n],i)=>{
+    const pct = Math.round(n/total*100);
+    return `<div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-name">${esc(g)}</span><span class="legend-n">${n} 部・${pct}%</span></div>`;
+  }).join('');
   el.innerHTML = `<div class="donutWrap">
     <div class="donut" style="background:conic-gradient(${stops});">
       <div class="hole"><div class="n">${total}</div><div class="l">部次</div></div>
@@ -334,7 +400,7 @@ function renderChart(){
 }
 function renderFilters(){
   const statusEl = document.getElementById('statusFilter');
-  statusEl.innerHTML = ['__all__',...STATUSES.map(s=>s[0])].map(s=>
+  statusEl.innerHTML = ['__all__',...STATUSES.filter(s=>s[0]!=='想看').map(s=>s[0])].map(s=>
     `<button class="chip ${filters.status===s?'active':''}" data-f="status" data-v="${s}">${s==='__all__'?'全部狀態':s}</button>`).join('');
   const plats = ['__all__',...new Set(state.map(x=>x.platform).filter(Boolean))];
   document.getElementById('platformFilter').innerHTML = plats.map(p=>
@@ -345,10 +411,11 @@ function renderFilters(){
   document.querySelectorAll('.chip').forEach(b=> b.onclick=()=>{ filters[b.dataset.f]=b.dataset.v; render(); });
 }
 function renderList(){
-  let items = [...state];
+  let items = state.filter(x=>x.status!=='想看');
   if(filters.sort==='date_asc') items.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||''));
   else if(filters.sort==='progress_desc') items.sort((a,b)=>progressPct(b)-progressPct(a));
   else if(filters.sort==='progress_asc') items.sort((a,b)=>progressPct(a)-progressPct(b));
+  else if(filters.sort==='rating_desc') items.sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
   else if(filters.sort==='title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||'','zh-Hant'));
   else items.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   if(filters.status!=='__all__') items = items.filter(x=>x.status===filters.status);
@@ -360,10 +427,12 @@ function renderList(){
     items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q));
   }
   if(items.length===0){ document.getElementById('listArea').innerHTML = '<div class="empty">找不到符合條件的紀錄</div>'; return; }
-  document.getElementById('listArea').innerHTML = items.map((x,i)=>{
-    const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
-    const pct = progressPct(x);
-    return `<div class="g-card">
+  document.getElementById('listArea').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
+}
+function cardTemplate(x,i){
+  const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
+  const pct = progressPct(x);
+  return `<div class="g-card">
       <div class="g-cover" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
         <span class="status-badge g-badge ${stCls}">${esc(x.status)}</span>
         <span class="g-fav ${Number(x.rating)===5?'on':''}" onclick="toggleFavorite('${x.id}', event)">${Number(x.rating)===5?'❤':'♡'}</span>
@@ -380,7 +449,13 @@ function renderList(){
         <button class="del" onclick="event.stopPropagation();delItem('${x.id}')">刪除</button>
       </div>
     </div>`;
-  }).join('');
+}
+function renderWishlist(){
+  const sec = document.getElementById('wishSec');
+  const items = state.filter(x=>x.status==='想看').sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  if(!items.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('wishGrid').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
 }
 function renderYearArchive(){
   const years = {};
@@ -430,6 +505,89 @@ function renderMonthGrid(){
     html += `<div class="monthCard"><div class="mt">${y}/${mm}</div><div class="mm">本月觀看：${started} 部<br>本月看完：${done} 部</div></div>`;
   }
   document.getElementById('monthGrid').innerHTML = html;
+}
+
+function getYearsWithData(){
+  const ys = new Set(state.map(x=>(x.startDate||'').slice(0,4)).filter(Boolean));
+  const arr = [...ys].sort((a,b)=>b.localeCompare(a));
+  return arr.length ? arr : [String(new Date().getFullYear())];
+}
+function buildYearWrap(year){
+  const items = state.filter(x=>(x.startDate||'').startsWith(year));
+  const count = items.length;
+  const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
+  const hrs = Math.round(ep*45/60*10)/10;
+  const genreCounts={}; items.forEach(x=>(x.genres||[]).forEach(g=>genreCounts[g]=(genreCounts[g]||0)+1));
+  const topGenre = Object.entries(genreCounts).sort((a,b)=>b[1]-a[1])[0];
+  const platCounts={}; items.forEach(x=>{ if(x.platform) platCounts[x.platform]=(platCounts[x.platform]||0)+1; });
+  const topPlat = Object.entries(platCounts).sort((a,b)=>b[1]-a[1])[0];
+  const actorCounts={}; items.forEach(x=>(x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=>actorCounts[a]=(actorCounts[a]||0)+1));
+  const topActor = Object.entries(actorCounts).sort((a,b)=>b[1]-a[1])[0];
+  const topRated = [...items].filter(x=>Number(x.rating)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0];
+  return {year,count,ep,hrs,topGenre,topPlat,topActor,topRated};
+}
+function openYearWrap(){
+  const years = getYearsWithData();
+  document.getElementById('modal').innerHTML = `
+    <div class="wrapHead">
+      <h3 class="maru" style="margin:0;">年度總結卡</h3>
+      <select id="wrapYearSel" onchange="renderWrapCard(this.value)">${years.map(y=>`<option value="${y}">${y} 年</option>`).join('')}</select>
+    </div>
+    <div id="wrapCardBody"></div>
+    <div class="modal-actions wrap-actions">
+      <button class="btn ghost" onclick="closeModal()">關閉</button>
+      <button class="btn save" onclick="downloadWrapCard()">下載圖片</button>
+    </div>`;
+  renderWrapCard(years[0]);
+  document.getElementById('overlay').classList.add('show');
+}
+function renderWrapCard(year){
+  const d = buildYearWrap(year);
+  const highlights = [
+    d.topGenre ? `<div class="hl-row">🎭 最愛類型：<b>${esc(d.topGenre[0])}</b>（${d.topGenre[1]} 部）</div>` : '',
+    d.topPlat ? `<div class="hl-row">📺 最常用平台：<b>${esc(d.topPlat[0])}</b>（${d.topPlat[1]} 部）</div>` : '',
+    d.topActor ? `<div class="hl-row">🌟 常看演員：<b>${esc(d.topActor[0])}</b>（${d.topActor[1]} 部）</div>` : '',
+    d.topRated ? `<div class="hl-row">🏆 最高評分：<b>${esc(d.topRated.title)}</b>（${stars(d.topRated.rating)}）</div>` : ''
+  ].filter(Boolean).join('');
+  document.getElementById('wrapCardBody').innerHTML = `
+    <div class="wrapCard" id="wrapCardImg">
+      <div class="maru">MY DRAMA WRAPPED</div>
+      <h2>${esc(year)} 年度追劇回顧</h2>
+      <div class="wrapRow">
+        <div class="wrapStat"><div class="num">${d.count}</div><div class="lab">部作品</div></div>
+        <div class="wrapStat"><div class="num">${d.ep}</div><div class="lab">集數</div></div>
+        <div class="wrapStat"><div class="num">${d.hrs}</div><div class="lab">小時</div></div>
+      </div>
+      ${highlights ? `<div class="wrapHighlights">${highlights}</div>` : '<div class="wrapHighlights">今年還沒有足夠的紀錄可以分析，多新增幾部吧！</div>'}
+      <div class="wrapFoot">追劇紀錄｜我的影視手帳</div>
+    </div>`;
+}
+let _h2cLoading=null;
+function loadHtml2Canvas(){
+  if(window.html2canvas) return Promise.resolve();
+  if(_h2cLoading) return _h2cLoading;
+  _h2cLoading = new Promise((resolve,reject)=>{
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+  return _h2cLoading;
+}
+function downloadWrapCard(){
+  const el = document.getElementById('wrapCardImg');
+  if(!el) return;
+  showToast('圖片產生中…');
+  loadHtml2Canvas().then(()=>{
+    return window.html2canvas(el, {backgroundColor:null, scale:2});
+  }).then(canvas=>{
+    const link = document.createElement('a');
+    link.download = 'drama-wrapped-'+(document.getElementById('wrapYearSel')?.value||'')+'.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  }).catch(()=>{
+    showToast('圖片產生失敗，請改用截圖分享');
+  });
 }
 
 function openForm(id){
