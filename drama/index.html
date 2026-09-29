@@ -255,19 +255,16 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 
 <div class="grid4" id="statsBar" style="margin-bottom:20px;"></div>
 
-<div id="featuredSec" style="display:none;">
-  <div class="sec" style="margin-top:0;">📺 正在觀看</div>
-  <div class="featuredScroll" id="featuredArea"></div>
-</div>
-
 <div class="twoCol top">
   <div>
     <div class="sec">📊 類型分布</div>
     <div class="card" id="genreChart"></div>
-  </div>
-  <div>
     <div class="sec">🎭 常看演員 Top5</div>
     <div class="card" id="actorChart"></div>
+  </div>
+  <div id="featuredSec" style="display:none;">
+    <div class="sec">📺 正在觀看</div>
+    <div class="featuredScroll" id="featuredArea"></div>
   </div>
 </div>
 
@@ -389,7 +386,7 @@ function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
 const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
-const TAG_PRESETS=['必刷神作','配樂超棒','下飯劇','已棄坑'];
+const TAG_PRESETS=['必刷神作','配樂超棒','下飯劇','補劇','已棄坑'];
 const WEEKDAY_LABELS=['日','一','二','三','四','五','六'];
 let currentFormTags = [];
 let currentFormWeekdays = [];
@@ -494,6 +491,20 @@ function renderActors(){
     <div class="bar-row"><span class="bar-label" title="${esc(a)}">${esc(a)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><span class="bar-num">${n}</span></div>`).join('');
 }
 function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
+function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daysSince(dateStr){
+  if(!dateStr) return null;
+  const a=new Date(dateStr+'T00:00:00'), b=new Date(todayStr()+'T00:00:00');
+  return Math.round((b-a)/86400000);
+}
+function lastSeenText(x){
+  if(!x.lastWatchedDate) return '';
+  const n=daysSince(x.lastWatchedDate);
+  if(n===null||n<0) return '';
+  if(n===0) return '最近看：今天';
+  if(n>=30) return '⏸ 已 '+n+' 天沒看';
+  return '最近看：'+n+' 天前';
+}
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
 function epMinutes(x){ const n = Number(x.epLength); return n>0 ? n : 45; }
 function renderFeatured(){
@@ -515,6 +526,7 @@ function renderFeatured(){
         <div class="f-title">${esc(x.title)}</div>
         <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        ${lastSeenText(x)?`<div class="f-update">${lastSeenText(x)}</div>`:''}
         ${hasUpdateDays?`<div class="f-update ${dueToday?'today':''}">${dueToday?'🔴 今天更新':'🔔 每週'+x.updateDays.map(d=>WEEKDAY_LABELS[d]).join('、')+'更新'}</div>`:''}
       </div>
     </div>`;
@@ -605,9 +617,10 @@ function cardTemplate(x,i){
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
         <div class="g-title">${esc(x.title)}</div>
-        <div class="g-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
+        <div class="g-meta">${esc(x.platform||'')}${x.airYear?' ・ '+x.airYear+' 年播出':''}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
         ${x.rating?`<div class="g-rating">${stars(x.rating)}</div>`:''}
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
         ${x.tags&&x.tags.length?`<div class="g-tags">${x.tags.map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}</div>`:''}
       </div>
       <div class="g-actions">
@@ -621,7 +634,8 @@ function startWatching(id){
   const it = state.find(x=>x.id===id);
   if(!it) return;
   it.status = '追劇中';
-  if(!it.startDate) it.startDate = new Date().toISOString().slice(0,10);
+  if(!it.startDate) it.startDate = todayStr();
+  it.lastWatchedDate = todayStr();
   save();
   showToast('已加入追劇中 ✓');
 }
@@ -915,7 +929,7 @@ function openForm(id){
       </div>
     </div>
     <div class="field" id="weekdayField" style="display:none;">
-      <label>每週更新日（可複選，追劇中會顯示提醒）</label>
+      <label>每週更新日（可複選，僅播出中的劇需要；補老劇不用填）</label>
       <div class="weekdayPick" id="weekdayPick">
         ${WEEKDAY_LABELS.map((l,i)=>`<button type="button" class="wdBtn ${existing&&(existing.updateDays||[]).includes(i)?'on':''}" onclick="toggleWeekday(${i}, this)">${l}</button>`).join('')}
       </div>
@@ -931,15 +945,18 @@ function openForm(id){
       <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
     </div>
+    <div class="field"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
     <div class="field"><label>每集片長（分鐘，不填預設 45 分鐘）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder="例：電影 120／動漫 24／短劇 15"></div>
     <div class="row2">
-      <div class="field"><label>開看日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
-      <div class="field"><label>看完日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
+      <div class="field"><label>我開始看的日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
+      <div class="field"><label>我看完的日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
     </div>
+    <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 12px;line-height:1.5;">統計與年度／月度檔案都以「我的日期」計算，跟劇的播出時間無關。已完結的老劇：只填開始日期＝我正在補，兩個都填＝我已看完。</div>
     <div class="row2">
       <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
-      <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
+      <div class="field"><label>播出年份（選填）</label><input id="fAirYear" type="number" min="1900" max="2100" value="${existing?existing.airYear||'':''}" placeholder="例：2019"></div>
     </div>
+    <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
     <div class="field"><label>我的心得（會顯示在分享圖卡上）</label><textarea id="fReview" rows="3" placeholder="寫下這部劇打動你的地方…">${existing?esc(existing.review||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
@@ -1020,13 +1037,22 @@ function saveForm(id){
     epWatched: Number(document.getElementById('fEpW').value)||0,
     epTotal: Number(document.getElementById('fEpT').value)||0,
     epLength: Number(document.getElementById('fEpLen').value)||0,
+    lastWatchedDate: document.getElementById('fLast').value,
     startDate: document.getElementById('fStart').value,
     endDate: document.getElementById('fEnd').value,
     country: document.getElementById('fCountry').value.trim(),
+    airYear: Number(document.getElementById('fAirYear').value)||0,
     actor: document.getElementById('fActor').value.trim(),
     review: document.getElementById('fReview').value.trim()
   };
   const idx = state.findIndex(x=>x.id===data.id);
+  {
+    const prev = idx>=0 ? state[idx] : null;
+    const manual = !prev || data.lastWatchedDate !== (prev.lastWatchedDate||'');
+    const epChanged = prev ? data.epWatched !== (prev.epWatched||0) : data.epWatched>0;
+    if(!manual && epChanged) data.lastWatchedDate = todayStr();
+    else if(!prev && !data.lastWatchedDate && data.epWatched>0) data.lastWatchedDate = todayStr();
+  }
   if(idx>=0 && state[idx].bestYear) data.bestYear = state[idx].bestYear;
   if(idx>=0) state[idx]=data; else state.push(data);
   closeModal(); save();
