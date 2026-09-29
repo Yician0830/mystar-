@@ -32,9 +32,11 @@
   --gold:#C6A13A; --gold-pale:#F6E9CE;
   --sky:#5E9AAE; --sky-pale:#DCEBEF;
   --shadow:0 4px 16px rgba(90,60,45,0.10); --radius:18px;
+  --bg-deep:#F6E9DA;
+  --blob-1:rgba(243,201,214,0.28); --blob-2:rgba(149,132,194,0.16);
 }
 :root[data-theme="dark"]{
-    --bg:#1C1712; --surface:#2A2320; --surface-soft:#332A25;
+    --bg:#1C1712; --bg-deep:#14100D; --surface:#2A2320; --surface-soft:#332A25;
     --ink:#F3E9DE; --ink-soft:#B3A08C; --ink-faint:#6B5C4D;
     --rose:#E39CB0; --rose-deep:#E6A0B4; --rose-pale:#3A2830;
     --matcha:#9BC17C; --matcha-pale:#26301F;
@@ -46,7 +48,7 @@
 [data-theme="dark"] .card,[data-theme="dark"] .stat,[data-theme="dark"] .d-card,[data-theme="dark"] .g-card,[data-theme="dark"] .f-card,[data-theme="dark"] .platCard,[data-theme="dark"] .monthCard{border-color:rgba(255,255,255,.06);}
 [data-theme="dark"] .toast{background:#3A322B; color:#F5EFE7;}
 *{box-sizing:border-box;}
-body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
+body{margin:0; font-family:'Noto Sans TC',sans-serif; background:radial-gradient(circle at 15% 8%, var(--blob-1), transparent 40%), radial-gradient(circle at 90% 15%, var(--blob-2), transparent 45%), var(--bg); transition:background-color .2s ease; min-height:100vh; color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
 .page{max-width:1080px; margin:0 auto;}
 .maru{font-family:'Zen Maru Gothic',sans-serif;}
 h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:flex; align-items:center; gap:8px;}
@@ -452,6 +454,9 @@ function applyTheme(theme){
     v=(THEME_PRESETS.find(p=>p.key===theme.accent)||THEME_PRESETS[0]).vars;
   }
   const set=(k,val)=>root.style.setProperty(k,val);
+  const r1=hexToRgb(v['--rose']), r2=hexToRgb(v['--rose-deep']);
+  set('--blob-1', `rgba(${r1.r},${r1.g},${r1.b},0.22)`);
+  set('--blob-2', `rgba(${r2.r},${r2.g},${r2.b},0.16)`);
   if(dark){
     // 深色底上把主題色調亮，淡色底改成帶主題色的深色
     set('--rose', mixHex(v['--rose'],'#ffffff',0.15));
