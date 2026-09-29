@@ -3236,7 +3236,7 @@ async function generateYearSummaryCanvas(year, themeId){
   ctx.fillText(`💰 ${year} 年度總支出`, W/2, y+64);
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '900 78px "Zen Maru Gothic"';
-  ctx.fillText(`NT$ ${Math.round(s.totalExpense).toLocaleString()}`, W/2, y+156);
+  ctx.fillText(ysAmountText(s.totalExpense), W/2, y+156);
   if(yoy.prevHasData){
     const up = yoy.expenseDiff>0, down = yoy.expenseDiff<0;
     const absAmt = Math.abs(Math.round(yoy.expenseDiff)).toLocaleString();
@@ -3246,7 +3246,11 @@ async function generateYearSummaryCanvas(year, themeId){
       pctText = `・${pct}%`;
     }
     const arrow = up ? '▲' : down ? '▼' : '→';
-    const line = (up || down) ? `${arrow} 較 ${yoy.prevYear} 年 NT$ ${absAmt}${pctText}` : `→ 與 ${yoy.prevYear} 年持平`;
+    const line = (up || down)
+      ? (ysAmountMode==='hidden'
+          ? `${arrow} 較 ${yoy.prevYear} 年${up?'增加':'減少'}${pctText ? ' ' + pctText.slice(1) : ''}`
+          : `${arrow} 較 ${yoy.prevYear} 年 ${ysAmountText(Math.abs(yoy.expenseDiff))}${pctText}`)
+      : `→ 與 ${yoy.prevYear} 年持平`;
     ctx.font = '500 27px "Noto Sans TC"';
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fillText(line, W/2, y+202);
@@ -3343,7 +3347,7 @@ async function generateYearSummaryCanvas(year, themeId){
       ctx.textAlign = 'right';
       ctx.fillStyle = inkSoft;
       ctx.font = '500 25px "Noto Sans TC"';
-      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()} ・ ${Math.round(pct*100)}%`, PAD+CW-36, ry);
+      ctx.fillText(ysAmountMode==='hidden' ? `${Math.round(pct*100)}%` : `${ysAmountText(c.amount)} ・ ${Math.round(pct*100)}%`, PAD+CW-36, ry);
       const trackY = ry + 18;
       const trackW = CW - 72;
       ctx.fillStyle = sakuraPale;
@@ -3605,7 +3609,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   ctx.fillText(`💰 ${year} 年度總支出`, W/2, y+60);
   ctx.fillStyle = '#FFFFFF';
   ctx.font = '900 70px "Zen Maru Gothic"';
-  ctx.fillText(`NT$ ${Math.round(s.totalExpense).toLocaleString()}`, W/2, y+142);
+  ctx.fillText(ysAmountText(s.totalExpense), W/2, y+142);
   if(yoy.prevHasData){
     const up = yoy.expenseDiff>0, down = yoy.expenseDiff<0;
     const absAmt = Math.abs(Math.round(yoy.expenseDiff)).toLocaleString();
@@ -3615,7 +3619,11 @@ async function generateYearSummaryStoryCanvas(year, themeId){
       pctText = `・${pct}%`;
     }
     const arrow = up ? '▲' : down ? '▼' : '→';
-    const line = (up || down) ? `${arrow} 較 ${yoy.prevYear} 年 NT$ ${absAmt}${pctText}` : `→ 與 ${yoy.prevYear} 年持平`;
+    const line = (up || down)
+      ? (ysAmountMode==='hidden'
+          ? `${arrow} 較 ${yoy.prevYear} 年${up?'增加':'減少'}${pctText ? ' ' + pctText.slice(1) : ''}`
+          : `${arrow} 較 ${yoy.prevYear} 年 ${ysAmountText(Math.abs(yoy.expenseDiff))}${pctText}`)
+      : `→ 與 ${yoy.prevYear} 年持平`;
     ctx.font = '500 24px "Noto Sans TC"';
     ctx.fillStyle = 'rgba(255,255,255,0.85)';
     ctx.fillText(line, W/2, y+182);
@@ -3687,7 +3695,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
       ctx.textAlign = 'right';
       ctx.fillStyle = inkSoft;
       ctx.font = '500 23px "Noto Sans TC"';
-      ctx.fillText(`NT$ ${Math.round(c.amount).toLocaleString()} ・ ${Math.round(pct*100)}%`, PAD+CW-32, ry);
+      ctx.fillText(ysAmountMode==='hidden' ? `${Math.round(pct*100)}%` : `${ysAmountText(c.amount)} ・ ${Math.round(pct*100)}%`, PAD+CW-32, ry);
       const trackY = ry + 16;
       const trackW = CW - 64;
       ctx.fillStyle = sakuraPale;
@@ -3721,6 +3729,24 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   return canvas;
 }
 
+/* 分享圖金額顯示模式：full＝完整金額、lead＝只顯示開頭數字（其餘用 ＊ 遮住）、hidden＝完全隱藏 */
+let ysAmountMode = (()=>{
+  try{
+    const m = window.localStorage.getItem('oshiapp:ys-amount-mode');
+    if(m==='full' || m==='lead' || m==='hidden') return m;
+    if(window.localStorage.getItem('oshiapp:ys-hide-amount')==='1') return 'hidden';  // 相容舊設定
+  }catch(e){}
+  return 'full';
+})();
+function ysAmountText(n){
+  const str = Math.round(n).toLocaleString();
+  if(ysAmountMode==='hidden') return 'NT$ ＊＊＊＊＊';
+  if(ysAmountMode==='lead'){
+    let first = true;
+    return 'NT$ ' + str.replace(/\d/g, d=>{ if(first){ first=false; return d; } return '＊'; });
+  }
+  return 'NT$ ' + str;
+}
 const YS_FORMAT_META = {
   long:  { label:'📄 長圖',   fileSuffix:'',      generator: generateYearSummaryCanvas },
   story: { label:'📱 限動版', fileSuffix:'-限動', generator: generateYearSummaryStoryCanvas }
@@ -3758,6 +3784,12 @@ function showYsShareModal(year, cache, activeFormat, activeTheme){
     <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;">配色主題</div>
     <div class="theme-swatch-grid" id="ysThemeSwatchGrid" style="margin-bottom:16px;">
       ${YS_THEME_SWATCHES.map(t=>`<button type="button" class="theme-swatch ${activeTheme===t.id?'active':''}" data-theme="${t.id}" style="background:${t.swatch};" title="${esc(t.label)}"></button>`).join('')}
+    </div>
+    <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:6px;">金額顯示</div>
+    <div style="display:flex; gap:8px; margin-bottom:16px;">
+      <button class="btn ${ysAmountMode==='full'?'primary':'ghost'}" data-ys-amount="full" style="flex:1;">完整</button>
+      <button class="btn ${ysAmountMode==='lead'?'primary':'ghost'}" data-ys-amount="lead" style="flex:1;">只顯示開頭</button>
+      <button class="btn ${ysAmountMode==='hidden'?'primary':'ghost'}" data-ys-amount="hidden" style="flex:1;">完全隱藏</button>
     </div>
     <div style="border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); max-height:50vh; overflow-y:auto; background:var(--bg-deep);">
       <img src="${dataUrl}" alt="${esc(String(year))} 年度總結分享圖預覽" style="width:100%; display:block;">
@@ -3807,6 +3839,16 @@ function showYsShareModal(year, cache, activeFormat, activeTheme){
       showToast('圖片產生失敗，請再試一次');
     }
   }
+  document.querySelectorAll('[data-ys-amount]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const m = btn.dataset.ysAmount;
+      if(m===ysAmountMode) return;
+      ysAmountMode = m;
+      try{ window.localStorage.setItem('oshiapp:ys-amount-mode', m); }catch(err){}
+      Object.keys(cache).forEach(k=>{ delete cache[k]; });  // 舊圖作廢，依新設定重畫
+      regenerate(activeFormat, activeTheme);
+    });
+  });
   document.getElementById('ysFormatLong').addEventListener('click', ()=> regenerate('long', activeTheme));
   document.getElementById('ysFormatStory').addEventListener('click', ()=> regenerate('story', activeTheme));
   document.querySelectorAll('#ysThemeSwatchGrid .theme-swatch').forEach(sw=>{
