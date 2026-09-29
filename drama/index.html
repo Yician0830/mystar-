@@ -464,8 +464,30 @@ function migrateData(arr){
   return arr;
 }
 function notWish(x){ return x.status!=='想看'; }
+function isEpDone(w,t){ w=Number(w)||0; t=Number(t)||0; return t>0 && w>=t; }
+function formEpDone(){
+  const w=document.getElementById('fEpW'), t=document.getElementById('fEpT');
+  return !!(w&&t) && isEpDone(w.value,t.value);
+}
+// 已看集數 = 總集數時，表單自動把狀態改成「已完結」；之後又改回較小的數字，就還原成原本的狀態
+let autoDoneFrom=null;
+function onStatusChange(){ autoDoneFrom=null; syncWeekdayFieldVisibility(); }
+function syncEpisodeComplete(){
+  const st=document.getElementById('fStatus');
+  if(!st) return;
+  if(st.value!=='想看'){
+    if(formEpDone()){
+      if(st.value!=='已完結'){ autoDoneFrom=st.value; st.value='已完結'; }
+    } else if(autoDoneFrom!==null){
+      if(st.value==='已完結') st.value=autoDoneFrom;
+      autoDoneFrom=null;
+    }
+  }
+  syncWeekdayFieldVisibility();
+}
 function isWatching(x){
-  return x.status==='追劇中' || (x.status==='已完結' && !!x.startDate && !x.endDate);
+  if(x.status==='追劇中') return true;
+  return x.status==='已完結' && !!x.startDate && !x.endDate && !isEpDone(x.epWatched,x.epTotal);
 }
 function syncWeekdayFieldVisibility(){
   const statusEl = document.getElementById('fStatus');
@@ -473,11 +495,13 @@ function syncWeekdayFieldVisibility(){
   if(statusEl){
     const isWish = statusEl.value==='想看';
     document.querySelectorAll('.wantHide').forEach(el=>{ el.style.display = isWish ? 'none' : ''; });
+    const lastField = document.getElementById('fLastField');
+    if(lastField) lastField.style.display = (isWish || formEpDone()) ? 'none' : '';
   }
   if(!statusEl || !field) return;
   const startEl = document.getElementById('fStart');
   const endEl = document.getElementById('fEnd');
-  const watching = statusEl.value==='追劇中' || (statusEl.value==='已完結' && startEl && startEl.value && endEl && !endEl.value);
+  const watching = statusEl.value==='追劇中' || (statusEl.value==='已完結' && startEl && startEl.value && endEl && !endEl.value && !formEpDone());
   const airEl = document.getElementById('fAirYear');
   const oldDrama = airEl && isOldAirYear(airEl.value);
   field.style.display = (watching && !oldDrama) ? 'block' : 'none';
@@ -574,6 +598,7 @@ function daysSince(dateStr){
 }
 function lastSeenText(x){
   if(!x.lastWatchedDate) return '';
+  if(isEpDone(x.epWatched,x.epTotal)) return '';
   const n=daysSince(x.lastWatchedDate);
   if(n===null||n<0) return '';
   if(n===0) return '最近看：今天';
@@ -960,6 +985,7 @@ function downloadWrapCard(){
 }
 
 function openForm(id){
+  autoDoneFrom=null;
   const existing = id ? state.find(x=>x.id===id) : null;
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
   currentFormWeekdays = existing && Array.isArray(existing.updateDays) ? [...existing.updateDays] : [];
@@ -969,7 +995,7 @@ function openForm(id){
     <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）" oninput="updateImgPreview()"></div>
     <div class="imgPreview" id="fImagePreview"></div>
     <div class="row2">
-      <div class="field"><label>狀態</label><select id="fStatus" onchange="syncWeekdayFieldVisibility()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
+      <div class="field"><label>狀態</label><select id="fStatus" onchange="onStatusChange()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       ${platformFieldHtml(existing)}
     </div>
     <div class="field wantHide"><label>我的評分</label>
@@ -999,10 +1025,10 @@ function openForm(id){
       <div class="tagPresets">${TAG_PRESETS.map(t=>`<button type="button" class="tagPresetBtn" onclick="addTag('${esc(t).replace(/'/g,"\\'")}')">+ ${esc(t)}</button>`).join('')}</div>
     </div>
     <div class="row2">
-      <div class="field wantHide"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
-      <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
+      <div class="field wantHide"><label>已看集數</label><input id="fEpW" type="number" min="0" oninput="syncEpisodeComplete()" value="${existing?existing.epWatched||'':''}"></div>
+      <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" oninput="syncEpisodeComplete()" value="${existing?existing.epTotal||'':''}"></div>
     </div>
-    <div class="field wantHide"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
+    <div class="field" id="fLastField"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
     <div class="field"><label>每集片長（分鐘，不填預設 45 分鐘）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder="例：電影 120／動漫 24／短劇 15"></div>
     <div class="row2 wantHide">
       <div class="field"><label>我開始看的日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
@@ -1022,7 +1048,7 @@ function openForm(id){
   updateImgPreview();
   syncGenreSelectBtn();
   renderTagChips();
-  syncWeekdayFieldVisibility();
+  syncEpisodeComplete();
   document.getElementById('overlay').classList.add('show');
 }
 function toggleGenreDropdown(e){
