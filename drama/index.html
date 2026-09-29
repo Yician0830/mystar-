@@ -4,6 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>追劇紀錄｜我的影視手帳</title>
+<script>
+/* 提早套用深色/淺色，避免載入時閃爍；完整主題色稍後由 applyTheme 套用 */
+(function(){
+  try{
+    var raw = localStorage.getItem('oshiapp:drama-theme-cache') || localStorage.getItem('oshiapp:oshi-theme');
+    var t = raw ? JSON.parse(raw) : null;
+    var m = (t && t.mode) || 'system';
+    if(m==='system') m = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', m==='dark' ? 'dark' : 'light');
+  }catch(e){}
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <!-- 跟手帳共用同一個 Firebase 專案，登入狀態與資料都存在同一個帳號底下 -->
@@ -21,20 +33,18 @@
   --sky:#5E9AAE; --sky-pale:#DCEBEF;
   --shadow:0 4px 16px rgba(90,60,45,0.10); --radius:18px;
 }
-@media(prefers-color-scheme:dark){
-  :root{
-    --bg:#1E1A17; --surface:#2A2420; --surface-soft:#332C26;
-    --ink:#EDE6DD; --ink-soft:#B8A996; --ink-faint:#4A4038;
+:root[data-theme="dark"]{
+    --bg:#1C1712; --surface:#2A2320; --surface-soft:#332A25;
+    --ink:#F3E9DE; --ink-soft:#B3A08C; --ink-faint:#6B5C4D;
     --rose:#E39CB0; --rose-deep:#E6A0B4; --rose-pale:#3A2830;
     --matcha:#9BC17C; --matcha-pale:#26301F;
     --wisteria:#B3A0DE; --wisteria-pale:#2B2438;
     --gold:#D9B95C; --gold-pale:#332B1A;
     --sky:#7FC0D6; --sky-pale:#1F2E32;
-    --shadow:0 4px 16px rgba(0,0,0,0.35);
-  }
-  .card,.stat,.d-card,.g-card,.f-card,.platCard,.monthCard{border-color:rgba(255,255,255,.06);}
-  .toast{background:#3A322B; color:#F5EFE7;}
+    --shadow:0 4px 16px rgba(0,0,0,0.45);
 }
+[data-theme="dark"] .card,[data-theme="dark"] .stat,[data-theme="dark"] .d-card,[data-theme="dark"] .g-card,[data-theme="dark"] .f-card,[data-theme="dark"] .platCard,[data-theme="dark"] .monthCard{border-color:rgba(255,255,255,.06);}
+[data-theme="dark"] .toast{background:#3A322B; color:#F5EFE7;}
 *{box-sizing:border-box;}
 body{margin:0; font-family:'Noto Sans TC',sans-serif; background:var(--bg); color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
 .page{max-width:1080px; margin:0 auto;}
@@ -397,6 +407,83 @@ function renderAuthBar(){
   } else {
     el.innerHTML = `<button class="authBtn" onclick="signInWithGoogle()"><span class="g">G</span>用 Google 帳號登入同步</button>`;
   }
+}
+
+/* ================= 與手帳同步的外觀主題 =================
+   手帳把主題存在 users/{uid}/data/oshi-theme（{mode, accent, customColor}），
+   這裡用同一個帳號即時讀取，套用深淺模式與主題色 */
+const THEME_KEY='oshi-theme';
+const THEME_CACHE_KEY='oshiapp:drama-theme-cache';
+const THEME_PRESETS=[
+  {key:'sakura', vars:{'--rose-deep':'#C15B79','--rose':'#DD8AA0','--sakura-pale':'#FCEDF1'}},
+  {key:'ai',     vars:{'--rose-deep':'#2F5A73','--rose':'#4C7C93','--sakura-pale':'#E4F0F2'}},
+  {key:'matcha', vars:{'--rose-deep':'#5F7A45','--rose':'#84A25E','--sakura-pale':'#EDF4E1'}},
+  {key:'fuji',   vars:{'--rose-deep':'#6E5A96','--rose':'#9584C2','--sakura-pale':'#F0ECF8'}},
+  {key:'hiiro',  vars:{'--rose-deep':'#A83226','--rose':'#C9584A','--sakura-pale':'#FAE3DC'}},
+  {key:'nezumi', vars:{'--rose-deep':'#5C5850','--rose':'#847F74','--sakura-pale':'#EFEDE7'}}
+];
+const DEFAULT_THEME={mode:'light', accent:'sakura', customColor:'#DD8AA0'};
+let currentTheme=null, themeUnsub=null;
+function hexToRgb(hex){
+  hex=(hex||'#000000').replace('#','');
+  if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+  const n=parseInt(hex,16)||0;
+  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+}
+function mixHex(hex,target,pct){
+  const c=hexToRgb(hex), t=hexToRgb(target);
+  return '#'+[c.r+(t.r-c.r)*pct, c.g+(t.g-c.g)*pct, c.b+(t.b-c.b)*pct]
+    .map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join('');
+}
+function resolveThemeMode(mode){
+  if(mode==='system') return (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  return mode==='dark' ? 'dark' : 'light';
+}
+function applyTheme(theme){
+  theme=Object.assign({}, DEFAULT_THEME, theme||{});
+  const root=document.documentElement;
+  const dark=resolveThemeMode(theme.mode)==='dark';
+  root.setAttribute('data-theme', dark?'dark':'light');
+  let v;
+  if(theme.accent==='custom'){
+    const base=theme.customColor||DEFAULT_THEME.customColor;
+    v={'--rose-deep':mixHex(base,'#000000',0.14), '--rose':base, '--sakura-pale':mixHex(base,'#ffffff',0.80)};
+  } else {
+    v=(THEME_PRESETS.find(p=>p.key===theme.accent)||THEME_PRESETS[0]).vars;
+  }
+  const set=(k,val)=>root.style.setProperty(k,val);
+  if(dark){
+    // 深色底上把主題色調亮，淡色底改成帶主題色的深色
+    set('--rose', mixHex(v['--rose'],'#ffffff',0.15));
+    set('--rose-deep', mixHex(v['--rose'],'#ffffff',0.25));
+    set('--rose-pale', mixHex(v['--rose-deep'],'#1C1712',0.78));
+  } else {
+    set('--rose', v['--rose']);
+    set('--rose-deep', v['--rose-deep']);
+    set('--rose-pale', v['--sakura-pale']);
+  }
+}
+function setTheme(t){
+  currentTheme=Object.assign({}, DEFAULT_THEME, t||{});
+  applyTheme(currentTheme);
+  try{ localStorage.setItem(THEME_CACHE_KEY, JSON.stringify(currentTheme)); }catch(e){}
+}
+function watchTheme(){
+  if(themeUnsub){ themeUnsub(); themeUnsub=null; }
+  if(useCloud && db && currentUser){
+    themeUnsub = db.collection('users').doc(currentUser.uid).collection('data').doc(THEME_KEY).onSnapshot(doc=>{
+      const v = doc.exists ? doc.data().value : null;
+      setTheme(v && typeof v==='object' ? v : {});
+    }, err=>console.error('主題同步失敗', err));
+  } else {
+    // 未登入：讀本機；沒有設定過就跟隨系統
+    loadKey(THEME_KEY, null).then(v=> setTheme(v && typeof v==='object' ? v : {mode:'system'}));
+  }
+}
+if(window.matchMedia){
+  const mq=matchMedia('(prefers-color-scheme: dark)');
+  const onSys=()=>{ if(currentTheme && currentTheme.mode==='system') applyTheme(currentTheme); };
+  if(mq.addEventListener) mq.addEventListener('change', onSys); else if(mq.addListener) mq.addListener(onSys);
 }
 
 let state = [];
@@ -1166,9 +1253,11 @@ async function init(){
   renderNotifyBtn();
   state = migrateData(await loadKey(STORE_KEY, []));
   render();
+  if(!(useCloud && auth)) watchTheme();
   if(useCloud && auth){
     auth.onAuthStateChanged(async (user)=>{
       currentUser = user;
+      watchTheme();
       renderAuthBar();
       state = migrateData(await loadKey(STORE_KEY, []));
       render();
