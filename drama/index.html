@@ -112,10 +112,15 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .plat-sub{font-weight:400; color:var(--ink-soft); font-size:10.5px; margin-top:4px; line-height:1.5;}
 .trendCard{margin-bottom:10px;}
 .trendCard .cap{font-size:11px; color:var(--ink-soft); margin-bottom:4px;}
-.featuredScroll{display:flex; gap:12px; overflow-x:auto; padding:2px 2px 10px; margin-bottom:2px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
-.featuredScroll::-webkit-scrollbar{height:5px;}
-.featuredScroll::-webkit-scrollbar-thumb{background:var(--ink-faint); border-radius:999px;}
-.f-card{flex:0 0 130px; scroll-snap-align:start; background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; position:relative; border:1px solid rgba(0,0,0,.04);}
+.featuredScroll{display:grid; grid-template-columns:repeat(2,1fr); gap:12px; padding:2px 2px 10px; margin-bottom:2px;}
+@media(min-width:900px){.featuredScroll{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:599px){
+  .featuredScroll{grid-template-columns:1fr;}
+  .f-card{display:flex;}
+  .f-card .f-cover{width:96px; flex:0 0 96px;}
+  .f-card .f-body{flex:1; min-width:0; align-self:center; padding:10px 12px;}
+}
+.f-card{background:var(--surface); border-radius:14px; overflow:hidden; box-shadow:var(--shadow); cursor:pointer; position:relative; border:1px solid rgba(0,0,0,.04);}
 .f-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
@@ -385,6 +390,7 @@ const COVER_GRADIENTS=[
 function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
+const COUNTRY_OPTIONS=['台灣','中國','韓國','日本','其他'];
 const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
 const TAG_PRESETS=['必刷神作','配樂超棒','下飯劇','補劇','已棄坑'];
 const WEEKDAY_LABELS=['日','一','二','三','四','五','六'];
@@ -401,6 +407,10 @@ function isWatching(x){
 function syncWeekdayFieldVisibility(){
   const statusEl = document.getElementById('fStatus');
   const field = document.getElementById('weekdayField');
+  if(statusEl){
+    const isWish = statusEl.value==='想看';
+    document.querySelectorAll('.wantHide').forEach(el=>{ el.style.display = isWish ? 'none' : ''; });
+  }
   if(!statusEl || !field) return;
   const startEl = document.getElementById('fStart');
   const endEl = document.getElementById('fEnd');
@@ -617,7 +627,8 @@ function cardTemplate(x,i){
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
         <div class="g-title">${esc(x.title)}</div>
-        <div class="g-meta">${esc(x.platform||'')}${x.airYear?' ・ '+x.airYear+' 年播出':''}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
+        <div class="g-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal+'集':''}</div>
+        ${x.airYear?`<div class="g-meta">${x.airYear} 年播出</div>`:''}
         ${x.rating?`<div class="g-rating">${stars(x.rating)}</div>`:''}
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
         ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
@@ -915,7 +926,7 @@ function openForm(id){
       <div class="field"><label>狀態</label><select id="fStatus" onchange="syncWeekdayFieldVisibility()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       <div class="field"><label>平台</label><input id="fPlatform" value="${existing?esc(existing.platform||''):''}" placeholder="Netflix / Disney+ ..."></div>
     </div>
-    <div class="field"><label>我的評分</label>
+    <div class="field wantHide"><label>我的評分</label>
       <div class="starPick" id="fRatingWrap">${[1,2,3,4,5].map(n=>`<span data-v="${n}" onclick="setRating(${n})">★</span>`).join('')}</div>
       <input type="hidden" id="fRating" value="${existing?existing.rating||0:0}">
     </div>
@@ -942,22 +953,21 @@ function openForm(id){
       <div class="tagPresets">${TAG_PRESETS.map(t=>`<button type="button" class="tagPresetBtn" onclick="addTag('${esc(t).replace(/'/g,"\\'")}')">+ ${esc(t)}</button>`).join('')}</div>
     </div>
     <div class="row2">
-      <div class="field"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
+      <div class="field wantHide"><label>已看集數</label><input id="fEpW" type="number" min="0" value="${existing?existing.epWatched||'':''}"></div>
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" value="${existing?existing.epTotal||'':''}"></div>
     </div>
-    <div class="field"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
+    <div class="field wantHide"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
     <div class="field"><label>每集片長（分鐘，不填預設 45 分鐘）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder="例：電影 120／動漫 24／短劇 15"></div>
-    <div class="row2">
+    <div class="row2 wantHide">
       <div class="field"><label>我開始看的日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
       <div class="field"><label>我看完的日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
     </div>
-    <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 12px;line-height:1.5;">統計與年度／月度檔案都以「我的日期」計算，跟劇的播出時間無關。已完結的老劇：只填開始日期＝我正在補，兩個都填＝我已看完。</div>
+    <div class="wantHide" style="font-size:11px;color:var(--ink-soft);margin:-6px 0 12px;line-height:1.5;">統計與年度／月度檔案都以「我的日期」計算，跟劇的播出時間無關。已完結的老劇：只填開始日期＝我正在補，兩個都填＝我已看完。</div>
     <div class="row2">
-      <div class="field"><label>國家</label><input id="fCountry" value="${existing?esc(existing.country||''):''}"></div>
+      <div class="field"><label>國家</label><select id="fCountry"><option value="">未選擇</option>${(()=>{ let c=existing?(existing.country||'').trim():''; if(c==='臺灣') c='台灣'; if(c && !COUNTRY_OPTIONS.includes(c)) c='其他'; return COUNTRY_OPTIONS.map(o=>`<option value="${o}" ${o===c?'selected':''}>${o}</option>`).join(''); })()}</select></div>
       <div class="field"><label>播出年份（選填）</label><input id="fAirYear" type="number" min="1900" max="2100" value="${existing?existing.airYear||'':''}" placeholder="例：2019"></div>
     </div>
     <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
-    <div class="field"><label>我的心得（會顯示在分享圖卡上）</label><textarea id="fReview" rows="3" placeholder="寫下這部劇打動你的地方…">${existing?esc(existing.review||''):''}</textarea></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
       <button class="btn save" onclick="saveForm('${existing?existing.id:''}')">儲存</button>
@@ -1043,7 +1053,7 @@ function saveForm(id){
     country: document.getElementById('fCountry').value.trim(),
     airYear: Number(document.getElementById('fAirYear').value)||0,
     actor: document.getElementById('fActor').value.trim(),
-    review: document.getElementById('fReview').value.trim()
+    review: ((state.find(x=>x.id===id)||{}).review)||''
   };
   const idx = state.findIndex(x=>x.id===data.id);
   {
