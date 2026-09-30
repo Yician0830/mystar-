@@ -196,6 +196,25 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ck.v{flex-direction:row; align-items:center; font-size:16px; font-weight:500; color:var(--ink); cursor:pointer; padding:3px 0;}
   .ck.v span{flex:1; min-width:0; line-height:1.6;}
   .ck.v.done span{text-decoration:line-through; color:var(--ink-faint);}
+  .approx{margin-top:4px; font-size:13px; font-weight:500; color:var(--ink-faint);}
+  .approx b{color:var(--ink-dim); font-variant-numeric:tabular-nums;}
+  .ssub{margin:22px 0 10px; font-size:13px; font-weight:900; letter-spacing:0.08em; color:var(--ink-dim);}
+  .cgrid,.xgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px;}
+  .xgrid{margin-top:0;}
+  .ccard,.xcard{background:var(--fill); border:1px solid var(--line); padding:12px 14px; min-width:0; display:grid; gap:4px; align-content:start;}
+  .ccard .cn,.xcard .xc{font-size:13px; font-weight:700; color:var(--ink-dim);}
+  .ccard .ca{font-size:20px; font-weight:900; font-variant-numeric:tabular-nums;}
+  .cbar{display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .cbar i{flex:1; height:5px; background:var(--line); position:relative; overflow:hidden;}
+  .cbar i::after{content:''; position:absolute; inset:0 auto 0 0; width:var(--w,0%); background:var(--accent);}
+  .left{font-size:12px; font-weight:700;}
+  .left.ok{color:#2e8b57;} .left.over{color:var(--danger);}
+  .xcard .xn{font-size:15px; font-weight:700; line-height:1.4; overflow-wrap:anywhere;}
+  .xcard .xa{font-size:16px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--accent);}
+  .bud{margin-top:14px; font-size:13px; color:var(--ink-dim);}
+  .bud summary{cursor:pointer; font-weight:700; padding:4px 0;}
+  .bud .fgrid{margin:10px 0 0;}
+  @container (max-width:300px){ .cgrid,.xgrid{grid-template-columns:minmax(0,1fr);} }
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
   .expv b{font-variant-numeric:tabular-nums;}
   .sname{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center;}
@@ -582,13 +601,31 @@ a.name{display:block; color:inherit; text-decoration:none;}
   };
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','已購票'];
   function prog(t){ var a = t.checklist || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
+  var CAT_ICON = {'機票':'✈️','住宿':'🏨','交通':'🚆','門票':'🎫','周邊':'🛍️','餐飲':'🍴','其他':'📦','退款':'↩️'};
   function sumHtml(t){
-    var code = t.currency || 'TWD', total = 0, by = {};
+    var code = t.currency || 'TWD', total = 0, by = {}, bud = t.budgets || {};
     t.expenses.forEach(function(x){ var n = signed(x); total += n; if(n) by[x.cat] = (by[x.cat] || 0) + n; });
-    var chips = CATS.filter(function(c){ return by[c]; }).map(function(c){ return '<span>' + c + ' <b>' + money(by[c]) + '</b></span>'; }).join('');
     var rate = amt(t.rate);
-    if(code !== 'TWD' && rate > 0) chips += '<span>約合新台幣 <b>' + money(total * rate) + '</b>（匯率 ' + esc(rate) + '）</span>';
-    return '<div class="total">總花費 <b>' + money(total) + '</b> ' + (code === 'TWD' ? '元' : esc(code)) + '</div>' + (chips ? '<div class="chips">' + chips + '</div>' : '');
+    var h = '<div class="total">總花費 <b>' + money(total) + '</b> ' + (code === 'TWD' ? '元' : esc(code)) + '</div>';
+    if(code !== 'TWD' && rate > 0) h += '<div class="approx">約合新台幣 <b>' + money(total * rate) + '</b>（匯率 ' + esc(rate) + '）</div>';
+    if(by[REFUND]) h += '<div class="approx">已扣除退款 <b>' + money(Math.abs(by[REFUND])) + '</b></div>';
+    var cats = CATS.filter(function(c){ return c !== REFUND && (by[c] > 0 || amt(bud[c]) > 0); })
+      .sort(function(a, b){ return (by[b] || 0) - (by[a] || 0); });
+    if(!cats.length) return h;
+    return h + '<div class="cgrid">' + cats.map(function(c){
+      var v = by[c] || 0, b = amt(bud[c]), pct = total > 0 && v > 0 ? Math.round(v / total * 100) : 0;
+      var left = b > 0 ? (b - v >= 0 ? '<div class="left ok">還能花 ' + money(b - v) + '</div>' : '<div class="left over">已超支 ' + money(v - b) + '</div>') : '';
+      return '<div class="ccard"><div class="cn">' + CAT_ICON[c] + ' ' + c + '</div><div class="ca">' + money(v) + '</div>' +
+        '<div class="cbar"><span>' + pct + '%</span><i style="--w:' + pct + '%"></i></div>' + left + '</div>';
+    }).join('') + '</div>';
+  }
+  // 編輯模式：每個類別可以選填預算，卡片上就會顯示「還能花／已超支」
+  function budgetEdit(t){
+    var bud = t.budgets || {}, any = CATS.some(function(c){ return c !== REFUND && String(bud[c] || '').trim(); });
+    return '<details class="bud"' + (any ? ' open' : '') + '><summary>類別預算（選填）</summary><div class="fgrid">' +
+      CATS.filter(function(c){ return c !== REFUND; }).map(function(c){
+        return '<label>' + CAT_ICON[c] + ' ' + c + '<input data-bud="' + c + '" inputmode="decimal" autocomplete="off" placeholder="不設預算" value="' + esc(bud[c] == null ? '' : bud[c]) + '"></label>';
+      }).join('') + '</div></details>';
   }
   // 詳細頁頁首的「倒數／旅途中」與日期；改日期時也用它即時更新
   function dmHtml(t){
@@ -735,11 +772,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
     h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
-      exps.map(function(x){
+      (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細</div><div class="xgrid">' + exps.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
-        return '<div class="expv"><span class="btag">' + esc(x.cat || '') + '</span><span>' + esc(x.name || '') + '</span><b>' + (has ? money(signed(x)) : '—') + '</b></div>';
-      }).join('') +
-      (exps.length ? '<div id="sum">' + sumHtml(t) + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
+        return '<div class="xcard"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) : '—') + '</div></div>';
+      }).join('') + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
     return h;
   }
@@ -815,6 +851,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
       '<div class="rate" id="rateRow"' + (cur0 === 'TWD' ? ' hidden' : '') + '><label>匯率　1 <span id="curname">' + esc(cur0) + '</span> =<input data-t="1" data-k="rate" inputmode="decimal" autocomplete="off" aria-label="匯率" placeholder="例如 0.21" value="' + esc(t.rate == null ? '' : t.rate) + '"> 新台幣（選填，填了會換算總花費）</label></div>' +
+      budgetEdit(t) +
       '<p class="hint">類別選「退款」，或金額前面加負號，都會從總花費扣掉。</p></section>';
     h += '</div></div>';
     return h;
@@ -882,6 +919,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     } else if(ds.f){
       t.fanInfo = t.fanInfo || {}; t.fanInfo[ds.k] = el.value;
+    } else if(ds.bud){
+      t.budgets = t.budgets || {}; t.budgets[ds.bud] = el.value;
+      if($('sum')) $('sum').innerHTML = sumHtml(t);
     } else if(ds.t){
       t[ds.k] = el.value;
       if(ds.k === 'currency'){
