@@ -203,8 +203,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .sdates{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
   .nn{font-size:13px; font-weight:700; color:var(--accent);}
   .nn:empty{display:none;}
-  .board{display:flex; gap:16px; overflow-x:auto; align-items:flex-start; padding:2px 2px 16px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
-  .dcol{flex:0 0 min(296px,86vw); scroll-snap-align:start; display:grid; gap:10px; align-content:start; min-width:0;}
+  .board{display:flex; flex-direction:column; gap:26px; padding:2px 0 16px;}
+  .dtabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;}
+  .dtab[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .dcol{display:grid; gap:10px; align-content:start; min-width:0; width:100%;}
   .dchd{display:grid; gap:6px; padding:2px 2px 4px;}
   .dtop{display:flex; align-items:baseline; gap:8px;}
   .dtop b{font-size:14px; letter-spacing:0.04em; color:var(--accent);}
@@ -467,7 +469,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(confirm('登出後，推し手帳也會一併登出，確定嗎？')) auth.signOut();
   });
 
-  var currentId = null, loaded = false, editMode = false;   // editMode：詳細頁是「檢視」還是「編輯」
+  var currentId = null, loaded = false, editMode = false, dayFilter = 'all';   // dayFilter：每日行程目前顯示哪一天（'all' = 全部）
+    // editMode：詳細頁是「檢視」還是「編輯」
   // 詳細頁頂端的儲存狀態（重繪後也維持同一句話）
   var saveMsg = '變更會自動儲存', saveDirty = false, shownId = null;
   function setSave(msg, dirty){
@@ -653,7 +656,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function boardHtml(t, edit){
     var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
     if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
-    return head + '<div class="board">' + t.days.map(function(day, i){
+    if(dayFilter !== 'all' && !t.days.some(function(x){ return String(x.id) === String(dayFilter); })) dayFilter = 'all';
+    var tabs = '<div class="dtabs" role="group" aria-label="選擇要顯示的日期"><button class="mini dtab" type="button" data-do="dayf" data-day="all" aria-pressed="' + (dayFilter === 'all') + '">全部</button>' +
+      t.days.map(function(x, j){ return '<button class="mini dtab" type="button" data-do="dayf" data-day="' + x.id + '" aria-pressed="' + (String(x.id) === String(dayFilter)) + '">Day ' + (j+1) + '</button>'; }).join('') + '</div>';
+    return head + tabs + '<div class="board">' + t.days.map(function(day, i){
+      if(dayFilter !== 'all' && String(day.id) !== String(dayFilter)) return '';
       var n = (day.items || []).length, label = 'Day ' + (i+1);
       var top = '<div class="dtop"><b>' + label + '</b><span class="wk">' + wk(day.date) + '</span><span class="cnt">' + n + '</span>';
       if(edit){
@@ -897,6 +904,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
+    if(act === 'dayf'){ dayFilter = b.dataset.day; renderDetail(); return; }
+    if(act === 'addday' || act === 'gen') dayFilter = 'all';   // 新增／產生後要看得到新的那天
     if(act === 'save'){
       // 先讓正在輸入的欄位送出變更（手機上按按鈕不一定會讓欄位失焦）
       var ae = document.activeElement;
@@ -1030,7 +1039,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var inDetail = !!currentId && loaded;
     document.body.classList.toggle('wide', inDetail);
     var entering = inDetail && shownId !== currentId;   // 剛進入這趟旅程（不是同步資料造成的重繪）
-    if(entering){ saveMsg = '變更會自動儲存'; saveDirty = false; editMode = isBlank(cur()); }   // 全新的空白旅程直接進編輯，其餘先看內容
+    if(entering){ saveMsg = '變更會自動儲存'; saveDirty = false; editMode = isBlank(cur()); dayFilter = 'all'; }   // 全新的空白旅程直接進編輯，其餘先看內容
     shownId = inDetail ? currentId : null;
     $('head').hidden = inDetail;
     $('detail').hidden = !inDetail;
