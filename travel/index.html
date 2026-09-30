@@ -111,14 +111,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .total b{font-size:24px; color:var(--accent);}
   .chips{display:flex; flex-wrap:wrap; gap:4px 16px; margin-top:6px; font-size:13px; font-weight:500; color:var(--ink-faint);}
   .chips b{color:var(--ink-dim);}
-  @media (max-width:520px){
-    .grid{grid-template-columns:1fr;}
+  @container (max-width:400px){
     .dh{grid-template-columns:1fr auto; }
     .dh b{grid-column:1 / -1;}
     .dh input[type="date"]{grid-column:1 / -1;}
     .dh input:not([type="date"]){grid-column:1 / 2;}
-    .exp{grid-template-columns:1fr 1fr; }
-    .exp input[data-k="name"]{grid-column:1 / -1;}
+    .exp{grid-template-columns:1fr 1fr auto;}
+    .exp input[data-k="name"]{grid-column:1 / -1; order:-1;}
   }
 .sh h3 small{font-size:13px; font-weight:700; color:var(--accent); margin-left:8px; letter-spacing:0.04em;}
   .ck{display:flex; align-items:center; gap:10px; margin-bottom:8px;}
@@ -132,10 +131,29 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .bg{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .bcode{display:flex; gap:6px; align-items:center;}
   .bcode .mini{flex:0 0 auto;}
-  @media (max-width:520px){
+  @container (max-width:400px){
     .bh{grid-template-columns:1fr auto;}
     .bh select{grid-column:1 / -1;}
     .bg{grid-template-columns:1fr;}
+  }
+
+  .totop{position:fixed; right:max(16px,env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px)); z-index:10; width:44px; height:44px; padding:0; font-size:20px; line-height:1; letter-spacing:0; box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+
+  /* ── 詳細頁：滿版、三欄（預訂資料＋行前清單 ／ 每日行程 ／ 花費），窄螢幕自動改成兩欄或一欄 ── */
+  body.wide .wrap{max-width:none; padding-left:clamp(20px,3vw,48px); padding-right:clamp(20px,3vw,48px);}
+  .bar{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; background:var(--paper); border-bottom:1px solid var(--line);}
+  .savest{margin-left:auto; font-size:13px; font-weight:500; color:var(--ink-faint);}
+  .savest.dirty{color:var(--accent); font-weight:700;}
+  .bar .save{padding:7px 24px; font-size:14px;}
+  .cols{display:grid; grid-template-columns:minmax(0,1fr); gap:0 clamp(20px,2.5vw,40px); align-items:start;}
+  .col{min-width:0; container-type:inline-size;}
+  @media (min-width:800px){
+    .cols{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .col.c3{grid-column:1 / -1;}
+  }
+  @media (min-width:1200px){
+    .cols{grid-template-columns:repeat(3,minmax(0,1fr));}
+    .col.c3{grid-column:auto;}
   }
 </style>
 </head>
@@ -182,6 +200,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   <div id="detail" hidden></div>
 </div>
 
+<button type="button" id="totop" class="totop" aria-label="回到最上方" title="回到最上方" hidden>↑</button>
+
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
@@ -224,9 +244,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function showErr(m){ $('err').textContent = m || ''; }
 
   function persist(){
-    if(!docRef) return Promise.resolve();
-    return docRef.set({ value: trips }).catch(function(e){
-      console.error(e); alert('儲存失敗，請檢查網路連線後再試一次');
+    if(!docRef) return Promise.resolve(true);
+    return docRef.set({ value: trips }).then(function(){ return true; }, function(e){
+      console.error(e); alert('儲存失敗，請檢查網路連線後再試一次'); return false;
     });
   }
   function readOldLocal(){
@@ -289,6 +309,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     docRef = null; trips = []; loaded = false;
     if(!user){
       exitEdit();
+      document.body.classList.remove('wide');
       $('login').hidden = false; $('who').hidden = true; $('app').hidden = true; $('detail').hidden = true; $('head').hidden = false;
       return;
     }
@@ -329,6 +350,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
   });
 
   var currentId = null, loaded = false;
+  // 詳細頁頂端的儲存狀態（重繪後也維持同一句話）
+  var saveMsg = '變更會自動儲存', saveDirty = false, shownId = null;
+  function setSave(msg, dirty){
+    saveMsg = msg; saveDirty = !!dirty;
+    var el = $('savest');
+    if(el){ el.textContent = msg; el.classList.toggle('dirty', saveDirty); }
+  }
+  function hhmm(){ var n = new Date(); return String(n.getHours()).padStart(2,'0') + ':' + String(n.getMinutes()).padStart(2,'0'); }
+  function doPersist(){
+    setSave(navigator.onLine ? '儲存中…' : '已存在此裝置，連上網路後自動同步');
+    return persist().then(function(ok){
+      if(ok === false) setSave('儲存失敗，請檢查網路後按「儲存」再試一次', true);
+      else setSave('已儲存 ' + hhmm());
+    });
+  }
   var CATS = ['機票','住宿','交通','門票','周邊','餐飲','其他'];
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function ymd(x){ return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); }
@@ -410,11 +446,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || [];
     var fan = t.kind === 'fan';
-    var h = '<a class="back" href="#">← 旅遊紀錄</a>' +
+    var h = '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
+      '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
+      '<button type="button" class="save" data-do="save">儲存</button></div>' +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
 
+    h += '<div class="cols"><div class="col c1">';
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
@@ -439,6 +478,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
 
+    h += '</div><div class="col c2">';
     h += '<section class="sec"><div class="sh"><h3>每日行程</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="gen">依日期產生</button>' +
       '<button class="mini" type="button" data-do="addday">＋ 新增一天</button></div></div>' +
@@ -451,6 +491,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>') +
       '</section>';
 
+    h += '</div><div class="col c3">';
     h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns"><button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       t.expenses.map(function(x){
         return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
@@ -459,7 +500,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '">刪除</button></div>';
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div></section>';
+    h += '</div></div>';
+    var y = window.scrollY;          // 重繪會讓頁面瞬間變短，先記下位置再還原，避免跳回最上方
     el.innerHTML = h;
+    window.scrollTo(0, y);
   }
 
   $('detail').addEventListener('change', function(e){
@@ -484,7 +528,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var ex = (t.expenses || []).filter(function(x){ return String(x.id) === ds.e; })[0];
       if(ex){ ex[ds.k] = el.value; if(ds.k === 'amount') $('sum').innerHTML = sumHtml(t); }
     }
-    persist();
+    doPersist();
+  });
+  // 打字中就先提示「尚未儲存」，離開欄位後自動儲存
+  $('detail').addEventListener('input', function(e){
+    if(e.target.matches('input,textarea,select')) setSave('輸入中，離開欄位後會自動儲存', true);
   });
 
   $('detail').addEventListener('click', function(e){
@@ -492,6 +540,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var t = cur(); if(!t) return;
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || [];
     var act = b.dataset.do;
+    if(act === 'save'){
+      // 先讓正在輸入的欄位送出變更（手機上按按鈕不一定會讓欄位失焦）
+      var ae = document.activeElement;
+      if(ae && ae !== b && $('detail').contains(ae) && ae.blur) ae.blur();
+      doPersist(); return;
+    }
     if(act === 'copy'){
       var code = b.parentNode.querySelector('input').value;
       if(!code) return;
@@ -543,7 +597,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(ex0 && (String(ex0.name || '').trim() || String(ex0.amount == null ? '' : ex0.amount).trim()) && !confirm('確定要刪除這筆花費嗎？')) return;
       t.expenses = t.expenses.filter(function(x){ return String(x.id) !== b.dataset.id; });
     }
-    renderDetail(); persist();
+    renderDetail(); doPersist();
     if(act === 'addbk'){
       var lastBk = t.bookings[t.bookings.length - 1];
       var inb = $('detail').querySelector('input[data-b="' + lastBk.id + '"][data-k="name"]');
@@ -570,14 +624,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var m = location.hash.match(/^#\/t\/(.+)$/);
     currentId = m ? decodeURIComponent(m[1]) : null;
     var inDetail = !!currentId && loaded;
+    document.body.classList.toggle('wide', inDetail);
+    var entering = inDetail && shownId !== currentId;   // 剛進入這趟旅程（不是同步資料造成的重繪）
+    if(entering){ saveMsg = '變更會自動儲存'; saveDirty = false; }
+    shownId = inDetail ? currentId : null;
     $('head').hidden = inDetail;
     $('detail').hidden = !inDetail;
     if(!auth.currentUser){ return; }
     $('app').hidden = inDetail;
-    if(inDetail){ renderDetail(); window.scrollTo(0, 0); }
+    if(inDetail){ renderDetail(); if(entering) window.scrollTo(0, 0); }
     else if(loaded){ render(); }
   }
   window.addEventListener('hashchange', route);
+
+  // ---- 回到最上方按鈕：往下捲一段後才出現 ----
+  (function(){
+    var btn = $('totop');
+    function toggle(){ btn.hidden = window.scrollY < 400; }
+    window.addEventListener('scroll', toggle, { passive:true });
+    btn.addEventListener('click', function(){
+      var calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top:0, behavior: calm ? 'auto' : 'smooth' });
+    });
+    toggle();
+  })();
 
   // ---- 離線支援：註冊 service worker（需要 https，sw.js 要和本檔放在同一個資料夾） ----
   if('serviceWorker' in navigator){
