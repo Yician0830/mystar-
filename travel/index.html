@@ -70,6 +70,13 @@
   .tabs button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
   .tag{display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.06em; padding:1px 8px; margin-bottom:8px; border:1px solid var(--line-strong); color:var(--ink-dim);}
   .tag.fan{background:var(--accent); border-color:var(--accent); color:var(--paper);}
+.actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .ghost{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong);}
+  .ghost:hover,.ghost:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
+  .acts{display:flex; gap:2px; flex:0 0 auto;}
+  .del[data-act="edit"]:hover,.del[data-act="edit"]:focus-visible{color:var(--accent);}
+  .grp{padding:16px 0 4px; font-size:13px; font-weight:700; letter-spacing:0.08em; color:var(--ink-dim);}
+  .count{color:var(--accent); font-weight:700;}
 </style>
 </head>
 <body>
@@ -102,7 +109,7 @@
     <label>出發日<input name="start" type="date" required></label>
     <label>回程日<input name="end" type="date"></label>
     <label class="full">備註（航班、住宿、行程、心得）<textarea name="note"></textarea></label>
-    <button type="submit">新增旅程</button>
+    <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button><button type="button" id="cancelEdit" class="ghost" hidden>取消修改</button></div>
   </form>
 
   <div class="tabs" id="tabs">
@@ -155,7 +162,33 @@
     try{ var a = JSON.parse(localStorage.getItem(OLD_LOCAL_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
   }
 
-  var filter = 'all';
+  var filter = 'all', editingId = null, DAY = 86400000;
+  function toDate(x){ if(!x) return null; var p = x.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+  // 依日期自動判斷：接下來（還沒出發／旅途中）或已成行
+  function phase(t){
+    var n = new Date(), today = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    var s0 = toDate(t.start), e0 = toDate(t.end) || s0;
+    if(!s0) return {k:'past'};
+    if(today < s0) return {k:'up', n:Math.round((s0 - today) / DAY)};
+    if(today <= e0) return {k:'now', n:Math.round((today - s0) / DAY) + 1};
+    return {k:'past'};
+  }
+  function tripHtml(t, ph){
+    var fan = t.kind === 'fan';
+    var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
+    var count = ph.k === 'up' ? '<span class="count">' + (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') + '</span>'
+              : ph.k === 'now' ? '<span class="count">旅途中・第 ' + ph.n + ' 天</span>' : '';
+    var cost = (t.cost !== '' && t.cost != null) ? '<span>花費 <b>' + Number(t.cost).toLocaleString() + '</b> 元</span>' : '';
+    var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
+    return '<div class="trip"><div class="main">' +
+      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
+      '<div class="name">' + esc(t.title) + '</div>' +
+      (where ? '<div class="where">' + where + '</div>' : '') +
+      '<div class="meta">' + count + '<span>' + dates + '</span>' + cost + '</div>' +
+      (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
+      '</div><div class="acts"><button class="del" data-act="edit" data-id="' + t.id + '" type="button">編輯</button>' +
+      '<button class="del" data-act="del" data-id="' + t.id + '" type="button">刪除</button></div></div>';
+  }
   function render(){
     var el = $('list');
     var shown = trips.filter(function(t){ return filter === 'all' || (t.kind || 'general') === filter; });
@@ -163,20 +196,14 @@
       el.innerHTML = '<div class="empty">' + (trips.length ? '這個分類還沒有旅程。' : '還沒有旅程，從上面新增第一趟吧。') + '</div>';
       return;
     }
-    var sorted = shown.slice().sort(function(a,b){ return String(b.start).localeCompare(String(a.start)); });
-    el.innerHTML = sorted.map(function(t){
-      var fan = t.kind === 'fan';
-      var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
-      var cost = (t.cost !== '' && t.cost != null) ? '<span>花費 <b>' + Number(t.cost).toLocaleString() + '</b> 元</span>' : '';
-      var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
-      return '<div class="trip"><div class="main">' +
-        '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
-        '<div class="name">' + esc(t.title) + '</div>' +
-        (where ? '<div class="where">' + where + '</div>' : '') +
-        '<div class="meta"><span>' + dates + '</span>' + cost + '</div>' +
-        (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
-        '</div><button class="del" data-id="' + t.id + '" type="button">刪除</button></div>';
-    }).join('');
+    var next = [], past = [];
+    shown.forEach(function(t){ var ph = phase(t); (ph.k === 'past' ? past : next).push({t:t, ph:ph}); });
+    next.sort(function(a,b){ return String(a.t.start).localeCompare(String(b.t.start)); });   // 最近要出發的在最上面
+    past.sort(function(a,b){ return String(b.t.start).localeCompare(String(a.t.start)); });   // 最近去過的在最上面
+    var h = '';
+    if(next.length) h += '<div class="grp">接下來</div>' + next.map(function(x){ return tripHtml(x.t, x.ph); }).join('');
+    if(past.length) h += '<div class="grp">已成行</div>' + past.map(function(x){ return tripHtml(x.t, x.ph); }).join('');
+    el.innerHTML = h;
   }
   $('tabs').addEventListener('click', function(e){
     var b = e.target.closest('button'); if(!b) return;
@@ -223,16 +250,40 @@
     if(confirm('登出後，推し手帳也會一併登出，確定嗎？')) auth.signOut();
   });
 
+  function startEdit(id){
+    var t = trips.filter(function(x){ return String(x.id) === id; })[0];
+    if(!t) return;
+    var f = $('f');
+    editingId = t.id;
+    f.title.value = t.title || ''; f.kind.value = t.kind || 'general'; f.event.value = t.event || '';
+    f.place.value = t.place || ''; f.cost.value = (t.cost == null ? '' : t.cost);
+    f.start.value = t.start || ''; f.end.value = t.end || ''; f.note.value = t.note || '';
+    $('eventWrap').hidden = f.kind.value !== 'fan';
+    $('submitBtn').textContent = '儲存修改'; $('cancelEdit').hidden = false;
+    f.scrollIntoView({behavior:'smooth', block:'start'});
+    f.title.focus({preventScroll:true});
+  }
+  function endEdit(){
+    editingId = null; $('f').reset(); $('eventWrap').hidden = true;
+    $('submitBtn').textContent = '新增旅程'; $('cancelEdit').hidden = true;
+  }
+  $('cancelEdit').addEventListener('click', endEdit);
+
   $('f').addEventListener('submit', function(e){
     e.preventDefault();
-    var f = e.target;
-    var fan = f.kind.value === 'fan';
-    trips.push({ id:Date.now(), kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, cost:f.cost.value, note:f.note.value.trim() });
-    render(); persist(); f.reset(); $('eventWrap').hidden = true;
+    var f = e.target, fan = f.kind.value === 'fan';
+    var data = { kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, cost:f.cost.value, note:f.note.value.trim() };
+    var idx = -1;
+    if(editingId != null) trips.forEach(function(t, i){ if(t.id === editingId) idx = i; });
+    if(idx >= 0) trips[idx] = Object.assign({}, trips[idx], data);
+    else trips.push(Object.assign({ id:Date.now() }, data));
+    render(); persist(); endEdit();
   });
   $('list').addEventListener('click', function(e){
-    var b = e.target.closest('.del'); if(!b) return;
+    var b = e.target.closest('button[data-act]'); if(!b) return;
+    if(b.dataset.act === 'edit'){ startEdit(b.dataset.id); return; }
     if(!confirm('確定要刪除這趟旅程嗎？')) return;
+    if(String(editingId) === b.dataset.id) endEdit();
     trips = trips.filter(function(t){ return String(t.id) !== b.dataset.id; });
     render(); persist();
   });
