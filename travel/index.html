@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-Hant" data-field="line">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -16,19 +16,32 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+<script>
+  // 深淺色主題：跟著系統設定，系統切換時即時更新
+  (function(){
+    try{
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var apply = function(){ document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light'); };
+      apply();
+      if(mq.addEventListener) mq.addEventListener('change', apply); else if(mq.addListener) mq.addListener(apply);
+    }catch(e){}
+  })();
+</script>
 <style>
   :root{
     --paper:#f4f2ec; --ink:#15130f; --ink-dim:#453f30; --ink-faint:#6b6552;
     --line:rgba(21,19,15,0.14); --line-strong:rgba(21,19,15,0.4);
-    --accent:#9a5808; --danger:#cc2036;
+    --accent:#9a5808; --danger:#cc2036; --fill:rgba(21,19,15,0.045);
     --display:'Archivo Black','Noto Sans TC',sans-serif;
     --maru:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
   }
   html[data-theme="dark"]{
     --paper:#17150f; --ink:#f2efe6; --ink-dim:#cfc7b4; --ink-faint:#8f8772;
     --line:rgba(242,239,230,0.14); --line-strong:rgba(242,239,230,0.4);
-    --accent:#eaa540; --danger:#ff6b7d;
+    --accent:#eaa540; --danger:#ff6b7d; --fill:rgba(242,239,230,0.07);
   }
+  :root{color-scheme:light;}
+  html[data-theme="dark"]{color-scheme:dark;}
   *{box-sizing:border-box; margin:0; padding:0;}
   body{background:var(--paper); color:var(--ink); font-family:var(--maru); min-height:100vh;
     padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);}
@@ -43,9 +56,11 @@
   form{border-top:1px solid var(--line-strong); padding:22px 0 28px; display:grid; grid-template-columns:1fr 1fr; gap:14px 16px;}
   label{display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .full{grid-column:1 / -1;}
-  input,textarea,select{font:inherit; font-size:15px; font-weight:500; color:var(--ink); background:transparent; border:1px solid var(--line-strong); padding:9px 11px; border-radius:0;}
-  input:focus,textarea:focus,select:focus{outline:2px solid var(--accent); outline-offset:-1px;}
-  textarea{resize:vertical; min-height:72px;}
+  input,textarea,select{font:inherit; font-size:16px; font-weight:500; color:var(--ink); background:transparent; border:0; border-bottom:1px solid var(--line-strong); padding:9px 2px; border-radius:0;}
+  input:focus,textarea:focus,select:focus{outline:none; border-bottom-color:var(--accent); box-shadow:0 1px 0 0 var(--accent);}
+  textarea{resize:vertical; min-height:72px; padding:9px 11px; background:var(--fill); border-bottom-color:var(--line); field-sizing:content;}
+  input[type="checkbox"]{border:0; box-shadow:none;}
+  input[type="checkbox"]:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
   button{font:inherit; font-size:15px; font-weight:700; letter-spacing:0.06em; color:var(--paper); background:var(--ink); border:0; padding:11px 22px; cursor:pointer; justify-self:start;}
   button:hover,button:focus-visible{background:var(--accent);}
 
@@ -94,7 +109,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dhead{padding:clamp(20px,5vh,40px) 0 20px;}
   .dhead h2{font-weight:900; font-size:clamp(26px,5vw,40px); letter-spacing:0.03em; line-height:1.25; margin-top:4px;}
   .dhead .dm{margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 16px; font-size:13px; font-weight:500; color:var(--ink-faint);}
-  .sec{border-top:1px solid var(--line-strong); padding:20px 0 12px;}
+  .sec{padding:26px 0 12px;}
   .sh{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
   .sh h3{font-size:17px; font-weight:900; letter-spacing:0.04em;}
   .sh .btns{display:flex; gap:8px; flex-wrap:wrap;}
@@ -102,10 +117,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mini:hover,.mini:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:14px 16px;}
   .grid input,.grid select,.grid textarea,.day input,.day textarea,.exp input,.exp select{width:100%; min-width:0;}
-  .day{border:1px solid var(--line); padding:12px; margin-bottom:12px;}
+  .day{background:var(--fill); padding:14px; margin-bottom:12px;}
   .dh{display:grid; grid-template-columns:auto 150px 1fr auto; gap:8px; align-items:center; margin-bottom:8px;}
   .dh b{font-size:14px; letter-spacing:0.04em; color:var(--accent);}
-  .day textarea{min-height:110px; line-height:1.7;}
+  .day textarea{min-height:76px; line-height:1.7; background:var(--paper);}
   .exp{display:grid; grid-template-columns:96px 1fr 120px auto; gap:8px; margin-bottom:8px; align-items:center;}
   .total{font-size:18px; font-weight:700; margin-top:14px;}
   .total b{font-size:24px; color:var(--accent);}
@@ -124,9 +139,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ck input[type="checkbox"]{flex:0 0 auto; width:20px; height:20px; padding:0; accent-color:var(--accent); cursor:pointer;}
   .ck input[data-k="text"]{flex:1; min-width:0;}
   .ck.done input[data-k="text"]{text-decoration:line-through; color:var(--ink-faint);}
-.bk{border:1px solid var(--line); padding:12px; margin-bottom:12px; display:grid; gap:8px;}
+.bk{background:var(--fill); padding:14px; margin-bottom:12px; display:grid; gap:8px;}
   .bk input,.bk select,.bk textarea{width:100%; min-width:0;}
-  .bk textarea{min-height:56px; line-height:1.6;}
+  .bk textarea{min-height:56px; line-height:1.6; background:var(--paper);}
   .bh{display:grid; grid-template-columns:96px 1fr auto; gap:8px; align-items:center;}
   .bg{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .bcode{display:flex; gap:6px; align-items:center;}
@@ -138,6 +153,44 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
 
   .totop{position:fixed; right:max(16px,env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px)); z-index:10; width:44px; height:44px; padding:0; font-size:20px; line-height:1; letter-spacing:0; box-shadow:0 2px 8px rgba(0,0,0,0.25);}
+
+  .del[data-do^="del"]{font-size:22px; line-height:1; padding:4px 10px;}
+  .ck input[data-k="text"]{border-bottom-color:var(--line);}
+  .ck input[data-k="text"]:focus{border-bottom-color:var(--accent);}
+  .dh b .wk{font-weight:500; color:var(--ink-faint);}
+  .bh select{font-weight:700; color:var(--accent);}
+  .bh input[data-k="name"]{font-weight:900; font-size:17px;}
+  .bcode input{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; letter-spacing:0.06em; font-variant-numeric:tabular-nums;}
+  .exp select{font-weight:700; color:var(--ink-dim);}
+  .exp input[data-k="amount"]{text-align:right; font-variant-numeric:tabular-nums;}
+  .total b,.chips b{font-variant-numeric:tabular-nums;}
+  /* 想改成淡底色輸入框：把 <html> 的 data-field="line" 改成 "fill" */
+  html[data-field="fill"] input:not([type="checkbox"]),html[data-field="fill"] select,html[data-field="fill"] textarea{background:var(--fill); border-bottom-color:transparent; padding:9px 11px;}
+  html[data-field="fill"] input:not([type="checkbox"]):focus,html[data-field="fill"] select:focus,html[data-field="fill"] textarea:focus{box-shadow:inset 0 0 0 2px var(--accent);}
+  html[data-field="fill"] .day input:not([type="checkbox"]),html[data-field="fill"] .day select,html[data-field="fill"] .day textarea,
+  html[data-field="fill"] .bk input:not([type="checkbox"]),html[data-field="fill"] .bk select,html[data-field="fill"] .bk textarea{background:var(--paper);}
+  html[data-field="fill"] .ck input[data-k="text"]{border-bottom-color:transparent;}
+  .newrow{padding:0 0 14px;}
+  .fgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; margin-bottom:12px;}
+  .fgrid input,.fgrid select{width:100%; min-width:0;}
+  .fgrid .bcode input{flex:1;}
+  .sh select{padding:5px 8px; font-weight:700;}
+  .rate{margin-top:12px; font-size:13px; color:var(--ink-dim);}
+  .rate label{flex-direction:row; align-items:center; gap:8px; flex-wrap:wrap; font-weight:500;}
+  .rate input{width:110px;}
+  .hint{margin-top:8px; font-size:12px; color:var(--ink-faint); line-height:1.6;}
+  @container (max-width:300px){ .fgrid{grid-template-columns:minmax(0,1fr);} }
+  @media (pointer:coarse){
+    .del,.mini,.tabs button,.who button,.back{min-height:40px; display:inline-flex; align-items:center; justify-content:center;}
+    .del{padding:8px 12px;}
+    .mini{padding:8px 14px;}
+    .tabs button{padding:8px 16px;}
+    .who button{padding:8px 10px;}
+    .back{padding:8px 12px;}
+    .acts{gap:6px;}
+    .ck input[type="checkbox"]{width:24px; height:24px;}
+    .sh select{min-height:40px;}
+  }
 
   /* ── 詳細頁：滿版、三欄（預訂資料＋行前清單 ／ 每日行程 ／ 花費），窄螢幕自動改成兩欄或一欄 ── */
   body.wide .wrap{max-width:none; padding-left:clamp(20px,3vw,48px); padding-right:clamp(20px,3vw,48px);}
@@ -178,7 +231,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   </div>
 
   <div id="app" hidden>
-  <form id="f">
+  <div class="newrow" id="newRow"><button type="button" id="newBtn">＋ 新增旅程</button></div>
+  <form id="f" hidden>
     <label class="full">這趟旅程<input name="title" required placeholder="例如：東京三日遊、東京巡演三日"></label>
     <label>類型<select name="kind" id="kind"><option value="general">一般旅遊</option><option value="fan">追星</option></select></label>
     <label id="eventWrap" hidden>活動／對象<input name="event" placeholder="例如：演唱會名稱、見面會"></label>
@@ -187,7 +241,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     <label>回程日<input name="end" type="date"></label>
     <label class="full">備註（航班、住宿、行程、心得）<textarea name="note"></textarea></label>
     <div class="full editnote" id="editNote" hidden></div>
-    <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button><button type="button" class="ghost" id="cancelBtn" hidden>取消編輯</button></div>
+    <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button><button type="button" class="ghost" id="cancelBtn">取消</button></div>
   </form>
 
   <div class="tabs" id="tabs">
@@ -206,16 +260,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script>
-  // 深淺色主題：跟著系統設定，系統切換時即時更新
-  (function(){
-    try{
-      var mq = window.matchMedia('(prefers-color-scheme: dark)');
-      var apply = function(){ document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light'); };
-      apply();
-      if(mq.addEventListener) mq.addEventListener('change', apply); else if(mq.addListener) mq.addListener(apply);
-    }catch(e){}
-  })();
-
   // 與推し手帳共用同一個 Firebase 專案，登入狀態在同一個網域底下自動共用
   var firebaseConfig = {
   apiKey: "AIzaSyBjclP4efWWcOTO88W_3tlcC4Za_hEIzW0",
@@ -264,6 +308,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(today <= e0) return {k:'now', n:Math.round((today - s0) / DAY) + 1};
     return {k:'past'};
   }
+  // 追星：列表上提醒售票／抽選日（已購票或落選就不再倒數）
+  function saleChip(t, fan, ph){
+    var fi = t.fanInfo;
+    if(!fan || !fi || !fi.saleDate || ph.k === 'past') return '';
+    var sd = toDate(fi.saleDate), n = new Date(), td = new Date(n.getFullYear(), n.getMonth(), n.getDate());
+    if(!sd) return '';
+    var dn = Math.round((sd - td) / DAY), st = fi.saleStatus || '', open = st !== '已購票' && st !== '落選';
+    return '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + '</b>' + (st ? '・' + esc(st) : '') +
+      (open && dn >= 0 ? '・' + (dn === 0 ? '就是今天' : '還有 ' + dn + ' 天') : '') + '</span>';
+  }
   function tripHtml(t, ph){
     var fan = t.kind === 'fan';
     var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
@@ -274,7 +328,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<a class="name" href="#/t/' + t.id + '">' + esc(t.title) + '</a>' +
       (where ? '<div class="where">' + where + '</div>' : '') +
-      '<div class="meta">' + count + '<span>' + dates + '</span>' + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span>行前清單 <b>' + prog(t) + '</b></span>' : '') + '</div>' +
+      '<div class="meta">' + count + '<span>' + dates + '</span>' + saleChip(t, fan, ph) + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span>行前清單 <b>' + prog(t) + '</b></span>' : '') + '</div>' +
       (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
       '</div><div class="acts">' +
       '<button class="del" data-act="edit" data-id="' + t.id + '" type="button">編輯</button>' +
@@ -284,7 +338,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var el = $('list');
     var shown = trips.filter(function(t){ return filter === 'all' || (t.kind || 'general') === filter; });
     if(!shown.length){
-      el.innerHTML = '<div class="empty">' + (trips.length ? '這個分類還沒有旅程。' : '還沒有旅程，從上面新增第一趟吧。') + '</div>';
+      el.innerHTML = '<div class="empty">' + (trips.length ? '這個分類還沒有旅程。' : '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。') + '</div>';
       return;
     }
     var next = [], past = [];
@@ -365,10 +419,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
       else setSave('已儲存 ' + hhmm());
     });
   }
-  var CATS = ['機票','住宿','交通','門票','周邊','餐飲','其他'];
+  var CATS = ['機票','住宿','交通','門票','周邊','餐飲','其他','退款'], REFUND = '退款';
+  var CURRENCIES = [['TWD','新台幣'],['JPY','日圓'],['KRW','韓元'],['USD','美元'],['EUR','歐元'],['HKD','港幣'],['CNY','人民幣'],['THB','泰銖'],['SGD','新加坡幣'],['GBP','英鎊']];
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+  function wk(x){ var dt = toDate(x); return dt ? '（' + '日一二三四五六'.charAt(dt.getDay()) + '）' : ''; }
+  var FIELD_SIZING = !!(window.CSS && CSS.supports && CSS.supports('field-sizing','content'));
+  function autosize(ta){ if(FIELD_SIZING) return; ta.style.height = 'auto'; ta.style.height = (ta.scrollHeight + 2) + 'px'; }
   function ymd(x){ return x.getFullYear() + '-' + String(x.getMonth()+1).padStart(2,'0') + '-' + String(x.getDate()).padStart(2,'0'); }
-  function amt(v){ var n = Number(String(v == null ? '' : v).replace(/[^\d.]/g,'')); return isFinite(n) ? n : 0; }
+  // 金額：開頭有負號（－、−、括號）視為負數，其餘符號一律忽略
+  function amt(v){
+    var str = String(v == null ? '' : v).trim();
+    var n = Number(str.replace(/[^\d.]/g,''));
+    if(!isFinite(n)) return 0;
+    return /^[-−–(]/.test(str) ? -n : n;
+  }
+  // 類別是「退款」時，不管輸入正負，一律從總花費扣掉
+  function signed(x){ var n = amt(x.amount); return x.cat === REFUND ? -Math.abs(n) : n; }
   function money(n){ return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
   function cur(){ return trips.filter(function(x){ return String(x.id) === String(currentId); })[0]; }
 
@@ -377,10 +443,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function exitEdit(){
     editingId = null;
     $('f').reset();
+    checkDates();
     $('eventWrap').hidden = true;
     $('submitBtn').textContent = '新增旅程';
-    $('cancelBtn').hidden = true;
+    $('cancelBtn').textContent = '取消';
     $('editNote').hidden = true;
+    $('f').hidden = true;
+    $('newRow').hidden = false;
+  }
+  function openForm(){ $('f').hidden = false; $('newRow').hidden = true; }
+  // 回程日不能早於出發日：限制日期選擇器，並在送出時擋下
+  function checkDates(){
+    var el = $('f').elements, s0 = el['start'].value, e0 = el['end'].value;
+    el['end'].min = s0 || '';
+    el['end'].setCustomValidity(s0 && e0 && e0 < s0 ? '回程日不能早於出發日' : '');
   }
   function startEdit(id){
     var t = trips.filter(function(x){ return String(x.id) === String(id); })[0];
@@ -396,13 +472,23 @@ a.name{display:block; color:inherit; text-decoration:none;}
     el['end'].value = t.end || '';
     el['note'].value = t.note || '';
     $('submitBtn').textContent = '儲存修改';
-    $('cancelBtn').hidden = false;
+    $('cancelBtn').textContent = '取消編輯';
+    checkDates();
+    openForm();
     $('editNote').textContent = '正在編輯：' + (t.title || '');
     $('editNote').hidden = false;
     f.scrollIntoView({ behavior:'smooth', block:'start' });
     el['title'].focus({ preventScroll:true });
   }
   $('cancelBtn').addEventListener('click', exitEdit);
+  ['start','end'].forEach(function(n){
+    ['change','input'].forEach(function(ev){ $('f').elements[n].addEventListener(ev, checkDates); });
+  });
+  $('newBtn').addEventListener('click', function(){
+    openForm();
+    $('f').scrollIntoView({ behavior:'smooth', block:'start' });
+    $('f').elements['title'].focus({ preventScroll:true });
+  });
   $('f').addEventListener('submit', function(e){
     e.preventDefault();
     var f = e.target, fan = f.kind.value === 'fan';
@@ -427,13 +513,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','集合時間與交通動線','網路（SIM／eSIM）','匯率與現金','旅平險'],
     general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
   };
-  var BKTYPES = ['航班','住宿','門票','交通','其他'];
+  var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','已購票'];
   function prog(t){ var a = t.checklist || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function sumHtml(t){
-    var total = 0, by = {};
-    t.expenses.forEach(function(x){ var n = amt(x.amount); total += n; if(n) by[x.cat] = (by[x.cat] || 0) + n; });
+    var code = t.currency || 'TWD', total = 0, by = {};
+    t.expenses.forEach(function(x){ var n = signed(x); total += n; if(n) by[x.cat] = (by[x.cat] || 0) + n; });
     var chips = CATS.filter(function(c){ return by[c]; }).map(function(c){ return '<span>' + c + ' <b>' + money(by[c]) + '</b></span>'; }).join('');
-    return '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>' + (chips ? '<div class="chips">' + chips + '</div>' : '');
+    var rate = amt(t.rate);
+    if(code !== 'TWD' && rate > 0) chips += '<span>約合新台幣 <b>' + money(total * rate) + '</b>（匯率 ' + esc(rate) + '）</span>';
+    return '<div class="total">總花費 <b>' + money(total) + '</b> ' + (code === 'TWD' ? '元' : esc(code)) + '</div>' + (chips ? '<div class="chips">' + chips + '</div>' : '');
   }
   // 詳細頁頁首的「倒數／旅途中」與日期；改日期時也用它即時更新
   function dmHtml(t){
@@ -454,13 +542,28 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
 
     h += '<div class="cols"><div class="col c1">';
+    if(fan){
+      var fi = t.fanInfo || {};
+      var FI = function(label, type, key, full){
+        return '<label' + (full ? ' class="full"' : '') + '>' + label + '<input type="' + type + '" data-f="1" data-k="' + key + '" value="' + esc(fi[key] || '') + '"></label>';
+      };
+      h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div><div class="fgrid">' +
+        FI('售票／抽選日', 'date', 'saleDate') +
+        '<label>售票狀態<select data-f="1" data-k="saleStatus"><option value="">未設定</option>' +
+          SALE_ST.map(function(c){ return '<option' + (c === fi.saleStatus ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
+        FI('場次日期', 'date', 'showDate', true) +
+        FI('入場時間', 'time', 'door') + FI('開演時間', 'time', 'show') +
+        '<label class="full">相關連結（推し手帳的活動、售票頁）<div class="bcode"><input type="text" inputmode="url" autocomplete="off" data-f="1" data-k="link" placeholder="貼上網址" value="' + esc(fi.link || '') + '">' +
+        '<button class="mini" type="button" data-do="openlink">開啟</button></div></label>' +
+        '</div></section>';
+    }
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
         return '<div class="bk"><div class="bh"><select data-b="' + x.id + '" data-k="type" aria-label="預訂類型">' +
           BKTYPES.map(function(c){ return '<option' + (c === x.type ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
           '<input data-b="' + x.id + '" data-k="name" aria-label="預訂名稱" placeholder="例如：長榮 BR198 台北→札幌、飯店名稱" value="' + esc(x.name || '') + '">' +
-          '<button class="del" type="button" data-do="delbk" data-id="' + x.id + '">刪除</button></div>' +
+          '<button class="del" type="button" data-do="delbk" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
           '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
           '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
           '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
@@ -474,7 +577,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (t.checklist.length ? t.checklist.map(function(x){
         return '<div class="ck' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="完成">' +
           '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="清單項目" placeholder="要準備的東西">' +
-          '<button class="del" type="button" data-do="delck" data-id="' + x.id + '">刪除</button></div>';
+          '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
 
@@ -483,26 +586,32 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="mini" type="button" data-do="gen">依日期產生</button>' +
       '<button class="mini" type="button" data-do="addday">＋ 新增一天</button></div></div>' +
       (t.days.length ? t.days.map(function(day, i){
-        return '<div class="day"><div class="dh"><b>Day ' + (i+1) + '</b>' +
+        return '<div class="day"><div class="dh"><b>Day ' + (i+1) + '<span class="wk">' + wk(day.date) + '</span></b>' +
           '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="Day ' + (i+1) + ' 日期" value="' + esc(day.date || '') + '">' +
           '<input data-d="' + day.id + '" data-k="title" aria-label="Day ' + (i+1) + ' 主題" placeholder="今天的主題，例如：抵達東京" value="' + esc(day.title || '') + '">' +
-          '<button class="del" type="button" data-do="delday" data-id="' + day.id + '">刪除</button></div>' +
-          '<textarea data-d="' + day.id + '" data-k="text" aria-label="Day ' + (i+1) + ' 行程內容" placeholder="每行一個行程，例如：&#10;09:00 前往機場&#10;14:00 飯店 check-in">' + esc(day.text || '') + '</textarea></div>';
+          '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+          '<textarea data-d="' + day.id + '" data-k="text" aria-label="Day ' + (i+1) + ' 行程內容" placeholder="每行一個行程，例如 09:00 前往機場">' + esc(day.text || '') + '</textarea></div>';
       }).join('') : '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>') +
       '</section>';
 
     h += '</div><div class="col c3">';
-    h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns"><button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
+    var cur0 = t.currency || 'TWD';
+    h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns">' +
+      '<select data-t="1" data-k="currency" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
+      '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       t.expenses.map(function(x){
         return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
           CATS.map(function(c){ return '<option' + (c === x.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
           '<input data-e="' + x.id + '" data-k="name" aria-label="花費項目" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
-          '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '">刪除</button></div>';
-      }).join('') + '<div id="sum">' + sumHtml(t) + '</div></section>';
+          '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+      }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
+      '<div class="rate" id="rateRow"' + (cur0 === 'TWD' ? ' hidden' : '') + '><label>匯率　1 <span id="curname">' + esc(cur0) + '</span> =<input data-t="1" data-k="rate" inputmode="decimal" autocomplete="off" aria-label="匯率" placeholder="例如 0.21" value="' + esc(t.rate == null ? '' : t.rate) + '"> 新台幣（選填，填了會換算總花費）</label></div>' +
+      '<p class="hint">類別選「退款」，或金額前面加負號，都會從總花費扣掉。</p></section>';
     h += '</div></div>';
     var y = window.scrollY;          // 重繪會讓頁面瞬間變短，先記下位置再還原，避免跳回最上方
     el.innerHTML = h;
+    [].forEach.call(el.querySelectorAll('textarea'), autosize);
     window.scrollTo(0, y);
   }
 
@@ -511,7 +620,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!t) return;
     if(ds.d){
       var day = (t.days || []).filter(function(x){ return String(x.id) === ds.d; })[0];
-      if(day) day[ds.k] = el.value;
+      if(day){
+        day[ds.k] = el.value;
+        if(ds.k === 'date'){ var wkEl = el.closest('.day').querySelector('.wk'); if(wkEl) wkEl.textContent = wk(el.value); }
+      }
     } else if(ds.b){
       var bk = (t.bookings || []).filter(function(x){ return String(x.id) === ds.b; })[0];
       if(bk) bk[ds.k] = el.value;
@@ -526,12 +638,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     } else if(ds.e){
       var ex = (t.expenses || []).filter(function(x){ return String(x.id) === ds.e; })[0];
-      if(ex){ ex[ds.k] = el.value; if(ds.k === 'amount') $('sum').innerHTML = sumHtml(t); }
+      if(ex){ ex[ds.k] = el.value; if(ds.k === 'amount' || ds.k === 'cat') $('sum').innerHTML = sumHtml(t); }
+    } else if(ds.f){
+      t.fanInfo = t.fanInfo || {}; t.fanInfo[ds.k] = el.value;
+    } else if(ds.t){
+      t[ds.k] = el.value;
+      if(ds.k === 'currency'){
+        if($('curname')) $('curname').textContent = el.value;
+        if($('rateRow')) $('rateRow').hidden = el.value === 'TWD';
+      }
+      if($('sum')) $('sum').innerHTML = sumHtml(t);
     }
     doPersist();
   });
   // 打字中就先提示「尚未儲存」，離開欄位後自動儲存
   $('detail').addEventListener('input', function(e){
+    if(e.target.tagName === 'TEXTAREA') autosize(e.target);
     if(e.target.matches('input,textarea,select')) setSave('輸入中，離開欄位後會自動儲存', true);
   });
 
@@ -556,6 +678,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
       } else { alert('這個瀏覽器不支援一鍵複製，請手動選取文字複製'); }
       return;
     }
+    if(act === 'openlink'){
+      var u = b.parentNode.querySelector('input').value.trim();
+      if(!u) return;
+      try{
+        var url = new URL(u, location.href);
+        if(url.protocol === 'http:' || url.protocol === 'https:') window.open(url.href, '_blank', 'noopener');
+        else alert('連結只支援 http／https 開頭的網址');
+      }catch(err){ alert('連結格式不正確'); }
+      return;
+    }
     if(act === 'addday'){
       var last = t.days.length ? t.days[t.days.length-1].date : '', nd = '';
       if(last){ var x0 = toDate(last); x0.setDate(x0.getDate()+1); nd = ymd(x0); } else if(t.start){ nd = t.start; }
@@ -563,6 +695,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(act === 'gen'){
       var s0 = toDate(t.start), e0 = toDate(t.end) || s0;
       if(!s0){ alert('請先回旅程列表，按「編輯」填好出發日'); return; }
+      if(e0 < s0){ alert('回程日早於出發日，請先回旅程列表按「編輯」修正'); return; }
       var have = {}, n = 0;
       t.days.forEach(function(x){ have[x.date] = 1; });
       for(var c0 = new Date(s0); c0 <= e0 && n < 60; c0.setDate(c0.getDate()+1), n++){
