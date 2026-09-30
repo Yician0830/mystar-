@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>追星旅行 — ARCHIVE</title>
+<title>旅遊紀錄 — ARCHIVE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
@@ -34,8 +34,8 @@
   form{border-top:1px solid var(--line-strong); padding:22px 0 28px; display:grid; grid-template-columns:1fr 1fr; gap:14px 16px;}
   label{display:flex; flex-direction:column; gap:6px; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .full{grid-column:1 / -1;}
-  input,textarea{font:inherit; font-size:15px; font-weight:500; color:var(--ink); background:transparent; border:1px solid var(--line-strong); padding:9px 11px; border-radius:0;}
-  input:focus,textarea:focus{outline:2px solid var(--accent); outline-offset:-1px;}
+  input,textarea,select{font:inherit; font-size:15px; font-weight:500; color:var(--ink); background:transparent; border:1px solid var(--line-strong); padding:9px 11px; border-radius:0;}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--accent); outline-offset:-1px;}
   textarea{resize:vertical; min-height:72px;}
   button{font:inherit; font-size:15px; font-weight:700; letter-spacing:0.06em; color:var(--paper); background:var(--ink); border:0; padding:11px 22px; cursor:pointer; justify-self:start;}
   button:hover,button:focus-visible{background:var(--accent);}
@@ -64,6 +64,12 @@
   .who button{background:transparent; color:var(--ink-faint); padding:2px 6px; font-size:13px; font-weight:500; letter-spacing:0;}
   .who button:hover,.who button:focus-visible{background:transparent; color:var(--accent);}
   .who + #app form{border-top:0; padding-top:12px;}
+.tabs{display:flex; gap:8px; padding:0 0 16px; flex-wrap:wrap;}
+  .tabs button{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong); padding:5px 14px; font-size:13px; font-weight:700; letter-spacing:0.04em;}
+  .tabs button:hover,.tabs button:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
+  .tabs button[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .tag{display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.06em; padding:1px 8px; margin-bottom:8px; border:1px solid var(--line-strong); color:var(--ink-dim);}
+  .tag.fan{background:var(--accent); border-color:var(--accent); color:var(--paper);}
 </style>
 </head>
 <body>
@@ -72,8 +78,8 @@
 
   <header>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M8 11v5M16 11v5"/></svg>
-    <h1>追星旅行</h1>
-    <p>航班、住宿、行程與預算，為了見他而出發的每一趟旅程。</p>
+    <h1>旅遊紀錄</h1>
+    <p>航班、住宿、行程與預算。平常出遊，和為了見他而出發的每一趟，都收在這裡。</p>
   </header>
 
   <section id="login" class="login" hidden>
@@ -88,7 +94,9 @@
 
   <div id="app" hidden>
   <form id="f">
-    <label class="full">這趟旅程<input name="title" required placeholder="例如：東京巡演三日"></label>
+    <label class="full">這趟旅程<input name="title" required placeholder="例如：東京三日遊、東京巡演三日"></label>
+    <label>類型<select name="kind" id="kind"><option value="general">一般旅遊</option><option value="fan">追星</option></select></label>
+    <label id="eventWrap" hidden>活動／對象<input name="event" placeholder="例如：演唱會名稱、見面會"></label>
     <label>地點<input name="place" placeholder="例如：東京・有明"></label>
     <label>花費（元）<input name="cost" type="number" min="0" inputmode="numeric" placeholder="選填"></label>
     <label>出發日<input name="start" type="date" required></label>
@@ -97,7 +105,12 @@
     <button type="submit">新增旅程</button>
   </form>
 
-  <div class="list" id="list"></div>
+  <div class="tabs" id="tabs">
+      <button type="button" data-k="all" aria-pressed="true">全部</button>
+      <button type="button" data-k="general" aria-pressed="false">一般旅遊</button>
+      <button type="button" data-k="fan" aria-pressed="false">追星</button>
+    </div>
+    <div class="list" id="list"></div>
   </div>
 </div>
 
@@ -142,21 +155,36 @@
     try{ var a = JSON.parse(localStorage.getItem(OLD_LOCAL_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
   }
 
+  var filter = 'all';
   function render(){
     var el = $('list');
-    if(!trips.length){ el.innerHTML = '<div class="empty">還沒有旅程，從上面新增第一趟吧。</div>'; return; }
-    var sorted = trips.slice().sort(function(a,b){ return String(b.start).localeCompare(String(a.start)); });
+    var shown = trips.filter(function(t){ return filter === 'all' || (t.kind || 'general') === filter; });
+    if(!shown.length){
+      el.innerHTML = '<div class="empty">' + (trips.length ? '這個分類還沒有旅程。' : '還沒有旅程，從上面新增第一趟吧。') + '</div>';
+      return;
+    }
+    var sorted = shown.slice().sort(function(a,b){ return String(b.start).localeCompare(String(a.start)); });
     el.innerHTML = sorted.map(function(t){
+      var fan = t.kind === 'fan';
       var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
       var cost = (t.cost !== '' && t.cost != null) ? '<span>花費 <b>' + Number(t.cost).toLocaleString() + '</b> 元</span>' : '';
+      var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
       return '<div class="trip"><div class="main">' +
+        '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
         '<div class="name">' + esc(t.title) + '</div>' +
-        (t.place ? '<div class="where">' + esc(t.place) + '</div>' : '') +
+        (where ? '<div class="where">' + where + '</div>' : '') +
         '<div class="meta"><span>' + dates + '</span>' + cost + '</div>' +
         (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
         '</div><button class="del" data-id="' + t.id + '" type="button">刪除</button></div>';
     }).join('');
   }
+  $('tabs').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    filter = b.dataset.k;
+    [].forEach.call($('tabs').children, function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    render();
+  });
+  $('kind').addEventListener('change', function(){ $('eventWrap').hidden = this.value !== 'fan'; });
 
   auth.onAuthStateChanged(function(user){
     if(unsub){ unsub(); unsub = null; }
@@ -198,8 +226,9 @@
   $('f').addEventListener('submit', function(e){
     e.preventDefault();
     var f = e.target;
-    trips.push({ id:Date.now(), title:f.title.value.trim(), place:f.place.value.trim(), start:f.start.value, end:f.end.value, cost:f.cost.value, note:f.note.value.trim() });
-    render(); persist(); f.reset();
+    var fan = f.kind.value === 'fan';
+    trips.push({ id:Date.now(), kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, cost:f.cost.value, note:f.note.value.trim() });
+    render(); persist(); f.reset(); $('eventWrap').hidden = true;
   });
   $('list').addEventListener('click', function(e){
     var b = e.target.closest('.del'); if(!b) return;
