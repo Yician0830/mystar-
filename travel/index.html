@@ -256,7 +256,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     .bar .save{min-height:40px;}
   }
 
-  /* ── 詳細頁：滿版、三欄（預訂資料＋行前清單 ／ 每日行程 ／ 花費），窄螢幕自動改成兩欄或一欄 ── */
+  /* ── 詳細頁：滿版、三欄（預訂資料＋住宿＋行前清單 ／ 每日行程 ／ 花費），窄螢幕自動改成兩欄或一欄 ── */
   body.wide .wrap{max-width:none; padding-left:clamp(20px,3vw,48px); padding-right:clamp(20px,3vw,48px);}
   .bar{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; background:var(--paper); border-bottom:1px solid var(--line);}
   .savest{margin-left:auto; font-size:13px; font-weight:500; color:var(--ink-faint);}
@@ -269,7 +269,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     .col.c3{grid-column:1 / -1;}
   }
   @media (min-width:1200px){
-    .cols{grid-template-columns:repeat(3,minmax(0,1fr));}
+    .cols{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}
     .col.c3{grid-column:auto;}
   }
 </style>
@@ -720,7 +720,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
 
-    h += '</div><div class="col c2">';
     var cks = t.checklist.filter(function(x){ return String(x.text || '').trim(); });
     h += '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3></div>' +
       (cks.length ? cks.map(function(x){
@@ -728,7 +727,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<p class="vempty">還沒有清單，按右上角「編輯」套用範本。</p>') + '</section>';
 
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
-    h += '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
+    h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       exps.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
         return '<div class="expv"><span class="btag">' + esc(x.cat || '') + '</span><span>' + esc(x.name || '') + '</span><b>' + (has ? money(signed(x)) : '—') + '</b></div>';
@@ -786,7 +785,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '</section>';
 
 
-    h += '</div><div class="col c2">';
     h += '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="tpl">套用' + (fan ? '追星' : '旅遊') + '範本</button>' +
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
@@ -797,7 +795,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
 
-    h += '</div><div class="col c3">';
+    h += '</div><div class="col c2">' + boardHtml(t, true) + '</div><div class="col c3">';
     var cur0 = t.currency || 'TWD';
     h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns">' +
       '<select data-t="1" data-k="currency" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
@@ -827,7 +825,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
 
-    h += boardHtml(t, editMode);
     h += editMode ? editBody(t, fan) : viewBody(t, fan);
     var y = window.scrollY;          // 重繪會讓頁面瞬間變短，先記下位置再還原，避免跳回最上方
     var oldBoard = el.querySelector('.board'), bx = oldBoard ? oldBoard.scrollLeft : 0;   // 看板左右位置也要保留
