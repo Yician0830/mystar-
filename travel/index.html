@@ -215,6 +215,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .bud summary{cursor:pointer; font-weight:700; padding:4px 0;}
   .bud .fgrid{margin:10px 0 0;}
   @container (max-width:300px){ .cgrid,.xgrid{grid-template-columns:minmax(0,1fr);} }
+  .lks{display:flex; flex-wrap:wrap; gap:6px;}
+  .lk{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong); padding:2px 8px; font-size:12px; font-weight:700; letter-spacing:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; justify-self:auto;}
+  .flash{outline:2px solid var(--accent); outline-offset:2px;}
+  .ie3{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px;}
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
   .expv b{font-variant-numeric:tabular-nums;}
   .sname{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center;}
@@ -669,14 +673,46 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return arr.map(function(o){ return o.x; });
   }
   function pill(v){ return v ? '<span class="pill" data-v="' + esc(v) + '">' + esc(v) + '</span>' : ''; }
+  // ---- 行程 ⇄ 預訂／住宿／花費 的連結 ----
+  var LK = {lkBk:['bookings','🧾','bk'], lkStay:['stays','🏨','stay'], lkExp:['expenses','💰','exp']};
+  function byId(list, id){ return (list || []).filter(function(y){ return String(y.id) === String(id); })[0]; }
+  function lkText(key, y){
+    if(key === 'lkBk') return (y.type ? y.type + ' ' : '') + (y.name || '未命名');
+    if(key === 'lkStay') return y.name || '未命名住宿';
+    return (y.cat ? y.cat + ' ' : '') + (y.name || '未命名') + (String(y.amount == null ? '' : y.amount).trim() ? ' ' + money(signed(y)) : '');
+  }
+  function fwdLinks(t, x){
+    var h = Object.keys(LK).map(function(key){
+      var y = x[key] && byId(t[LK[key][0]], x[key]); if(!y) return '';
+      return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>';
+    }).join('');
+    return h ? '<div class="lks">' + h + '</div>' : '';
+  }
+  function revLinks(t, key, id){
+    var h = '';
+    t.days.forEach(function(day, i){ (day.items || []).forEach(function(x){
+      if(x[key] && String(x[key]) === String(id)) h += '<button class="lk" type="button" data-do="goto" data-day="' + day.id + '" data-to="lk-it-' + x.id + '">📍 Day ' + (i+1) + (x.time ? ' ' + esc(x.time) : '') + ' ' + esc(x.title || '行程') + '</button>';
+    }); });
+    return h ? '<div class="lks">' + h + '</div>' : '';
+  }
   function itemView(x){
     var pills = pill(x.cat) + pill(x.status);
     var map = x.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place) : '';
-    return '<div class="icard"><div class="itop">' + (x.time ? '<span class="itime">' + esc(x.time) + '</span>' : '') +
+    var t0 = cur();
+    return '<div class="icard" id="lk-it-' + x.id + '"><div class="itop">' + (x.time ? '<span class="itime">' + esc(x.time) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
-      (pills ? '<div class="pills">' + pills + '</div>' : '') +
+      (pills ? '<div class="pills">' + pills + '</div>' : '') + fwdLinks(t0, x) +
       (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
       (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+  }
+  function lkSelects(a, x){
+    var t = cur(), ph = {lkBk:'連結預訂', lkStay:'連結住宿', lkExp:'連結花費'};
+    var h = Object.keys(LK).map(function(key){
+      var list = t[LK[key][0]] || []; if(!list.length) return '';
+      return '<select' + a + ' data-k="' + key + '" aria-label="' + ph[key] + '"><option value="">' + ph[key] + '</option>' +
+        list.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x[key]) ? ' selected' : '') + '>' + esc(lkText(key, y)) + '</option>'; }).join('') + '</select>';
+    }).join('');
+    return h ? '<div class="ie3">' + h + '</div>' : '';
   }
   function itemEdit(day, x){
     var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
@@ -686,6 +722,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
+      lkSelects(a, x) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="交通方式、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
@@ -742,11 +779,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
-        return '<div class="bk v"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
+        return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') +
           (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + revLinks(t, 'lkBk', x.id) + '</div>';
       }).join('') : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>住宿</h3></div>' +
@@ -755,12 +792,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
         var dt = (x.checkin ? esc(d(x.checkin)) + esc(wk(x.checkin)) + ' 入住' : '') + (x.checkin && x.checkout ? ' → ' : '') + (x.checkout ? esc(d(x.checkout)) + esc(wk(x.checkout)) + ' 退房' : '');
         var hint = stayHint(x);
-        return '<div class="bk v"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
+        return '<div class="bk v" id="lk-stay-' + x.id + '"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           (dt ? '<div class="btime">' + dt + (hint ? '・' + esc(hint) : '') + '</div>' : '') +
           (x.address ? '<div class="vtext">' + esc(x.address) + '</div>' : '') +
           (map ? '<div><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a></div>' : '') +
           (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + revLinks(t, 'lkStay', x.id) + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
 
@@ -774,7 +811,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細</div><div class="xgrid">' + exps.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
-        return '<div class="xcard"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) : '—') + '</div></div>';
+        return '<div class="xcard" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) : '—') + '</div>' + revLinks(t, 'lkExp', x.id) + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
     return h;
@@ -944,6 +981,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
+    if(act === 'goto'){
+      if(b.dataset.day){ if(dayFilter !== 'all') dayFilter = b.dataset.day; renderDetail(); }
+      var tg = document.getElementById(b.dataset.to);
+      if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
+      return;
+    }
     if(act === 'dayf'){ dayFilter = b.dataset.day; renderDetail(); return; }
     if(act === 'addday' || act === 'gen') dayFilter = 'all';   // 新增／產生後要看得到新的那天
     if(act === 'save'){
