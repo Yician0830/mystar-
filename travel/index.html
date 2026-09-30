@@ -55,6 +55,15 @@
     .wrap{padding:20px 20px 56px;}
     form{grid-template-columns:1fr;}
   }
+
+  [hidden]{display:none !important;}
+  .login{border-top:1px solid var(--line-strong); padding:32px 0 8px;}
+  .login p{color:var(--ink-dim); font-size:15px; line-height:1.7; margin-bottom:18px; max-width:460px;}
+  .err{margin-top:14px; font-size:14px; color:#cc2036;}
+  .who{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--line-strong); font-size:13px; font-weight:500; color:var(--ink-dim);}
+  .who button{background:transparent; color:var(--ink-faint); padding:2px 6px; font-size:13px; font-weight:500; letter-spacing:0;}
+  .who button:hover,.who button:focus-visible{background:transparent; color:var(--accent);}
+  .who + #app form{border-top:0; padding-top:12px;}
 </style>
 </head>
 <body>
@@ -67,6 +76,17 @@
     <p>航班、住宿、行程與預算，為了見他而出發的每一趟旅程。</p>
   </header>
 
+  <section id="login" class="login" hidden>
+    <p>登入後，旅程會存在你的雲端帳號，跟推し手帳使用同一個 Google 帳號，手機和電腦都看得到。</p>
+    <button type="button" id="signin">使用 Google 登入</button>
+    <div class="err" id="err" role="alert"></div>
+  </section>
+  <div class="who" id="who" hidden>
+    <span>☁️ <span id="uname"></span> 已登入，旅程同步中</span>
+    <button type="button" id="signout" title="登出後推し手帳也會一併登出">登出</button>
+  </div>
+
+  <div id="app" hidden>
   <form id="f">
     <label class="full">這趟旅程<input name="title" required placeholder="例如：東京巡演三日"></label>
     <label>地點<input name="place" placeholder="例如：東京・有明"></label>
@@ -78,24 +98,57 @@
   </form>
 
   <div class="list" id="list"></div>
+  </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script>
   (function(){
     try{ if(window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme','dark'); }catch(e){}
   })();
-  var KEY = 'travel-diary-v1', trips = [];
-  try{ trips = JSON.parse(localStorage.getItem(KEY) || '[]'); }catch(e){ trips = []; }
-  function save(){ try{ localStorage.setItem(KEY, JSON.stringify(trips)); }catch(e){} }
+
+  // 與推し手帳共用同一個 Firebase 專案，登入狀態在同一個網域底下自動共用
+  var firebaseConfig = {
+  apiKey: "AIzaSyBjclP4efWWcOTO88W_3tlcC4Za_hEIzW0",
+  authDomain: "mystarlifeapp.firebaseapp.com",
+  projectId: "mystarlifeapp",
+  storageBucket: "mystarlifeapp.firebasestorage.app",
+  messagingSenderId: "941753508434",
+  appId: "1:941753508434:web:5bdf24eac9ee4514d8758b",
+  measurementId: "G-FDX9867N4N"
+};
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth(), db = firebase.firestore();
+  auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
+
+  // 旅程存在 users/{uid}/data/travel-trips，跟手帳同一個位置與格式（{ value: [...] }）
+  var KEY = 'travel-trips', OLD_LOCAL_KEY = 'travel-diary-v1';
+  var trips = [], docRef = null, unsub = null;
+  var $ = function(id){ return document.getElementById(id); };
+
   function esc(t){ return String(t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function d(s){ return s ? s.replace(/-/g,'.') : ''; }
+  function showErr(m){ $('err').textContent = m || ''; }
+
+  function persist(){
+    if(!docRef) return Promise.resolve();
+    return docRef.set({ value: trips }).catch(function(e){
+      console.error(e); alert('儲存失敗，請檢查網路連線後再試一次');
+    });
+  }
+  function readOldLocal(){
+    try{ var a = JSON.parse(localStorage.getItem(OLD_LOCAL_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
+  }
+
   function render(){
-    var el = document.getElementById('list');
+    var el = $('list');
     if(!trips.length){ el.innerHTML = '<div class="empty">還沒有旅程，從上面新增第一趟吧。</div>'; return; }
-    trips.sort(function(a,b){ return b.start.localeCompare(a.start); });
-    el.innerHTML = trips.map(function(t){
+    var sorted = trips.slice().sort(function(a,b){ return String(b.start).localeCompare(String(a.start)); });
+    el.innerHTML = sorted.map(function(t){
       var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
-      var cost = t.cost !== '' ? '<span>花費 <b>' + Number(t.cost).toLocaleString() + '</b> 元</span>' : '';
+      var cost = (t.cost !== '' && t.cost != null) ? '<span>花費 <b>' + Number(t.cost).toLocaleString() + '</b> 元</span>' : '';
       return '<div class="trip"><div class="main">' +
         '<div class="name">' + esc(t.title) + '</div>' +
         (t.place ? '<div class="where">' + esc(t.place) + '</div>' : '') +
@@ -104,19 +157,56 @@
         '</div><button class="del" data-id="' + t.id + '" type="button">刪除</button></div>';
     }).join('');
   }
-  document.getElementById('f').addEventListener('submit', function(e){
+
+  auth.onAuthStateChanged(function(user){
+    if(unsub){ unsub(); unsub = null; }
+    docRef = null; trips = [];
+    if(!user){
+      $('login').hidden = false; $('who').hidden = true; $('app').hidden = true;
+      return;
+    }
+    $('login').hidden = true; $('who').hidden = false; $('app').hidden = false;
+    $('uname').textContent = user.displayName || '';
+    docRef = db.collection('users').doc(user.uid).collection('data').doc(KEY);
+    unsub = docRef.onSnapshot(function(doc){
+      if(doc.exists && Array.isArray(doc.data().value)){
+        trips = doc.data().value;
+      } else {
+        // 雲端還沒有資料：把先前存在這台瀏覽器的旅程一次搬上雲端
+        trips = readOldLocal();
+        if(trips.length) persist();
+      }
+      render();
+    }, function(e){
+      console.error(e);
+      $('list').innerHTML = '<div class="empty">讀取雲端資料失敗，請檢查網路，或確認 Firebase 規則有允許讀寫。</div>';
+    });
+  });
+
+  $('signin').addEventListener('click', function(){
+    showErr('');
+    var provider = new firebase.auth.GoogleAuthProvider();
+    auth.signInWithPopup(provider).catch(function(e){
+      if(e.code === 'auth/popup-blocked') return auth.signInWithRedirect(provider);
+      if(e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') showErr('登入失敗（' + e.code + '），請再試一次');
+    });
+  });
+  $('signout').addEventListener('click', function(){
+    if(confirm('登出後，推し手帳也會一併登出，確定嗎？')) auth.signOut();
+  });
+
+  $('f').addEventListener('submit', function(e){
     e.preventDefault();
     var f = e.target;
     trips.push({ id:Date.now(), title:f.title.value.trim(), place:f.place.value.trim(), start:f.start.value, end:f.end.value, cost:f.cost.value, note:f.note.value.trim() });
-    save(); render(); f.reset();
+    render(); persist(); f.reset();
   });
-  document.getElementById('list').addEventListener('click', function(e){
+  $('list').addEventListener('click', function(e){
     var b = e.target.closest('.del'); if(!b) return;
     if(!confirm('確定要刪除這趟旅程嗎？')) return;
     trips = trips.filter(function(t){ return String(t.id) !== b.dataset.id; });
-    save(); render();
+    render(); persist();
   });
-  render();
 </script>
 </body>
 </html>
