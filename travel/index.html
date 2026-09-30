@@ -198,6 +198,41 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ck.v.done span{text-decoration:line-through; color:var(--ink-faint);}
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
   .expv b{font-variant-numeric:tabular-nums;}
+  .sname{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center;}
+  .sname input{font-weight:900; font-size:17px;}
+  .sdates{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+  .nn{font-size:13px; font-weight:700; color:var(--accent);}
+  .nn:empty{display:none;}
+  .board{display:flex; gap:16px; overflow-x:auto; align-items:flex-start; padding:2px 2px 16px; scroll-snap-type:x proximity; -webkit-overflow-scrolling:touch;}
+  .dcol{flex:0 0 min(296px,86vw); scroll-snap-align:start; display:grid; gap:10px; align-content:start; min-width:0;}
+  .dchd{display:grid; gap:6px; padding:2px 2px 4px;}
+  .dtop{display:flex; align-items:baseline; gap:8px;}
+  .dtop b{font-size:14px; letter-spacing:0.04em; color:var(--accent);}
+  .dtop .wk{font-size:13px; font-weight:500; color:var(--ink-faint);}
+  .dtop .cnt{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .dsub{padding:0 2px 2px; font-size:13px; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .dsub b{margin-left:10px; font-size:14px; color:var(--ink);}
+  .icard{background:var(--fill); padding:12px; display:grid; gap:8px;}
+  .itop{display:flex; gap:10px; align-items:baseline;}
+  .itime{flex:0 0 auto; font-size:13px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .ititle{font-size:16px; font-weight:900; line-height:1.4; overflow-wrap:anywhere;}
+  .pills{display:flex; flex-wrap:wrap; gap:6px;}
+  .pill{--c:#8a8570; font-size:12px; font-weight:700; padding:2px 8px; border-radius:2px; background:var(--fill); color:var(--ink-dim);}
+  @supports (background:color-mix(in srgb,red 10%,transparent)){
+    .pill{background:color-mix(in srgb,var(--c) 16%,transparent); color:color-mix(in srgb,var(--c) 70%,var(--ink));}
+  }
+  .pill[data-v="景點"]{--c:#3b7ea1;} .pill[data-v="美食"]{--c:#c7742a;} .pill[data-v="交通"]{--c:#6f7d8c;}
+  .pill[data-v="購物"]{--c:#a5478f;} .pill[data-v="住宿"]{--c:#8a6d3b;} .pill[data-v="活動"]{--c:#d1436b;}
+  .pill[data-v="已預訂"]{--c:#2e8b57;} .pill[data-v="未預訂"]{--c:#cc2036;} .pill[data-v="臨時"]{--c:#7a5bb5;}
+  .icard .place{font-size:13px; overflow-wrap:anywhere;}
+  .icard input,.icard select{width:100%; min-width:0;}
+  .icard input[data-k="title"]{font-weight:900;}
+  .icard textarea{width:100%; min-height:56px; line-height:1.6; background:var(--paper);}
+  .ie1{display:grid; grid-template-columns:104px minmax(0,1fr) auto; gap:8px; align-items:center;}
+  .ie2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px;}
+  .dadd{width:100%; justify-content:center;}
+  .dcol > .dchd input{width:100%;}
+  html[data-field="fill"] .icard input:not([type="checkbox"]),html[data-field="fill"] .icard select,html[data-field="fill"] .icard textarea{background:var(--paper);}
   .newrow{padding:0 0 14px;}
   .fgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px 12px; margin-bottom:12px;}
   .fgrid input,.fgrid select{width:100%; min-width:0;}
@@ -558,11 +593,86 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var count = ph.k === 'up' ? (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') : ph.k === 'now' ? '旅途中・第 ' + ph.n + ' 天' : '';
     return (count ? '<span class="count">' + count + '</span>' : '') + '<span>' + d(t.start) + (t.end ? ' – ' + d(t.end) : '') + '</span>';
   }
+  // 住宿晚數與提示
+  function stayHint(x){
+    if(!x.checkin || !x.checkout) return '';
+    var n = Math.round((toDate(x.checkout) - toDate(x.checkin)) / 86400000);
+    return n > 0 ? '共 ' + n + ' 晚' : '退房日要晚於入住日';
+  }
+  // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note }
+  var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','臨時'];
+  function newItem(){ return { id:uid(), time:'', title:'', cat:'', status:'', place:'', note:'' }; }
+  // 舊資料是一大段文字（每行一個行程）：轉成卡片。id 由日期 id 加序號決定，重複轉換也不會變
+  function normDays(t){
+    (t.days || []).forEach(function(day){
+      if(Array.isArray(day.items)) return;
+      day.items = String(day.text || '').split('\n').map(function(l){ return l.trim(); }).filter(Boolean).map(function(line, i){
+        var m = line.match(/^(\d{1,2})[:：](\d{2})(?:\s*[-–~〜→]\s*(\d{1,2})[:：](\d{2}))?\s*(.*)$/), it = { id: day.id + '_m' + i, time:'', title: line, cat:'', status:'', place:'', note:'' };
+        if(m && +m[1] < 24 && +m[2] < 60){
+          it.time = String(m[1]).padStart(2,'0') + ':' + m[2];
+          it.title = m[5] || line;
+          if(m[3] != null && +m[3] < 24 && +m[4] < 60) it.title += '（至 ' + String(m[3]).padStart(2,'0') + ':' + m[4] + '）';   // 有結束時間就附在名稱後面，不丟資訊
+        }
+        return it;
+      });
+      delete day.text;
+    });
+  }
+  // 有時間的依時間排前面，沒時間的維持原順序排後面
+  function sortedItems(day){
+    var arr = (day.items || []).map(function(x, i){ return { x:x, i:i }; });
+    arr.sort(function(a, b){
+      var ta = a.x.time || '', tb = b.x.time || '';
+      if(ta && tb) return ta < tb ? -1 : ta > tb ? 1 : a.i - b.i;
+      if(ta) return -1; if(tb) return 1; return a.i - b.i;
+    });
+    return arr.map(function(o){ return o.x; });
+  }
+  function pill(v){ return v ? '<span class="pill" data-v="' + esc(v) + '">' + esc(v) + '</span>' : ''; }
+  function itemView(x){
+    var pills = pill(x.cat) + pill(x.status);
+    var map = x.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place) : '';
+    return '<div class="icard"><div class="itop">' + (x.time ? '<span class="itime">' + esc(x.time) + '</span>' : '') +
+      '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
+      (pills ? '<div class="pills">' + pills + '</div>' : '') +
+      (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
+      (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+  }
+  function itemEdit(day, x){
+    var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
+    var opts = function(list, cur, ph){ return '<option value="">' + ph + '</option>' + list.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join(''); };
+    return '<div class="icard"><div class="ie1"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
+      '<input' + a + ' data-k="title" aria-label="行程名稱" placeholder="行程名稱" value="' + esc(x.title || '') + '">' +
+      '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+      '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
+      '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
+      '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
+      '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="交通方式、注意事項…">' + esc(x.note || '') + '</textarea></div>';
+  }
+  // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
+  function boardHtml(t, edit){
+    var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
+    if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
+    return head + '<div class="board">' + t.days.map(function(day, i){
+      var n = (day.items || []).length, label = 'Day ' + (i+1);
+      var top = '<div class="dtop"><b>' + label + '</b><span class="wk">' + wk(day.date) + '</span><span class="cnt">' + n + '</span>';
+      if(edit){
+        return '<div class="dcol"><div class="dchd">' + top + '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除這一天" title="刪除這一天">×</button></div>' +
+          '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="' + label + ' 日期" value="' + esc(day.date || '') + '">' +
+          '<input data-d="' + day.id + '" data-k="title" aria-label="' + label + ' 主題" placeholder="今天的主題（選填）" value="' + esc(day.title || '') + '"></div>' +
+          (day.items || []).map(function(x){ return itemEdit(day, x); }).join('') +
+          '<button class="mini dadd" type="button" data-do="addit" data-day="' + day.id + '">＋ 新增行程</button></div>';
+      }
+      return '<div class="dcol"><div class="dchd">' + top + '</div>' +
+        '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + '</div></div>' +
+        (n ? sortedItems(day).map(itemView).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
+    }).join('') + '</div></section>';
+  }
   function isBlank(t){
     if(!t) return false;
     var fi = t.fanInfo || {};
-    return !((t.bookings || []).length || (t.checklist || []).length || (t.expenses || []).length ||
-      (t.days || []).some(function(x){ return String(x.title || '').trim() || String(x.text || '').trim(); }) ||
+    return !((t.bookings || []).length || (t.stays || []).length || (t.checklist || []).length || (t.expenses || []).length ||
+      (t.days || []).some(function(x){ return String(x.title || '').trim() || (x.items || []).length || String(x.text || '').trim(); }) ||
       Object.keys(fi).some(function(k){ return String(fi[k] || '').trim(); }));
   }
   function safeUrl(u){
@@ -595,19 +705,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
           (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
+    h += '<section class="sec"><div class="sh"><h3>住宿</h3></div>' +
+      (t.stays.length ? t.stays.map(function(x){
+        var q = (String(x.name || '') + ' ' + String(x.address || '')).trim();
+        var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
+        var dt = (x.checkin ? esc(d(x.checkin)) + esc(wk(x.checkin)) + ' 入住' : '') + (x.checkin && x.checkout ? ' → ' : '') + (x.checkout ? esc(d(x.checkout)) + esc(wk(x.checkout)) + ' 退房' : '');
+        var hint = stayHint(x);
+        return '<div class="bk v"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
+          (dt ? '<div class="btime">' + dt + (hint ? '・' + esc(hint) : '') + '</div>' : '') +
+          (x.address ? '<div class="vtext">' + esc(x.address) + '</div>' : '') +
+          (map ? '<div><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a></div>' : '') +
+          (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
+          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+      }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
+
+
+    h += '</div><div class="col c2">';
     var cks = t.checklist.filter(function(x){ return String(x.text || '').trim(); });
     h += '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3></div>' +
       (cks.length ? cks.map(function(x){
         return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
       }).join('') : '<p class="vempty">還沒有清單，按右上角「編輯」套用範本。</p>') + '</section>';
-
-    h += '</div><div class="col c2"><section class="sec"><div class="sh"><h3>每日行程</h3></div>' +
-      (t.days.length ? t.days.map(function(day, i){
-        return '<div class="day v"><div class="dvh"><b>Day ' + (i+1) + '<span class="wk">' + wk(day.date) + '</span></b>' +
-          (day.date ? '<span class="ddate">' + esc(d(day.date)) + '</span>' : '') +
-          (day.title ? '<span class="dtitle">' + esc(day.title) + '</span>' : '') + '</div>' +
-          (day.text ? '<div class="vtext">' + esc(day.text) + '</div>' : '<p class="vempty">尚未安排</p>') + '</div>';
-      }).join('') : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
 
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
     h += '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
@@ -652,6 +770,23 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<div class="empty">航班、住宿、門票的班次、時間與訂位代號，都可以記在這裡，出發時一次看得到。</div>') +
       '</section>';
 
+    h += '<section class="sec"><div class="sh"><h3>住宿</h3><div class="btns">' +
+      '<button class="mini" type="button" data-do="addstay">＋ 新增一筆</button></div></div>' +
+      (t.stays.length ? t.stays.map(function(x){
+        return '<div class="bk"><div class="sname"><input data-s="' + x.id + '" data-k="name" aria-label="住宿名稱" placeholder="飯店或民宿名稱" value="' + esc(x.name || '') + '">' +
+          '<button class="del" type="button" data-do="delstay" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+          '<div class="sdates"><label>入住<input type="date" data-s="' + x.id + '" data-k="checkin" value="' + esc(x.checkin || '') + '"></label>' +
+          '<label>退房<input type="date" data-s="' + x.id + '" data-k="checkout" min="' + esc(x.checkin || '') + '" value="' + esc(x.checkout || '') + '"></label></div>' +
+          '<div class="nn" role="status">' + esc(stayHint(x)) + '</div>' +
+          '<input data-s="' + x.id + '" data-k="address" aria-label="住宿地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.address || '') + '">' +
+          '<div class="bcode"><input data-s="' + x.id + '" data-k="code" aria-label="訂房代號" placeholder="訂房代號" autocomplete="off" value="' + esc(x.code || '') + '">' +
+          '<button class="mini" type="button" data-do="copy">複製</button></div>' +
+          '<textarea data-s="' + x.id + '" data-k="note" aria-label="住宿備註" placeholder="入住時間、櫃檯、早餐、停車等">' + esc(x.note || '') + '</textarea></div>';
+      }).join('') : '<div class="empty">飯店或民宿的入住退房日、地址與訂房代號，可以記在這裡。</div>') +
+      '</section>';
+
+
+    h += '</div><div class="col c2">';
     h += '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="tpl">套用' + (fan ? '追星' : '旅遊') + '範本</button>' +
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
@@ -660,19 +795,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="清單項目" placeholder="要準備的東西">' +
           '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
-      '</section>';
-
-    h += '</div><div class="col c2">';
-    h += '<section class="sec"><div class="sh"><h3>每日行程</h3><div class="btns">' +
-      '<button class="mini" type="button" data-do="gen">依日期產生</button>' +
-      '<button class="mini" type="button" data-do="addday">＋ 新增一天</button></div></div>' +
-      (t.days.length ? t.days.map(function(day, i){
-        return '<div class="day"><div class="dh"><b>Day ' + (i+1) + '<span class="wk">' + wk(day.date) + '</span></b>' +
-          '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="Day ' + (i+1) + ' 日期" value="' + esc(day.date || '') + '">' +
-          '<input data-d="' + day.id + '" data-k="title" aria-label="Day ' + (i+1) + ' 主題" placeholder="今天的主題，例如：抵達東京" value="' + esc(day.title || '') + '">' +
-          '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除" title="刪除">×</button></div>' +
-          '<textarea data-d="' + day.id + '" data-k="text" aria-label="Day ' + (i+1) + ' 行程內容" placeholder="每行一個行程，例如 09:00 前往機場">' + esc(day.text || '') + '</textarea></div>';
-      }).join('') : '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>') +
       '</section>';
 
     h += '</div><div class="col c3">';
@@ -695,7 +817,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function renderDetail(){
     var t = cur(), el = $('detail');
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
+    normDays(t);
     var fan = t.kind === 'fan';
     var h = '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
@@ -704,9 +827,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
 
+    h += boardHtml(t, editMode);
     h += editMode ? editBody(t, fan) : viewBody(t, fan);
     var y = window.scrollY;          // 重繪會讓頁面瞬間變短，先記下位置再還原，避免跳回最上方
+    var oldBoard = el.querySelector('.board'), bx = oldBoard ? oldBoard.scrollLeft : 0;   // 看板左右位置也要保留
     el.innerHTML = h;
+    var newBoard = el.querySelector('.board'); if(newBoard) newBoard.scrollLeft = bx;
     [].forEach.call(el.querySelectorAll('textarea'), autosize);
     window.scrollTo(0, y);
   }
@@ -714,11 +840,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('detail').addEventListener('change', function(e){
     var el = e.target, t = cur(), ds = el.dataset;
     if(!t) return;
-    if(ds.d){
+    normDays(t);
+    if(ds.i){
+      var pd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
+      var it2 = pd && (pd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
+      if(it2) it2[ds.k] = el.value;
+    } else if(ds.d){
       var day = (t.days || []).filter(function(x){ return String(x.id) === ds.d; })[0];
       if(day){
         day[ds.k] = el.value;
-        if(ds.k === 'date'){ var wkEl = el.closest('.day').querySelector('.wk'); if(wkEl) wkEl.textContent = wk(el.value); }
+        if(ds.k === 'date'){ var wkEl = el.closest('.dcol').querySelector('.wk'); if(wkEl) wkEl.textContent = wk(el.value); }
       }
     } else if(ds.b){
       var bk = (t.bookings || []).filter(function(x){ return String(x.id) === ds.b; })[0];
@@ -735,6 +866,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.e){
       var ex = (t.expenses || []).filter(function(x){ return String(x.id) === ds.e; })[0];
       if(ex){ ex[ds.k] = el.value; if(ds.k === 'amount' || ds.k === 'cat') $('sum').innerHTML = sumHtml(t); }
+    } else if(ds.s){
+      var st = (t.stays || []).filter(function(x){ return String(x.id) === ds.s; })[0];
+      if(st){
+        st[ds.k] = el.value;
+        if(ds.k === 'checkin' || ds.k === 'checkout'){
+          var card = el.closest('.bk'), outEl = card.querySelector('input[data-k="checkout"]'), nnEl = card.querySelector('.nn');
+          if(ds.k === 'checkin' && outEl) outEl.min = el.value || '';
+          if(nnEl) nnEl.textContent = stayHint(st);
+        }
+      }
     } else if(ds.f){
       t.fanInfo = t.fanInfo || {}; t.fanInfo[ds.k] = el.value;
     } else if(ds.t){
@@ -756,8 +897,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('detail').addEventListener('click', function(e){
     var b = e.target.closest('button[data-do]'); if(!b) return;
     var t = cur(); if(!t) return;
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || [];
-    var act = b.dataset.do;
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
+    normDays(t);
+    var act = b.dataset.do, newItemId = null;
     if(act === 'save'){
       // 先讓正在輸入的欄位送出變更（手機上按按鈕不一定會讓欄位失焦）
       var ae = document.activeElement;
@@ -769,6 +911,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       // 先讓正在輸入的欄位送出變更，再切回檢視
       var ae2 = document.activeElement;
       if(ae2 && $('detail').contains(ae2) && ae2.blur) ae2.blur();
+      t.days.forEach(function(day){ day.items = sortedItems(day); });   // 完成時依時間排好
       editMode = false; renderDetail(); doPersist(); return;
     }
     if(act === 'copy'){
@@ -795,7 +938,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'addday'){
       var last = t.days.length ? t.days[t.days.length-1].date : '', nd = '';
       if(last){ var x0 = toDate(last); x0.setDate(x0.getDate()+1); nd = ymd(x0); } else if(t.start){ nd = t.start; }
-      t.days.push({ id:uid(), date:nd, title:'', text:'' });
+      t.days.push({ id:uid(), date:nd, title:'', items:[] });
     } else if(act === 'gen'){
       var s0 = toDate(t.start), e0 = toDate(t.end) || s0;
       if(!s0){ alert('請先回旅程列表，按「編輯」填好出發日'); return; }
@@ -804,17 +947,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.days.forEach(function(x){ have[x.date] = 1; });
       for(var c0 = new Date(s0); c0 <= e0 && n < 60; c0.setDate(c0.getDate()+1), n++){
         var key = ymd(c0);
-        if(!have[key]) t.days.push({ id:uid(), date:key, title:'', text:'' });
+        if(!have[key]) t.days.push({ id:uid(), date:key, title:'', items:[] });
       }
       t.days.sort(function(a,b){ return (a.date || '9999').localeCompare(b.date || '9999'); });
     } else if(act === 'delday'){
-      if(!confirm('確定要刪除這一天的行程嗎？')) return;
+      var dx = t.days.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(dx && ((dx.items || []).length || String(dx.title || '').trim()) && !confirm('確定要刪除這一天的行程嗎？（這天所有行程卡片也會一併刪除）')) return;
       t.days = t.days.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'addit'){
+      var dd = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
+      if(!dd) return;
+      var ni = newItem(); dd.items.push(ni); newItemId = ni.id;
+    } else if(act === 'delit'){
+      var dd2 = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
+      if(!dd2) return;
+      var it3 = dd2.items.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(it3 && (String(it3.title || '').trim() || String(it3.note || '').trim() || String(it3.place || '').trim()) && !confirm('確定要刪除這個行程嗎？')) return;
+      dd2.items = dd2.items.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addbk'){
       t.bookings.push({ id:uid(), type:'航班', name:'', time:'', code:'', note:'' });
     } else if(act === 'delbk'){
       if(!confirm('確定要刪除這筆預訂資料嗎？')) return;
       t.bookings = t.bookings.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'addstay'){
+      var prev = t.stays.length ? t.stays[t.stays.length - 1] : null;
+      t.stays.push({ id:uid(), name:'', checkin: prev ? (prev.checkout || '') : (t.start || ''), checkout: prev ? '' : (t.end || ''), address:'', code:'', note:'' });
+    } else if(act === 'delstay'){
+      var sx = t.stays.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(sx && (String(sx.name || '').trim() || String(sx.address || '').trim() || String(sx.code || '').trim()) && !confirm('確定要刪除這筆住宿資料嗎？')) return;
+      t.stays = t.stays.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addck'){
       t.checklist.push({ id:uid(), text:'', done:false });
     } else if(act === 'delck'){
@@ -839,6 +1000,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var lastBk = t.bookings[t.bookings.length - 1];
       var inb = $('detail').querySelector('input[data-b="' + lastBk.id + '"][data-k="name"]');
       if(inb) inb.focus();
+    }
+    if(newItemId){
+      var inItem = $('detail').querySelector('input[data-i="' + newItemId + '"][data-k="title"]');
+      if(inItem) inItem.focus();
+    }
+    if(act === 'addstay'){
+      var lastSt = t.stays[t.stays.length - 1];
+      var ins = $('detail').querySelector('input[data-s="' + lastSt.id + '"][data-k="name"]');
+      if(ins) ins.focus();
     }
     if(act === 'addck'){
       var lastCk = t.checklist[t.checklist.length - 1];
