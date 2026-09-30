@@ -1,0 +1,16 @@
+{
+  "name": "旅遊紀錄",
+  "short_name": "旅遊紀錄",
+  "description": "航班、住宿與行程，平常出遊和追星的每一趟都收在這裡。",
+  "lang": "zh-Hant",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f2ec",
+  "theme_color": "#f4f2ec",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
