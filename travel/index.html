@@ -4,21 +4,30 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>旅遊紀錄 — ARCHIVE</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#f4f2ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#17150f" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="旅遊紀錄">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
 <style>
   :root{
-    --paper:#f4f2ec; --ink:#15130f; --ink-dim:#453f30; --ink-faint:#7d7763;
+    --paper:#f4f2ec; --ink:#15130f; --ink-dim:#453f30; --ink-faint:#6b6552;
     --line:rgba(21,19,15,0.14); --line-strong:rgba(21,19,15,0.4);
-    --accent:#b86e12;
+    --accent:#9a5808; --danger:#cc2036;
     --display:'Archivo Black','Noto Sans TC',sans-serif;
     --maru:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;
   }
   html[data-theme="dark"]{
     --paper:#17150f; --ink:#f2efe6; --ink-dim:#cfc7b4; --ink-faint:#8f8772;
     --line:rgba(242,239,230,0.14); --line-strong:rgba(242,239,230,0.4);
-    --accent:#eaa540;
+    --accent:#eaa540; --danger:#ff6b7d;
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{background:var(--paper); color:var(--ink); font-family:var(--maru); min-height:100vh;
@@ -49,7 +58,7 @@
   .trip .meta b{color:var(--ink-dim); font-weight:700;}
   .trip .note{margin-top:10px; font-size:14px; line-height:1.7; color:var(--ink-dim); white-space:pre-wrap;}
   .del{background:transparent; color:var(--ink-faint); padding:4px 8px; font-size:13px; font-weight:500; letter-spacing:0;}
-  .del:hover,.del:focus-visible{background:transparent; color:#cc2036;}
+  .del:hover,.del:focus-visible{background:transparent; color:var(--danger);}
   .empty{padding:40px 0; text-align:center; color:var(--ink-faint); font-size:15px;}
   @media (max-width:520px){
     .wrap{padding:20px 20px 56px;}
@@ -59,11 +68,13 @@
   [hidden]{display:none !important;}
   .login{border-top:1px solid var(--line-strong); padding:32px 0 8px;}
   .login p{color:var(--ink-dim); font-size:15px; line-height:1.7; margin-bottom:18px; max-width:460px;}
-  .err{margin-top:14px; font-size:14px; color:#cc2036;}
+  .err{margin-top:14px; font-size:14px; color:var(--danger);}
   .who{display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--line-strong); font-size:13px; font-weight:500; color:var(--ink-dim);}
   .who button{background:transparent; color:var(--ink-faint); padding:2px 6px; font-size:13px; font-weight:500; letter-spacing:0;}
   .who button:hover,.who button:focus-visible{background:transparent; color:var(--accent);}
   .who + #app form{border-top:0; padding-top:12px;}
+  /* 詳細頁時頁首標題被隱藏，「← ARCHIVE」會直接貼著登入列的上線，補一點間距 */
+  #head[hidden] ~ .who{margin-top:16px;}
 .tabs{display:flex; gap:8px; padding:0 0 16px; flex-wrap:wrap;}
   .tabs button{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong); padding:5px 14px; font-size:13px; font-weight:700; letter-spacing:0.04em;}
   .tabs button:hover,.tabs button:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
@@ -71,10 +82,11 @@
   .tag{display:inline-block; font-size:12px; font-weight:700; letter-spacing:0.06em; padding:1px 8px; margin-bottom:8px; border:1px solid var(--line-strong); color:var(--ink-dim);}
   .tag.fan{background:var(--accent); border-color:var(--accent); color:var(--paper);}
 .actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .acts{display:flex; gap:2px; flex:0 0 auto;}
   .ghost{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong);}
   .ghost:hover,.ghost:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
-  .acts{display:flex; gap:2px; flex:0 0 auto;}
   .del[data-act="edit"]:hover,.del[data-act="edit"]:focus-visible{color:var(--accent);}
+  .editnote{font-size:14px; font-weight:700; color:var(--accent);}
   .grp{padding:16px 0 4px; font-size:13px; font-weight:700; letter-spacing:0.08em; color:var(--ink-dim);}
   .count{color:var(--accent); font-weight:700;}
 a.name{display:block; color:inherit; text-decoration:none;}
@@ -156,7 +168,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     <label>出發日<input name="start" type="date" required></label>
     <label>回程日<input name="end" type="date"></label>
     <label class="full">備註（航班、住宿、行程、心得）<textarea name="note"></textarea></label>
-    <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button></div>
+    <div class="full editnote" id="editNote" hidden></div>
+    <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button><button type="button" class="ghost" id="cancelBtn" hidden>取消編輯</button></div>
   </form>
 
   <div class="tabs" id="tabs">
@@ -173,8 +186,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
 <script>
+  // 深淺色主題：跟著系統設定，系統切換時即時更新
   (function(){
-    try{ if(window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme','dark'); }catch(e){}
+    try{
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var apply = function(){ document.documentElement.setAttribute('data-theme', mq.matches ? 'dark' : 'light'); };
+      apply();
+      if(mq.addEventListener) mq.addEventListener('change', apply); else if(mq.addListener) mq.addListener(apply);
+    }catch(e){}
   })();
 
   // 與推し手帳共用同一個 Firebase 專案，登入狀態在同一個網域底下自動共用
@@ -189,6 +208,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
 };
   firebase.initializeApp(firebaseConfig);
   var auth = firebase.auth(), db = firebase.firestore();
+  // 離線快取：沒網路時仍可讀取（與編輯）上次同步的旅程，恢復連線後自動同步。要在其他 Firestore 呼叫之前執行
+  db.enablePersistence({ synchronizeTabs: true }).catch(function(e){
+    console.warn('離線快取未啟用：', e.code);   // failed-precondition／unimplemented（例如無痕模式）時照常線上使用
+  });
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(function(){});
 
   // 旅程存在 users/{uid}/data/travel-trips，跟手帳同一個位置與格式（{ value: [...] }）
@@ -234,6 +257,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="meta">' + count + '<span>' + dates + '</span>' + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span>行前清單 <b>' + prog(t) + '</b></span>' : '') + '</div>' +
       (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
       '</div><div class="acts">' +
+      '<button class="del" data-act="edit" data-id="' + t.id + '" type="button">編輯</button>' +
       '<button class="del" data-act="del" data-id="' + t.id + '" type="button">刪除</button></div></div>';
   }
   function render(){
@@ -264,6 +288,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(unsub){ unsub(); unsub = null; }
     docRef = null; trips = []; loaded = false;
     if(!user){
+      exitEdit();
       $('login').hidden = false; $('who').hidden = true; $('app').hidden = true; $('detail').hidden = true; $('head').hidden = false;
       return;
     }
@@ -273,6 +298,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     unsub = docRef.onSnapshot(function(doc){
       if(doc.exists && Array.isArray(doc.data().value)){
         trips = doc.data().value;
+      } else if(doc.metadata.fromCache){
+        // 離線且本機沒有快取：這不代表雲端真的沒資料，先不搬移舊資料，避免之後蓋掉雲端
+        trips = [];
       } else {
         // 雲端還沒有資料：把先前存在這台瀏覽器的旅程一次搬上雲端
         trips = readOldLocal();
@@ -308,17 +336,53 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function money(n){ return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
   function cur(){ return trips.filter(function(x){ return String(x.id) === String(currentId); })[0]; }
 
-  // ---- 新增旅程（快速新增，細節到詳細頁再補） ----
+  // ---- 新增／編輯旅程（快速新增，細節到詳細頁再補；列表上的「編輯」會把資料帶回上方表單） ----
+  var editingId = null;
+  function exitEdit(){
+    editingId = null;
+    $('f').reset();
+    $('eventWrap').hidden = true;
+    $('submitBtn').textContent = '新增旅程';
+    $('cancelBtn').hidden = true;
+    $('editNote').hidden = true;
+  }
+  function startEdit(id){
+    var t = trips.filter(function(x){ return String(x.id) === String(id); })[0];
+    if(!t) return;
+    var f = $('f'), el = f.elements, fan = t.kind === 'fan';
+    editingId = String(t.id);
+    el['title'].value = t.title || '';
+    el['kind'].value = fan ? 'fan' : 'general';
+    $('eventWrap').hidden = !fan;
+    el['event'].value = t.event || '';
+    el['place'].value = t.place || '';
+    el['start'].value = t.start || '';
+    el['end'].value = t.end || '';
+    el['note'].value = t.note || '';
+    $('submitBtn').textContent = '儲存修改';
+    $('cancelBtn').hidden = false;
+    $('editNote').textContent = '正在編輯：' + (t.title || '');
+    $('editNote').hidden = false;
+    f.scrollIntoView({ behavior:'smooth', block:'start' });
+    el['title'].focus({ preventScroll:true });
+  }
+  $('cancelBtn').addEventListener('click', exitEdit);
   $('f').addEventListener('submit', function(e){
     e.preventDefault();
     var f = e.target, fan = f.kind.value === 'fan';
-    trips.push({ id:Date.now(), kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, note:f.note.value.trim(), days:[], expenses:[] });
-    render(); persist(); f.reset(); $('eventWrap').hidden = true;
+    var data = { kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, note:f.note.value.trim() };
+    var t = editingId && trips.filter(function(x){ return String(x.id) === editingId; })[0];
+    if(t){ Object.assign(t, data); }   // 只改基本資料，原有的預訂、清單、行程與花費都保留
+    else { data.id = Date.now(); data.days = []; data.expenses = []; trips.push(data); }
+    exitEdit(); render(); persist();
   });
   $('list').addEventListener('click', function(e){
-    var b = e.target.closest('button[data-act="del"]'); if(!b) return;
+    var b = e.target.closest('button[data-act]'); if(!b) return;
+    if(b.dataset.act === 'edit'){ startEdit(b.dataset.id); return; }
+    if(b.dataset.act !== 'del') return;
     if(!confirm('確定要刪除這趟旅程嗎？（預訂資料、清單、每日行程與花費也會一併刪除）')) return;
     trips = trips.filter(function(t){ return String(t.id) !== b.dataset.id; });
+    if(editingId === b.dataset.id) exitEdit();
     render(); persist();
   });
 
@@ -335,37 +399,33 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var chips = CATS.filter(function(c){ return by[c]; }).map(function(c){ return '<span>' + c + ' <b>' + money(by[c]) + '</b></span>'; }).join('');
     return '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>' + (chips ? '<div class="chips">' + chips + '</div>' : '');
   }
+  // 詳細頁頁首的「倒數／旅途中」與日期；改日期時也用它即時更新
+  function dmHtml(t){
+    var ph = phase(t);
+    var count = ph.k === 'up' ? (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') : ph.k === 'now' ? '旅途中・第 ' + ph.n + ' 天' : '';
+    return (count ? '<span class="count">' + count + '</span>' : '') + '<span>' + d(t.start) + (t.end ? ' – ' + d(t.end) : '') + '</span>';
+  }
   function renderDetail(){
     var t = cur(), el = $('detail');
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || [];
-    var fan = t.kind === 'fan', ph = phase(t);
-    var count = ph.k === 'up' ? (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') : ph.k === 'now' ? '旅途中・第 ' + ph.n + ' 天' : '';
+    var fan = t.kind === 'fan';
     var h = '<a class="back" href="#">← 旅遊紀錄</a>' +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
-      '<div class="dm">' + (count ? '<span class="count">' + count + '</span>' : '') + '<span>' + d(t.start) + (t.end ? ' – ' + d(t.end) : '') + '</span></div></div>';
-
-    h += '<section class="sec"><div class="sh"><h3>基本資料</h3></div><div class="grid">' +
-      '<label class="full">名稱<input data-f="title" value="' + esc(t.title) + '"></label>' +
-      '<label>類型<select data-f="kind"><option value="general"' + (fan ? '' : ' selected') + '>一般旅遊</option><option value="fan"' + (fan ? ' selected' : '') + '>追星</option></select></label>' +
-      (fan ? '<label>活動／對象<input data-f="event" value="' + esc(t.event || '') + '"></label>' : '') +
-      '<label>地點<input data-f="place" value="' + esc(t.place || '') + '"></label>' +
-      '<label>出發日<input type="date" data-f="start" value="' + esc(t.start || '') + '"></label>' +
-      '<label>回程日<input type="date" data-f="end" value="' + esc(t.end || '') + '"></label>' +
-      '<label class="full">備註／心得<textarea data-f="note">' + esc(t.note || '') + '</textarea></label></div></section>';
+      '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
 
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
-        return '<div class="bk"><div class="bh"><select data-b="' + x.id + '" data-k="type">' +
+        return '<div class="bk"><div class="bh"><select data-b="' + x.id + '" data-k="type" aria-label="預訂類型">' +
           BKTYPES.map(function(c){ return '<option' + (c === x.type ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-          '<input data-b="' + x.id + '" data-k="name" placeholder="例如：長榮 BR198 台北→札幌、飯店名稱" value="' + esc(x.name || '') + '">' +
+          '<input data-b="' + x.id + '" data-k="name" aria-label="預訂名稱" placeholder="例如：長榮 BR198 台北→札幌、飯店名稱" value="' + esc(x.name || '') + '">' +
           '<button class="del" type="button" data-do="delbk" data-id="' + x.id + '">刪除</button></div>' +
-          '<div class="bg"><input data-b="' + x.id + '" data-k="time" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
-          '<div class="bcode"><input data-b="' + x.id + '" data-k="code" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
+          '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
+          '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
           '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
-          '<textarea data-b="' + x.id + '" data-k="note" placeholder="地址、櫃檯、取票方式、入場時間等">' + esc(x.note || '') + '</textarea></div>';
+          '<textarea data-b="' + x.id + '" data-k="note" aria-label="預訂備註" placeholder="地址、櫃檯、取票方式、入場時間等">' + esc(x.note || '') + '</textarea></div>';
       }).join('') : '<div class="empty">航班、住宿、門票的班次、時間與訂位代號，都可以記在這裡，出發時一次看得到。</div>') +
       '</section>';
 
@@ -374,7 +434,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
       (t.checklist.length ? t.checklist.map(function(x){
         return '<div class="ck' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="完成">' +
-          '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" placeholder="要準備的東西">' +
+          '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="清單項目" placeholder="要準備的東西">' +
           '<button class="del" type="button" data-do="delck" data-id="' + x.id + '">刪除</button></div>';
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
@@ -384,19 +444,19 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="mini" type="button" data-do="addday">＋ 新增一天</button></div></div>' +
       (t.days.length ? t.days.map(function(day, i){
         return '<div class="day"><div class="dh"><b>Day ' + (i+1) + '</b>' +
-          '<input type="date" data-d="' + day.id + '" data-k="date" value="' + esc(day.date || '') + '">' +
-          '<input data-d="' + day.id + '" data-k="title" placeholder="今天的主題，例如：抵達東京" value="' + esc(day.title || '') + '">' +
+          '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="Day ' + (i+1) + ' 日期" value="' + esc(day.date || '') + '">' +
+          '<input data-d="' + day.id + '" data-k="title" aria-label="Day ' + (i+1) + ' 主題" placeholder="今天的主題，例如：抵達東京" value="' + esc(day.title || '') + '">' +
           '<button class="del" type="button" data-do="delday" data-id="' + day.id + '">刪除</button></div>' +
-          '<textarea data-d="' + day.id + '" data-k="text" placeholder="每行一個行程，例如：&#10;09:00 前往機場&#10;14:00 飯店 check-in">' + esc(day.text || '') + '</textarea></div>';
+          '<textarea data-d="' + day.id + '" data-k="text" aria-label="Day ' + (i+1) + ' 行程內容" placeholder="每行一個行程，例如：&#10;09:00 前往機場&#10;14:00 飯店 check-in">' + esc(day.text || '') + '</textarea></div>';
       }).join('') : '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>') +
       '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns"><button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       t.expenses.map(function(x){
-        return '<div class="exp"><select data-e="' + x.id + '" data-k="cat">' +
+        return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
           CATS.map(function(c){ return '<option' + (c === x.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-          '<input data-e="' + x.id + '" data-k="name" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
-          '<input data-e="' + x.id + '" data-k="amount" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
+          '<input data-e="' + x.id + '" data-k="name" aria-label="花費項目" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
+          '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '">刪除</button></div>';
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div></section>';
     el.innerHTML = h;
@@ -405,12 +465,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('detail').addEventListener('change', function(e){
     var el = e.target, t = cur(), ds = el.dataset;
     if(!t) return;
-    if(ds.f){
-      if(ds.f === 'title' && !el.value.trim()){ el.value = t.title; return; }
-      t[ds.f] = (el.tagName === 'INPUT' && el.type !== 'date') || el.tagName === 'TEXTAREA' ? el.value.trim() : el.value;
-      if(ds.f === 'title') $('dtitle').textContent = t.title;
-      if(ds.f === 'kind'){ if(t.kind !== 'fan') t.event = ''; renderDetail(); }
-    } else if(ds.d){
+    if(ds.d){
       var day = (t.days || []).filter(function(x){ return String(x.id) === ds.d; })[0];
       if(day) day[ds.k] = el.value;
     } else if(ds.b){
@@ -453,7 +508,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.days.push({ id:uid(), date:nd, title:'', text:'' });
     } else if(act === 'gen'){
       var s0 = toDate(t.start), e0 = toDate(t.end) || s0;
-      if(!s0){ alert('請先在「基本資料」填好出發日'); return; }
+      if(!s0){ alert('請先回旅程列表，按「編輯」填好出發日'); return; }
       var have = {}, n = 0;
       t.days.forEach(function(x){ have[x.date] = 1; });
       for(var c0 = new Date(s0); c0 <= e0 && n < 60; c0.setDate(c0.getDate()+1), n++){
@@ -472,6 +527,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(act === 'addck'){
       t.checklist.push({ id:uid(), text:'', done:false });
     } else if(act === 'delck'){
+      var ck0 = t.checklist.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(ck0 && String(ck0.text || '').trim() && !confirm('確定要刪除這個清單項目嗎？')) return;
       t.checklist = t.checklist.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'tpl'){
       var have2 = {};
@@ -482,6 +539,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(act === 'addexp'){
       t.expenses.push({ id:uid(), cat:'其他', name:'', amount:'' });
     } else if(act === 'delexp'){
+      var ex0 = t.expenses.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(ex0 && (String(ex0.name || '').trim() || String(ex0.amount == null ? '' : ex0.amount).trim()) && !confirm('確定要刪除這筆花費嗎？')) return;
       t.expenses = t.expenses.filter(function(x){ return String(x.id) !== b.dataset.id; });
     }
     renderDetail(); persist();
@@ -519,6 +578,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     else if(loaded){ render(); }
   }
   window.addEventListener('hashchange', route);
+
+  // ---- 離線支援：註冊 service worker（需要 https，sw.js 要和本檔放在同一個資料夾） ----
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(e){ console.warn('service worker 註冊失敗：', e); });
+    });
+  }
 </script>
 </body>
 </html>
