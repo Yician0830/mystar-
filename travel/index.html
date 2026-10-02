@@ -172,7 +172,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   html[data-field="fill"] .ck input[data-k="text"]{border-bottom-color:transparent;}
   .bar .save.alt{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong);}
   .bar .save.alt:hover,.bar .save.alt:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
-  .vtext{white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; font-weight:500;}
+  .vtext{white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; line-height:1.7; font-weight:500;}
   .vempty{color:var(--ink-faint); font-size:14px; padding:4px 0 12px; line-height:1.7;}
   .muted{color:var(--ink-faint); font-weight:500;}
   .kv{display:grid; gap:12px;}
@@ -282,7 +282,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
 
   /* ── 詳細頁：滿版、三欄（預訂資料＋住宿＋行前清單 ／ 每日行程 ／ 花費），窄螢幕自動改成兩欄或一欄 ── */
-  body.wide .wrap{max-width:none; padding-left:clamp(20px,3vw,48px); padding-right:clamp(20px,3vw,48px);}
+  body.wide .wrap{max-width:1600px; padding-left:clamp(20px,3vw,48px); padding-right:clamp(20px,3vw,48px);}
   .bar{position:sticky; top:env(safe-area-inset-top,0px); z-index:5; display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; background:var(--paper); border-bottom:1px solid var(--line);}
   .savest{margin-left:auto; font-size:13px; font-weight:500; color:var(--ink-faint);}
   .savest.dirty{color:var(--accent); font-weight:700;}
@@ -334,6 +334,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .approx.warn{color:var(--danger);}
   .xcard .xa small{font-size:12px; font-weight:700; color:var(--ink-faint);}
   .xcard .xs{font-size:12px; color:var(--ink-faint);}
+  /* 旅程詳細頁：最上方的「← ARCHIVE」不需要，只留「← 旅遊紀錄」 */
+  body.wide .wrap > a.back{display:none;}
+  /* 行程離開時間／停留時長 */
+  .iet{display:grid; grid-template-columns:104px minmax(0,1fr); gap:8px; align-items:center;}
+  .idurt{font-size:13px; font-weight:500; color:var(--ink-faint);}
+  .idurt.has{font-weight:700; color:var(--accent);}
+  .pill[data-v="停留"]{--c:#8a6d3b;}
+  .pill[data-v="現場候位"]{--c:#b8741a;}
+  .icard .itrans{font-size:13px; font-weight:500; color:var(--ink-dim); overflow-wrap:anywhere;}
 </style>
 </head>
 <body>
@@ -387,6 +396,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   <div id="detail" hidden></div>
 </div>
 
+<datalist id="tmodes"><option value="步行"><option value="JR"><option value="地鐵"><option value="電車"><option value="巴士"><option value="計程車"><option value="包車"><option value="租車"><option value="高鐵"><option value="飛機"><option value="渡輪"></datalist>
 <button type="button" id="totop" class="totop" aria-label="回到最上方" title="回到最上方" hidden>↑</button>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -452,12 +462,24 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (open && dn >= 0 ? '・' + (dn === 0 ? '就是今天' : '還有 ' + dn + ' 天') : '') + '</span>';
   }
 
+  // 從預訂的時間文字（例如「2/20 10:20-15:00」「02/20 08:30 → 13:10」）取出最早的出發時間，用來排序航班
+  function bkStamp(t, x){
+    var tx = String(x.time || ''), dm = tx.match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/), tm = tx.match(/(\d{1,2})\s*:\s*(\d{2})/);
+    if(!dm) return Infinity;
+    var s0 = toDate(t.start), y = s0 ? s0.getFullYear() : new Date().getFullYear();
+    var dt = new Date(y, +dm[1] - 1, +dm[2], tm ? +tm[1] : 0, tm ? +tm[2] : 0);
+    if(s0 && dt < new Date(s0.getTime() - 60 * DAY)) dt = new Date(y + 1, +dm[1] - 1, +dm[2], tm ? +tm[1] : 0, tm ? +tm[2] : 0);   // 跨年（12 月出發、1 月回程）
+    return isNaN(dt) ? Infinity : dt.getTime();
+  }
   // ---- 卡片摘要：航班、首日住宿、票務 ----
   function ksumHtml(t, fan, ph, hasSaleChip){
     if(ph.k === 'past') return '';
     var rows = [];
     var bks = t.bookings || [], sts = t.stays || [];
-    var fl = bks.filter(function(x){ return x.type === '航班' && (x.name || x.time); });
+    var fl = bks.filter(function(x){ return x.type === '航班' && (x.name || x.time); })
+      .map(function(x, i){ return { x:x, k:bkStamp(t, x), i:i }; })
+      .sort(function(a, b){ return a.k === b.k ? a.i - b.i : (a.k < b.k ? -1 : 1); })
+      .map(function(o){ return o.x; });
     if(fl.length){
       var f = fl[0];
       rows.push(['航班', esc(f.name || '') + (f.time ? (f.name ? '　' : '') + esc(f.time) : '') + (fl.length > 1 ? '　<small>等 ' + fl.length + ' 段</small>' : '')]);
@@ -476,7 +498,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 搜尋與篩選 ----
   var q = '', yearF = 'all', placeF = 'all', composing = false;
-  function cityOf(t){ return String(t.place || '').trim().split(/[・·,，、\/／\s]+/)[0] || ''; }
+  // 地點可以填多個城市（用 / 、 , → 等分隔），每個城市都能篩選；「東京・有明」這種「城市・區域」只取城市
+  function citiesOf(t){
+    var seen = {}, out = [];
+    String(t.place || '').split(/[\/／、,，;；→＞>+＋&]+/).forEach(function(seg){
+      var c = seg.split(/[・·]/)[0].trim();
+      if(c && !seen[c]){ seen[c] = 1; out.push(c); }
+    });
+    return out;
+  }
   function yearOf(t){ return t.start ? String(t.start).slice(0, 4) : ''; }
   function hay(t){
     var a = [t.title, t.place, t.event, t.note];
@@ -489,7 +519,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function syncFilters(){
     var ys = {}, cs = {};
-    trips.forEach(function(t){ var y = yearOf(t), c = cityOf(t); if(y) ys[y] = 1; if(c) cs[c] = 1; });
+    trips.forEach(function(t){ var y = yearOf(t); if(y) ys[y] = 1; citiesOf(t).forEach(function(c){ cs[c] = 1; }); });
     var yl = Object.keys(ys).sort().reverse(), cl = Object.keys(cs).sort();
     if(yearF !== 'all' && !ys[yearF]) yearF = 'all';
     if(placeF !== 'all' && !cs[placeF]) placeF = 'all';
@@ -524,7 +554,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var shown = trips.filter(function(t){
       if(!(filter === 'all' || (t.kind || 'general') === filter)) return false;
       if(yearF !== 'all' && yearOf(t) !== yearF) return false;
-      if(placeF !== 'all' && cityOf(t) !== placeF) return false;
+      if(placeF !== 'all' && citiesOf(t).indexOf(placeF) < 0) return false;
       if(kw.length){ var h = hay(t); if(!kw.every(function(w){ return h.indexOf(w) > -1; })) return false; }
       return true;
     });
@@ -734,7 +764,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var b = e.target.closest('button[data-act]'); if(!b) return;
     if(b.dataset.act === 'edit'){ startEdit(b.dataset.id); return; }
     if(b.dataset.act !== 'del') return;
-    if(!confirm('確定要刪除這趟旅程嗎？（預訂資料、清單、每日行程與花費也會一併刪除）')) return;
+    var tg = trips.filter(function(t){ return String(t.id) === b.dataset.id; })[0];
+    var nm = tg && String(tg.title || '').trim();
+    // 第一道：確認視窗
+    if(!confirm('確定要刪除「' + (nm || '未命名旅程') + '」嗎？（預訂資料、清單、每日行程與花費也會一併刪除，無法復原）')) return;
+    // 第二道：輸入旅程名稱（沒有名稱就輸入「刪除」），避免誤觸
+    var need = nm || '刪除';
+    var ans = prompt('再確認一次：請輸入「' + need + '」來刪除這趟旅程。');
+    if(ans === null) return;
+    if(ans.trim() !== need){ alert('輸入的內容不一致，沒有刪除。'); return; }
     trips = trips.filter(function(t){ return String(t.id) !== b.dataset.id; });
     if(editingId === b.dataset.id) exitEdit();
     render(); persist();
@@ -795,8 +833,24 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return n > 0 ? '共 ' + n + ' 晚' : '退房日要晚於入住日';
   }
   // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note }
-  var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','臨時'];
-  function newItem(){ return { id:uid(), time:'', title:'', cat:'', status:'', place:'', note:'' }; }
+  var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','現場候位','臨時'];
+  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', note:'' }; }
+  // ---- 停留時長：開始時間到離開時間；離開時間比開始早，視為隔天離開 ----
+  function toMin(v){ var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function durMin(x){
+    var a = toMin(x.time), b = toMin(x.end);
+    if(a == null || b == null || a === b) return null;
+    return b > a ? b - a : b + 1440 - a;
+  }
+  function durText(x){
+    var m = durMin(x); if(m == null) return '';
+    var h = Math.floor(m / 60), mm = m % 60;
+    return (h ? h + ' 小時' : '') + (h && mm ? ' ' : '') + (mm ? mm + ' 分' : '') + (toMin(x.end) < toMin(x.time) ? '（隔天離開）' : '');
+  }
+  function timeRange(x){
+    if(x.time) return x.time + (x.end ? '–' + x.end : '');
+    return x.end ? '至 ' + x.end : '';
+  }
   // 舊資料是一大段文字（每行一個行程）：轉成卡片。id 由日期 id 加序號決定，重複轉換也不會變
   function normDays(t){
     (t.days || []).forEach(function(day){
@@ -830,7 +884,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function lkText(key, y){
     if(key === 'lkBk') return (y.type ? y.type + ' ' : '') + (y.name || '未命名');
     if(key === 'lkStay') return y.name || '未命名住宿';
-    return (y.cat ? y.cat + ' ' : '') + (y.name || '未命名') + (String(y.amount == null ? '' : y.amount).trim() ? ' ' + money(signed(y)) : '');
+    return (y.cat ? y.cat + ' ' : '') + (y.name || '未命名') + (String(y.amount == null ? '' : y.amount).trim() ? ' ' + money(signed(y)) + (ecur(null, y) !== 'TWD' ? ' ' + ecur(null, y) : '') : '');
   }
   function fwdLinks(t, x){
     var h = Object.keys(LK).map(function(key){
@@ -847,13 +901,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
   function itemView(x){
-    var pills = pill(x.cat) + pill(x.status);
+    var dt = durText(x);
+    var pills = pill(x.cat) + pill(x.status) + (dt ? '<span class="pill" data-v="停留">⏱ 停留 ' + esc(dt) + '</span>' : '');
     var map = x.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place) : '';
     var t0 = cur();
-    return '<div class="icard" id="lk-it-' + x.id + '"><div class="itop">' + (x.time ? '<span class="itime">' + esc(x.time) + '</span>' : '') +
+    return '<div class="icard" id="lk-it-' + x.id + '"><div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + fwdLinks(t0, x) +
       (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
+      (x.transport ? '<div class="itrans">🚃 ' + esc(x.transport) + '</div>' : '') +
       (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
   }
   function lkSelects(a, x){
@@ -871,11 +927,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="icard"><div class="ie1"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
       '<input' + a + ' data-k="title" aria-label="行程名稱" placeholder="行程名稱" value="' + esc(x.title || '') + '">' +
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+      '<div class="iet"><input type="time"' + a + ' data-k="end" aria-label="離開時間" value="' + esc(x.end || '') + '">' +
+      '<span class="idurt' + (durText(x) ? ' has' : '') + '">' + (durText(x) ? '停留 ' + esc(durText(x)) : '← 離開時間（選填，會自動算停留時長）') + '</span></div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       lkSelects(a, x) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
-      '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="交通方式、注意事項…">' + esc(x.note || '') + '</textarea></div>';
+      '<input' + a + ' data-k="transport" list="tmodes" aria-label="交通方式" placeholder="交通方式（例如：JR、地鐵、步行 15 分、計程車）" value="' + esc(x.transport || '') + '">' +
+      '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="注意事項、營業時間…">' + esc(x.note || '') + '</textarea></div>';
   }
   // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
   function boardHtml(t, edit){
@@ -1074,7 +1133,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(ds.i){
       var pd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
       var it2 = pd && (pd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
-      if(it2) it2[ds.k] = el.value;
+      if(it2){
+        it2[ds.k] = el.value;
+        if(ds.k === 'time' || ds.k === 'end'){
+          var dEl = el.closest('.icard').querySelector('.idurt'), dtx = durText(it2);
+          if(dEl){ dEl.textContent = dtx ? '停留 ' + dtx : '← 離開時間（選填，會自動算停留時長）'; dEl.classList.toggle('has', !!dtx); }
+        }
+      }
     } else if(ds.d){
       var day = (t.days || []).filter(function(x){ return String(x.id) === ds.d; })[0];
       if(day){
@@ -1301,6 +1366,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   })();
 
   // ---- 離線支援：註冊 service worker（需要 https，sw.js 要和本檔放在同一個資料夾） ----
+  // 切到別的 App、鎖螢幕或關掉分頁時，先讓正在輸入的欄位送出變更（手機上不一定會觸發「離開欄位」）
+  function flushEdits(){
+    var ae = document.activeElement;
+    if(ae && ae !== document.body && $('detail').contains(ae) && ae.blur) ae.blur();
+  }
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') flushEdits(); });
+  window.addEventListener('pagehide', flushEdits);
   if('serviceWorker' in navigator){
     window.addEventListener('load', function(){
       navigator.serviceWorker.register('./sw.js').catch(function(e){ console.warn('service worker 註冊失敗：', e); });
