@@ -297,6 +297,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
     .cols{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}
     .col.c3{grid-column:auto;}
   }
+  /* 搜尋與篩選列 */
+  .fbar{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; padding:0 0 16px;}
+  .fbar .fs{flex:1 1 200px; min-width:0;}
+  .fbar input,.fbar select{width:100%; font-size:15px;}
+  .fbar select{flex:0 1 auto; min-width:110px; background:var(--paper); cursor:pointer;}
+  .fbar .fsel{flex:0 1 130px; min-width:110px;}
+  .fbar .fclr{flex:0 0 auto; background:transparent; color:var(--ink-faint); border:1px solid var(--line-strong); padding:5px 12px; font-size:13px; font-weight:700; letter-spacing:0.04em;}
+  .fbar .fclr:hover,.fbar .fclr:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
+  .fcount{font-size:13px; font-weight:500; color:var(--ink-faint); padding:0 0 4px;}
+  /* 卡片上的關鍵資訊摘要 */
+  .trip .ksum{margin-top:10px; padding:8px 12px; background:var(--fill); display:grid; gap:4px; font-size:13px; line-height:1.6; color:var(--ink-dim);}
+  .trip .ksum div{display:flex; gap:10px; min-width:0;}
+  .trip .ksum em{font-style:normal; font-weight:700; color:var(--ink-faint); flex:0 0 auto; min-width:2.6em;}
+  .trip .ksum span{min-width:0; overflow-wrap:anywhere;}
+  .trip .ksum code{font-size:12px; background:var(--line); padding:0 5px;}
 </style>
 </head>
 <body>
@@ -338,6 +353,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
       <button type="button" data-k="general" aria-pressed="false">一般旅遊</button>
       <button type="button" data-k="fan" aria-pressed="false">追星</button>
     </div>
+    <div class="fbar" id="fbar" hidden>
+      <label class="fs"><input type="search" id="q" placeholder="搜尋：旅程、地點、活動、航班、飯店、備註…" autocomplete="off" aria-label="搜尋旅程"></label>
+      <label class="fsel"><select id="yearF" aria-label="依年份篩選"></select></label>
+      <label class="fsel"><select id="placeF" aria-label="依地點篩選"></select></label>
+      <button type="button" class="fclr" id="fclr" hidden>清除篩選</button>
+    </div>
+    <div class="fcount" id="fcount" hidden></div>
     <div class="list" id="list"></div>
   </div>
   <div id="detail" hidden></div>
@@ -407,17 +429,65 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + '</b>' + (st ? '・' + esc(st) : '') +
       (open && dn >= 0 ? '・' + (dn === 0 ? '就是今天' : '還有 ' + dn + ' 天') : '') + '</span>';
   }
+
+  // ---- 卡片摘要：航班、首日住宿、票務 ----
+  function ksumHtml(t, fan, ph, hasSaleChip){
+    if(ph.k === 'past') return '';
+    var rows = [];
+    var bks = t.bookings || [], sts = t.stays || [];
+    var fl = bks.filter(function(x){ return x.type === '航班' && (x.name || x.time); });
+    if(fl.length){
+      var f = fl[0];
+      rows.push(['航班', esc(f.name || '') + (f.time ? (f.name ? '　' : '') + esc(f.time) : '') + (fl.length > 1 ? '　<small>等 ' + fl.length + ' 段</small>' : '')]);
+    }
+    var st = sts.filter(function(x){ return x.name; }).sort(function(a,b){ return String(a.checkin || '9999').localeCompare(String(b.checkin || '9999')); })[0];
+    if(st) rows.push(['住宿', esc(st.name) + (st.checkin ? '　' + esc(d(st.checkin)) + ' 入住' : '')]);
+    if(fan){
+      var fi = t.fanInfo || {}, tk = bks.filter(function(x){ return x.type === '門票' && (x.name || x.code); })[0], parts = [];
+      if(fi.saleStatus && !hasSaleChip) parts.push(esc(fi.saleStatus));
+      if(tk){ parts.push(esc(tk.name || '門票')); if(tk.code) parts.push('<code>' + esc(tk.code) + '</code>'); }
+      if(fi.showDate) parts.push('場次 ' + esc(d(fi.showDate)));
+      if(parts.length) rows.push(['票務', parts.join('　')]);
+    }
+    if(!rows.length) return '';
+    return '<div class="ksum">' + rows.map(function(r){ return '<div><em>' + r[0] + '</em><span>' + r[1] + '</span></div>'; }).join('') + '</div>';
+  }
+  // ---- 搜尋與篩選 ----
+  var q = '', yearF = 'all', placeF = 'all', composing = false;
+  function cityOf(t){ return String(t.place || '').trim().split(/[・·,，、\/／\s]+/)[0] || ''; }
+  function yearOf(t){ return t.start ? String(t.start).slice(0, 4) : ''; }
+  function hay(t){
+    var a = [t.title, t.place, t.event, t.note];
+    (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note); });
+    (t.stays || []).forEach(function(x){ a.push(x.name, x.address, x.note); });
+    return a.filter(Boolean).join(' ').toLowerCase();
+  }
+  function fillSel(el, all, vals, cur){
+    el.innerHTML = '<option value="all">' + all + '</option>' + vals.map(function(v){ return '<option value="' + esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + esc(v) + '</option>'; }).join('');
+  }
+  function syncFilters(){
+    var ys = {}, cs = {};
+    trips.forEach(function(t){ var y = yearOf(t), c = cityOf(t); if(y) ys[y] = 1; if(c) cs[c] = 1; });
+    var yl = Object.keys(ys).sort().reverse(), cl = Object.keys(cs).sort();
+    if(yearF !== 'all' && !ys[yearF]) yearF = 'all';
+    if(placeF !== 'all' && !cs[placeF]) placeF = 'all';
+    fillSel($('yearF'), '所有年份', yl, yearF);
+    fillSel($('placeF'), '所有地點', cl, placeF);
+    $('fbar').hidden = !trips.length;
+  }
   function tripHtml(t, ph){
     var fan = t.kind === 'fan';
     var dates = d(t.start) + (t.end ? ' – ' + d(t.end) : '');
     var count = ph.k === 'up' ? '<span class="count">' + (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') + '</span>'
               : ph.k === 'now' ? '<span class="count">旅途中・第 ' + ph.n + ' 天</span>' : '';
     var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
+    var chip = saleChip(t, fan, ph);
     return '<div class="trip"><div class="main">' +
       '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<a class="name" href="#/t/' + t.id + '">' + esc(t.title) + '</a>' +
       (where ? '<div class="where">' + where + '</div>' : '') +
-      '<div class="meta">' + count + '<span>' + dates + '</span>' + saleChip(t, fan, ph) + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span>行前清單 <b>' + prog(t) + '</b></span>' : '') + '</div>' +
+      '<div class="meta">' + count + '<span>' + dates + '</span>' + chip + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span>行前清單 <b>' + prog(t) + '</b></span>' : '') + '</div>' +
+      ksumHtml(t, fan, ph, !!chip) +
       (t.note ? '<div class="note">' + esc(t.note) + '</div>' : '') +
       '</div><div class="acts">' +
       '<button class="del" data-act="edit" data-id="' + t.id + '" type="button">編輯</button>' +
@@ -425,9 +495,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function render(){
     var el = $('list');
-    var shown = trips.filter(function(t){ return filter === 'all' || (t.kind || 'general') === filter; });
+    syncFilters();
+    var kw = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    var active = !!(kw.length || yearF !== 'all' || placeF !== 'all');
+    $('fclr').hidden = !active;
+    var shown = trips.filter(function(t){
+      if(!(filter === 'all' || (t.kind || 'general') === filter)) return false;
+      if(yearF !== 'all' && yearOf(t) !== yearF) return false;
+      if(placeF !== 'all' && cityOf(t) !== placeF) return false;
+      if(kw.length){ var h = hay(t); if(!kw.every(function(w){ return h.indexOf(w) > -1; })) return false; }
+      return true;
+    });
+    $('fcount').hidden = !active;
+    if(active) $('fcount').textContent = '符合的旅程：' + shown.length + ' 趟';
     if(!shown.length){
-      el.innerHTML = '<div class="empty">' + (trips.length ? '這個分類還沒有旅程。' : '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。') + '</div>';
+      el.innerHTML = '<div class="empty">' + (!trips.length ? '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。' : active ? '找不到符合的旅程，換個關鍵字或清除篩選看看。' : '這個分類還沒有旅程。') + '</div>';
       return;
     }
     var next = [], past = [];
@@ -445,6 +527,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     [].forEach.call($('tabs').children, function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
     render();
   });
+
+  $('q').addEventListener('compositionstart', function(){ composing = true; });
+  $('q').addEventListener('compositionend', function(){ composing = false; q = this.value; render(); });
+  $('q').addEventListener('input', function(){ if(composing) return; q = this.value; render(); });
+  $('yearF').addEventListener('change', function(){ yearF = this.value; render(); });
+  $('placeF').addEventListener('change', function(){ placeF = this.value; render(); });
+  $('fclr').addEventListener('click', function(){ q = ''; yearF = 'all'; placeF = 'all'; $('q').value = ''; render(); });
   $('kind').addEventListener('change', function(){ $('eventWrap').hidden = this.value !== 'fan'; });
 
   auth.onAuthStateChanged(function(user){
