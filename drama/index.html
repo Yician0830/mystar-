@@ -87,9 +87,10 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .g-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(74,61,54,0.35);}
 .g-badge{position:absolute; top:6px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
-.g-fav{position:absolute; top:6px; right:6px; width:34px; height:34px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:19px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.g-fav{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.78); display:flex; align-items:center; justify-content:center; font-size:15px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
 .g-fav.on{color:var(--rose-deep);}
-.g-fav::before,.f-fav::before{content:''; position:absolute; top:-6px; right:-6px; left:-6px; bottom:-3px;}
+.g-fav::before,.f-fav::before{content:''; position:absolute; top:-6px; right:-6px; left:-8px; bottom:-2px;}
+.cardMenuBtn::before{content:''; position:absolute; top:-2px; right:-6px; left:-8px; bottom:-8px;}
 .g-fav:active,.f-fav:active{transform:scale(.88);}
 .g-body{padding:8px 10px 10px; flex:1;}
 .g-img{position:absolute; inset:0;}
@@ -150,7 +151,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .f-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
-.f-fav{position:absolute; top:5px; right:5px; width:32px; height:32px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:17px; touch-action:manipulation; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.f-fav{position:absolute; top:5px; right:5px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.78); display:flex; align-items:center; justify-content:center; font-size:15px; touch-action:manipulation; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
 .f-fav.on{color:var(--rose-deep);}
 .f-body{padding:8px 9px 9px;}
 .f-title{font-weight:700; font-size:12.5px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
@@ -267,7 +268,9 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
   .listRow.hasWish{grid-template-columns:minmax(250px,24%) minmax(0,1fr);}
   .listRow.hasWish #listArea{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
 }
-.cardMenuBtn{position:absolute; top:48px; right:6px; width:34px; height:34px; border-radius:50%; background:rgba(255,253,249,0.9); border:none; color:var(--ink-soft); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; box-shadow:0 2px 6px rgba(0,0,0,0.12); padding:0; touch-action:manipulation;}
+.modal:has(.yearDetailGrid){max-width:min(980px,94vw);}
+.modal .yearDetailGrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; max-height:64vh;}
+.cardMenuBtn{position:absolute; top:36px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.78); border:none; color:var(--ink-soft); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; box-shadow:0 2px 6px rgba(0,0,0,0.12); padding:0; touch-action:manipulation;}
 .cardMenu{position:fixed; z-index:95; background:var(--surface); border:1px solid var(--ink-faint); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); padding:4px; min-width:120px;}
 .cardMenu button{display:block; width:100%; text-align:left; padding:11px 14px; border:none; background:none; font-family:inherit; font-size:13.5px; color:var(--ink); border-radius:8px; cursor:pointer;}
 .cardMenu button:active{background:var(--surface-soft);}
