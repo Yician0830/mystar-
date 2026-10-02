@@ -351,7 +351,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   /* 花費明細：一列固定兩張卡片（數量多時不會拉太長）；連結小標籤不截斷，卡片裡放不下就在標籤內自動換行；很窄的欄位才改成一列一張 */
   .lks{display:flex; flex-wrap:wrap; gap:6px; max-width:none; min-width:0;}
   .lk{width:auto; max-width:100%; white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; text-align:left; line-height:1.5;}
-  .xgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start;}
+  .xgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; gap:10px; align-items:stretch;}
   .xgrid .xcard{width:auto; min-width:0; max-width:none;}
   @container (max-width:300px){ .xgrid{grid-template-columns:minmax(0,1fr);} }
   .ccard.clk{cursor:pointer; transition:border-color .15s, background .15s;}
@@ -373,7 +373,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .emodal.on{display:flex;}
   .emodal .mbox{container-type:inline-size; width:min(600px,100%); max-height:100%; overflow:auto; background:var(--paper); border:1px solid var(--line-strong); padding:16px 18px 18px; box-shadow:0 12px 40px rgba(0,0,0,.3);}
   .emodal .mhead h3{margin:0 0 12px; font-size:17px;}
-  .emodal .mfoot{display:flex; justify-content:flex-end; margin-top:14px; position:sticky; bottom:-18px; padding:10px 0 0; background:var(--paper);}
+  .emodal .mvday{display:grid; gap:4px; margin:0 0 12px; font-size:13px; font-weight:700; color:var(--ink-dim);}
+  .emodal .mvday select{width:100%;}
+  .emodal .mfoot{display:flex; justify-content:space-between; align-items:center; margin-top:14px; position:sticky; bottom:-18px; padding:10px 0 0; background:var(--paper);}
+  .xcard.xwarn{border-style:dashed;}
+  .xcard .xs.xw{color:var(--danger); font-weight:700;}
+  .dsub .dsum{margin-left:10px; font-size:13px; font-weight:700; color:var(--accent);}
+  .rate .rrow{display:grid; gap:4px;}
+  .rate .rmeta{font-size:12px; color:var(--ink-faint);}
+  .rate .rmeta:empty{display:none;}
 </style>
 </head>
 <body>
@@ -718,11 +726,28 @@ a.name{display:block; color:inherit; text-decoration:none;}
     (t.expenses || []).forEach(function(x){ var c = ecur(t, x); if(c !== 'TWD') m[c] = 1; });
     return CURRENCIES.map(function(c){ return c[0]; }).filter(function(c){ return m[c]; });
   }
+  // 匯率記憶：同一幣別在別趟旅程填過的匯率，可一鍵套用；每個匯率也記下填寫日期
+  function lastRate(c, t0){
+    var best = null;
+    (trips || []).forEach(function(t2){
+      if(t2 === t0 || !t2.rates) return;
+      var r = amt(t2.rates[c]); if(!(r > 0)) return;
+      var dt = (t2.rateDates && t2.rateDates[c]) || '';
+      if(!best || dt > best.date) best = { rate:t2.rates[c], date:dt };
+    });
+    return best;
+  }
+  function rateMeta(t, c){
+    var rs = t.rates || {}, dt = t.rateDates && t.rateDates[c];
+    if(amt(rs[c]) > 0) return dt ? '填於 ' + esc(d(dt)) : '';
+    var lr = lastRate(c, t);
+    return lr ? '<button class="mini" type="button" data-do="userate" data-cur="' + esc(c) + '" data-rate="' + esc(lr.rate) + '">套用上次的 ' + esc(lr.rate) + (lr.date ? '（' + esc(d(lr.date)) + '）' : '') + '</button>' : '';
+  }
   function rateRowsHtml(t){
     var list = usedForeign(t); if(!list.length) return '';
     var rs = t.rates || {};
     return list.map(function(c){
-      return '<label>匯率　1 ' + esc(c) + ' =<input data-r="' + esc(c) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(c) + ' 匯率" placeholder="例如 0.21" value="' + esc(rs[c] == null ? '' : rs[c]) + '"> 新台幣</label>';
+      return '<div class="rrow"><label>匯率　1 ' + esc(c) + ' =<input data-r="' + esc(c) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(c) + ' 匯率" placeholder="例如 0.21" value="' + esc(rs[c] == null ? '' : rs[c]) + '"> 新台幣</label><span class="rmeta" data-for="' + esc(c) + '">' + rateMeta(t, c) + '</span></div>';
     }).join('') + '<div class="rhint">每個外幣填一次匯率，就會換算進新台幣總花費。</div>';
   }
   // 「機票」併入「交通」：舊花費改歸交通，兩邊的預算加總
@@ -934,6 +959,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     });
   }
   // 有時間的依時間排前面，沒時間的維持原順序排後面
+  function dayExpTotal(t, day){
+    var seen = {}, tot = 0;
+    (day.items || []).forEach(function(it){
+      var id = it.lkExp; if(!id || seen[id]) return; seen[id] = 1;
+      var ex = (t.expenses || []).filter(function(e){ return String(e.id) === String(id); })[0]; if(!ex) return;
+      var n = signed(ex), r = rateOf(t, ecur(t, ex)); if(n && r) tot += n * r;
+    });
+    return tot;
+  }
   function sortedItems(day){
     var arr = (day.items || []).map(function(x, i){ return { x:x, i:i }; });
     arr.sort(function(a, b){
@@ -1023,7 +1057,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
   }
-  var emodal = null, modalCtx = null;
+  var emodal = null, modalCtx = null, dayInitFor = null;
   function findEntry(t, c){
     if(!t || !c) return null;
     if(c.kind === 'it'){
@@ -1048,17 +1082,25 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!emodal){
       emodal = document.createElement('div'); emodal.id = 'emodal'; emodal.className = 'emodal';
       emodal.setAttribute('role', 'dialog'); emodal.setAttribute('aria-modal', 'true');
-      emodal.innerHTML = '<div class="mbox"><div class="mhead"><h3 class="mtitle"></h3></div><div class="mbody"></div><div class="mfoot"><button type="button" data-do="mclose">完成</button></div></div>';
+      emodal.innerHTML = '<div class="mbox"><div class="mhead"><h3 class="mtitle"></h3></div><div class="mbody"></div><div class="mfoot"><button class="mini mdup" type="button" data-do="dupit">複製這個行程</button><button type="button" data-do="mclose">完成</button></div></div>';
       $('detail').appendChild(emodal);
     }
     var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費' };
     emodal.querySelector('.mtitle').textContent = (isNew ? '新增' : '編輯') + names[kind];
-    emodal.querySelector('.mbody').innerHTML = kind === 'it' ? itemEdit(f.day, f.x) : kind === 'bk' ? bkEdit(f.x) : kind === 'st' ? stayEdit(f.x) : expEdit(t, f.x);
+    var mvSel = '';
+    if(kind === 'it'){
+      mvSel = '<label class="mvday">所屬日期<select data-mvday="1" aria-label="所屬日期">' + (t.days || []).map(function(d0, i0){
+        return '<option value="' + d0.id + '"' + (d0 === f.day ? ' selected' : '') + '>Day ' + (i0 + 1) + (d0.date ? '　' + esc(d(d0.date)) + '（' + esc(wk(d0.date).replace(/[（）()]/g, '')) + '）' : '') + '</option>';
+      }).join('') + '</select></label>';
+    }
+    emodal.querySelector('.mdup').style.display = kind === 'it' ? '' : 'none';
+    emodal.querySelector('.mbody').innerHTML = mvSel + (kind === 'it' ? itemEdit(f.day, f.x) : kind === 'bk' ? bkEdit(f.x) : kind === 'st' ? stayEdit(f.x) : expEdit(t, f.x));
     modalCtx = c;
     emodal.classList.add('on'); document.body.style.overflow = 'hidden';
     [].forEach.call(emodal.querySelectorAll('textarea'), autosize);
     emodal.querySelector('.mbox').scrollTop = 0;
     if(isNew){ var fi = emodal.querySelector('input[data-k="title"],input[data-k="name"]'); if(fi) fi.focus(); }
+    else { var mb = emodal.querySelector('.mbox'); mb.setAttribute('tabindex', '-1'); mb.focus({ preventScroll:true }); }   // 鍵盤使用者：焦點移進彈跳窗
   }
   function closeModal(skipRender){
     var t = cur(), c = modalCtx;
@@ -1071,14 +1113,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
         else { var key = c.kind === 'bk' ? 'bookings' : c.kind === 'st' ? 'stays' : 'expenses'; t[key] = t[key].filter(function(x){ return x !== f.x; }); }
       }
     }
-    if(!skipRender){ renderDetail(); doPersist(); }
+    if(!skipRender){
+      renderDetail(); doPersist();
+      if(c){      // 關掉後，焦點回到剛才那一列（新增的就回到「＋ 新增」按鈕）
+        var back = document.querySelector('#detail .crow[data-open="' + c.kind + '"][data-id="' + c.id + '"]') ||
+          document.querySelector('#detail button[data-do="' + { it:'addit', bk:'addbk', st:'addstay', ex:'addexp' }[c.kind] + '"]');
+        if(back && back.focus) back.focus({ preventScroll:true });
+      }
+    }
   }
   function requestCloseModal(){
     var ae = document.activeElement;
     if(ae && emodal && emodal.contains(ae) && ae.blur) ae.blur();   // 先讓正在輸入的欄位存進去
     closeModal();
   }
-  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modalCtx) requestCloseModal(); });
+  document.addEventListener('keydown', function(e){
+    if(!modalCtx || !emodal) return;
+    if(e.key === 'Escape'){ requestCloseModal(); return; }
+    if(e.key !== 'Tab') return;
+    var f = [].filter.call(emodal.querySelectorAll('input,select,textarea,button'), function(n){ return !n.disabled && n.offsetParent !== null; });
+    if(!f.length) return;
+    var first = f[0], last = f[f.length - 1], act = document.activeElement, inside = emodal.contains(act) && act !== emodal.querySelector('.mbox');
+    if(e.shiftKey && (act === first || !inside)){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && (act === last || !inside)){ e.preventDefault(); first.focus(); }
+  });
   function itemEdit(day, x){
     var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
     var opts = function(list, cur, ph){ return '<option value="">' + ph + '</option>' + list.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join(''); };
@@ -1114,7 +1172,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="mini dadd" type="button" data-do="addit" data-day="' + day.id + '">＋ 新增行程</button></div>';
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
-        '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + '</div></div>' +
+        '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + (dayExpTotal(t, day) ? '<span class="dsum">當日花費 ' + money(dayExpTotal(t, day)) + ' 元</span>' : '') + '</div></div>' +
         (n ? sortedItems(day).map(itemView).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
     }).join('') + '</div></section>';
   }
@@ -1178,10 +1236,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
     var shown = catFilter === 'all' ? exps : exps.filter(function(x){ return x.cat === catFilter; });
+    var expGap = function(x){ return !String(x.name || '').trim() ? '名稱' : !String(x.amount == null ? '' : x.amount).trim() ? '金額' : ''; };
+    shown = shown.map(function(x, i){ return { x:x, i:i }; }).sort(function(a, b){ return (expGap(a.x) ? 1 : 0) - (expGap(b.x) ? 1 : 0) || a.i - b.i; }).map(function(o){ return o.x; });   // 沒填完整的排到最後
     h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</div><div class="xgrid">' + (shown.length ? '' : '<p class="vempty xempty">這個類別還沒有花費明細。</p>') + shown.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
-        return '<div class="xcard" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) + ' <small>' + esc(ecur(t, x)) + '</small>' : '—') + '</div>' + (has && ecur(t, x) !== 'TWD' ? (rateOf(t, ecur(t, x)) ? '<div class="xs">約 ' + money(signed(x) * rateOf(t, ecur(t, x))) + ' 元</div>' : '<div class="xs">尚未填匯率</div>') : '') + revLinks(t, 'lkExp', x.id) + '</div>';
+        return '<div class="xcard' + (expGap(x) ? ' xwarn' : '') + '" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div>' + (expGap(x) ? '<div class="xs xw">⚠ 尚未填' + expGap(x) + '，按右上角「編輯」補上</div>' : '') + '<div class="xa">' + (has ? money(signed(x)) + ' <small>' + esc(ecur(t, x)) + '</small>' : '—') + '</div>' + (has && ecur(t, x) !== 'TWD' ? (rateOf(t, ecur(t, x)) ? '<div class="xs">約 ' + money(signed(x) * rateOf(t, ecur(t, x))) + ' 元</div>' : '<div class="xs">尚未填匯率</div>') : '') + revLinks(t, 'lkExp', x.id) + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
     return h;
@@ -1249,6 +1309,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
     normDays(t);
+    if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
+      dayInitFor = currentId; dayFilter = 'all';
+      if(phase(t).k === 'now'){ var td = ymd(new Date()), hit = t.days.filter(function(x){ return x.date === td; })[0]; if(hit) dayFilter = hit.id; }
+    }
     var fan = t.kind === 'fan';
     var h = '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
@@ -1272,6 +1336,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var el = e.target, t = cur(), ds = el.dataset;
     if(!t) return;
     normDays(t);
+    if(ds.mvday){
+      var mf = findEntry(t, modalCtx), nd = (t.days || []).filter(function(x){ return String(x.id) === el.value; })[0];
+      if(mf && nd && nd !== mf.day){
+        mf.day.items = mf.day.items.filter(function(x){ return x !== mf.x; });
+        nd.items = nd.items || []; nd.items.push(mf.x);
+        modalCtx.day = nd.id;
+        [].forEach.call(emodal.querySelectorAll('[data-p]'), function(n){ n.setAttribute('data-p', nd.id); });
+        doPersist();
+      }
+      return;
+    }
     if(ds.i){
       var pd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
       var it2 = pd && (pd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
@@ -1324,6 +1399,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if($('sum')) $('sum').innerHTML = sumHtml(t);
     } else if(ds.r){
       t.rates = t.rates || {}; t.rates[ds.r] = el.value;
+      t.rateDates = t.rateDates || {}; t.rateDates[ds.r] = ymd(new Date());
+      var rm = $('rateRow') && $('rateRow').querySelector('.rmeta[data-for="' + ds.r + '"]'); if(rm) rm.innerHTML = rateMeta(t, ds.r);
       if($('sum')) $('sum').innerHTML = sumHtml(t);
     } else if(ds.t){
       t[ds.k] = el.value;
@@ -1367,6 +1444,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return;
     }
     if(act === 'mclose'){ requestCloseModal(); return; }
+    if(act === 'userate'){
+      t.rates = t.rates || {}; t.rateDates = t.rateDates || {};
+      t.rates[b.dataset.cur] = b.dataset.rate; t.rateDates[b.dataset.cur] = ymd(new Date());
+      if($('sum')) $('sum').innerHTML = sumHtml(t);
+      if($('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
+      doPersist(); return;
+    }
+    if(act === 'dupit'){
+      var ae3 = document.activeElement; if(ae3 && ae3.blur) ae3.blur();      // 先讓正在輸入的欄位存進去
+      var df = findEntry(t, modalCtx); if(!df) return;
+      var cp = JSON.parse(JSON.stringify(df.x)); cp.id = uid();
+      df.day.items.splice(df.day.items.indexOf(df.x) + 1, 0, cp);
+      doPersist(); openModal('it', cp.id, df.day.id, true); return;
+    }
     if(act === 'catf'){ catFilter = 'all'; renderDetail(); return; }
     if(act === 'dayf'){ dayFilter = b.dataset.day; renderDetail(); return; }
     if(act === 'addday' || act === 'gen') dayFilter = 'all';   // 新增／產生後要看得到新的那天
@@ -1491,6 +1582,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var m = location.hash.match(/^#\/t\/(.+)$/);
     currentId = m ? decodeURIComponent(m[1]) : null;
     catFilter = 'all';
+    if(!currentId) dayInitFor = null;
     var inDetail = !!currentId && loaded;
     document.body.classList.toggle('wide', inDetail);
     var entering = inDetail && shownId !== currentId;   // 剛進入這趟旅程（不是同步資料造成的重繪）
