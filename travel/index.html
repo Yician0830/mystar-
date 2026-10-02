@@ -343,13 +343,37 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .pill[data-v="停留"]{--c:#8a6d3b;}
   .pill[data-v="現場候位"]{--c:#b8741a;}
   .icard .itrans{font-size:13px; font-weight:500; color:var(--ink-dim); overflow-wrap:anywhere;}
+  .icard .itrans b{font-weight:900; color:var(--ink);}
+  .ie4{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:8px;}
+  @container (max-width:300px){ .ie4{grid-template-columns:minmax(0,1fr);} }
   /* 旅程詳細頁：最上方沒有「← ARCHIVE」了，登入列頂端的線也一併拿掉 */
   body.wide .who{border-top:0; margin-top:0;}
-  /* 連結小標籤：單行、不截斷、不限寬度；花費明細卡片依標籤寬度自動變寬，一列放不下就自動換到下一列 */
-  .lk{white-space:nowrap; overflow:visible; text-overflow:clip; max-width:none;}
-  .lks{max-width:none;}
-  .xgrid{display:flex; flex-wrap:wrap; gap:10px;}
-  .xgrid .xcard{flex:1 1 200px; min-width:min-content;}
+  /* 花費明細：一列固定兩張卡片（數量多時不會拉太長）；連結小標籤不截斷，卡片裡放不下就在標籤內自動換行；很窄的欄位才改成一列一張 */
+  .lks{display:flex; flex-wrap:wrap; gap:6px; max-width:none; min-width:0;}
+  .lk{width:auto; max-width:100%; white-space:normal; overflow:visible; text-overflow:clip; overflow-wrap:anywhere; text-align:left; line-height:1.5;}
+  .xgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start;}
+  .xgrid .xcard{width:auto; min-width:0; max-width:none;}
+  @container (max-width:300px){ .xgrid{grid-template-columns:minmax(0,1fr);} }
+  .ccard.clk{cursor:pointer; transition:border-color .15s, background .15s;}
+  .ccard.clk:hover{border-color:var(--accent);}
+  .ccard.clk:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .ccard.on{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent);}
+  .ssub .xhint{font-weight:500; letter-spacing:0; color:var(--ink-faint);}
+  .ssub .mini{vertical-align:middle;}
+  .xgrid .xempty{grid-column:1 / -1;}
+  /* 編輯模式的精簡清單列＋彈跳窗 */
+  .crow{display:flex; align-items:center; gap:8px; padding:8px 8px 8px 12px; margin:0 0 6px; background:var(--fill); border:1px solid var(--line); cursor:pointer;}
+  .crow:hover,.crow:focus-visible{border-color:var(--accent); outline:0;}
+  .crow .cmain{flex:1; min-width:0;}
+  .crow .c1{font-size:14px; font-weight:700; overflow-wrap:anywhere;}
+  .crow .c2{font-size:12px; color:var(--ink-faint); margin-top:2px; overflow-wrap:anywhere;}
+  .crow .cright{flex:0 0 auto; font-weight:900; color:var(--accent); font-variant-numeric:tabular-nums; font-size:14px;}
+  .crow .cright small{font-size:11px; color:var(--ink-faint); font-weight:700;}
+  .emodal{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,.5);}
+  .emodal.on{display:flex;}
+  .emodal .mbox{container-type:inline-size; width:min(600px,100%); max-height:100%; overflow:auto; background:var(--paper); border:1px solid var(--line-strong); padding:16px 18px 18px; box-shadow:0 12px 40px rgba(0,0,0,.3);}
+  .emodal .mhead h3{margin:0 0 12px; font-size:17px;}
+  .emodal .mfoot{display:flex; justify-content:flex-end; margin-top:14px; position:sticky; bottom:-18px; padding:10px 0 0; background:var(--paper);}
 </style>
 </head>
 <body>
@@ -403,7 +427,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   <div id="detail" hidden></div>
 </div>
 
-<datalist id="tmodes"><option value="步行"><option value="JR"><option value="地鐵"><option value="電車"><option value="巴士"><option value="計程車"><option value="包車"><option value="租車"><option value="高鐵"><option value="飛機"><option value="渡輪"></datalist>
+<datalist id="tmodes"><option value="步行"><option value="JR"><option value="地鐵"><option value="電車"><option value="巴士"><option value="計程車"><option value="包車"><option value="租車"><option value="高鐵"><option value="飛機"><option value="渡輪"><option value="新幹線"><option value="纜車"><option value="單車"></datalist>
 <button type="button" id="totop" class="totop" aria-label="回到最上方" title="回到最上方" hidden>↑</button>
 
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
@@ -640,7 +664,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(confirm('登出後，推し手帳也會一併登出，確定嗎？')) auth.signOut();
   });
 
-  var currentId = null, loaded = false, editMode = false, dayFilter = 'all';   // dayFilter：每日行程目前顯示哪一天（'all' = 全部）
+  var currentId = null, loaded = false, editMode = false, dayFilter = 'all', catFilter = 'all';   // dayFilter：每日行程目前顯示哪一天（'all' = 全部）
     // editMode：詳細頁是「檢視」還是「編輯」
   // 詳細頁頂端的儲存狀態（重繪後也維持同一句話）
   var saveMsg = '變更會自動儲存', saveDirty = false, shownId = null;
@@ -657,7 +681,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       else setSave('已儲存 ' + hhmm());
     });
   }
-  var CATS = ['機票','住宿','交通','門票','周邊','餐飲','其他','退款'], REFUND = '退款';
+  var CATS = ['交通','住宿','門票','周邊','餐飲','服飾','美妝','伴手禮','娛樂','其他','退款'], REFUND = '退款';
   var CURRENCIES = [['TWD','新台幣'],['JPY','日圓'],['KRW','韓元'],['USD','美元'],['EUR','歐元'],['HKD','港幣'],['CNY','人民幣'],['THB','泰銖'],['SGD','新加坡幣'],['GBP','英鎊']];
   function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
   function wk(x){ var dt = toDate(x); return dt ? '（' + '日一二三四五六'.charAt(dt.getDay()) + '）' : ''; }
@@ -673,7 +697,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 類別是「退款」時，不管輸入正負，一律從總花費扣掉
   function signed(x){ var n = amt(x.amount); return x.cat === REFUND ? -Math.abs(n) : n; }
-  function money(n){ return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
+  function money(n){ return Math.round(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
   // ---- 多幣別花費：每筆可選幣別，匯率依幣別各填一次，總花費換算成新台幣 ----
   function ecur(t, x){ return x.cur || 'TWD'; }
   function rateOf(t, c){ if(c === 'TWD') return 1; var r = amt((t.rates || {})[c]); return r > 0 ? r : 0; }
@@ -701,9 +725,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<label>匯率　1 ' + esc(c) + ' =<input data-r="' + esc(c) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(c) + ' 匯率" placeholder="例如 0.21" value="' + esc(rs[c] == null ? '' : rs[c]) + '"> 新台幣</label>';
     }).join('') + '<div class="rhint">每個外幣填一次匯率，就會換算進新台幣總花費。</div>';
   }
+  // 「機票」併入「交通」：舊花費改歸交通，兩邊的預算加總
+  function migCat(t){
+    if(t.catV2) return;
+    t.catV2 = 1;
+    (t.expenses || []).forEach(function(x){ if(x.cat === '機票') x.cat = '交通'; });
+    if(t.budgets && t.budgets['機票'] != null){
+      var sum = amt(t.budgets['機票']) + amt(t.budgets['交通']);
+      if(sum) t.budgets['交通'] = String(sum);
+      delete t.budgets['機票'];
+    }
+  }
   function cur(){
     var t = trips.filter(function(x){ return String(x.id) === String(currentId); })[0];
-    if(t) migCur(t);
+    if(t){ migCur(t); migCat(t); }
     return t;
   }
 
@@ -792,7 +827,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   };
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','已購票'];
   function prog(t){ var a = t.checklist || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
-  var CAT_ICON = {'機票':'✈️','住宿':'🏨','交通':'🚆','門票':'🎫','周邊':'🛍️','餐飲':'🍴','其他':'📦','退款':'↩️'};
+  var CAT_ICON = {'交通':'🚆','住宿':'🏨','門票':'🎫','周邊':'🛍️','餐飲':'🍴','服飾':'👕','美妝':'💄','伴手禮':'🎁','娛樂':'🎡','其他':'📦','退款':'↩️'};
   function sumHtml(t){
     var total = 0, by = {}, bud = t.budgets || {}, byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
@@ -815,7 +850,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return h + '<div class="cgrid">' + cats.map(function(c){
       var v = by[c] || 0, b = amt(bud[c]), pct = total > 0 && v > 0 ? Math.round(v / total * 100) : 0;
       var left = b > 0 ? (b - v >= 0 ? '<div class="left ok">還能花 ' + money(b - v) + '</div>' : '<div class="left over">已超支 ' + money(v - b) + '</div>') : '';
-      return '<div class="ccard"><div class="cn">' + CAT_ICON[c] + ' ' + c + '</div><div class="ca">' + money(v) + '</div>' +
+      var clk = editMode ? '' : ' clk' + (catFilter === c ? ' on' : '') + '" role="button" tabindex="0" aria-pressed="' + (catFilter === c) + '" title="點一下看「' + c + '」的花費明細" data-cat="' + c;
+      return '<div class="ccard' + clk + '"><div class="cn">' + CAT_ICON[c] + ' ' + c + '</div><div class="ca">' + money(v) + '</div>' +
         '<div class="cbar"><span>' + pct + '%</span><i style="--w:' + pct + '%"></i></div>' + left + '</div>';
     }).join('') + '</div>';
   }
@@ -841,7 +877,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note }
   var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','現場候位','臨時'];
-  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', note:'' }; }
+  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'' }; }
+  // 交通拆成兩欄：transport＝搭乘的交通工具，route＝路線（步行幾分鐘／JR 線名／地鐵幾號線哪站到哪站…），輸入提示會跟著交通工具變
+  // 每種交通工具各自的圖示，一看就知道；沒對到的才用通用的 🚃
+  var TICONS = [
+    [/步行|走路/, '🚶'], [/新幹線|高鐵/, '🚄'], [/地鐵|捷運|地下鐵/, '🚇'], [/JR|火車|台鐵|特急/i, '🚆'],
+    [/電車|路面|輕軌/, '🚋'], [/巴士|公車|客運/, '🚌'], [/計程車|Uber|taxi/i, '🚕'], [/包車|接駁|小巴/, '🚐'],
+    [/租車|自駕|開車/, '🚗'], [/飛機|航班|航空/, '✈️'], [/渡輪|船/, '⛴️'], [/纜車|索道/, '🚠'], [/單車|腳踏車|自行車/, '🚲'], [/機車|摩托/, '🛵']
+  ];
+  function tIcon(m){
+    m = String(m || '');
+    for(var i = 0; i < TICONS.length; i++) if(TICONS[i][0].test(m)) return TICONS[i][1];
+    return '🚃';
+  }
+  function routeHint(m){
+    m = String(m || '');
+    if(/步行|走路/.test(m)) return '步行幾分鐘（例如：15 分鐘）';
+    if(/地鐵|捷運|地下鐵/.test(m)) return '幾號線、哪站到哪站（例如：2 號線 A站→B站）';
+    if(/JR|電車|火車|新幹線|高鐵/.test(m)) return '搭乘路線與區間（例如：函館本線 札幌→小樽）';
+    if(/巴士|公車/.test(m)) return '路線號碼與上下車站（例如：88 號 A站→B站）';
+    if(/計程車|包車|租車|Uber/i.test(m)) return '上車地點→目的地、預估時間';
+    if(/飛機|航班/.test(m)) return '航班與航段（例如：JX318 台北→札幌）';
+    if(/渡輪|船/.test(m)) return '航線與搭乘時間';
+    return '路線（搭乘線路、起訖站、或步行幾分鐘）';
+  }
   // ---- 停留時長：開始時間到離開時間；離開時間比開始早，視為隔天離開 ----
   function toMin(v){ var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim()); return m ? (+m[1]) * 60 + (+m[2]) : null; }
   function durMin(x){
@@ -916,7 +975,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + fwdLinks(t0, x) +
       (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
-      (x.transport ? '<div class="itrans">🚃 ' + esc(x.transport) + '</div>' : '') +
+      ((x.transport || x.route) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + '</div>' : '') +
       (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
   }
   function lkSelects(a, x){
@@ -928,6 +987,98 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }).join('');
     return h ? '<div class="ie3">' + h + '</div>' : '';
   }
+  // ── 編輯模式：清單只顯示精簡的一列，新增／編輯都用彈跳窗，項目再多頁面也不會拉很長 ──
+  function crow(open, id, day, c1, c2, right, delAct){
+    var da = day ? ' data-day="' + day + '"' : '';
+    return '<div class="crow" role="button" tabindex="0" data-open="' + open + '" data-id="' + id + '"' + da + ' title="點一下編輯"><div class="cmain"><div class="c1">' + c1 + '</div>' + (c2 ? '<div class="c2">' + c2 + '</div>' : '') + '</div>' +
+      (right ? '<div class="cright">' + right + '</div>' : '') +
+      '<button class="del" type="button" data-do="' + delAct + '" data-id="' + id + '"' + da + ' aria-label="刪除" title="刪除">×</button></div>';
+  }
+  function bkEdit(x){
+        return '<div class="bk"><div class="bh"><select data-b="' + x.id + '" data-k="type" aria-label="預訂類型">' +
+          BKTYPES.map(function(c){ return '<option' + (c === x.type ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+          '<input data-b="' + x.id + '" data-k="name" aria-label="預訂名稱" placeholder="例如：長榮 BR198 台北→札幌、飯店名稱" value="' + esc(x.name || '') + '">' +
+          '<button class="del" type="button" data-do="delbk" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+          '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
+          '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
+          '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
+          '<textarea data-b="' + x.id + '" data-k="note" aria-label="預訂備註" placeholder="地址、櫃檯、取票方式、入場時間等">' + esc(x.note || '') + '</textarea></div>';
+  }
+  function stayEdit(x){
+        return '<div class="bk"><div class="sname"><input data-s="' + x.id + '" data-k="name" aria-label="住宿名稱" placeholder="飯店或民宿名稱" value="' + esc(x.name || '') + '">' +
+          '<button class="del" type="button" data-do="delstay" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+          '<div class="sdates"><label>入住<input type="date" data-s="' + x.id + '" data-k="checkin" value="' + esc(x.checkin || '') + '"></label>' +
+          '<label>退房<input type="date" data-s="' + x.id + '" data-k="checkout" min="' + esc(x.checkin || '') + '" value="' + esc(x.checkout || '') + '"></label></div>' +
+          '<div class="nn" role="status">' + esc(stayHint(x)) + '</div>' +
+          '<input data-s="' + x.id + '" data-k="address" aria-label="住宿地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.address || '') + '">' +
+          '<div class="bcode"><input data-s="' + x.id + '" data-k="code" aria-label="訂房代號" placeholder="訂房代號" autocomplete="off" value="' + esc(x.code || '') + '">' +
+          '<button class="mini" type="button" data-do="copy">複製</button></div>' +
+          '<textarea data-s="' + x.id + '" data-k="note" aria-label="住宿備註" placeholder="入住時間、櫃檯、早餐、停車等">' + esc(x.note || '') + '</textarea></div>';
+  }
+  function expEdit(t, x){
+        return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
+          CATS.map(function(c){ return '<option' + (c === x.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+          '<input data-e="' + x.id + '" data-k="name" aria-label="花費項目" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
+          '<select data-e="' + x.id + '" data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === ecur(t, x) ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
+          '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
+          '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+  }
+  var emodal = null, modalCtx = null;
+  function findEntry(t, c){
+    if(!t || !c) return null;
+    if(c.kind === 'it'){
+      var day = (t.days || []).filter(function(d0){ return String(d0.id) === String(c.day); })[0];
+      var it = day && (day.items || []).filter(function(x){ return String(x.id) === String(c.id); })[0];
+      return it ? { day:day, x:it } : null;
+    }
+    var list = c.kind === 'bk' ? t.bookings : c.kind === 'st' ? t.stays : t.expenses;
+    var x = (list || []).filter(function(y){ return String(y.id) === String(c.id); })[0];
+    return x ? { x:x } : null;
+  }
+  function entryBlank(c, x){
+    var e = function(v){ return !String(v == null ? '' : v).trim(); };
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time);
+    if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
+    if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
+    return e(x.name) && e(x.amount);
+  }
+  function openModal(kind, id, dayId, isNew){
+    var t = cur(); if(!t) return;
+    var c = { kind:kind, id:id, day:dayId, isNew:!!isNew }, f = findEntry(t, c); if(!f) return;
+    if(!emodal){
+      emodal = document.createElement('div'); emodal.id = 'emodal'; emodal.className = 'emodal';
+      emodal.setAttribute('role', 'dialog'); emodal.setAttribute('aria-modal', 'true');
+      emodal.innerHTML = '<div class="mbox"><div class="mhead"><h3 class="mtitle"></h3></div><div class="mbody"></div><div class="mfoot"><button type="button" data-do="mclose">完成</button></div></div>';
+      $('detail').appendChild(emodal);
+    }
+    var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費' };
+    emodal.querySelector('.mtitle').textContent = (isNew ? '新增' : '編輯') + names[kind];
+    emodal.querySelector('.mbody').innerHTML = kind === 'it' ? itemEdit(f.day, f.x) : kind === 'bk' ? bkEdit(f.x) : kind === 'st' ? stayEdit(f.x) : expEdit(t, f.x);
+    modalCtx = c;
+    emodal.classList.add('on'); document.body.style.overflow = 'hidden';
+    [].forEach.call(emodal.querySelectorAll('textarea'), autosize);
+    emodal.querySelector('.mbox').scrollTop = 0;
+    if(isNew){ var fi = emodal.querySelector('input[data-k="title"],input[data-k="name"]'); if(fi) fi.focus(); }
+  }
+  function closeModal(skipRender){
+    var t = cur(), c = modalCtx;
+    modalCtx = null;
+    if(emodal){ emodal.classList.remove('on'); document.body.style.overflow = ''; }
+    if(c && t && c.isNew){          // 新增後什麼都沒填就關掉，不留空白項目
+      var f = findEntry(t, c);
+      if(f && entryBlank(c, f.x)){
+        if(c.kind === 'it') f.day.items = f.day.items.filter(function(x){ return x !== f.x; });
+        else { var key = c.kind === 'bk' ? 'bookings' : c.kind === 'st' ? 'stays' : 'expenses'; t[key] = t[key].filter(function(x){ return x !== f.x; }); }
+      }
+    }
+    if(!skipRender){ renderDetail(); doPersist(); }
+  }
+  function requestCloseModal(){
+    var ae = document.activeElement;
+    if(ae && emodal && emodal.contains(ae) && ae.blur) ae.blur();   // 先讓正在輸入的欄位存進去
+    closeModal();
+  }
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && modalCtx) requestCloseModal(); });
   function itemEdit(day, x){
     var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
     var opts = function(list, cur, ph){ return '<option value="">' + ph + '</option>' + list.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join(''); };
@@ -940,7 +1091,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       lkSelects(a, x) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
-      '<input' + a + ' data-k="transport" list="tmodes" aria-label="交通方式" placeholder="交通方式（例如：JR、地鐵、步行 15 分、計程車）" value="' + esc(x.transport || '') + '">' +
+      '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
+      '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="注意事項、營業時間…">' + esc(x.note || '') + '</textarea></div>';
   }
   // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
@@ -958,7 +1110,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="dcol"><div class="dchd">' + top + '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除這一天" title="刪除這一天">×</button></div>' +
           '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="' + label + ' 日期" value="' + esc(day.date || '') + '">' +
           '<input data-d="' + day.id + '" data-k="title" aria-label="' + label + ' 主題" placeholder="今天的主題（選填）" value="' + esc(day.title || '') + '"></div>' +
-          (day.items || []).map(function(x){ return itemEdit(day, x); }).join('') +
+          sortedItems(day).map(function(x){ return crow('it', x.id, day.id, (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span> ' : '') + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>'), [x.cat, x.status, x.place, x.transport].filter(Boolean).map(esc).join(' ・ '), '', 'delit'); }).join('') +
           '<button class="mini dadd" type="button" data-do="addit" data-day="' + day.id + '">＋ 新增行程</button></div>';
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
@@ -1025,8 +1177,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<p class="vempty">還沒有清單，按右上角「編輯」套用範本。</p>') + '</section>';
 
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
+    var shown = catFilter === 'all' ? exps : exps.filter(function(x){ return x.cat === catFilter; });
     h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
-      (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細</div><div class="xgrid">' + exps.map(function(x){
+      (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</div><div class="xgrid">' + (shown.length ? '' : '<p class="vempty xempty">這個類別還沒有花費明細。</p>') + shown.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
         return '<div class="xcard" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) + ' <small>' + esc(ecur(t, x)) + '</small>' : '—') + '</div>' + (has && ecur(t, x) !== 'TWD' ? (rateOf(t, ecur(t, x)) ? '<div class="xs">約 ' + money(signed(x) * rateOf(t, ecur(t, x))) + ' 元</div>' : '<div class="xs">尚未填匯率</div>') : '') + revLinks(t, 'lkExp', x.id) + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
@@ -1055,29 +1208,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
-        return '<div class="bk"><div class="bh"><select data-b="' + x.id + '" data-k="type" aria-label="預訂類型">' +
-          BKTYPES.map(function(c){ return '<option' + (c === x.type ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-          '<input data-b="' + x.id + '" data-k="name" aria-label="預訂名稱" placeholder="例如：長榮 BR198 台北→札幌、飯店名稱" value="' + esc(x.name || '') + '">' +
-          '<button class="del" type="button" data-do="delbk" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
-          '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
-          '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
-          '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
-          '<textarea data-b="' + x.id + '" data-k="note" aria-label="預訂備註" placeholder="地址、櫃檯、取票方式、入場時間等">' + esc(x.note || '') + '</textarea></div>';
+        return crow('bk', x.id, '', '<span class="btag">' + esc(x.type || '') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.time, x.code].filter(Boolean).map(esc).join(' ・ '), '', 'delbk');
       }).join('') : '<div class="empty">航班、住宿、門票的班次、時間與訂位代號，都可以記在這裡，出發時一次看得到。</div>') +
       '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>住宿</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addstay">＋ 新增一筆</button></div></div>' +
       (t.stays.length ? t.stays.map(function(x){
-        return '<div class="bk"><div class="sname"><input data-s="' + x.id + '" data-k="name" aria-label="住宿名稱" placeholder="飯店或民宿名稱" value="' + esc(x.name || '') + '">' +
-          '<button class="del" type="button" data-do="delstay" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
-          '<div class="sdates"><label>入住<input type="date" data-s="' + x.id + '" data-k="checkin" value="' + esc(x.checkin || '') + '"></label>' +
-          '<label>退房<input type="date" data-s="' + x.id + '" data-k="checkout" min="' + esc(x.checkin || '') + '" value="' + esc(x.checkout || '') + '"></label></div>' +
-          '<div class="nn" role="status">' + esc(stayHint(x)) + '</div>' +
-          '<input data-s="' + x.id + '" data-k="address" aria-label="住宿地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.address || '') + '">' +
-          '<div class="bcode"><input data-s="' + x.id + '" data-k="code" aria-label="訂房代號" placeholder="訂房代號" autocomplete="off" value="' + esc(x.code || '') + '">' +
-          '<button class="mini" type="button" data-do="copy">複製</button></div>' +
-          '<textarea data-s="' + x.id + '" data-k="note" aria-label="住宿備註" placeholder="入住時間、櫃檯、早餐、停車等">' + esc(x.note || '') + '</textarea></div>';
+        return crow('st', x.id, '', x.name ? esc(x.name) : '<span class="muted">（未命名）</span>', [(x.checkin || x.checkout) ? esc(x.checkin || '?') + ' → ' + esc(x.checkout || '?') : '', esc(stayHint(x))].filter(Boolean).join(' ・ '), '', 'delstay');
       }).join('') : '<div class="empty">飯店或民宿的入住退房日、地址與訂房代號，可以記在這裡。</div>') +
       '</section>';
 
@@ -1098,12 +1236,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<span class="dcl">新增預設幣別</span><select data-t="1" data-k="currency" aria-label="新增花費的預設幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
       '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       t.expenses.map(function(x){
-        return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
-          CATS.map(function(c){ return '<option' + (c === x.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-          '<input data-e="' + x.id + '" data-k="name" aria-label="花費項目" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
-          '<select data-e="' + x.id + '" data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === ecur(t, x) ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
-          '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
-          '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+        return crow('ex', x.id, '', (CAT_ICON[x.cat] || '') + ' ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), esc(x.cat || ''), String(x.amount == null ? '' : x.amount).trim() ? money(signed(x)) + ' <small>' + esc(ecur(t, x)) + '</small>' : '', 'delexp');
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
       '<div class="rate" id="rateRow">' + rateRowsHtml(t) + '</div>' +
       budgetEdit(t) +
@@ -1128,6 +1261,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var y = window.scrollY;          // 重繪會讓頁面瞬間變短，先記下位置再還原，避免跳回最上方
     var oldBoard = el.querySelector('.board'), bx = oldBoard ? oldBoard.scrollLeft : 0;   // 看板左右位置也要保留
     el.innerHTML = h;
+    if(emodal) el.appendChild(emodal);
+    if(modalCtx && !findEntry(t, modalCtx)) closeModal(true);
     var newBoard = el.querySelector('.board'); if(newBoard) newBoard.scrollLeft = bx;
     [].forEach.call(el.querySelectorAll('textarea'), autosize);
     window.scrollTo(0, y);
@@ -1199,10 +1334,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 打字中就先提示「尚未儲存」，離開欄位後自動儲存
   $('detail').addEventListener('input', function(e){
     if(e.target.tagName === 'TEXTAREA') autosize(e.target);
+    if(e.target.dataset && e.target.dataset.k === 'transport' && e.target.dataset.i){
+      var rIn = e.target.parentNode.querySelector('input[data-k="route"]');
+      if(rIn) rIn.placeholder = routeHint(e.target.value);
+    }
     if(e.target.matches('input,textarea,select')) setSave('輸入中，離開欄位後會自動儲存', true);
   });
 
+  function toggleCat(c){ catFilter = (catFilter === c) ? 'all' : c; renderDetail(); }
+  $('detail').addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var rw = e.target.classList && e.target.classList.contains('crow') ? e.target : null;
+    if(rw){ e.preventDefault(); openModal(rw.dataset.open, rw.dataset.id, rw.dataset.day, false); return; }
+    var cc = e.target.closest && e.target.closest('.ccard[data-cat]'); if(!cc) return;
+    e.preventDefault(); toggleCat(cc.dataset.cat);
+  });
   $('detail').addEventListener('click', function(e){
+    if(emodal && e.target === emodal){ requestCloseModal(); return; }
+    var cc = e.target.closest('.ccard[data-cat]');
+    if(cc && !editMode){ toggleCat(cc.dataset.cat); return; }
+    var ro = e.target.closest('.crow[data-open]');
+    if(ro && !e.target.closest('button')){ openModal(ro.dataset.open, ro.dataset.id, ro.dataset.day, false); return; }
     var b = e.target.closest('button[data-do]'); if(!b) return;
     var t = cur(); if(!t) return;
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || [];
@@ -1214,6 +1366,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
       return;
     }
+    if(act === 'mclose'){ requestCloseModal(); return; }
+    if(act === 'catf'){ catFilter = 'all'; renderDetail(); return; }
     if(act === 'dayf'){ dayFilter = b.dataset.day; renderDetail(); return; }
     if(act === 'addday' || act === 'gen') dayFilter = 'all';   // 新增／產生後要看得到新的那天
     if(act === 'save'){
@@ -1312,20 +1466,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.expenses = t.expenses.filter(function(x){ return String(x.id) !== b.dataset.id; });
     }
     renderDetail(); doPersist();
-    if(act === 'addbk'){
-      var lastBk = t.bookings[t.bookings.length - 1];
-      var inb = $('detail').querySelector('input[data-b="' + lastBk.id + '"][data-k="name"]');
-      if(inb) inb.focus();
-    }
-    if(newItemId){
-      var inItem = $('detail').querySelector('input[data-i="' + newItemId + '"][data-k="title"]');
-      if(inItem) inItem.focus();
-    }
-    if(act === 'addstay'){
-      var lastSt = t.stays[t.stays.length - 1];
-      var ins = $('detail').querySelector('input[data-s="' + lastSt.id + '"][data-k="name"]');
-      if(ins) ins.focus();
-    }
+    if(act === 'addbk'){ openModal('bk', t.bookings[t.bookings.length - 1].id, '', true); }
+    if(newItemId){ openModal('it', newItemId, b.dataset.day, true); }
+    if(act === 'addstay'){ openModal('st', t.stays[t.stays.length - 1].id, '', true); }
+    if(act === 'addexp'){ openModal('ex', t.expenses[t.expenses.length - 1].id, '', true); }
     if(act === 'addck'){
       var lastCk = t.checklist[t.checklist.length - 1];
       var inp = $('detail').querySelector('input[data-c="' + lastCk.id + '"][data-k="text"]');
@@ -1346,6 +1490,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function route(){
     var m = location.hash.match(/^#\/t\/(.+)$/);
     currentId = m ? decodeURIComponent(m[1]) : null;
+    catFilter = 'all';
     var inDetail = !!currentId && loaded;
     document.body.classList.toggle('wide', inDetail);
     var entering = inDetail && shownId !== currentId;   // 剛進入這趟旅程（不是同步資料造成的重繪）
