@@ -324,6 +324,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:1100px){
     .list{grid-template-columns:repeat(3,minmax(0,1fr));}
   }
+  /* 多幣別花費 */
+  .exp{grid-template-columns:minmax(0,1fr) 78px minmax(0,1fr) auto;}
+  .exp input[data-k="name"]{grid-column:1 / -1; order:-1;}
+  .exp select.ecur{padding-left:0; padding-right:0;}
+  .dcl{font-size:12px; font-weight:500; color:var(--ink-faint); align-self:center;}
+  .rate{display:grid; gap:6px;}
+  .rate .rhint{font-size:12px; color:var(--ink-faint);}
+  .approx.warn{color:var(--danger);}
+  .xcard .xa small{font-size:12px; font-weight:700; color:var(--ink-faint);}
+  .xcard .xs{font-size:12px; color:var(--ink-faint);}
 </style>
 </head>
 <body>
@@ -627,7 +637,38 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 類別是「退款」時，不管輸入正負，一律從總花費扣掉
   function signed(x){ var n = amt(x.amount); return x.cat === REFUND ? -Math.abs(n) : n; }
   function money(n){ return n.toLocaleString(undefined, {maximumFractionDigits:2}); }
-  function cur(){ return trips.filter(function(x){ return String(x.id) === String(currentId); })[0]; }
+  // ---- 多幣別花費：每筆可選幣別，匯率依幣別各填一次，總花費換算成新台幣 ----
+  function ecur(t, x){ return x.cur || 'TWD'; }
+  function rateOf(t, c){ if(c === 'TWD') return 1; var r = amt((t.rates || {})[c]); return r > 0 ? r : 0; }
+  // 舊資料（整趟共用一個幣別＋一個匯率）一次轉成新格式：每筆記下幣別、匯率改存各幣別、預算換成新台幣
+  function migCur(t){
+    if(t.curV2) return;
+    t.curV2 = 1;
+    var c = t.currency || 'TWD', r = amt(t.rate);
+    t.rates = t.rates || {};
+    (t.expenses || []).forEach(function(x){ if(!x.cur) x.cur = c; });
+    if(c !== 'TWD' && r > 0){
+      if(t.rates[c] == null) t.rates[c] = String(t.rate);
+      if(t.budgets) Object.keys(t.budgets).forEach(function(k){ var b = amt(t.budgets[k]); if(b) t.budgets[k] = String(Math.round(b * r * 100) / 100); });
+    }
+  }
+  function usedForeign(t){
+    var m = {};
+    (t.expenses || []).forEach(function(x){ var c = ecur(t, x); if(c !== 'TWD') m[c] = 1; });
+    return CURRENCIES.map(function(c){ return c[0]; }).filter(function(c){ return m[c]; });
+  }
+  function rateRowsHtml(t){
+    var list = usedForeign(t); if(!list.length) return '';
+    var rs = t.rates || {};
+    return list.map(function(c){
+      return '<label>匯率　1 ' + esc(c) + ' =<input data-r="' + esc(c) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(c) + ' 匯率" placeholder="例如 0.21" value="' + esc(rs[c] == null ? '' : rs[c]) + '"> 新台幣</label>';
+    }).join('') + '<div class="rhint">每個外幣填一次匯率，就會換算進新台幣總花費。</div>';
+  }
+  function cur(){
+    var t = trips.filter(function(x){ return String(x.id) === String(currentId); })[0];
+    if(t) migCur(t);
+    return t;
+  }
 
   // ---- 新增／編輯旅程（快速新增，細節到詳細頁再補；列表上的「編輯」會把資料帶回上方表單） ----
   var editingId = null;
@@ -708,11 +749,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function prog(t){ var a = t.checklist || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   var CAT_ICON = {'機票':'✈️','住宿':'🏨','交通':'🚆','門票':'🎫','周邊':'🛍️','餐飲':'🍴','其他':'📦','退款':'↩️'};
   function sumHtml(t){
-    var code = t.currency || 'TWD', total = 0, by = {}, bud = t.budgets || {};
-    t.expenses.forEach(function(x){ var n = signed(x); total += n; if(n) by[x.cat] = (by[x.cat] || 0) + n; });
-    var rate = amt(t.rate);
-    var h = '<div class="total">總花費 <b>' + money(total) + '</b> ' + (code === 'TWD' ? '元' : esc(code)) + '</div>';
-    if(code !== 'TWD' && rate > 0) h += '<div class="approx">約合新台幣 <b>' + money(total * rate) + '</b>（匯率 ' + esc(rate) + '）</div>';
+    var total = 0, by = {}, bud = t.budgets || {}, byCur = {}, miss = {}, curOrder = [];
+    t.expenses.forEach(function(x){
+      var n = signed(x); if(!n) return;
+      var c = ecur(t, x), r = rateOf(t, c);
+      if(!(c in byCur)){ byCur[c] = 0; curOrder.push(c); }
+      byCur[c] += n;
+      if(!r){ miss[c] = 1; return; }
+      total += n * r; by[x.cat] = (by[x.cat] || 0) + n * r;
+    });
+    var h = '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>';
+    var foreign = curOrder.filter(function(c){ return c !== 'TWD'; });
+    if(foreign.length) h += '<div class="approx">原幣小計　' + curOrder.map(function(c){ return esc(c) + ' <b>' + money(byCur[c]) + '</b>'; }).join('　＋　') + '</div>';
+    var ms = Object.keys(miss);
+    if(ms.length) h += '<div class="approx warn">尚未填匯率：' + ms.map(esc).join('、') + '（這些金額還沒算進總花費）</div>';
     if(by[REFUND]) h += '<div class="approx">已扣除退款 <b>' + money(Math.abs(by[REFUND])) + '</b></div>';
     var cats = CATS.filter(function(c){ return c !== REFUND && (by[c] > 0 || amt(bud[c]) > 0); })
       .sort(function(a, b){ return (by[b] || 0) - (by[a] || 0); });
@@ -727,7 +777,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 編輯模式：每個類別可以選填預算，卡片上就會顯示「還能花／已超支」
   function budgetEdit(t){
     var bud = t.budgets || {}, any = CATS.some(function(c){ return c !== REFUND && String(bud[c] || '').trim(); });
-    return '<details class="bud"' + (any ? ' open' : '') + '><summary>類別預算（選填）</summary><div class="fgrid">' +
+    return '<details class="bud"' + (any ? ' open' : '') + '><summary>類別預算（選填，以新台幣計）</summary><div class="fgrid">' +
       CATS.filter(function(c){ return c !== REFUND; }).map(function(c){
         return '<label>' + CAT_ICON[c] + ' ' + c + '<input data-bud="' + c + '" inputmode="decimal" autocomplete="off" placeholder="不設預算" value="' + esc(bud[c] == null ? '' : bud[c]) + '"></label>';
       }).join('') + '</div></details>';
@@ -912,7 +962,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       (exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub">明細</div><div class="xgrid">' + exps.map(function(x){
         var has = String(x.amount == null ? '' : x.amount).trim();
-        return '<div class="xcard" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) : '—') + '</div>' + revLinks(t, 'lkExp', x.id) + '</div>';
+        return '<div class="xcard" id="lk-exp-' + x.id + '"><div class="xc">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.cat || '') + '</div><div class="xn">' + esc(x.name || '（未命名）') + '</div><div class="xa">' + (has ? money(signed(x)) + ' <small>' + esc(ecur(t, x)) + '</small>' : '—') + '</div>' + (has && ecur(t, x) !== 'TWD' ? (rateOf(t, ecur(t, x)) ? '<div class="xs">約 ' + money(signed(x) * rateOf(t, ecur(t, x))) + ' 元</div>' : '<div class="xs">尚未填匯率</div>') : '') + revLinks(t, 'lkExp', x.id) + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
     return h;
@@ -979,18 +1029,19 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '</div><div class="col c2">' + boardHtml(t, true) + '</div><div class="col c3">';
     var cur0 = t.currency || 'TWD';
     h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns">' +
-      '<select data-t="1" data-k="currency" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
+      '<span class="dcl">新增預設幣別</span><select data-t="1" data-k="currency" aria-label="新增花費的預設幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
       '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       t.expenses.map(function(x){
         return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
           CATS.map(function(c){ return '<option' + (c === x.cat ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
           '<input data-e="' + x.id + '" data-k="name" aria-label="花費項目" placeholder="項目，例如：來回機票" value="' + esc(x.name || '') + '">' +
+          '<select data-e="' + x.id + '" data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === ecur(t, x) ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
-      '<div class="rate" id="rateRow"' + (cur0 === 'TWD' ? ' hidden' : '') + '><label>匯率　1 <span id="curname">' + esc(cur0) + '</span> =<input data-t="1" data-k="rate" inputmode="decimal" autocomplete="off" aria-label="匯率" placeholder="例如 0.21" value="' + esc(t.rate == null ? '' : t.rate) + '"> 新台幣（選填，填了會換算總花費）</label></div>' +
+      '<div class="rate" id="rateRow">' + rateRowsHtml(t) + '</div>' +
       budgetEdit(t) +
-      '<p class="hint">類別選「退款」，或金額前面加負號，都會從總花費扣掉。</p></section>';
+      '<p class="hint">每筆花費可各自選幣別，匯率填一次就會換算成新台幣。類別選「退款」，或金額前面加負號，都會從總花費扣掉。</p></section>';
     h += '</div></div>';
     return h;
   }
@@ -1044,7 +1095,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     } else if(ds.e){
       var ex = (t.expenses || []).filter(function(x){ return String(x.id) === ds.e; })[0];
-      if(ex){ ex[ds.k] = el.value; if(ds.k === 'amount' || ds.k === 'cat') $('sum').innerHTML = sumHtml(t); }
+      if(ex){
+        ex[ds.k] = el.value;
+        if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur') $('sum').innerHTML = sumHtml(t);
+        if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
+      }
     } else if(ds.s){
       var st = (t.stays || []).filter(function(x){ return String(x.id) === ds.s; })[0];
       if(st){
@@ -1060,12 +1115,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.bud){
       t.budgets = t.budgets || {}; t.budgets[ds.bud] = el.value;
       if($('sum')) $('sum').innerHTML = sumHtml(t);
+    } else if(ds.r){
+      t.rates = t.rates || {}; t.rates[ds.r] = el.value;
+      if($('sum')) $('sum').innerHTML = sumHtml(t);
     } else if(ds.t){
       t[ds.k] = el.value;
-      if(ds.k === 'currency'){
-        if($('curname')) $('curname').textContent = el.value;
-        if($('rateRow')) $('rateRow').hidden = el.value === 'TWD';
-      }
       if($('sum')) $('sum').innerHTML = sumHtml(t);
     }
     doPersist();
@@ -1179,7 +1233,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(!have2[tx]) t.checklist.push({ id:uid(), text:tx, done:false });
       });
     } else if(act === 'addexp'){
-      t.expenses.push({ id:uid(), cat:'其他', name:'', amount:'' });
+      t.expenses.push({ id:uid(), cat:'其他', name:'', amount:'', cur:(t.currency || 'TWD') });
     } else if(act === 'delexp'){
       var ex0 = t.expenses.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       if(ex0 && (String(ex0.name || '').trim() || String(ex0.amount == null ? '' : ex0.amount).trim()) && !confirm('確定要刪除這筆花費嗎？')) return;
