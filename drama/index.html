@@ -48,8 +48,8 @@
 [data-theme="dark"] .card,[data-theme="dark"] .stat,[data-theme="dark"] .d-card,[data-theme="dark"] .g-card,[data-theme="dark"] .f-card,[data-theme="dark"] .platCard,[data-theme="dark"] .monthCard{border-color:rgba(255,255,255,.06);}
 [data-theme="dark"] .toast{background:#3A322B; color:#F5EFE7;}
 *{box-sizing:border-box;}
-body{margin:0; font-family:'Noto Sans TC',sans-serif; background:radial-gradient(circle at 15% 8%, var(--blob-1), transparent 40%), radial-gradient(circle at 90% 15%, var(--blob-2), transparent 45%), var(--bg); transition:background-color .2s ease; min-height:100vh; color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 16px calc(90px + env(safe-area-inset-bottom));}
-.page{max-width:1080px; margin:0 auto;}
+body{margin:0; font-family:'Noto Sans TC',sans-serif; background:radial-gradient(circle at 15% 8%, var(--blob-1), transparent 40%), radial-gradient(circle at 90% 15%, var(--blob-2), transparent 45%), var(--bg); transition:background-color .2s ease; min-height:100vh; color:var(--ink); padding:calc(18px + env(safe-area-inset-top)) 12px calc(90px + env(safe-area-inset-bottom));}
+.page{max-width:1440px; margin:0 auto;}
 .maru{font-family:'Zen Maru Gothic',sans-serif;}
 h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:flex; align-items:center; gap:8px;}
 .sec{margin:34px 0 14px; padding-bottom:9px; border-bottom:1px solid rgba(74,61,54,0.09); font-family:'Zen Maru Gothic'; font-weight:700; font-size:15px; display:flex; justify-content:space-between; align-items:center;}
@@ -87,8 +87,10 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .g-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(74,61,54,0.35);}
 .g-badge{position:absolute; top:6px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
-.g-fav{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:14px; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.g-fav{position:absolute; top:6px; right:6px; width:34px; height:34px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:19px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
 .g-fav.on{color:var(--rose-deep);}
+.g-fav::before,.f-fav::before{content:''; position:absolute; top:-6px; right:-6px; left:-6px; bottom:-3px;}
+.g-fav:active,.f-fav:active{transform:scale(.88);}
 .g-body{padding:8px 10px 10px; flex:1;}
 .g-img{position:absolute; inset:0;}
 .g-overlay{position:absolute; left:0; right:0; bottom:0; padding:30px 10px 9px; background:linear-gradient(to top, rgba(20,12,8,.82) 15%, rgba(20,12,8,0)); pointer-events:none;}
@@ -148,7 +150,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .f-cover{width:100%; aspect-ratio:2/3; overflow:hidden; position:relative;}
 .f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
-.f-fav{position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:12px; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
+.f-fav{position:absolute; top:5px; right:5px; width:32px; height:32px; border-radius:50%; background:rgba(255,253,249,0.9); display:flex; align-items:center; justify-content:center; font-size:17px; touch-action:manipulation; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
 .f-fav.on{color:var(--rose-deep);}
 .f-body{padding:8px 9px 9px;}
 .f-title{font-weight:700; font-size:12.5px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
@@ -244,6 +246,42 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .f-card.due-today{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
 .imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
+.todayChip{flex:0 0 auto; align-self:center; margin-left:auto; border:1px solid var(--rose-deep); background:var(--surface); color:var(--rose-deep); border-radius:999px; padding:5px 12px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; white-space:nowrap; touch-action:manipulation;}
+.todayChip.on{background:var(--rose-deep); color:#fff;}
+.tmdbBtn{width:100%; padding:10px; border-radius:12px; border:1px dashed var(--rose-deep); background:var(--rose-pale); color:var(--rose-deep); font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; cursor:pointer;}
+.tmdbBox{background:var(--surface-soft); border-radius:12px; padding:10px; margin-bottom:12px;}
+.tmdbItem{display:flex; gap:10px; align-items:center; padding:6px; border-radius:10px; cursor:pointer;}
+.tmdbItem:active,.tmdbItem:hover{background:var(--rose-pale);}
+.tmdbItem img,.tmdbNoImg{width:42px; height:62px; flex:0 0 42px; border-radius:6px; object-fit:cover; background:var(--surface); display:flex; align-items:center; justify-content:center;}
+.tmdbInfo{min-width:0;}
+.tmdbName{font-weight:700; font-size:13.5px;}
+.tmdbSub{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+.listRow{display:grid; grid-template-columns:minmax(0,1fr); gap:0 22px; align-items:start;}
+.mainListCol{min-width:0;}
+#wishSec,.mainListCol{background:var(--surface-soft); border:1px solid rgba(0,0,0,.04); border-radius:22px; padding:16px 14px 16px; margin-top:34px;}
+.listRow{align-items:stretch; gap:16px 18px;}
+#wishGrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+.secMini,.mainListCol > .sec{display:flex; align-items:center; justify-content:space-between; gap:8px; min-height:38px; margin:0 2px 12px; padding:0; border:none; font-family:'Zen Maru Gothic'; font-weight:700; font-size:14.5px;}
+.secMini .cnt{font-size:11px; font-weight:500; color:var(--rose-deep); background:var(--rose-pale); border-radius:999px; padding:2px 10px;}
+@media(min-width:900px){
+  .listRow.hasWish{grid-template-columns:minmax(250px,24%) minmax(0,1fr);}
+  .listRow.hasWish #listArea{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+}
+.cardMenuBtn{position:absolute; top:48px; right:6px; width:34px; height:34px; border-radius:50%; background:rgba(255,253,249,0.9); border:none; color:var(--ink-soft); font-size:20px; line-height:1; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; box-shadow:0 2px 6px rgba(0,0,0,0.12); padding:0; touch-action:manipulation;}
+.cardMenu{position:fixed; z-index:95; background:var(--surface); border:1px solid var(--ink-faint); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,.25); padding:4px; min-width:120px;}
+.cardMenu button{display:block; width:100%; text-align:left; padding:11px 14px; border:none; background:none; font-family:inherit; font-size:13.5px; color:var(--ink); border-radius:8px; cursor:pointer;}
+.cardMenu button:active{background:var(--surface-soft);}
+.cardMenu button.del{color:#B14B3F;}
+.g-card.hasStep .g-actions{position:static; opacity:1; transform:none; background:none; pointer-events:auto; padding:0 10px 10px; margin-top:12px;}
+.g-card.hasStep .g-actions button{padding:4px; font-size:10.5px; opacity:.85;}
+.epStep{display:flex; align-items:center; justify-content:space-between; gap:6px; margin-top:8px; background:var(--surface-soft); border-radius:999px; padding:3px;}
+.epStep button{width:32px; height:32px; flex:0 0 32px; border-radius:50%; border:none; background:var(--surface); color:var(--rose-deep); font-size:18px; line-height:1; font-weight:700; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.12); display:flex; align-items:center; justify-content:center; font-family:'Zen Maru Gothic'; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.epStep button:active{transform:scale(.92); background:var(--rose-pale);}
+.epStep button:disabled{opacity:.35;}
+.epStep .epNum{font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; flex:1; text-align:center; padding:8px 0; cursor:pointer;}
+.epStep .epNum:active{color:var(--rose-deep);}
+.toast.act{pointer-events:auto;}
+.toast .undoBtn{margin-left:10px; background:rgba(255,255,255,.22); color:inherit; border:none; border-radius:999px; padding:4px 12px; font-family:inherit; font-weight:700; font-size:12.5px; cursor:pointer;}
 .toast{position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(10px); background:var(--ink); color:#fff; padding:10px 20px; border-radius:999px; font-size:13px; font-family:'Zen Maru Gothic'; font-weight:700; box-shadow:var(--shadow); opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:80;}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 /* year wrap card */
@@ -272,6 +310,19 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .bestPickRow input{width:auto; margin:0;}
 .bestPickRow span:first-of-type{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .bp-stars{color:var(--gold); font-size:11px; flex:none;}
+/* 年度總結卡：簡約淺色、純色無漸層（不受深色模式影響，下載圖片也一致） */
+.wrapCard{background:#FFFDF9; color:#4A3D36; border:1px solid #E9DDCC; border-radius:18px; padding:28px 22px 20px;}
+.wrapCard::before{content:none;}
+.wrapCard .maru{color:#9C8977; opacity:1; letter-spacing:2.5px; font-size:11px;}
+.wrapCard h2{color:#4A3D36; font-size:22px; margin:6px 0 22px;}
+.wrapStat .num{color:#4A3D36;}
+.wrapStat .lab{color:#9C8977; opacity:1;}
+.wrapRow{padding-bottom:18px; border-bottom:1px solid #EFE5D6;}
+.wrapHighlights,.wrapTop5{background:#F8F1E7; color:#4A3D36;}
+.wrapHighlights{margin-top:16px;}
+.wrapTop5Row .rank{background:#E9DDCC; color:#4A3D36;}
+.wrapTop5Row .t5-stars{color:#B8922F;}
+.wrapFoot{color:#9C8977; opacity:1;}
 </style>
 </head>
 <body>
@@ -297,7 +348,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
     <div class="card" id="actorChart"></div>
   </div>
   <div id="featuredSec" style="display:none;">
-    <div class="sec">📺 正在觀看</div>
+    <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
     <div class="featuredScroll" id="featuredArea"></div>
   </div>
 </div>
@@ -305,6 +356,8 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <div class="sec">📺 平台總覽</div>
 <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算，未設定則以 45 分鐘估算）</div>
 <div class="platGrid" id="platGrid"></div>
+
+<div class="sec">🎉 年度總結 <button class="addBtn" onclick="openYearWrap()">✨ 產生年度總結卡</button></div>
 
 <div class="twoCol">
   <div>
@@ -318,13 +371,13 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
   </div>
 </div>
 
-<div class="sec">🎉 年度總結 <button class="addBtn" onclick="openYearWrap()">✨ 產生年度總結卡</button></div>
 
+<div class="listRow" id="listRow">
 <div id="wishSec" style="display:none;">
-  <div class="sec">📋 片單（想看）</div>
+  <div class="secMini"><span>📋 片單（想看）</span><span class="cnt" id="wishCount"></span></div>
   <div class="galleryGrid" id="wishGrid"></div>
 </div>
-
+<div class="mainListCol">
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
 <div class="tabRow" id="statusFilter"></div>
 <div class="searchRow">
@@ -347,6 +400,8 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 <div class="activeFilters" id="activeFilters"></div>
 <div class="resultCount" id="resultCount"></div>
 <div class="galleryGrid" id="listArea"></div>
+</div>
+</div>
 </div>
 
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
@@ -492,7 +547,7 @@ if(window.matchMedia){
 }
 
 let state = [];
-let filters = { status:'__all__', platform:'__all__', rating:'__all__', tag:'__all__', search:'', sort:'date_desc' };
+let filters = { status:'__all__', platform:'__all__', rating:'__all__', tag:'__all__', search:'', sort:'date_desc', todayOnly:false };
 const CHART_COLORS=['var(--rose-deep)','var(--matcha)','var(--wisteria)','var(--gold)','var(--sky)','var(--rose)','#B98B56','#6B8E9E','#A97C9E','#8FA85C'];
 const COVER_GRADIENTS=[
   'linear-gradient(155deg, var(--rose-pale), var(--gold-pale))',
@@ -699,12 +754,22 @@ function lastSeenText(x){
 }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
 function epMinutes(x){ const n = Number(x.epLength); return n>0 ? n : 45; }
+function isDueToday(x){ return Array.isArray(x.updateDays) && x.updateDays.includes(new Date().getDay()); }
+function todayChipHtml(){
+  const n = state.filter(x=>isWatching(x) && isDueToday(x)).length;
+  if(!n && !filters.todayOnly) return '';
+  return `<button type="button" class="todayChip ${filters.todayOnly?'on':''}" onclick="toggleTodayOnly()">🔴 今天更新 ${n}</button>`;
+}
+function toggleTodayOnly(){ filters.todayOnly = !filters.todayOnly; render(); }
 function renderFeatured(){
   const sec = document.getElementById('featuredSec');
-  const items = state.filter(isWatching).sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
-  if(!items.length){ sec.style.display='none'; return; }
+  const all = state.filter(isWatching).sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  if(!all.length){ sec.style.display='none'; return; }
   sec.style.display='block';
+  document.getElementById('todayChipF').innerHTML = todayChipHtml();
+  const items = filters.todayOnly ? all.filter(isDueToday) : all;
   const today = new Date().getDay();
+  if(!items.length){ document.getElementById('featuredArea').innerHTML = '<div class="empty" style="grid-column:1/-1;">今天沒有更新的劇</div>'; return; }
   document.getElementById('featuredArea').innerHTML = items.map((x,i)=>{
     const pct = progressPct(x);
     const hasUpdateDays = Array.isArray(x.updateDays) && x.updateDays.length;
@@ -719,6 +784,7 @@ function renderFeatured(){
         <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
         ${lastSeenText(x)?`<div class="f-update">${lastSeenText(x)}</div>`:''}
+        ${epStepper(x)}
         ${hasUpdateDays?`<div class="f-update ${dueToday?'today':''}">${dueToday?'🔴 今天更新':'🔔 每週'+x.updateDays.map(d=>WEEKDAY_LABELS[d]).join('、')+'更新'}</div>`:''}
       </div>
     </div>`;
@@ -763,13 +829,19 @@ function renderChart(){
     <div class="legend">${legend}</div>
   </div>`;
 }
+function matchStatusTab(x, tab){
+  if(tab==='追劇中') return isWatching(x);
+  if(tab==='已完結') return x.status==='已完結' && !isWatching(x);
+  return x.status===tab;
+}
 function renderFilters(){
   const statusEl = document.getElementById('statusFilter');
   const listed = state.filter(notWish);
   statusEl.innerHTML = ['__all__',...STATUSES.filter(s=>s[0]!=='想看').map(s=>s[0])].map(s=>{
-    const n = s==='__all__' ? listed.length : listed.filter(x=>x.status===s).length;
+    const n = s==='__all__' ? listed.length : listed.filter(x=>matchStatusTab(x,s)).length;
     return `<button class="chip ${filters.status===s?'active':''}" data-f="status" data-v="${s}">${s==='__all__'?'全部':s}<span class="tabN">${n}</span></button>`;
   }).join('');
+  statusEl.insertAdjacentHTML('beforeend', todayChipHtml());
   const plats = ['__all__',...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
   document.getElementById('platformFilter').innerHTML = plats.map(p=>
     `<button class="chip ${filters.platform===p?'active':''}" data-f="platform" data-v="${p}">${p==='__all__'?'全部平台':p}</button>`).join('');
@@ -807,7 +879,8 @@ function renderList(){
   else if(filters.sort==='rating_desc') items.sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
   else if(filters.sort==='title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||'','zh-Hant'));
   else items.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
-  if(filters.status!=='__all__') items = items.filter(x=>x.status===filters.status);
+  if(filters.status!=='__all__') items = items.filter(x=>matchStatusTab(x,filters.status));
+  if(filters.todayOnly) items = items.filter(x=>isWatching(x) && isDueToday(x));
   if(filters.platform!=='__all__') items = items.filter(x=>x.platform===filters.platform);
   if(filters.rating==='5') items = items.filter(x=>Number(x.rating)===5);
   if(filters.rating==='4') items = items.filter(x=>Number(x.rating)>=4);
@@ -826,16 +899,19 @@ function fmtMD(d){
   return m ? (parseInt(m[1],10)+'/'+parseInt(m[2],10)) : '';
 }
 function cardTemplate(x,i){
-  const stCls = (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
+  const catchUp = x.status==='已完結' && isWatching(x);
+  const badgeText = catchUp ? '補劇中' : x.status;
+  const badgeCls = catchUp ? 'st-watching' : (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
   const pct = progressPct(x);
   const finished = x.status==='已完結' && !isWatching(x);
   const showBar = !!x.epTotal && !finished && x.status!=='想看';
   const tagList = Array.isArray(x.tags) ? x.tags : [];
-  return `<div class="g-card">
+  return `<div class="g-card ${isWatching(x)?'hasStep':''}">
       <div class="g-cover" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
         <div class="g-img">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}</div>
-        <span class="status-badge g-badge ${stCls}">${esc(x.status)}</span>
+        <span class="status-badge g-badge ${badgeCls}">${esc(badgeText)}</span>
         <span class="g-fav ${isFav(x)?'on':''}" onclick="toggleFavorite('${x.id}', event)">${isFav(x)?'❤':'♡'}</span>
+        <button type="button" class="cardMenuBtn" aria-label="更多" onclick="openCardMenu('${x.id}', event)">⋯</button>
         <div class="g-overlay"><div class="g-title">${esc(x.title)}</div></div>
         ${showBar?`<div class="g-coverbar"><div style="width:${pct}%"></div></div>`:''}
       </div>
@@ -844,15 +920,128 @@ function cardTemplate(x,i){
         ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?`<span>${x.epWatched||0}/${x.epTotal}集</span>`:''}</div>`:''}
         ${finished&&x.endDate?`<div class="g-done">✓ 看完 ${fmtMD(x.endDate)}</div>`:''}
         ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
+        ${isWatching(x)?epStepper(x):''}
         ${tagList.length?`<div class="g-tags">${tagList.slice(0,2).map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}${tagList.length>2?`<span class="g-tag more">+${tagList.length-2}</span>`:''}</div>`:''}
-      </div>
-      <div class="g-actions">
-        ${x.status==='想看'?`<button class="start" onclick="event.stopPropagation();startWatching('${x.id}')">▶ 開始追劇</button>`:''}
-        <button class="edit" onclick="event.stopPropagation();openForm('${x.id}')">編輯</button>
-        <button class="del" onclick="event.stopPropagation();delItem('${x.id}')">刪除</button>
       </div>
     </div>`;
 }
+function epStepper(x){
+  const w=Number(x.epWatched)||0, t=Number(x.epTotal)||0;
+  return `<div class="epStep" onclick="event.stopPropagation()">
+    <button type="button" aria-label="少一集" onclick="changeEp('${x.id}',-1,event)" ${w<=0?'disabled':''}>−</button>
+    <span class="epNum" role="button" title="點一下直接輸入集數" onclick="openEpInput('${x.id}',event)">${w}${t?' / '+t:''} 集 ✎</span>
+    <button type="button" aria-label="多一集" onclick="changeEp('${x.id}',1,event)" ${t&&w>=t?'disabled':''}>＋</button>
+  </div>`;
+}
+let undoSnap=null;
+function changeEp(id, delta, ev){
+  if(ev) ev.stopPropagation();
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  setEp(id, (Number(it.epWatched)||0) + delta);
+}
+function setEp(id, next){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  const prevW = Number(it.epWatched)||0, t = Number(it.epTotal)||0;
+  next = Math.max(0, Math.floor(Number(next)||0));
+  if(t>0 && next>t) next=t;
+  const real = next - prevW;
+  if(!real) return;
+  // 連續點擊期間只保留第一次的狀態，按「復原」會一次回到連點前
+  if(!undoSnap || undoSnap.id!==id){
+    undoSnap = {id, data: JSON.parse(JSON.stringify(it))};
+  }
+  const wasDone = isEpDone(prevW,t);
+  it.epWatched = next;
+  it.watchLog = Array.isArray(it.watchLog) ? it.watchLog : [];
+  if(real>0){
+    it.lastWatchedDate = todayStr();
+    it.watchLog.push({d: todayStr(), n: real});
+    if(!it.startDate) it.startDate = todayStr();
+  } else {
+    let rem = -real;
+    for(let k=it.watchLog.length-1; k>=0 && rem>0; k--){
+      const cut = Math.min(it.watchLog[k].n, rem);
+      it.watchLog[k].n -= cut; rem -= cut;
+    }
+    it.watchLog = it.watchLog.filter(e=>e.n>0);
+  }
+  let msg = (real>0?'＋':'−')+Math.abs(real)+' 集（'+next+(t?'/'+t:'')+'）';
+  if(isEpDone(next,t) && !wasDone){
+    it.status = '已完結';
+    if(!it.endDate) it.endDate = todayStr();
+    msg = '🎉 看完了！已移到已完結';
+  } else if(wasDone && !isEpDone(next,t) && it.status==='已完結'){
+    it.status = '追劇中';
+    it.endDate = '';
+  }
+  save();
+  showUndoToast(msg);
+}
+function showUndoToast(msg){
+  const t = document.getElementById('toast');
+  t.innerHTML = '<span></span> <button type="button" class="undoBtn" onclick="undoEp()">復原</button>';
+  t.firstChild.textContent = msg;
+  t.classList.add('show','act');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.classList.remove('show','act'); undoSnap=null; }, 5000);
+}
+function undoEp(){
+  if(!undoSnap) return;
+  const idx = state.findIndex(x=>x.id===undoSnap.id);
+  if(idx>=0) state[idx] = undoSnap.data;
+  undoSnap = null;
+  const t = document.getElementById('toast');
+  clearTimeout(t._timer);
+  t.classList.remove('act');
+  save();
+  showToast('已復原 ✓');
+}
+function openEpInput(id, ev){
+  if(ev) ev.stopPropagation();
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  const t = Number(it.epTotal)||0;
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru" style="margin:0 0 4px;">${esc(it.title)}</h3>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">直接輸入已看到第幾集${t?'（共 '+t+' 集）':''}</div>
+    <div class="field"><input id="fEpQuick" type="number" inputmode="numeric" min="0" ${t?'max="'+t+'"':''} value="${Number(it.epWatched)||0}" onkeydown="if(event.key==='Enter'){applyEpInput('${it.id}')}"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn save" onclick="applyEpInput('${it.id}')">確定</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+  setTimeout(()=>{ const i=document.getElementById('fEpQuick'); if(i){ i.focus(); i.select(); } }, 50);
+}
+function applyEpInput(id){
+  const v = document.getElementById('fEpQuick').value;
+  if(v==='') return;
+  closeModal();
+  setEp(id, Number(v));
+}
+function closeCardMenu(){ const m=document.getElementById('cardMenu'); if(m) m.remove(); }
+function openCardMenu(id, ev){
+  if(ev) ev.stopPropagation();
+  closeCardMenu();
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  const btn = ev.currentTarget;
+  const r = btn.getBoundingClientRect();
+  const m = document.createElement('div');
+  m.id = 'cardMenu'; m.className = 'cardMenu';
+  m.innerHTML = (it.status==='想看' ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
+    + `<button type="button" onclick="closeCardMenu();openForm('${id}')">編輯</button>`
+    + `<button type="button" class="del" onclick="closeCardMenu();delItem('${id}')">刪除</button>`;
+  document.body.appendChild(m);
+  const mw = m.offsetWidth, mh = m.offsetHeight;
+  let left = Math.min(Math.max(8, r.right - mw), window.innerWidth - mw - 8);
+  let top = r.bottom + 6;
+  if(top + mh > window.innerHeight - 8) top = Math.max(8, r.top - mh - 6);
+  m.style.left = left+'px'; m.style.top = top+'px';
+}
+document.addEventListener('click', closeCardMenu);
+window.addEventListener('scroll', closeCardMenu, true);
 function startWatching(id){
   const it = state.find(x=>x.id===id);
   if(!it) return;
@@ -865,8 +1054,10 @@ function startWatching(id){
 function renderWishlist(){
   const sec = document.getElementById('wishSec');
   const items = state.filter(x=>x.status==='想看').sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  document.getElementById('listRow').classList.toggle('hasWish', items.length>0);
   if(!items.length){ sec.style.display='none'; return; }
   sec.style.display='block';
+  document.getElementById('wishCount').textContent = items.length+' 部';
   document.getElementById('wishGrid').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
 }
 function renderYearArchive(){
@@ -1076,6 +1267,111 @@ function downloadWrapCard(){
   });
 }
 
+/* ================= TMDB 自動帶入 ================= */
+const TMDB_KEY_NAME='drama-tmdb-key';
+let tmdbKeyCache=null, _tmdbResults=[];
+async function getTmdbKey(){
+  if(tmdbKeyCache) return tmdbKeyCache;
+  const v = await loadKey(TMDB_KEY_NAME, '');
+  tmdbKeyCache = (typeof v==='string') ? v.trim() : '';
+  return tmdbKeyCache;
+}
+async function tmdbFetch(path, params){
+  const key = await getTmdbKey();
+  const url = new URL('https://api.themoviedb.org/3'+path);
+  Object.entries(params||{}).forEach(([k,v])=>url.searchParams.set(k,v));
+  const headers = {};
+  if(key.length>40) headers.Authorization = 'Bearer '+key; else url.searchParams.set('api_key', key);
+  const r = await fetch(url.toString(), {headers});
+  if(r.status===401) throw new Error('auth');
+  if(!r.ok) throw new Error('http '+r.status);
+  return r.json();
+}
+function tmdbKeyPanel(msg){
+  document.getElementById('tmdbPanel').innerHTML = `<div class="tmdbBox">
+    <div style="font-size:12px;line-height:1.7;margin-bottom:8px;">${msg||'第一次使用需要一組免費的 TMDB 金鑰：'}<br>到 themoviedb.org 註冊 → 設定 → API，複製「API 讀取權杖」或「API 金鑰」貼在下面（只需設定一次）。</div>
+    <input id="tmdbKeyInput" type="text" placeholder="貼上 TMDB 金鑰" autocomplete="off" style="width:100%;padding:9px 10px;border-radius:10px;border:1px solid var(--ink-faint);background:var(--bg);color:var(--ink);font-size:13px;">
+    <div style="display:flex;gap:8px;margin-top:8px;"><button type="button" class="btn ghost" onclick="tmdbClosePanel()">取消</button><button type="button" class="btn save" onclick="tmdbSaveKey()">儲存並搜尋</button></div>
+  </div>`;
+}
+function tmdbClosePanel(){ const el=document.getElementById('tmdbPanel'); if(el) el.innerHTML=''; }
+async function tmdbSaveKey(){
+  const v = document.getElementById('tmdbKeyInput').value.trim();
+  if(!v){ showToast('請貼上金鑰'); return; }
+  tmdbKeyCache = v;
+  await saveKeyCloud(TMDB_KEY_NAME, v);
+  showToast('金鑰已儲存 ✓');
+  tmdbSearch();
+}
+async function tmdbSearch(){
+  const q = document.getElementById('fTitle').value.trim();
+  if(!q){ showToast('請先在劇名欄輸入關鍵字'); document.getElementById('fTitle').focus(); return; }
+  const key = await getTmdbKey();
+  if(!key){ tmdbKeyPanel(); return; }
+  const panel = document.getElementById('tmdbPanel');
+  panel.innerHTML = '<div class="tmdbBox" style="font-size:12.5px;color:var(--ink-soft);">搜尋中…</div>';
+  try{
+    const d = await tmdbFetch('/search/multi', {query:q, language:'zh-TW', include_adult:'false'});
+    _tmdbResults = (d.results||[]).filter(r=>r.media_type==='tv'||r.media_type==='movie').slice(0,6);
+    if(!_tmdbResults.length){ panel.innerHTML = '<div class="tmdbBox" style="font-size:12.5px;color:var(--ink-soft);">找不到結果，換個關鍵字試試</div>'; return; }
+    panel.innerHTML = '<div class="tmdbBox">' + _tmdbResults.map((r,i)=>{
+      const name = r.name || r.title || '';
+      const yr = ((r.first_air_date||r.release_date)||'').slice(0,4);
+      return `<div class="tmdbItem" onclick="tmdbPick(${i})">
+        ${r.poster_path?`<img src="https://image.tmdb.org/t/p/w92${r.poster_path}" alt="">`:'<div class="tmdbNoImg">🎬</div>'}
+        <div class="tmdbInfo"><div class="tmdbName">${esc(name)}</div><div class="tmdbSub">${r.media_type==='tv'?'影集／劇集':'電影'}${yr?' ・ '+yr:''}</div></div>
+      </div>`;
+    }).join('') + '<div class="tmdbSub" style="text-align:right;margin-top:6px;">資料來源：TMDB</div></div>';
+  }catch(e){
+    if(e.message==='auth') tmdbKeyPanel('金鑰無效，請重新貼上：');
+    else panel.innerHTML = '<div class="tmdbBox" style="font-size:12.5px;color:#B14B3F;">連線失敗，請稍後再試</div>';
+  }
+}
+function tmdbMapCountry(code){
+  return ({TW:'台灣', CN:'中國', KR:'韓國', JP:'日本'})[code] || (code ? '其他' : '');
+}
+function tmdbMapGenres(list){
+  const rules = [['愛情','愛情'],['懸疑','懸疑'],['神秘','懸疑'],['驚悚','懸疑'],['恐怖','恐怖'],['喜劇','喜劇'],['奇幻','奇幻'],['動作','動作'],['家庭','家庭'],['犯罪','犯罪'],['歷史','歷史'],['音樂','音樂'],['紀錄','紀錄片']];
+  const out = new Set();
+  (list||[]).forEach(g=>rules.forEach(([k,v])=>{ if((g.name||'').includes(k)) out.add(v); }));
+  return [...out];
+}
+async function tmdbPick(i){
+  const r = _tmdbResults[i];
+  if(!r) return;
+  showToast('帶入中…');
+  try{
+    const isTv = r.media_type==='tv';
+    const d = await tmdbFetch('/'+r.media_type+'/'+r.id, {language:'zh-TW', append_to_response:'credits'});
+    const val = id => document.getElementById(id);
+    const setIfEmpty = (id, v)=>{ const el=val(id); if(el && !String(el.value).trim() && v) el.value = v; };
+    val('fTitle').value = (isTv ? d.name : d.title) || val('fTitle').value;
+    clearTitleErr();
+    if(d.poster_path){ val('fImage').value = 'https://image.tmdb.org/t/p/w500'+d.poster_path; updateImgPreview(); }
+    const date = (isTv ? d.first_air_date : d.release_date) || '';
+    setIfEmpty('fAirYear', date.slice(0,4));
+    setIfEmpty('fEpT', isTv ? d.number_of_episodes : 1);
+    const len = isTv ? ((d.episode_run_time||[])[0] || (d.last_episode_to_air||{}).runtime) : d.runtime;
+    setIfEmpty('fEpLen', len);
+    const cast = ((d.credits||{}).cast||[]).slice(0,3).map(c=>c.name).join('、');
+    setIfEmpty('fActor', cast);
+    const code = isTv ? (d.origin_country||[])[0] : ((d.production_countries||[])[0]||{}).iso_3166_1;
+    const cSel = val('fCountry');
+    if(cSel && !cSel.value) cSel.value = tmdbMapCountry(code);
+    if(!document.querySelector('#genreDropdown input:checked')){
+      tmdbMapGenres(d.genres).forEach(g=>{
+        const cb = document.querySelector('#genreDropdown input[value="'+g+'"]');
+        if(cb) cb.checked = true;
+      });
+      syncGenreSelectBtn();
+    }
+    syncEpisodeComplete();
+    tmdbClosePanel();
+    showToast('已帶入資料 ✓');
+  }catch(e){
+    showToast(e.message==='auth' ? '金鑰無效' : '帶入失敗，請稍後再試');
+  }
+}
 function openForm(id){
   autoDoneFrom=null;
   const existing = id ? state.find(x=>x.id===id) : null;
@@ -1084,6 +1380,8 @@ function openForm(id){
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
     <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
+    <div class="field" style="margin-bottom:6px;"><button type="button" class="tmdbBtn" onclick="tmdbSearch()">🔍 從 TMDB 帶入海報與資料</button></div>
+    <div id="tmdbPanel"></div>
     <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）" oninput="updateImgPreview()"></div>
     <div class="imgPreview" id="fImagePreview"></div>
     <div class="row2">
@@ -1169,6 +1467,7 @@ function clearTitleErr(){ document.getElementById('fTitleField').classList.remov
 function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg;
+  t.classList.remove('act');
   t.classList.add('show');
   clearTimeout(t._timer);
   t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
@@ -1262,6 +1561,7 @@ async function init(){
   if(useCloud && auth){
     auth.onAuthStateChanged(async (user)=>{
       currentUser = user;
+      tmdbKeyCache = null;
       watchTheme();
       renderAuthBar();
       state = migrateData(await loadKey(STORE_KEY, []));
