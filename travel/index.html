@@ -343,6 +343,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .pill[data-v="停留"]{--c:#8a6d3b;}
   .pill[data-v="現場候位"]{--c:#b8741a;}
   .icard .itrans{font-size:13px; font-weight:500; color:var(--ink-dim); overflow-wrap:anywhere;}
+  /* 旅程詳細頁：最上方沒有「← ARCHIVE」了，登入列頂端的線也一併拿掉 */
+  body.wide .who{border-top:0; margin-top:0;}
+  /* 連結小標籤：單行、不截斷、不限寬度；花費明細卡片依標籤寬度自動變寬，一列放不下就自動換到下一列 */
+  .lk{white-space:nowrap; overflow:visible; text-overflow:clip; max-width:none;}
+  .lks{max-width:none;}
+  .xgrid{display:flex; flex-wrap:wrap; gap:10px;}
+  .xgrid .xcard{flex:1 1 200px; min-width:min-content;}
 </style>
 </head>
 <body>
@@ -889,14 +896,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function fwdLinks(t, x){
     var h = Object.keys(LK).map(function(key){
       var y = x[key] && byId(t[LK[key][0]], x[key]); if(!y) return '';
-      return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>';
+      return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '" title="' + esc(lkText(key, y)) + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>';
     }).join('');
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
   function revLinks(t, key, id){
     var h = '';
     t.days.forEach(function(day, i){ (day.items || []).forEach(function(x){
-      if(x[key] && String(x[key]) === String(id)) h += '<button class="lk" type="button" data-do="goto" data-day="' + day.id + '" data-to="lk-it-' + x.id + '">📍 Day ' + (i+1) + (x.time ? ' ' + esc(x.time) : '') + ' ' + esc(x.title || '行程') + '</button>';
+      if(x[key] && String(x[key]) === String(id)) h += '<button class="lk" type="button" data-do="goto" data-day="' + day.id + '" data-to="lk-it-' + x.id + '" title="Day ' + (i+1) + (x.time ? ' ' + esc(x.time) : '') + ' ' + esc(x.title || '行程') + '">📍 Day ' + (i+1) + (x.time ? ' ' + esc(x.time) : '') + ' ' + esc(x.title || '行程') + '</button>';
     }); });
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
