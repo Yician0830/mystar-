@@ -202,19 +202,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .cgrid,.xgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:14px;}
   .xgrid{margin-top:0;}
   .ccard,.xcard{background:var(--fill); border:1px solid var(--line); padding:12px 14px; min-width:0; display:grid; gap:4px; align-content:start;}
-  .ccard .cn,.xcard .xc{font-size:13px; font-weight:700; color:var(--ink-dim);}
-  .ccard .ca{font-size:20px; font-weight:900; font-variant-numeric:tabular-nums;}
-  .cbar{display:flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
-  .cbar i{flex:1; height:5px; background:var(--line); position:relative; overflow:hidden;}
+  .xcard .xc{font-size:13px; font-weight:700; color:var(--ink-dim);}
+  .clist{display:grid; gap:4px; margin-top:14px;}
+  .cidle .clist{margin-top:6px;}
+  .ccard{display:grid; grid-template-columns:5.6em minmax(40px,1fr) 4.8em 6.6em; align-items:center; column-gap:10px; padding:7px 12px; background:var(--fill); border:1px solid var(--line); min-width:0;}
+  .ccard .cn{font-size:13px; font-weight:700; color:var(--ink-dim); white-space:nowrap;}
+  .ccard .ca{font-size:15px; font-weight:900; font-variant-numeric:tabular-nums; text-align:right;}
+  .cbar{display:flex; align-items:center; gap:6px; min-width:0; font-size:11px; font-weight:700; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .cbar i{flex:1; height:5px; background:var(--line); position:relative; overflow:hidden; min-width:20px;}
   .cbar i::after{content:''; position:absolute; inset:0 auto 0 0; width:var(--w,0%); background:var(--accent);}
-  .left{font-size:12px; font-weight:700;}
+  .cbar em{font-style:normal; width:2.6em; text-align:right;}
+  .left{font-size:11px; font-weight:700; text-align:right; white-space:nowrap;}
   .left.ok{color:#2e8b57;} .left.over{color:var(--danger);}
+  .cidle{margin-top:8px; font-size:12px; color:var(--ink-faint);}
+  .cidle summary{cursor:pointer; font-weight:700; padding:4px 0; overflow-wrap:anywhere;}
   .xcard .xn{font-size:15px; font-weight:700; line-height:1.4; overflow-wrap:anywhere;}
   .xcard .xa{font-size:16px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--accent);}
   .bud{margin-top:14px; font-size:13px; color:var(--ink-dim);}
   .bud summary{cursor:pointer; font-weight:700; padding:4px 0;}
   .bud .fgrid{margin:10px 0 0;}
   @container (max-width:300px){ .cgrid,.xgrid{grid-template-columns:minmax(0,1fr);} }
+  @container (max-width:380px){ .ccard{grid-template-columns:5.2em minmax(30px,1fr) 4.6em;} .ccard .left{grid-column:1 / -1; text-align:left; padding-top:2px;} .ccard .left:empty{display:none;} }
   .lks{display:flex; flex-wrap:wrap; gap:6px;}
   .lk{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong); padding:2px 8px; font-size:12px; font-weight:700; letter-spacing:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; justify-self:auto;}
   .flash{outline:2px solid var(--accent); outline-offset:2px;}
@@ -875,13 +883,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var cats = CATS.filter(function(c){ return c !== REFUND && (by[c] > 0 || amt(bud[c]) > 0); })
       .sort(function(a, b){ return (by[b] || 0) - (by[a] || 0); });
     if(!cats.length) return h;
-    return h + '<div class="cgrid">' + cats.map(function(c){
+    function row(c){
       var v = by[c] || 0, b = amt(bud[c]), pct = total > 0 && v > 0 ? Math.round(v / total * 100) : 0;
-      var left = b > 0 ? (b - v >= 0 ? '<div class="left ok">還能花 ' + money(b - v) + '</div>' : '<div class="left over">已超支 ' + money(v - b) + '</div>') : '';
+      var left = b > 0 ? (b - v >= 0 ? '<span class="left ok">還能花 ' + money(b - v) + '</span>' : '<span class="left over">超支 ' + money(v - b) + '</span>') : '<span class="left"></span>';
       var clk = editMode ? '' : ' clk' + (catFilter === c ? ' on' : '') + '" role="button" tabindex="0" aria-pressed="' + (catFilter === c) + '" title="點一下看「' + c + '」的花費明細" data-cat="' + c;
-      return '<div class="ccard' + clk + '"><div class="cn">' + CAT_ICON[c] + ' ' + c + '</div><div class="ca">' + money(v) + '</div>' +
-        '<div class="cbar"><span>' + pct + '%</span><i style="--w:' + pct + '%"></i></div>' + left + '</div>';
-    }).join('') + '</div>';
+      return '<div class="ccard' + clk + '"><span class="cn">' + CAT_ICON[c] + ' ' + c + '</span>' +
+        '<span class="cbar"><i style="--w:' + pct + '%"></i><em>' + pct + '%</em></span>' +
+        '<span class="ca">' + money(v) + '</span>' + left + '</div>';
+    }
+    var spent = cats.filter(function(c){ return by[c] > 0; }), idle = cats.filter(function(c){ return !(by[c] > 0); });
+    var out = h + '<div class="clist">' + spent.map(row).join('') + '</div>';
+    if(idle.length) out += '<details class="cidle"' + (idle.indexOf(catFilter) >= 0 ? ' open' : '') + '><summary>尚未花費（' + idle.length + '）：' + idle.map(esc).join('、') + '</summary><div class="clist">' + idle.map(row).join('') + '</div></details>';
+    return out;
   }
   // 編輯模式：每個類別可以選填預算，卡片上就會顯示「還能花／已超支」
   function budgetEdit(t){
