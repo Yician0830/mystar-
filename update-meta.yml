@@ -1,0 +1,81 @@
+# 每次推送內容時，自動把對應的 meta.json 的 updated 改成今天（台北時間）
+# - 動到 drama/ 底下的檔案 → 更新 drama/meta.json
+# - 動到 travel/ 底下的檔案 → 更新 travel/meta.json
+# - 動到其他檔案（推し手帳本體）→ 更新根目錄的 meta.json
+name: Update meta.json
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore:
+      - '**/meta.json'
+      - '.github/**'
+
+permissions:
+  contents: write
+
+jobs:
+  update-meta:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Update updated date
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          TODAY=$(TZ=Asia/Taipei date +%Y.%m.%d)
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+            CHANGED=$(git ls-files)
+          else
+            CHANGED=$(git diff --name-only "$BEFORE" "$GITHUB_SHA" 2>/dev/null || git ls-files)
+          fi
+          export TODAY CHANGED
+          python3 - <<'PY'
+          import json, os
+
+          today = os.environ["TODAY"]
+          skip_names = {"README.md", "LICENSE", ".gitignore"}
+          targets = set()
+          for f in os.environ["CHANGED"].splitlines():
+              f = f.strip()
+              if not f or f.startswith(".github/") or f.endswith("meta.json"):
+                  continue
+              if f in skip_names:
+                  continue
+              if f.startswith("drama/"):
+                  targets.add("drama/meta.json")
+              elif f.startswith("travel/"):
+                  targets.add("travel/meta.json")
+              else:
+                  targets.add("meta.json")
+
+          for path in sorted(targets):
+              data = {}
+              if os.path.exists(path):
+                  try:
+                      with open(path, encoding="utf-8") as fh:
+                          data = json.load(fh)
+                  except Exception:
+                      data = {}
+              data["updated"] = today
+              os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+              with open(path, "w", encoding="utf-8") as fh:
+                  json.dump(data, fh, ensure_ascii=False, indent=2)
+                  fh.write("\n")
+              print("updated", path, "->", today)
+          PY
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No meta.json changes"
+          else
+            git commit -m "chore: update meta.json [skip ci]"
+            git push
+          fi
