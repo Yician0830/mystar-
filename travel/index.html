@@ -405,6 +405,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .spv.done .spk .bname{text-decoration:line-through; color:var(--ink-faint);}
   .spv.done .sptype{opacity:.6;}
   .spv.done{opacity:0.72;}
+  /* ── 打卡點精簡版：一個點一行，類型不顯示文字、只用顏色（左側色條、勾選框、篩選鈕的小圓點）；狀態與倒數合併成一顆小標籤 ── */
+  .spv{padding:9px 14px 9px 14px; gap:6px;}
+  .spv .sphead{position:relative; min-height:28px; padding-right:24px;}
+  .spv .sphead input[type="checkbox"]{accent-color:var(--tc);}
+  .spv .spk .bname,.spv .sphead .bname{flex:1 1 auto; min-width:0;}
+  .spv .sphead .spsub{flex:0 0 auto; margin:0 0 0 auto; display:inline-flex; align-items:center; gap:0; padding:1px 10px; border:1px solid var(--line); border-radius:99px; background:var(--paper); font-size:12px; font-weight:700; color:var(--ink-dim); white-space:nowrap;}
+  .spv .sphead .spsub:has(.due){border-color:var(--danger);}
+  .spv .sphead .spsub .sprs{padding:0; border-radius:0; background:none; font-size:12px;}
+  .spv .sphead .spsub .sptail .dueok,.spv .sphead .spsub .sptail .due{padding:0; border:0; background:none; font-size:12px; font-weight:700;}
+  .spv .sphead .spsub .sprs + .sptail::before{content:"・"; margin:0 4px; color:var(--ink-faint);}
+  .spv.late .sphead .spsub{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .spv.late .sphead .spsub .sptail .due{background:none; border:0; color:#fff;}
+  .spv .sphead .spchev{position:absolute; right:-8px; top:-2px; margin:0;}
+  .sptypes .mini[data-ty]::before{content:""; display:inline-block; width:8px; height:8px; margin-right:6px; border-radius:50%; background:var(--line-strong);}
+  .sptypes .mini[data-ty="咖啡廳"]::before{background:#b8741a;} .sptypes .mini[data-ty="廣告"]::before{background:#3f7cc4;} .sptypes .mini[data-ty="快閃店"]::before{background:#d1436b;} .sptypes .mini[data-ty="展覽"]::before{background:#3a9a74;}
+  .sptypes .mini[data-ty=""]::before{display:none;}
+  /* 已打卡：收進最下面的摺疊區，點開才看到 */
+  .spdone{margin-top:4px;}
+  .spdone>summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; min-height:40px; padding:6px 2px; font-size:14px; font-weight:900; color:var(--ink-dim);}
+  .spdone>summary::-webkit-details-marker{display:none;}
+  .spdone>summary small{font-size:13px; font-weight:700; color:var(--ink-faint);}
+  .spdone>summary::after{content:''; width:8px; height:8px; margin-left:4px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
+  .spdone[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
+  .spdone>summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
   .spflags{display:flex; flex-wrap:wrap; gap:6px 20px; margin:6px 0 4px;}
   .spflags .ck{flex-direction:row; align-items:center; gap:8px; margin-bottom:0; font-size:14px; font-weight:500; color:var(--ink);}
   .spflags .ck span{flex:0 1 auto; white-space:nowrap;}
@@ -591,6 +615,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shv-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   /* 場次超過一筆：每張卡片預設收合，只留日期／狀態／倒數，點開看入場時間、座位、票價 */
   .shdet>summary{list-style:none; cursor:pointer; min-height:32px;}
+  .shv.shv-c{padding:4px 12px 4px 14px;}
+  .shv-seatin{flex:1 1 140px; min-width:0; font-size:14px; font-weight:700; color:var(--ink-dim); overflow-wrap:anywhere;}
+  .shdet>summary.shv-top{gap:6px 12px; min-height:40px;}
+  .shdet[open] .shv-body{padding-bottom:6px;}
   .shdet>summary::-webkit-details-marker{display:none;}
   .shdet>summary::after{content:''; flex:0 0 auto; width:8px; height:8px; margin-left:4px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
   .shdet[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
@@ -890,14 +918,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var dt = toDate(x.date), l = dt ? dueLeft(dt) : null, past = !!(l && l.n < 0);
       var left = l && l.n >= 0 ? '<span class="shv-left ' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : (past ? '<span class="shv-left dueok">已結束</span>' : '');
       var top = '<div class="shv-top">' + (n > 1 ? '<span class="shv-no">' + (i + 1) + '</span>' : '') +
-        '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
+        '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (n > 1 && x.seat ? '<span class="shv-seatin">' + esc(x.seat) + '</span>' : '') + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
       var tm = (x.door ? '<span>入場 <b>' + esc(x.door) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(x.show) + '</b></span>' : '');
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
       var body = (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
-        (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x);
-      if(n > 1) return '<div class="shv' + (past ? ' past' : '') + '"><details class="shdet" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
+        (x.seat && n < 2 ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x);
+      if(n > 1) return '<div class="shv shv-c' + (past ? ' past' : '') + '"><details class="shdet" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
         '<summary class="shv-top">' + top.replace(/^<div class="shv-top">/, '').replace(/<\/div>$/, '') + '</summary><div class="shv-body">' + body + '</div></details></div>';
       return '<div class="shv' + (past ? ' past' : '') + '">' + top + body + '</div>';
     }).join('');
@@ -1027,7 +1055,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(fan){
       var fi = t.fanInfo || {}, tk = bks.filter(function(x){ return x.type === '門票' && (x.name || x.code); })[0], parts = [];
       if(fi.saleStatus && !hasSaleChip) parts.push(esc(fi.saleStatus));
-      if(tk){ parts.push(esc(tk.name || '門票')); if(tk.code) parts.push('<code>' + esc(tk.code) + '</code>'); }
+      if(tk){ parts.push(esc(tk.name || '門票')); }
       var shs = showsSorted(t).filter(function(x){ return x.date; });
       if(shs.length) parts.push('場次 ' + shs.slice(0, 3).map(function(x){ return esc(d(x.date)); }).join('、') + (shs.length > 3 ? ' 等 ' + shs.length + ' 場' : ''));
       if(parts.length) rows.push(['門票', parts.join('　')]);
@@ -2494,7 +2522,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="mgadd3"><label class="ck"><input id="mglim" type="checkbox"><span>限量</span></label><button class="mini" type="button" data-do="merchadd">＋ 新增</button></div></div></section>';
   }
   function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
-  var spOpen = {}, spOnly = false, spType = '';      // 打卡點：哪幾張展開、是否只看未打卡
+  var spOpen = {}, spOnly = false, spType = '', spDoneOpen = false;      // 打卡點：哪幾張展開、是否只看未打卡
   function spotsView(t){
     var all = t.spots || [];
     var types = SPOT_TYPES.filter(function(ty){ return all.some(function(x){ return (x.type || '其他') === ty; }); });
@@ -2509,14 +2537,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(ka !== kb) return ka < kb ? -1 : 1;
         var ra = (rsvOn(a.x) && rsvSt(a.x) === '未預約') ? 0 : 1, rb = (rsvOn(b.x) && rsvSt(b.x) === '未預約') ? 0 : 1;
         return ra !== rb ? ra - rb : a.i - b.i;
-      }).map(function(o){ return o.x; }).concat(spOnly ? [] : all.filter(function(x){ return x.done && inType(x); }));
+      }).map(function(o){ return o.x; });
+    var dn = all.filter(function(x){ return x.done && inType(x); });   // 已打卡的收進最下面的摺疊區
     var doneN = all.filter(function(x){ return x.done; }).length;
     var pct = all.length ? Math.round(doneN / all.length * 100) : 0;
-    return '<section class="sec" id="spsec"><div class="sh"><h3>應援打卡點' + (all.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3>' +
-      (doneN ? '<div class="btns"><button class="mini" type="button" data-do="spfilter" aria-pressed="' + spOnly + '">只看未打卡</button></div>' : '') + '</div>' +
-      (all.length ? '<div class="spbar' + (pct === 100 ? ' full' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="打卡進度"><i style="width:' + pct + '%"></i></div>' : '') +
-      (types.length > 1 ? '<div class="sptypes">' + ['全部'].concat(types).map(function(ty){ var on = ty === '全部' ? !spType : spType === ty; return '<button class="mini" type="button" data-do="sptype" data-ty="' + (ty === '全部' ? '' : esc(ty)) + '" aria-pressed="' + on + '">' + esc(ty) + '</button>'; }).join('') + '</div>' : '') +
-      (sp.length ? sp.map(function(x){
+    var cardOf = function(x){
         var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x, 'txt'), tail = spWhen(x, 'tail');
         var open = !!spOpen[x.id];
         var body = (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
@@ -2531,11 +2556,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="bk v spv' + (x.done ? ' done' : '') + (spLate(x) ? ' late' : '') + (open ? ' open' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
           '<div class="sphead spk" role="button" tabindex="0" aria-expanded="' + open + '" data-spt="' + x.id + '" title="點一下展開／收合">' +
             '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
-            '<span class="sptype">' + esc(x.type || '其他') + '</span><b class="bname">' + (x.name ? esc(plainName(x.name)) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
+            '<b class="bname" title="' + esc(x.type || '其他') + '">' + (x.name ? esc(plainName(x.name)) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
             '<span class="spchev" aria-hidden="true">▾</span>' +
             ((rsvOn(x) && !x.done) || tail ? '<div class="spsub">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + (rslHas(x) ? ' ' + rslText(x) : '') + '</span>' : '') + (tail ? '<span class="sptail">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
-      }).join('') : '<p class="vempty">' + (all.length ? (spType && !sp.length ? '這個類型沒有符合的項目' : '全部都打卡完成了 🎉') : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + '</section>';
+    };
+    var doneHtml = dn.length ? '<details id="spdone" class="spdone"' + (spDoneOpen ? ' open' : '') + '><summary>已打卡<small>（' + dn.length + '）</small></summary><div class="spdonebody">' + dn.map(cardOf).join('') + '</div></details>' : '';
+    return '<section class="sec" id="spsec"><div class="sh"><h3>應援打卡點' + (all.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3>' +
+      '</div>' +
+      (all.length ? '<div class="spbar' + (pct === 100 ? ' full' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="打卡進度"><i style="width:' + pct + '%"></i></div>' : '') +
+      (types.length > 1 ? '<div class="sptypes">' + ['全部'].concat(types).map(function(ty){ var on = ty === '全部' ? !spType : spType === ty; return '<button class="mini" type="button" data-do="sptype" data-ty="' + (ty === '全部' ? '' : esc(ty)) + '" aria-pressed="' + on + '">' + esc(ty) + '</button>'; }).join('') + '</div>' : '') +
+      (sp.length ? sp.map(cardOf).join('') : '<p class="vempty">' + (all.length ? (dn.length ? (spType ? '這個類型都打卡完成了 🎉' : '全部都打卡完成了 🎉') : '這個類型沒有符合的項目') : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + doneHtml + '</section>';
   }
   function spotEdit(x){
     var a = ' data-sp="' + x.id + '"';
@@ -2564,7 +2595,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -2599,8 +2630,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') +
-          (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+                    (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
@@ -2614,8 +2644,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="bk v" id="lk-stay-' + x.id + '"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           ((dt || hint) ? '<div class="btime stime">' + dt + (hint ? (dt ? ' ' : '') + '<span class="nights nw">' + esc(hint) + '</span>' : '') + '</div>' : '') +
           ((x.address || map) ? '<div class="vtext addrline">' + (x.address ? esc(x.address) : '') + (map ? (x.address ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
-          (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
+                    (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
     if(fan) h += spotsView(t) + merchView(t);
@@ -2995,7 +3024,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(/^lk-exp-/.test(b.dataset.to || '') && !document.getElementById(b.dataset.to)){ xOpen = true; catFilter = 'all'; renderDetail(); }
       if(/^lk-sp-/.test(b.dataset.to || '')){      // 要跳去的打卡點若收合或被「只看未打卡」藏起來，先展開
         var gsid = String(b.dataset.to).slice(6), gsx = byId(t.spots, gsid);
-        if(gsx){ spOpen[gsid] = true; if(gsx.done) spOnly = false; if(spType && (gsx.type || '其他') !== spType) spType = ''; var gsp = $('spsec'); if(gsp) gsp.outerHTML = spotsView(t); }
+        if(gsx){ spOpen[gsid] = true; if(gsx.done) spDoneOpen = true; if(spType && (gsx.type || '其他') !== spType) spType = ''; var gsp = $('spsec'); if(gsp) gsp.outerHTML = spotsView(t); }
       }
       var tg = document.getElementById(b.dataset.to);
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
