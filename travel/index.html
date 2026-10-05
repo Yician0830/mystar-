@@ -238,8 +238,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .phd,.pht{font-variant-numeric:tabular-nums; white-space:nowrap;}
   .phpast{text-decoration:line-through; opacity:.55;}   /* 已過的日期與時間 */
   @media (max-width:520px){ .phlist{display:block;} .phv{display:flex; flex-wrap:wrap; gap:0 10px; margin:2px 0;} }
-  .phrow{display:grid; grid-template-columns:1.4fr 1fr 0.8fr 0.9fr auto; gap:6px; margin:6px 0;}
-  .phrow input,.phrow select{min-width:0;}
+  /* 售票階段：分兩排，上排名稱＋刪除，下排日期／時間／狀態，日期與時間才不會被截掉；很窄的欄位再拆成三排 */
+  .phrow{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; grid-template-areas:"name name del" "date time status"; gap:6px; margin:10px 0;}
+  .phrow input,.phrow select{min-width:0; width:100%;}
+  .phrow>:nth-child(1){grid-area:name;} .phrow>:nth-child(2){grid-area:date;} .phrow>:nth-child(3){grid-area:time;} .phrow>:nth-child(4){grid-area:status; min-width:96px;} .phrow>:nth-child(5){grid-area:del; align-self:center;}
+  @container (max-width:380px){ .phrow{grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"name del" "date date" "time status";} }
   .shst{margin-top:6px;}
   .shv-st{font-size:12px; font-weight:700; margin-left:8px;}
   .shv .spadd-wrap{margin-top:8px;}
@@ -587,12 +590,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shv.past{opacity:0.6; border-left-color:var(--line-strong);}
   .shv-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   /* 場次超過一筆：每張卡片預設收合，只留日期／狀態／倒數，點開看入場時間、座位、票價 */
-  .shd>summary{list-style:none; cursor:pointer; min-height:32px;}
-  .shd>summary::-webkit-details-marker{display:none;}
-  .shd>summary::after{content:''; flex:0 0 auto; width:8px; height:8px; margin-left:4px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
-  .shd[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
-  .shd>summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-  .shd .shv-body{display:grid; gap:6px; margin-top:6px;}
+  .shdet>summary{list-style:none; cursor:pointer; min-height:32px;}
+  .shdet>summary::-webkit-details-marker{display:none;}
+  .shdet>summary::after{content:''; flex:0 0 auto; width:8px; height:8px; margin-left:4px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
+  .shdet[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
+  .shdet>summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .shdet .shv-body{display:grid; gap:6px; margin-top:6px;}
   .shv-no{flex:0 0 auto; min-width:22px; height:22px; padding:0 6px; display:inline-flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); font-size:12px; font-weight:900;}
   .shv-date{font-size:17px; font-weight:900; letter-spacing:0.01em;}
   .shv-date small{font-size:13px; font-weight:700; color:var(--ink-faint); margin-left:3px;}
@@ -894,7 +897,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
       var body = (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
         (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x);
-      if(n > 1) return '<div class="shv' + (past ? ' past' : '') + '"><details class="shd" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
+      if(n > 1) return '<div class="shv' + (past ? ' past' : '') + '"><details class="shdet" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
         '<summary class="shv-top">' + top.replace(/^<div class="shv-top">/, '').replace(/<\/div>$/, '') + '</summary><div class="shv-body">' + body + '</div></details></div>';
       return '<div class="shv' + (past ? ' past' : '') + '">' + top + body + '</div>';
     }).join('');
