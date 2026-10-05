@@ -244,6 +244,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ihr,.ihwd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:13px;}
   .ihwd label{display:inline-flex; align-items:center; gap:3px;}
   .cardfee[hidden]{display:none;}
+  .wishsec{padding-bottom:4px; border-bottom:1px dashed var(--line-strong); margin-bottom:6px;}
+  .wishtog{display:flex; justify-content:space-between; align-items:center; gap:10px; width:100%; padding:2px 0 10px; background:none; border:0; color:inherit; font:inherit; cursor:pointer; text-align:left;}
+  .wishtog h3{font-size:17px; font-weight:900; letter-spacing:0.04em;}
+  .wishcar{font-size:13px; color:var(--ink-dim); white-space:nowrap;}
+  .wishbody{max-height:min(46vh,380px); overflow-y:auto; padding-bottom:6px; overscroll-behavior:contain;}
   .wishrow{padding:8px 0; border-bottom:1px dashed var(--line-strong);}
   .wishhd{display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:700;}
   .wishadd{display:flex; gap:8px; margin-top:10px;}
@@ -908,7 +913,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var a = ' data-ph="' + x.id + '"';
         return '<div class="phrow"><input' + a + ' data-k="name" list="phnames" aria-label="階段名稱" placeholder="例如：會員先行" value="' + esc(x.name || '') + '">' +
           '<input type="date"' + a + ' data-k="date" aria-label="日期" value="' + esc(x.date || '') + '"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
-          '<select' + a + ' data-k="status" aria-label="狀態"><option value="">狀態</option>' + SALE_ST.map(function(c){ return '<option' + (c === x.status ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+          '<select' + a + ' data-k="status" aria-label="狀態"><option value="">狀態</option>' + saleOpts('ticket', x.status) + '</select>' +
           '<button class="del" type="button" data-do="delph" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') + '<datalist id="phnames"><option value="會員先行"><option value="一般販售"><option value="候補釋票"><option value="追加場"></datalist>' : '<div class="empty">會員先行、一般販售、候補釋票…可以各記一組日期、時間與結果。</div>') + '</div>';
   }
@@ -922,7 +927,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var sl = dueLeft(sd), open = !closed;
       out += '<span>' + SALE_MODES[saleMode(fi)] + ' <b>' + esc(d(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
     }
-    if(!closed){
+    if(!closed && saleMode(fi) === 'ticket'){
       var nph = phasesSorted(t).filter(function(x){ return !phClosed(x) && toDate(x.date) && dueLeft(toDate(x.date)).n >= 0; })[0];
       if(nph){ var pl = dueLeft(toDate(nph.date)); out += '<span' + (pl.n <= 3 ? ' class="due"' : '') + '>' + esc(nph.name || '售票') + ' <b>' + esc(d(nph.date)) + (nph.time ? ' ' + esc(nph.time) : '') + '</b>・' + pl.txt + '</span>'; }
     }
@@ -933,7 +938,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     };
     if(!closed){
       if(!won && saleMode(fi) === 'lottery') out += step('結果公布', 'resultDate');
-      out += step('繳費／取票期限', 'payDate');
+      if(saleMode(fi) === 'lottery') out += step('繳費／取票期限', 'payDate');
+    }
+    if(saleMode(fi) === 'ticket' && st === '已購票'){   // 售票：選了已購票才倒數可取票日（過了就不再顯示）
+      var pdt = toDate(fi.payDate);
+      if(pdt && dueLeft(pdt).n >= 0) out += step('可取票日', 'payDate');
     }
     return out;
   }
@@ -2251,11 +2260,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rl + '</div>';
   }
   // ---- 備選景點：想去但還沒排進哪天的暫存區（一般旅遊），一鍵加入某一天 ----
+  var wishOpen = false;
   function wishView(t){
     if(viewOnly) return '';
     var w = t.wish || [], days = t.days || [];
     var opts = days.map(function(dy, i){ return '<option value="' + dy.id + '">Day ' + (i + 1) + (dy.date ? '　' + esc(d(dy.date)) + '（' + esc(wk(dy.date).replace(/[（）()]/g, '')) + '）' : '') + '</option>'; }).join('');
-    return '<section class="sec" id="wishsec"><div class="sh"><h3>備選景點' + (w.length ? '<small>' + w.length + '</small>' : '') + '</h3></div>' +
+    var head = '<section class="sec wishsec" id="wishsec"><button class="wishtog" type="button" data-do="wishtog" aria-expanded="' + wishOpen + '"><h3>備選景點' + (w.length ? '<small>' + w.length + '</small>' : '') + '</h3><span class="wishcar">' + (wishOpen ? '▾ 收合' : '▸ 展開') + '</span></button>';
+    if(!wishOpen) return head + '</section>';
+    return head + '<div class="wishbody">' +
       (w.length ? w.map(function(x){
         var q = String(x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
         return '<div class="wishrow"><div class="wishhd"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(q) + '</a>' +
@@ -2264,7 +2276,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
             '<input class="spadd-time" type="time" aria-label="預計時間（選填）"><button class="mini spadd-go" type="button" data-do="wishgo" data-id="' + x.id + '">加入</button></div></div>' : '') + '</div>';
       }).join('') : '<p class="vempty">想去但還沒排進哪天的地方，先記在這裡，之後一鍵加入某一天。</p>') +
       (days.length ? '' : '<p class="vempty">要加入行程，請先到「編輯」按「依日期產生」排出每一天。</p>') +
-      '<div class="wishadd"><input id="wishin" type="text" autocomplete="off" placeholder="景點名稱或地址" aria-label="新增備選景點"><button class="mini" type="button" data-do="wishadd">＋ 新增</button></div></section>';
+      '<div class="wishadd"><input id="wishin" type="text" autocomplete="off" placeholder="景點名稱或地址" aria-label="新增備選景點"><button class="mini" type="button" data-do="wishadd">＋ 新增</button></div></div></section>';
   }
   function boardHtml(t, edit){
     var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
@@ -2477,9 +2489,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
         vrow(SALE_MODES[saleMode(fi)], (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
-        vrow('售票階段', phasesView(t)) +
+        vrow('售票階段', saleMode(fi) === 'ticket' ? phasesView(t) : '') +
         (saleMode(fi) === 'lottery' ? vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') : '') +
-        vrow('繳費／取票期限', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票') : '') +
+        vrow(saleMode(fi) === 'lottery' ? '繳費／取票期限' : '可取票日', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', saleMode(fi) === 'ticket' ? fi.saleStatus === '已購票' : (fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票')) : '') +
         showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
         vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div>' +
@@ -2560,7 +2572,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="xdh"><span>' + g.title + '</span>' + (sub ? '<b>' + money(sub) + ' 元</b>' : '') + '</div>' + g.list.map(xRow).join('');
       }).join('');
     } else xBody = shown.map(xRow).join('');
-    h += '</div><div class="col c2">' + boardHtml(t, false) + (fan ? '' : wishView(t)) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
+    h += '</div><div class="col c2">' + (fan ? '' : wishView(t)) + boardHtml(t, false) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' :
       exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
@@ -2580,9 +2592,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           ['ticket','lottery'].map(function(k){ return '<button class="mini" type="button" data-do="salemode" data-v="' + k + '" aria-pressed="' + (k === smode) + '">' + SALE_MODES[k] + '</button>'; }).join('') + '</div>' +
         FI(sml + '日', 'date', 'saleDate') + FI(sml + '時間（選填）', 'time', 'saleTime') +
         '<label>' + sml + '狀態<select data-f="1" data-k="saleStatus"><option value="">未設定</option>' + saleOpts(smode, fi.saleStatus) + '</select></label>' +
-        (smode === 'lottery' ? FI('結果公布日', 'date', 'resultDate') : '') + FI('繳費／取票期限', 'date', 'payDate') +
-        '<div class="full dcl">' + (smode === 'lottery' ? '狀態選「已中籤」後，旅程列表會改為倒數繳費／取票期限；選「已購票」、「落選」或「未購票」就不再提醒。' : '狀態選「已購票」或「未購票」後，旅程列表就不再提醒售票日與繳費／取票期限。') + '</div>' +
-        phasesEdit(t) + '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
+        (smode === 'lottery' ? FI('結果公布日', 'date', 'resultDate') : '') + FI(smode === 'lottery' ? '繳費／取票期限' : '可取票日', 'date', 'payDate') +
+        '<div class="full dcl">' + (smode === 'lottery' ? '狀態選「已中籤」後，旅程列表會改為倒數繳費／取票期限；選「已購票」、「落選」或「未購票」就不再提醒。' : '狀態選「已購票」後，旅程列表才會倒數提醒可取票日；選「未購票」就不再提醒售票日。') + '</div>' +
+        (smode === 'lottery' ? '' : phasesEdit(t)) + '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
           (shows.length ? shows.map(function(x, i){ return showEdit(t, x, i); }).join('') + '<div class="dcl">票價與張數預設只做票券紀錄；要算進花費，按場次卡片上的「加入花費」。</div>' : '<div class="empty">每一場的日期、入場／開演時間、座位和票價都可以分開記，巡演也能一次記完。</div>') + '</div>' +
         FI('同行者（選填）', 'text', 'companions', true) +
         '<label class="full">相關連結（推し手帳的活動、售票頁）<div class="bcode"><input type="text" inputmode="url" autocomplete="off" data-f="1" data-k="link" placeholder="貼上網址" value="' + esc(fi.link || '') + '">' +
@@ -2983,10 +2995,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
       sday.items.push(sit); dayFilter = sday.id;
       renderDetail(); doPersist(); return;
     }
+    if(act === 'wishtog'){
+      wishOpen = !wishOpen;
+      var wsc = $('wishsec'); if(wsc) wsc.outerHTML = wishView(t);
+      if(wishOpen){ var wfi = $('wishin'); if(wfi) wfi.focus(); }
+      return;
+    }
     if(act === 'wishadd'){
       var wi = $('wishin'), wv = wi ? wi.value.trim() : '';
       if(!wv){ if(wi) wi.focus(); return; }
-      t.wish.push({ id:uid(), name:wv });
+      t.wish.push({ id:uid(), name:wv }); wishOpen = true;
       renderDetail(); doPersist();
       var wi2 = $('wishin'); if(wi2) wi2.focus();
       return;
