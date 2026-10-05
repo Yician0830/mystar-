@@ -647,6 +647,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     <label>類型<select name="kind" id="kind"><option value="general">一般旅遊</option><option value="fan">追星</option></select></label>
     <label id="eventWrap" hidden>活動／對象<input name="event" placeholder="例如：演唱會名稱、見面會"></label>
     <label>地點<input name="place" placeholder="例如：東京・有明"></label>
+    <label class="full">分攤成員（選填，要分攤花費才需要）<input name="people" autocomplete="off" placeholder="用「、」分隔，記得包含自己，例如：我、小明、阿華"></label>
     <label>出發日<input name="start" type="date" required></label>
     <label>回程日<input name="end" type="date"></label>
     <label class="full">備註（航班、住宿、行程、心得）<textarea name="note"></textarea></label>
@@ -1265,6 +1266,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     $('eventWrap').hidden = !fan;
     el['event'].value = t.event || '';
     el['place'].value = t.place || '';
+    el['people'].value = t.people || '';
     el['start'].value = t.start || '';
     el['end'].value = t.end || '';
     el['note'].value = t.note || '';
@@ -1289,7 +1291,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('f').addEventListener('submit', function(e){
     e.preventDefault();
     var f = e.target, fan = f.kind.value === 'fan';
-    var data = { kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, note:f.note.value.trim() };
+    var data = { kind:f.kind.value, title:f.title.value.trim(), place:f.place.value.trim(), people:f.people.value.trim(), event:fan ? f.event.value.trim() : '', start:f.start.value, end:f.end.value, note:f.note.value.trim() };
     var t = editingId && trips.filter(function(x){ return String(x.id) === editingId; })[0];
     if(t){ Object.assign(t, data); }   // 只改基本資料，原有的預訂、清單、行程與花費都保留
     else { data.id = Date.now(); data.days = []; data.expenses = []; trips.push(data); }
@@ -2187,8 +2189,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns">' +
       '<span class="dcl">新增預設幣別</span><select data-t="1" data-k="currency" aria-label="新增花費的預設幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
       '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
-      '<label class="plabel">分攤成員（選填）<input data-t="1" data-k="people" aria-label="分攤成員" autocomplete="off" placeholder="用「、」分隔，例如：我、小明、阿華" value="' + esc(t.people || '') + '"></label>' +
-      '<p class="hint">填兩位以上，每筆花費就能指定誰付的、誰分攤，並自動算出誰該付誰多少。不指定付款人的花費就當個人花費，不參與分攤。</p>' +
+      (peopleOf(t).length >= 2 ? '<p class="hint">分攤成員：' + peopleOf(t).map(esc).join('、') + '（要修改請到旅程列表按「編輯」）</p>' : '<p class="hint">想分攤花費：到旅程列表按「編輯」，在「分攤成員」填兩位以上（記得包含自己），這裡每筆花費就能選誰付的、誰分攤。</p>') +
       t.expenses.map(function(x){
         return crow('ex', x.id, '', (CAT_ICON[x.cat] || '') + ' ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), esc(x.cat || '') + (x.payer ? '・' + esc(x.payer) + ' 付' : ''), String(x.amount == null ? '' : x.amount).trim() ? '<small>' + esc(ecur(t, x)) + '</small> ' + money(signed(x)) : '', 'delexp');
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
