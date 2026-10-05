@@ -199,20 +199,39 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .spv .spwhen::before{content:"🗓"; font-size:12px; margin-right:-4px;}
   .spv .spwhen .dueok,.spv .spwhen .due{font-size:12px; font-weight:700; padding:0 8px; border-radius:99px; background:var(--paper); border:1px solid var(--line);}
   .spv .spwhen .due{border-color:var(--danger);}
-  .spv .spchips,.spv .addrline,.spv .spperk,.spv .spnote,.spv .lks{margin-left:34px;}
+  .spv .spchips,.spv .addrline,.spv .sphours,.spv .spperk,.spv .spnote,.spv .lks{margin-left:34px;}
   .spv .addrline::before{content:"📍 "; font-size:12px;}
   .spv .spperk{background:var(--paper); border-left:3px solid var(--accent); padding:6px 10px; font-weight:700;}
   .spv .spperk .spk-ico{margin-right:6px;}
+  .spv .sphours{font-weight:700;}
+  .spv .sphours .spk-lbl{font-size:12px; font-weight:900; color:var(--accent); letter-spacing:0.06em; margin-right:8px;}
   .spv .spnote{color:var(--ink-faint); font-size:13px;}
+  .sprsv{display:grid; grid-template-columns:auto 1fr; gap:8px; align-items:center;}
+  .sprsv[hidden]{display:none;}
+  .spchip.rs-ok{color:#3a9a74; border-color:#3a9a74;}
+  .spchip.rs-wait{color:var(--accent); border-color:var(--accent);}
+  .spchip.rs-no{color:var(--danger); border-color:var(--danger);}
+  .spchip.spgo{text-decoration:none; background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .spv .sprs{flex:0 0 auto; font-size:11px; font-weight:900; padding:0 7px; border:1px solid currentColor; letter-spacing:0.04em; white-space:nowrap;}
+  .spv .sprs.rs-ok{color:#3a9a74;} .spv .sprs.rs-wait{color:var(--accent);} .spv .sprs.rs-no{color:var(--danger);}
   .spv .sphead{display:flex; align-items:center; cursor:pointer; user-select:none;}
   .spv .sphead input[type="checkbox"]{flex:0 0 auto; width:20px; height:20px; padding:0; accent-color:var(--accent); cursor:pointer;}
   .spv .sphead .sptail{margin-left:auto; flex:0 0 auto;}
   .spv .sphead .sptail .dueok,.spv .sphead .sptail .due{font-size:12px; font-weight:700; padding:0 8px; border-radius:99px; background:var(--paper); border:1px solid var(--line); white-space:nowrap;}
   .spv .sphead .sptail .due{border-color:var(--danger);}
+  .spv.late{border-left-color:var(--danger);}
+  .spv.late .sphead .sptail .due{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .spv.late .spk .bname{color:var(--danger);}
   .spv .sphead .spchev{flex:0 0 auto; color:var(--ink-faint); font-size:14px; transition:transform .2s; transform:rotate(-90deg);}
   .spv .sphead .bname + .spchev{margin-left:auto;}
   .spv .sphead .sptail + .spchev{margin-left:4px;}
   .spv.open .sphead .spchev{transform:none;}
+  .spadd-wrap{display:grid; gap:8px; justify-items:start; margin-left:34px;}
+  .spadd[hidden]{display:none;}
+  .spadd{display:flex; flex-wrap:wrap; gap:8px; align-items:center; width:100%;}
+  .spadd select{flex:1 1 180px; min-width:0; width:auto;}
+  .spadd input[type="time"]{flex:0 0 auto; width:auto;}
+  .spadd-none{margin-left:34px; font-size:12px; color:var(--ink-faint);}
   .spv .spdetail{display:none; gap:8px;}
   .spv.open .spdetail{display:grid;}
   .spv.done .spk .bname{text-decoration:line-through; color:var(--ink-faint);}
@@ -1145,7 +1164,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note, intro（景點介紹）, dishes（美食必點，[{id,name,price}]） }
   var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','現場候位','臨時'];
-  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'', intro:'', dishes:[] }; }
+  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'', intro:'', dishes:[], lkSpot:'' }; }
   // 交通拆成兩欄：transport＝搭乘的交通工具，route＝路線（步行幾分鐘／JR 線名／地鐵幾號線哪站到哪站…），輸入提示會跟著交通工具變
   // 每種交通工具各自的圖示，一看就知道；沒對到的才用通用的 🚃
   var TICONS = [
@@ -1251,7 +1270,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var btn = function(key, y){ return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '" title="' + esc(lkText(key, y)) + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>'; };
     var h = ['lkBk', 'lkStay'].map(function(key){
       var y = x[key] && byId(t[LK[key][0]], x[key]); return y ? btn(key, y) : '';
-    }).join('') + expChips(t, x);
+    }).join('') + expChips(t, x) +
+      ((x.lkSpot && byId(t.spots, x.lkSpot)) ? '<button class="lk" type="button" data-do="goto" data-to="lk-sp-' + x.lkSpot + '" title="' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '">📌 ' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '</button>' : '');
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
   function revLinks(t, key, id){
@@ -1395,7 +1415,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
-    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin;
+    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.hours);
     return e(x.name) && e(x.amount);
   }
   function openModal(kind, id, dayId, isNew){
@@ -1537,6 +1557,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var SPOT_TYPES = ['咖啡廳','廣告','快閃店','展覽','其他'];
   var SPOT_BOOK = ['咖啡廳','展覽','快閃店'];   // 只有這幾種類型才有「需先預約／開放現場名額」
   function spBook(x){ return SPOT_BOOK.indexOf(x.type) >= 0; }
+  var RSV_ST = ['未預約','已預約','候補'];
+  function rsvOn(x){ return spBook(x) && !!x.reserve; }                       // 有勾「需先預約」才會有預約狀態
+  function rsvSt(x){ return RSV_ST.indexOf(x.rsvStatus) >= 0 ? x.rsvStatus : '未預約'; }
+  function rsvCls(st){ return st === '已預約' ? 'rs-ok' : st === '候補' ? 'rs-wait' : 'rs-no'; }
   function spProg(t){ var a = t.spots || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
     var f = x.from, e = x.to; if(!f && !e) return '';
@@ -1545,17 +1569,48 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!x.done){
       var l2 = f && toDate(f) ? dueLeft(toDate(f)) : null, l = e && toDate(e) ? dueLeft(toDate(e)) : null;
       if(l2 && l2.n > 0) tail = '<span class="dueok">' + (l2.n === 1 ? '明天開始' : l2.n + ' 天後開始') + '</span>';
-      else if(l) tail = l.n < 0 ? '<span class="due">已結束</span>' : '<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
+      else if(l) tail = l.n < 0 ? '<span class="due">已結束・未打卡</span>' : '<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
     }
     if(part === 'txt') return txt;
     if(part === 'tail') return tail;
     return txt + (tail ? '　' + tail : '');
   }
+  // ---- 打卡點 → 一鍵加進每日行程 ----
+  var SP2IT = { '咖啡廳':'美食', '快閃店':'購物', '展覽':'活動', '廣告':'景點' };
+  function spAddPanel(t, x){
+    var days = t.days || [];
+    if(!days.length) return '<div class="spadd-none">還沒有每日行程，到編輯模式按「依日期產生」後就能加入。</div>';
+    var pick = days.filter(function(dy){ return dy.date && (!x.from || dy.date >= x.from) && (!x.to || dy.date <= x.to); })[0] || days[0];
+    var opts = days.map(function(dy, i){
+      var inr = dy.date && (x.from || x.to) && (!x.from || dy.date >= x.from) && (!x.to || dy.date <= x.to);
+      return '<option value="' + dy.id + '"' + (dy === pick ? ' selected' : '') + '>Day ' + (i + 1) + (dy.date ? '　' + esc(d(dy.date)) + '（' + esc(wk(dy.date).replace(/[（）()]/g, '')) + '）' : '') + (inr ? '　★活動期間內' : '') + '</option>';
+    }).join('');
+    return '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button>' +
+      '<div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
+      '<input class="spadd-time" type="time" aria-label="預計時間（選填）">' +
+      '<button class="mini spadd-go" type="button" data-do="spaddgo" data-id="' + x.id + '">加入</button></div></div>';
+  }
+  function spToItem(x){
+    var it = newItem(), notes = [];
+    it.title = x.name || ''; it.cat = SP2IT[x.type] || '其他'; it.place = (x.addr || x.name || ''); it.lkSpot = x.id;
+    if(rsvOn(x)) it.status = rsvSt(x) === '已預約' ? '已預訂' : rsvSt(x) === '未預約' ? '未預訂' : '';
+    else if(spBook(x) && x.walkin) it.status = '現場候位';
+    if(String(x.hours || '').trim()) notes.push('活動時間：' + String(x.hours).trim());
+    if(String(x.perk || '').trim()) notes.push('特典：' + String(x.perk).trim());
+    if(String(x.note || '').trim()) notes.push(String(x.note).trim());
+    it.note = notes.join('\n');
+    return it;
+  }
+  function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
   var spOpen = {}, spOnly = false;      // 打卡點：哪幾張展開、是否只看未打卡
   function spotsView(t){
     var all = t.spots || [];
     // 未打卡的在前、已打卡的沉到最下面（各自維持原本順序）
-    var sp = all.filter(function(x){ return !x.done; }).concat(spOnly ? [] : all.filter(function(x){ return x.done; }));
+    var sp = all.map(function(x, i){ return { x:x, i:i }; }).filter(function(o){ return !o.x.done; })
+      .sort(function(a, b){   // 結束日最近的排最前面（已過期的最先）；沒填結束日的排最後
+        var ka = a.x.to || '9999-99-99', kb = b.x.to || '9999-99-99';
+        return ka === kb ? a.i - b.i : (ka < kb ? -1 : 1);
+      }).map(function(o){ return o.x; }).concat(spOnly ? [] : all.filter(function(x){ return x.done; }));
     var doneN = all.filter(function(x){ return x.done; }).length;
     return '<section class="sec" id="spsec"><div class="sh"><h3>應援打卡點' + (all.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3>' +
       (doneN ? '<div class="btns"><button class="mini" type="button" data-do="spfilter" aria-pressed="' + spOnly + '">只看未打卡</button></div>' : '') + '</div>' +
@@ -1563,15 +1618,19 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x, 'txt'), tail = spWhen(x, 'tail');
         var open = !!spOpen[x.id];
         var body = (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
-          ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip">需先預約</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') + '</div>' : '') +
+          ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip ' + rsvCls(rsvSt(x)) + '">需先預約・' + esc(rsvSt(x)) + '</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') +
+            ((rsvOn(x) && safeUrl(x.rsvLink)) ? '<a class="spchip spgo" href="' + esc(safeUrl(x.rsvLink)) + '" target="_blank" rel="noopener">預約頁面 ↗</a>' : '') + '</div>' : '') +
           ((x.addr || map) ? '<div class="vtext addrline">' + (x.addr ? esc(x.addr) : '') + (map ? (x.addr ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
+          (String(x.hours || '').trim() ? '<div class="vtext sphours"><span class="spk-lbl">活動時間</span>' + esc(x.hours) + '</div>' : '') +
           (x.perk ? '<div class="vtext spperk"><span class="spk-ico">🎁</span>' + esc(x.perk) + '</div>' : '') +
           (x.note ? '<div class="vtext spnote">' + esc(x.note) + '</div>' : '') +
-          (expIds(x).length ? '<div class="lks">' + expChips(t, x) + '</div>' : '');
-        return '<div class="bk v spv' + (x.done ? ' done' : '') + (open ? ' open' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
+          (expIds(x).length ? '<div class="lks">' + expChips(t, x) + '</div>' : '') +
+          revLinks(t, 'lkSpot', x.id) + spAddPanel(t, x);
+        return '<div class="bk v spv' + (x.done ? ' done' : '') + (spLate(x) ? ' late' : '') + (open ? ' open' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
           '<div class="sphead spk" role="button" tabindex="0" aria-expanded="' + open + '" data-spt="' + x.id + '" title="點一下展開／收合">' +
             '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
             '<span class="sptype">' + esc(x.type || '其他') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
+            (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + '</span>' : '') +
             (tail ? '<span class="sptail">' + tail + '</span>' : '') + '<span class="spchev" aria-hidden="true">▾</span></div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">' + (all.length ? '全部都打卡完成了 🎉' : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + '</section>';
@@ -1586,6 +1645,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<label>結束<input type="date"' + a + ' data-k="to" min="' + esc(x.from || '') + '" value="' + esc(x.to || '') + '"></label></div>' +
       '<input' + a + ' data-k="addr" aria-label="地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.addr || '') + '">' +
       '<input' + a + ' data-k="perk" aria-label="特典" placeholder="特典，例如：點飲品送小卡、需先預約" value="' + esc(x.perk || '') + '">' +
+      '<input' + a + ' data-k="hours" aria-label="活動時間" placeholder="活動時間，例如：每日 10:00–22:00" value="' + esc(x.hours || '') + '">' +
       lkExpHtml(cur(), 'sp', '', x) +
       '<div class="spflags">' +
         '<span class="spbook"' + (spBook(x) ? '' : ' hidden') + '>' +
@@ -1593,7 +1653,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
         '<label class="ck"><input type="checkbox"' + a + ' data-k="walkin"' + (x.walkin ? ' checked' : '') + '><span>開放現場名額</span></label></span>' +
         '<label class="ck"><input type="checkbox"' + a + ' data-k="done"' + (x.done ? ' checked' : '') + '><span>已打卡</span></label>' +
       '</div>' +
-      '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="營業時間、排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
+      '<div class="sprsv"' + (rsvOn(x) ? '' : ' hidden') + '><select' + a + ' data-k="rsvStatus" aria-label="預約狀態">' +
+        RSV_ST.map(function(c){ return '<option' + (c === rsvSt(x) ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+        '<input' + a + ' data-k="rsvLink" inputmode="url" autocomplete="off" aria-label="預約連結" placeholder="預約連結（貼上網址，檢視時可一鍵開啟）" value="' + esc(x.rsvLink || '') + '"></div>' +
+      '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   function viewBody(t, fan){
     var h = '<div class="cols"><div class="col c1">';
@@ -1850,6 +1913,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(ds.k === 'lkExpAdd') addExpLink(t, el, spx, 'sp', '');
         else if(el.type === 'checkbox'){
           spx[ds.k] = el.checked;
+          if(ds.k === 'reserve'){ var rb = el.closest('.bk').querySelector('.sprsv'); if(rb) rb.hidden = !rsvOn(spx); }
           if(ds.k === 'done'){
             var spc = el.closest('.spv'); if(spc) spc.classList.toggle('done', el.checked);
             if($('spprog')) $('spprog').textContent = spProg(t);
@@ -1857,7 +1921,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           }
         } else {
           spx[ds.k] = el.value;
-          if(ds.k === 'type'){ var spb = el.closest('.bk').querySelector('.spbook'); if(spb) spb.hidden = !spBook(spx); }
+          if(ds.k === 'type'){ var spb = el.closest('.bk').querySelector('.spbook'), rb2 = el.closest('.bk').querySelector('.sprsv'); if(spb) spb.hidden = !spBook(spx); if(rb2) rb2.hidden = !rsvOn(spx); }
           if(ds.k === 'from'){ var spTo = el.closest('.bk').querySelector('input[data-k="to"]'); if(spTo) spTo.min = el.value || ''; }
         }
       }
@@ -1904,7 +1968,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var rIn = e.target.parentNode.querySelector('input[data-k="route"]');
       if(rIn) rIn.placeholder = routeHint(e.target.value);
     }
-    if(e.target.matches('input,textarea,select')) setSave('輸入中，離開欄位後會自動儲存', true);
+    if(e.target.matches('input,textarea,select') && !e.target.closest('.spadd')) setSave('輸入中，離開欄位後會自動儲存', true);
   });
 
   function xFocus(){      // 展開後，若花費欄的頂端已捲出畫面，就捲回來
@@ -1942,6 +2006,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(b.dataset.day){ if(dayFilter !== 'all') dayFilter = b.dataset.day; renderDetail(); }
       // 花費明細預設收合（或被類別篩掉）：要跳過去的卡片不在畫面上時，先展開全部
       if(/^lk-exp-/.test(b.dataset.to || '') && !document.getElementById(b.dataset.to)){ xOpen = true; catFilter = 'all'; renderDetail(); }
+      if(/^lk-sp-/.test(b.dataset.to || '')){      // 要跳去的打卡點若收合或被「只看未打卡」藏起來，先展開
+        var gsid = String(b.dataset.to).slice(6), gsx = byId(t.spots, gsid);
+        if(gsx){ spOpen[gsid] = true; if(gsx.done) spOnly = false; var gsp = $('spsec'); if(gsp) gsp.outerHTML = spotsView(t); }
+      }
       var tg = document.getElementById(b.dataset.to);
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
       return;
@@ -1977,6 +2045,24 @@ a.name{display:block; color:inherit; text-decoration:none;}
       openModal('it', ditm.id, dday.id, wasNew);
       mbx = emodal && emodal.querySelector('.mbox'); if(mbx) mbx.scrollTop = stp;
       if(act === 'adddish'){ var dn = emodal.querySelectorAll('.dish input[data-k="name"]'); if(dn.length) dn[dn.length - 1].focus({ preventScroll:false }); }
+      return;
+    }
+    if(act === 'spaddt'){
+      var spw = b.closest('.spadd-wrap'), spp = spw && spw.querySelector('.spadd');
+      if(spp){ spp.hidden = !spp.hidden; b.textContent = spp.hidden ? '＋ 加入行程' : '收起'; }
+      return;
+    }
+    if(act === 'spaddgo'){
+      var spw2 = b.closest('.spadd-wrap'), dsel = spw2 && spw2.querySelector('.spadd-day'), tin = spw2 && spw2.querySelector('.spadd-time');
+      var spx3 = byId(t.spots, b.dataset.id), tday = dsel && t.days.filter(function(y){ return String(y.id) === dsel.value; })[0];
+      if(!spx3 || !tday) return;
+      tday.items = tday.items || [];
+      if(tday.items.some(function(y){ return String(y.lkSpot) === String(spx3.id); }) && !confirm('這一天已經有這個打卡點的行程了，還要再加一筆嗎？')) return;
+      var nit = spToItem(spx3); nit.time = tin ? tin.value : '';
+      tday.items.push(nit);
+      spOpen[spx3.id] = true;
+      renderDetail(); doPersist();
+      var gone = document.getElementById('lk-sp-' + spx3.id); if(gone) gone.scrollIntoView({block:'nearest'});
       return;
     }
     if(act === 'spfilter'){
@@ -2086,7 +2172,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(shT && shHas(shT) && !confirm('確定要刪除這個場次嗎？')) return;
       t.fanInfo.shows = shd.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addsp'){
-      t.spots.push({ id:uid(), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, done:false });
+      t.spots.push({ id:uid(), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', hours:'', done:false });
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       if(spd && (String(spd.name || '').trim() || String(spd.addr || '').trim() || String(spd.perk || '').trim()) && !confirm('確定要刪除這個打卡點嗎？')) return;
