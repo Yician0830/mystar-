@@ -200,6 +200,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .split .sgt{font-size:13px; font-weight:900; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap;}
   .split .sgr{display:flex; justify-content:space-between; gap:8px; padding:5px 0 0; font-size:14px; font-variant-numeric:tabular-nums;}
   .split .sgr b{font-weight:900;}
+
+  /* 旅行統計 */
+  .stats{margin:0 0 20px; padding:14px 16px; background:var(--fill); border-left:4px solid var(--accent); display:grid; gap:12px;}
+  .stats[hidden]{display:none;}
+  .stats .sthd{font-size:13px; font-weight:900; letter-spacing:0.08em; color:var(--ink-dim);}
+  .stats .sthd small{margin-left:8px; font-weight:500; letter-spacing:0; color:var(--ink-faint);}
+  .stats .sttiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:12px 16px;}
+  .stats .stt{display:grid; gap:2px; min-width:0;}
+  .stats .stt .stl{font-size:12px; font-weight:700; color:var(--ink-faint);}
+  .stats .stt .stn{font-size:24px; font-weight:900; line-height:1.15; font-variant-numeric:tabular-nums; color:var(--accent);}
+  .stats .stt .stn small{font-size:13px; font-weight:700; color:var(--ink-dim); margin-left:3px;}
+  .stats .stt .sts{font-size:12px; color:var(--ink-faint);}
+  .stats .stcities{display:flex; flex-wrap:wrap; gap:6px;}
+  .stats .stc{background:transparent; color:var(--ink-dim); border:1px solid var(--line-strong); padding:2px 10px; font-size:12px; font-weight:700; letter-spacing:0;}
+  .stats .stc:hover,.stats .stc:focus-visible{background:transparent; color:var(--accent); border-color:var(--accent);}
+  .stats .stc[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  /* 每天的天氣、整天路線 */
+  .dsub.dx{display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; padding-top:2px;}
+  .dx .wx{font-size:13px; font-weight:700; color:var(--ink-dim); font-variant-numeric:tabular-nums;}
+  .dx .wx:empty{display:none;}
+  .dx .wx small{margin-left:6px; font-size:11px; font-weight:500; color:var(--ink-faint);}
+  .dx .rtl{font-size:12px; font-weight:700; color:var(--accent); text-decoration:none; border:1px solid var(--accent); padding:1px 8px; white-space:nowrap;}
+  .dx .rtl:hover,.dx .rtl:focus-visible{background:var(--accent); color:var(--paper);}
+  #wxnote:empty{display:none;}
   .split .sgsum{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-dim);}
   .split .sgsum b{font-size:17px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--ink);}
   .split .sgsum .sgleft b{color:var(--accent);}
@@ -674,6 +698,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     <div class="full actions"><button type="submit" id="submitBtn">新增旅程</button><button type="button" class="ghost" id="cancelBtn">取消</button></div>
   </form>
 
+  <div class="stats" id="stats" hidden></div>
   <div class="tabs" id="tabs">
       <button type="button" data-k="all" aria-pressed="true">全部</button>
       <button type="button" data-k="general" aria-pressed="false">一般旅遊</button>
@@ -959,6 +984,34 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="del" data-act="del" data-id="' + t.id + '" type="button">刪除</button></div></div>';
   }
   var pastOpen = false;      // 「已成行」預設收合（搜尋或篩選時自動展開）
+  // ---- 旅行統計：跟著目前的分類／年份／地點篩選走 ----
+  function renderStats(list){
+    var el = $('stats');
+    if(!list.length){ el.hidden = true; return; }
+    var td = new Date(); td.setHours(0, 0, 0, 0);
+    var done = 0, up = 0, total = 0, miss = false, seen = {}, cities = [], shows = 0, fan = 0;
+    list.forEach(function(t){
+      var ph = phase(t); if(ph.k === 'up') up++; else done++;
+      var tt = tripTotal(t); if(tt.has){ total += tt.total; if(tt.miss) miss = true; }
+      if(ph.k !== 'up') citiesOf(t).forEach(function(c){ if(!seen[c]){ seen[c] = 1; cities.push(c); } });
+      if(t.kind === 'fan'){ fan++; fanShows(t).forEach(function(x){ var dt = toDate(x.date); if(dt && dt <= td) shows++; }); }
+    });
+    cities.sort();
+    var tile = function(l, n, u, sub){ return '<div class="stt"><span class="stl">' + l + '</span><span class="stn">' + n + '<small>' + u + '</small></span>' + (sub ? '<span class="sts">' + sub + '</span>' : '') + '</div>'; };
+    var scope = [yearF !== 'all' ? yearF + ' 年' : '全部年份', placeF !== 'all' ? placeF : ''].filter(Boolean).join('・');
+    el.innerHTML = '<div class="sthd">旅行統計<small>' + esc(scope) + '</small></div><div class="sttiles">' +
+      tile('旅程', list.length, ' 趟', '成行 ' + done + '・接下來 ' + up) +
+      tile('總花費', total ? money(total) + (miss ? '＋' : '') : '0', ' 元', '含預計花費' + (miss ? '・部分幣別未填匯率' : '')) +
+      tile('去過的城市', cities.length, ' 個', '已成行與旅途中') +
+      (fan ? tile('追星場次', shows, ' 場', '共 ' + fan + ' 趟追星') : '') + '</div>' +
+      (cities.length ? '<div class="stcities">' + cities.map(function(c){ return '<button class="stc" type="button" data-stc="' + esc(c) + '" aria-pressed="' + (placeF === c) + '">' + esc(c) + '</button>'; }).join('') + '</div>' : '');
+    el.hidden = false;
+  }
+  $('stats').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-stc]'); if(!b) return;
+    placeF = placeF === b.dataset.stc ? 'all' : b.dataset.stc;
+    render();
+  });
   function render(){
     var el = $('list');
     syncFilters();
@@ -974,6 +1027,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     });
     $('fcount').hidden = !active;
     if(active) $('fcount').textContent = '符合的旅程：' + shown.length + ' 趟';
+    renderStats(shown);
     if(!shown.length){
       el.innerHTML = '<div class="empty">' + (!trips.length ? '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。' : active ? '找不到符合的旅程，換個關鍵字或清除篩選看看。' : '這個分類還沒有旅程。') + '</div>';
       return;
@@ -1902,6 +1956,116 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="注意事項、營業時間…">' + esc(x.note || '') + '</textarea></div>';
   }
   // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
+  // ---- 整天路線：把當天有填地點的行程，依時間串成 Google 地圖路線（一次最多 10 站，超過會分段）----
+  function routeLinks(day){
+    var pl = [];
+    sortedItems(day).forEach(function(x){
+      var v = String(x.place || '').trim();
+      if(v && pl[pl.length - 1] !== v) pl.push(v);
+    });
+    if(pl.length < 2) return '';
+    var out = [], i = 0, e = encodeURIComponent;
+    while(i < pl.length - 1){
+      var seg = pl.slice(i, i + 10), mid = seg.slice(1, -1);
+      var url = 'https://www.google.com/maps/dir/?api=1&origin=' + e(seg[0]) + '&destination=' + e(seg[seg.length - 1]) + (mid.length ? '&waypoints=' + mid.map(e).join('%7C') : '');
+      out.push({ url:url, from:i + 1, to:i + seg.length });
+      i += seg.length - 1;
+    }
+    return out.map(function(o){
+      return '<a class="rtl" href="' + esc(o.url) + '" target="_blank" rel="noopener" title="在 Google 地圖依序開啟這一天的路線">🗺 ' + (out.length === 1 ? '整天路線（' + pl.length + ' 站）' : '路線 ' + (out.indexOf(o) + 1) + '（第 ' + o.from + '–' + o.to + ' 站）') + '</a>';
+    }).join('');
+  }
+  // ---- 天氣與時差：用 Open-Meteo（免金鑰）。16 天內用預報；更遠的用「去年同期」的實際天氣當參考；已過的日期用實際紀錄。抓不到就靜默不顯示 ----
+  var WX_KEY = 'travel-wx-v1', WX_TTL = 6 * 3600 * 1000, wxMem = {}, wxBusy = {}, wxFailAt = {};
+  function wxCity(t){ return citiesOf(t)[0] || ''; }
+  function wxKeyOf(t){ return [t.id, wxCity(t), t.start || '', t.end || '', (t.days || []).map(function(x){ return x.date || ''; }).join(',')].join('|'); }
+  function wxRaw(key){
+    if(wxMem[key]) return wxMem[key];
+    try{ var o = JSON.parse(localStorage.getItem(WX_KEY) || '{}'); return o[key] || null; }catch(e){ return null; }
+  }
+  function wxPut(key, v){
+    wxMem[key] = v;
+    try{
+      var o = JSON.parse(localStorage.getItem(WX_KEY) || '{}'), ks = Object.keys(o);
+      if(ks.length > 20) ks.sort(function(a, b){ return (o[a].ts || 0) - (o[b].ts || 0); }).slice(0, ks.length - 20).forEach(function(k){ delete o[k]; });
+      o[key] = v; localStorage.setItem(WX_KEY, JSON.stringify(o));
+    }catch(e){}
+  }
+  var WX_CODES = [[0,'☀️','晴'],[2,'🌤️','晴時多雲'],[3,'☁️','陰'],[48,'🌫️','霧'],[57,'🌦️','毛毛雨'],[67,'🌧️','雨'],[77,'🌨️','雪'],[82,'🌧️','陣雨'],[86,'🌨️','陣雪'],[99,'⛈️','雷雨']];
+  function wxCode(c){
+    for(var i = 0; i < WX_CODES.length; i++) if(c <= WX_CODES[i][0]) return WX_CODES[i];
+    return WX_CODES[WX_CODES.length - 1];
+  }
+  function wxHtml(w){
+    var c = wxCode(w.code), rain = w.pop != null ? '降雨 ' + w.pop + '%' : (w.rain >= 0.5 ? '雨量 ' + Math.round(w.rain) + 'mm' : '');
+    return c[1] + ' ' + w.min + '°～' + w.max + '°　' + c[2] + (rain ? '　' + rain : '') + (w.src === 'last' ? '<small>去年同期</small>' : w.src === 'ar' ? '<small>實際</small>' : '');
+  }
+  function wxReq(url){ return fetch(url).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }); }
+  function wxPick(js, map, src, out){
+    var dy = js && js.daily; if(!dy || !dy.time) return;
+    dy.time.forEach(function(s, i){
+      var o = map ? map[s] : s; if(!o || dy.temperature_2m_max[i] == null) return;
+      out[o] = { max:Math.round(dy.temperature_2m_max[i]), min:Math.round(dy.temperature_2m_min[i]), code:dy.weathercode[i],
+        pop: dy.precipitation_probability_max ? dy.precipitation_probability_max[i] : null, rain: dy.precipitation_sum ? dy.precipitation_sum[i] : null, src:src };
+    });
+  }
+  function wxRange(a){ var s = a.slice().sort(); return { from:s[0], to:s[s.length - 1] }; }
+  function wxFetch(t){
+    var city = wxCity(t); if(!city) return Promise.resolve(null);
+    return wxReq('https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&name=' + encodeURIComponent(city)).then(function(g){
+      var loc = g && g.results && g.results[0]; if(!loc) return null;
+      var td = new Date(); td.setHours(0, 0, 0, 0);
+      var lim = new Date(td.getTime() + 15 * DAY), fc = [], past = [], far = [], shiftMap = {};
+      (t.days || []).map(function(x){ return x.date; }).filter(Boolean).forEach(function(s){
+        var dt = toDate(s);
+        if(dt < td) past.push(s);
+        else if(dt <= lim) fc.push(s);
+        else { var ly = new Date(dt); ly.setFullYear(ly.getFullYear() - 1); var k = ymd(ly); shiftMap[k] = s; far.push(k); }
+      });
+      var base = '&latitude=' + loc.latitude + '&longitude=' + loc.longitude + '&timezone=auto', out = {}, jobs = [];
+      var daily = 'weathercode,temperature_2m_max,temperature_2m_min,';
+      if(fc.length){ var r1 = wxRange(fc); jobs.push(wxReq('https://api.open-meteo.com/v1/forecast?daily=' + daily + 'precipitation_probability_max' + base + '&start_date=' + r1.from + '&end_date=' + r1.to).then(function(j){ wxPick(j, null, 'fc', out); })); }
+      if(past.length){ var r2 = wxRange(past); jobs.push(wxReq('https://archive-api.open-meteo.com/v1/archive?daily=' + daily + 'precipitation_sum' + base + '&start_date=' + r2.from + '&end_date=' + r2.to).then(function(j){ wxPick(j, null, 'ar', out); })); }
+      if(far.length){ var r3 = wxRange(far); jobs.push(wxReq('https://archive-api.open-meteo.com/v1/archive?daily=' + daily + 'precipitation_sum' + base + '&start_date=' + r3.from + '&end_date=' + r3.to).then(function(j){ wxPick(j, shiftMap, 'last', out); })); }
+      return Promise.all(jobs).then(function(){ return { ts:Date.now(), tz:loc.timezone || '', city:city, days:out }; });
+    }).catch(function(){ return null; });
+  }
+  function wxOff(tz, dt){      // 某個時區在 dt 當下比 UTC 快幾分鐘
+    var f = new Intl.DateTimeFormat('en-US', { timeZone:tz, hourCycle:'h23', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' }), p = {};
+    f.formatToParts(dt).forEach(function(x){ p[x.type] = x.value; });
+    return (Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(dt.getTime() / 1000) * 1000) / 60000;
+  }
+  function tzNote(t, ent){
+    var s0 = toDate(t.start) || new Date(), ref = new Date(Date.UTC(s0.getFullYear(), s0.getMonth(), s0.getDate(), 4)), txt = '';
+    try{
+      if(ent.tz && ent.tz !== 'Asia/Taipei'){
+        var diff = (wxOff(ent.tz, ref) - wxOff('Asia/Taipei', ref)) / 60;
+        txt = diff === 0 ? '🕒 與台灣同時區' : '🕒 當地時間比台灣' + (diff > 0 ? '快' : '慢') + ' ' + Math.abs(diff) + ' 小時';
+      }
+    }catch(e){}
+    return (txt ? '<span>' + txt + '</span>' : '') + '<span>🌤 天氣地點：' + esc(ent.city || '') + '</span>';
+  }
+  function fillWx(t){
+    var key = wxKeyOf(t), raw = wxRaw(key);
+    if(raw && !raw.fail){
+      [].forEach.call(document.querySelectorAll('#detail [data-wx]'), function(el){ var w = raw.days && raw.days[el.dataset.wx]; el.innerHTML = w ? wxHtml(w) : ''; });
+      var n = $('wxnote'); if(n) n.innerHTML = tzNote(t, raw);
+    }
+    var fresh = raw && !raw.fail && Date.now() - raw.ts < WX_TTL;
+    if(fresh || wxBusy[key] || (wxFailAt[key] && Date.now() - wxFailAt[key] < 600000) || !wxCity(t)) return;
+    wxBusy[key] = 1;
+    wxFetch(t).then(function(r){
+      wxBusy[key] = 0;
+      if(!r){ wxFailAt[key] = Date.now(); return; }
+      wxPut(key, r);
+      var t2 = cur(); if(t2 && wxKeyOf(t2) === key && !editMode) fillWx(t2);
+    });
+  }
+  function dayExtra(t, day){
+    var rl = routeLinks(day), hasWx = !!day.date && !!wxCity(t);
+    if(!rl && !hasWx) return '';
+    return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rl + '</div>';
+  }
   function boardHtml(t, edit){
     var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
     if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
@@ -1923,7 +2087,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="mini dadd" type="button" data-do="addit" data-day="' + day.id + '">＋ 新增行程</button></div>';
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
-        '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + (dayExpTotal(t, day) ? '<span class="dsum">當日花費 ' + money(dayExpTotal(t, day)) + ' 元</span>' : '') + '</div></div>' +
+        '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + (dayExpTotal(t, day) ? '<span class="dsum">當日花費 ' + money(dayExpTotal(t, day)) + ' 元</span>' : '') + '</div>' + dayExtra(t, day) + '</div>' +
         (n ? sortedItems(day).map(itemView).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
     }).join('') + '</div></section>';
   }
@@ -2251,7 +2415,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
-      '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
+      '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div></div>';
 
     nxtMark = null;
     h += editMode ? editBody(t, fan) : viewBody(t, fan);
@@ -2267,6 +2431,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(t._noExp){ var c3 = el.querySelector('.col.c3'); if(c3) c3.remove(); var cs = el.querySelector('.cols'); if(cs) cs.classList.add('nox'); }
     }
     window.scrollTo(0, y);
+    if(!editMode) fillWx(t);
     refreshOffline();
     amtScan();
   }
