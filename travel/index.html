@@ -2450,8 +2450,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var tail = '';
     if(!x.done){
       var l2 = f && toDate(f) ? dueLeft(toDate(f)) : null, l = e && toDate(e) ? dueLeft(toDate(e)) : null;
-      if(l2 && l2.n > 0) tail = '<span class="dueok">' + (l2.n === 1 ? '明天開始' : l2.n + ' 天後開始') + '</span>';
-      else if(l) tail = l.n < 0 ? '<span class="due">已結束・未打卡</span>' : '<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
+      // 還沒開始：「未開始」；已開始：「已開始」。快結束（3 天內）與已結束未打卡仍維持提醒，免得錯過
+      if(l2 && l2.n > 0) tail = '<span class="dueok">未開始</span>';
+      else if(l){
+        if(l.n < 0) tail = '<span class="due">已結束・未打卡</span>';
+        else if(l.n <= 3) tail = '<span class="due">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
+        else tail = l2 ? '<span class="dueok">已開始</span>' : '';
+      }
+      else if(l2) tail = '<span class="dueok">已開始</span>';
     }
     if(part === 'txt') return txt;
     if(part === 'tail') return tail;
@@ -2608,7 +2614,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         vrow('售票階段', saleMode(fi) === 'ticket' ? phasesView(t) : '') +
         (saleMode(fi) === 'lottery' ? vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') : '') +
         vrow(saleMode(fi) === 'lottery' ? '繳費／取票期限' : '可取票日', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', saleMode(fi) === 'ticket' ? fi.saleStatus === '已購票' : (fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票')) : '') +
-        showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
+        showsView(t) + vrow('同行者', esc(fi.companions || '')) +
         vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div>' +
         (rows ? '<dl class="kv">' + rows + '</dl>' : '<p class="vempty">還沒填活動資訊，按右上角「編輯」新增。</p>') + '</section>';
