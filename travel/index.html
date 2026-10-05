@@ -773,6 +773,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   body.viewonly .spadd-wrap,body.viewonly .spadd-none{display:none !important;}
   body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr);}
   @media (min-width:800px){ body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);} }
+  .tccard[hidden], .tcpass[hidden]{display:none !important;}
 </style>
 </head>
 <body>
@@ -1096,6 +1097,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note); });
     (t.stays || []).forEach(function(x){ a.push(x.name, x.address, x.note); });
     (t.spots || []).forEach(function(x){ a.push(x.name, x.addr, x.perk, x.note); });
+    (t.tcards || []).forEach(function(x){ a.push(x.name, x.range, x.note); });
     return a.filter(Boolean).join(' ').toLowerCase();
   }
   function fillSel(el, all, vals, cur){
@@ -1285,7 +1287,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 刪除後可復原：刪除前先拍下整趟旅程的快照，6 秒內按「復原」就還原 ----
   var undoSnap = null, undoTimer = null;
-  var UNDO_LABEL = { delday:'這一天', delit:'行程', delbk:'預訂', delshow:'場次', delsp:'打卡點', delstay:'住宿', delck:'清單項目', delexp:'花費' };
+  var UNDO_LABEL = { delday:'這一天', delit:'行程', delbk:'預訂', deltc:'交通卡', delshow:'場次', delsp:'打卡點', delstay:'住宿', delck:'清單項目', delexp:'花費' };
   function hideUndo(){
     clearTimeout(undoTimer); undoSnap = null;
     if($('undo')) $('undo').hidden = true;
@@ -1570,8 +1572,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
   // ---- 詳細頁 ----
   var TEMPLATES = {
-    fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','集合時間與交通動線','網路（SIM／eSIM）','匯率與現金','旅平險'],
-    general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
+    fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','集合時間與交通動線','網路（SIM／eSIM）','匯率與現金','旅平險','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）'],
+    general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
   };
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','未購票','已購票'];
   // 活動資訊的購票方式：售票／抽選二選一，狀態選項與欄位會跟著切換
@@ -1854,12 +1856,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function pill(v){ return v ? '<span class="pill" data-v="' + esc(v) + '">' + esc(v) + '</span>' : ''; }
   // ---- 行程 ⇄ 預訂／住宿／花費 的連結 ----
-  var LK = {lkBk:['bookings','🧾','bk'], lkStay:['stays','🏨','stay'], lkExp:['expenses','💰','exp']};
+  var LK = {lkBk:['bookings','🧾','bk'], lkStay:['stays','🏨','stay'], lkExp:['expenses','💰','exp'], lkTc:['tcards','🎫','tc']};
   function byId(list, id){ return (list || []).filter(function(y){ return String(y.id) === String(id); })[0]; }
   function lkText(key, y){
     if(key === 'lkBk') return (y.type ? y.type + ' ' : '') + (y.name || '未命名');
     if(key === 'lkStay') return y.name || '未命名住宿';
     if(key === 'lkSp') return y.name || '未命名打卡點';
+    if(key === 'lkTc') return (y.type ? y.type + ' ' : '') + (y.name || '未命名交通卡');
     return (y.cat ? y.cat + ' ' : '') + (y.name || '未命名') + (String(y.amount == null ? '' : y.amount).trim() ? ' ' + ecur(null, y) + ' ' + money(signed(y)) : '');
   }
   function expChips(t, x){
@@ -1872,7 +1875,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function lkRow(t, x, key){ var h = (expIds(x).length ? expChips(t, x) : '') + revLinksInner(t, key, x.id); return h ? '<div class="lks">' + h + '</div>' : ''; }
   function fwdLinks(t, x){
     var btn = function(key, y){ return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '" title="' + esc(lkText(key, y)) + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>'; };
-    var h = ['lkBk', 'lkStay'].map(function(key){
+    var h = ['lkBk', 'lkStay', 'lkTc'].map(function(key){
       var y = x[key] && byId(t[LK[key][0]], x[key]); return y ? btn(key, y) : '';
     }).join('') + expChips(t, x) +
       ((x.lkSpot && byId(t.spots, x.lkSpot)) ? '<button class="lk" type="button" data-do="goto" data-to="lk-sp-' + x.lkSpot + '" title="' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '">📌 ' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '</button>' : '');
@@ -1885,7 +1888,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var own = function(list, ic, kind, tk){ (list || []).forEach(function(y){
         if(expIds(y).some(function(v){ return String(v) === String(id); })) h += '<button class="lk" type="button" data-do="goto" data-to="lk-' + kind + '-' + y.id + '" title="' + esc(lkText(tk, y)) + '">' + ic + ' ' + esc(lkText(tk, y)) + '</button>';
       }); };
-      own(t.bookings, '🧾', 'bk', 'lkBk'); own(t.stays, '🏨', 'stay', 'lkStay'); own(t.spots, '📌', 'sp', 'lkSp');
+      own(t.bookings, '🧾', 'bk', 'lkBk'); own(t.stays, '🏨', 'stay', 'lkStay'); own(t.spots, '📌', 'sp', 'lkSp'); own(t.tcards, '🎫', 'tc', 'lkTc');
     }
     t.days.forEach(function(day, i){ (day.items || []).forEach(function(x){
       var hit = key === 'lkExp' ? expIds(x).some(function(v){ return String(v) === String(id); }) : (x[key] && String(x[key]) === String(id));
@@ -1982,7 +1985,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // kind：'it' 行程、'bk' 預訂資料、'st' 住宿 —— 三種都可以連結多筆花費（lkExps）
   function lkExpHtml(t, kind, dayId, x){
     var list = t.expenses || []; if(!list.length) return '';
-    var a = kind === 'it' ? ' data-p="' + dayId + '" data-i="' + x.id + '"' : kind === 'bk' ? ' data-b="' + x.id + '"' : kind === 'sp' ? ' data-sp="' + x.id + '"' : ' data-s="' + x.id + '"', used = {};
+    var a = kind === 'it' ? ' data-p="' + dayId + '" data-i="' + x.id + '"' : kind === 'bk' ? ' data-b="' + x.id + '"' : kind === 'sp' ? ' data-sp="' + x.id + '"' : kind === 'tc' ? ' data-tc="' + x.id + '"' : ' data-s="' + x.id + '"', used = {};
     var rows = expIds(x).map(function(id){
       var y = byId(list, id); used[String(id)] = 1;
       return '<div class="lkrow"><span class="lkt' + (y ? '' : ' gone') + '">💰 ' + (y ? esc(lkText('lkExp', y)) : '（這筆花費已刪除）') + '</span>' +
@@ -1997,6 +2000,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(kind === 'bk') return byId(t.bookings, id);
     if(kind === 'st') return byId(t.stays, id);
     if(kind === 'sp') return byId(t.spots, id);
+    if(kind === 'tc') return byId(t.tcards, id);
     var d0 = byId(t.days, dayId); return d0 && byId(d0.items, id);
   }
   function addExpLink(t, el, obj, kind, dayId){
@@ -2007,9 +2011,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
   }
   function lkSelects(a, x, day){
-    var t = cur(), ph = {lkBk:'連結預訂', lkStay:'連結住宿'};
-    var need = { lkBk:'交通', lkStay:'住宿' }, anyLk = false;   // 連結預訂只在選「交通」、連結住宿只在選「住宿」時出現（已連結過的維持顯示）
-    var h = ['lkBk', 'lkStay'].map(function(key){
+    var t = cur(), ph = {lkBk:'連結預訂', lkStay:'連結住宿', lkTc:'使用的交通卡'};
+    var need = { lkBk:'交通', lkStay:'住宿', lkTc:'交通' }, anyLk = false;   // 連結預訂只在選「交通」、連結住宿只在選「住宿」時出現（已連結過的維持顯示）
+    var h = ['lkBk', 'lkStay', 'lkTc'].map(function(key){
       var list = t[LK[key][0]] || []; if(!list.length) return '';
       var showIt = x.cat === need[key] || !!x[key]; if(showIt) anyLk = true;
       return '<select' + a + ' data-k="' + key + '" aria-label="' + ph[key] + '"' + (showIt ? '' : ' hidden') + '><option value="">' + ph[key] + '</option>' +
@@ -2052,6 +2056,81 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="mini" type="button" data-do="copy">複製</button></div>' +
           lkExpHtml(cur(), 'st', '', x) +
           '<textarea data-s="' + x.id + '" data-k="note" aria-label="住宿備註" placeholder="入住時間、櫃檯、早餐、停車等">' + esc(x.note || '') + '</textarea></div>';
+  }
+
+  // ---- 交通卡／票券：儲值、押金、退卡都記成「花費」並連結回這張卡 ----
+  var TC_TYPES = ['交通卡','一日券','周遊券','其他票券'], TC_WAY = ['實體卡','Apple 錢包','Google 錢包','預購／取票','其他'], TC_ST = ['未使用','使用中','已用完','已退卡'];
+  function tcPass(x){ return !!x.type && x.type !== '交通卡'; }
+  function tcDays(v){ var dt = toDate(v); if(!dt) return null; var n = new Date(); n = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((dt - n) / 864e5); }
+  function tcAlerts(t, x){
+    var a = [], end = tcDays(t.end), has = function(v){ return !!String(v == null ? '' : v).trim(); };
+    if(x.status === '已退卡' || x.status === '已用完') return a;
+    if(tcPass(x)){
+      var ex = tcDays(x.to);
+      if(ex !== null && ex < 0) a.push('票券已過期');
+      else if(ex !== null && ex <= 1) a.push(ex === 0 ? '票券今天到期' : '票券明天到期');
+    } else {
+      if(end !== null && end <= 2 && end >= -3) a.push('行程快結束了：把餘額用完' + (x.refund && amt(x.deposit) > 0 ? '，或記得退卡拿回押金' : ''));
+      if(has(x.balance) && has(x.low) && amt(x.balance) <= amt(x.low)) a.push('餘額偏低，記得儲值');
+    }
+    return a;
+  }
+  function tcTwd(t, x){
+    var sum = 0, miss = false;
+    expIds(x).forEach(function(id){
+      var y = byId(t.expenses, id); if(!y) return;
+      var r = rateOf(t, ecur(t, y));
+      if(!r){ if(String(y.amount == null ? '' : y.amount).trim()) miss = true; return; }
+      sum += signed(y) * r * feeK(t, y);
+    });
+    return { n:Math.round(sum), miss:miss };
+  }
+  function tcView(t){
+    var all = t.tcards || []; if(!all.length) return '';
+    return '<section class="sec" id="tcsec"><div class="sh"><h3>交通卡／票券</h3></div>' + all.map(function(x){
+      var pass = tcPass(x), tw = tcTwd(t, x), cu = esc(x.cur || 'TWD'), has = function(v){ return !!String(v == null ? '' : v).trim(); };
+      var val = pass && (x.from || x.to) ? '有效 ' + esc(d(x.from) || '?') + ' → ' + esc(d(x.to) || '?') : '';
+      var mny = pass ? '' : [has(x.deposit) ? '押金 ' + cu + ' ' + esc(x.deposit) + (x.refund ? '（可退）' : '（不退）') : '', has(x.balance) ? '餘額 ' + cu + ' ' + esc(x.balance) : ''].filter(Boolean).join(' ・ ');
+      return '<div class="bk v" id="lk-tc-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '交通卡') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
+        '<div class="btime">' + [esc(x.status || '未使用'), esc(x.way || ''), val].filter(Boolean).join(' ・ ') + '</div>' +
+        (x.range ? '<div class="vtext">適用：' + esc(x.range) + '</div>' : '') + (mny ? '<div class="vtext">' + mny + '</div>' : '') +
+        (expIds(x).length ? '<div class="vtext">儲值／花費合計 約 ' + money(tw.n) + ' 元' + (tw.miss ? '（有外幣還沒填匯率）' : '') + '</div>' : '') +
+        tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') +
+        (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + lkRow(t, x, 'lkTc') + '</div>';
+    }).join('') + '</section>';
+  }
+  function tcEditSec(t){
+    return '<section class="sec"><div class="sh"><h3>交通卡／票券</h3><div class="btns"><button class="mini" type="button" data-do="addtc">＋ 新增一筆</button></div></div>' +
+      ((t.tcards || []).length ? t.tcards.map(function(x){
+        return crow('tc', x.id, '', '<span class="btag">' + esc(x.type || '交通卡') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.status, x.range].filter(Boolean).map(esc).join(' ・ '), '', 'deltc');
+      }).join('') : '<div class="empty">Suica、ICOCA、悠遊卡、一日券、周遊券…可以記在這裡，儲值與押金會自動記進花費。</div>') + '</section>';
+  }
+  function tcEdit(x){
+    var t = cur(), A = ' data-tc="' + x.id + '"', pass = tcPass(x);
+    var sel = function(k, list, lb){ return '<select' + A + ' data-k="' + k + '" aria-label="' + lb + '">' + list.map(function(c){ return '<option' + (c === x[k] ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>'; };
+    var inp = function(k, lb, ph){ return '<input' + A + ' data-k="' + k + '" aria-label="' + lb + '" placeholder="' + ph + '" autocomplete="off" value="' + esc(x[k] == null ? '' : x[k]) + '">'; };
+    return '<div class="bk"><div class="bh">' + sel('type', TC_TYPES, '種類') + inp('name', '名稱', '例如：Suica、東京地鐵 72 小時券') +
+      '<button class="del" type="button" data-do="deltc" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
+      '<div class="bg">' + sel('way', TC_WAY, '取得方式') + sel('status', TC_ST, '使用狀態') + '</div>' +
+      inp('range', '適用範圍', '適用範圍與限制，例如：關東電車、公車、超商可用；不能搭新幹線') +
+      '<div class="sdates tcpass"' + (pass ? '' : ' hidden') + '><label>有效起<input type="date"' + A + ' data-k="from" value="' + esc(x.from || '') + '"></label><label>有效到<input type="date"' + A + ' data-k="to" min="' + esc(x.from || '') + '" value="' + esc(x.to || '') + '"></label></div>' +
+      '<div class="bg tccard"' + (pass ? ' hidden' : '') + '><select' + A + ' data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
+      inp('deposit', '押金或卡費', '押金／卡費') + inp('balance', '剩餘餘額', '剩餘餘額') + inp('low', '提醒門檻', '低於多少提醒儲值') + '</div>' +
+      '<label class="ck tccard"' + (pass ? ' hidden' : '') + '><input type="checkbox"' + A + ' data-k="refund"' + (x.refund ? ' checked' : '') + '><span>押金可退（退卡時記成退款）</span></label>' +
+      '<div class="btns"><button class="mini" type="button" data-do="tctop" data-id="' + x.id + '">＋ 新增儲值</button>' +
+      '<button class="mini tccard" type="button" data-do="tcdep" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>押金記成花費</button>' +
+      '<button class="mini tccard" type="button" data-do="tcrefund" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>退卡（記退款）</button></div>' +
+      lkExpHtml(t, 'tc', '', x) +
+      '<textarea' + A + ' data-k="note" aria-label="備註" placeholder="購買地點、儲值方式、退卡櫃檯等">' + esc(x.note || '') + '</textarea></div>';
+  }
+  function tcAct(t, act, id){      // 儲值／押金／退卡：新增一筆花費並連結到這張卡，不重畫整頁（彈窗開著）
+    var o = byId(t.tcards, id); if(!o) return;
+    var cc = o.cur || t.currency || 'TWD', nm = o.name || '交通卡', now = new Date(), md = (now.getMonth() + 1) + '/' + now.getDate(), v, e;
+    if(act === 'tctop'){ v = prompt('儲值金額（' + cc + '）'); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc }; }
+    else if(act === 'tcdep'){ if(!String(o.deposit || '').trim()){ alert('先填押金或卡費金額'); return; } e = { id:uid(), cat:'交通', name:nm + ' 押金／卡費', amount:String(o.deposit).trim(), cur:cc }; }
+    else { v = prompt('退卡拿回的金額（' + cc + '，含押金與退回餘額）', o.refund ? String(o.deposit || '') : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:REFUND, name:nm + ' 退卡退款 ' + md, amount:String(v).trim(), cur:cc }; o.status = '已退卡'; }
+    t.expenses.push(e); o.lkExps = expIds(o).concat([e.id]); delete o.lkExp;
+    emodal.querySelector('.mbody').innerHTML = tcEdit(o); amtScan(); doPersist();
   }
   function expEdit(t, x){
         return '<div class="exp"><select data-e="' + x.id + '" data-k="cat" aria-label="花費類別">' +
@@ -2098,7 +2177,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var it = day && (day.items || []).filter(function(x){ return String(x.id) === String(c.id); })[0];
       return it ? { day:day, x:it } : null;
     }
-    var list = c.kind === 'bk' ? t.bookings : c.kind === 'st' ? t.stays : c.kind === 'sp' ? t.spots : t.expenses;
+    var list = c.kind === 'bk' ? t.bookings : c.kind === 'st' ? t.stays : c.kind === 'sp' ? t.spots : c.kind === 'tc' ? t.tcards : t.expenses;
     var x = (list || []).filter(function(y){ return String(y.id) === String(c.id); })[0];
     return x ? { x:x } : null;
   }
@@ -2108,6 +2187,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
+    if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.balance) && e(x.deposit);
     return e(x.name) && e(x.amount);
   }
   function openModal(kind, id, dayId, isNew){
@@ -2119,7 +2199,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       emodal.innerHTML = '<div class="mbox"><div class="mhead"><h3 class="mtitle"></h3></div><div class="mbody"></div><div class="mfoot"><button class="mini mdup" type="button" data-do="dupit">複製這個行程</button><button type="button" data-do="mclose">完成</button></div></div>';
       $('detail').appendChild(emodal);
     }
-    var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費', sp:'打卡點' };
+    var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費', sp:'打卡點', tc:'交通卡／票券' };
     emodal.querySelector('.mtitle').textContent = (isNew ? '新增' : '編輯') + names[kind];
     var mvSel = '';
     if(kind === 'it'){
@@ -2128,7 +2208,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') + '</select></label>';
     }
     emodal.querySelector('.mdup').style.display = kind === 'it' ? '' : 'none';
-    emodal.querySelector('.mbody').innerHTML = mvSel + (kind === 'it' ? itemEdit(f.day, f.x) : kind === 'bk' ? bkEdit(f.x) : kind === 'st' ? stayEdit(f.x) : kind === 'sp' ? spotEdit(f.x) : expEdit(t, f.x));
+    emodal.querySelector('.mbody').innerHTML = mvSel + (kind === 'it' ? itemEdit(f.day, f.x) : kind === 'bk' ? bkEdit(f.x) : kind === 'st' ? stayEdit(f.x) : kind === 'sp' ? spotEdit(f.x) : kind === 'tc' ? tcEdit(f.x) : expEdit(t, f.x));
     modalCtx = c;
     pushModalHist();
     emodal.classList.add('on'); document.body.style.overflow = 'hidden';
@@ -2147,14 +2227,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var f = findEntry(t, c);
       if(f && entryBlank(c, f.x)){
         if(c.kind === 'it') f.day.items = f.day.items.filter(function(x){ return x !== f.x; });
-        else { var key = c.kind === 'bk' ? 'bookings' : c.kind === 'st' ? 'stays' : c.kind === 'sp' ? 'spots' : 'expenses'; t[key] = t[key].filter(function(x){ return x !== f.x; }); }
+        else { var key = c.kind === 'bk' ? 'bookings' : c.kind === 'st' ? 'stays' : c.kind === 'sp' ? 'spots' : c.kind === 'tc' ? 'tcards' : 'expenses'; t[key] = t[key].filter(function(x){ return x !== f.x; }); }
       }
     }
     if(!skipRender){
       renderDetail(); doPersist();
       if(c){      // 關掉後，焦點回到剛才那一列（新增的就回到「＋ 新增」按鈕）
         var back = document.querySelector('#detail .crow[data-open="' + c.kind + '"][data-id="' + c.id + '"]') ||
-          document.querySelector('#detail button[data-do="' + { it:'addit', bk:'addbk', st:'addstay', ex:'addexp', sp:'addsp' }[c.kind] + '"]');
+          document.querySelector('#detail button[data-do="' + { it:'addit', bk:'addbk', st:'addstay', ex:'addexp', sp:'addsp', tc:'addtc' }[c.kind] + '"]');
         if(back && back.focus) back.focus({ preventScroll:true });
       }
     }
@@ -2432,7 +2512,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function isBlank(t){
     if(!t) return false;
     var fi = t.fanInfo || {};
-    return !((t.bookings || []).length || (t.stays || []).length || (t.checklist || []).length || (t.expenses || []).length ||
+    return !((t.bookings || []).length || (t.stays || []).length || (t.tcards || []).length || (t.checklist || []).length || (t.expenses || []).length ||
       (t.days || []).some(function(x){ return String(x.title || '').trim() || (x.items || []).length || String(x.text || '').trim(); }) ||
       Object.keys(fi).some(function(k){ return k !== 'shows' && String(fi[k] || '').trim(); }) || fanShows(t).some(shHas));
   }
@@ -2683,6 +2763,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
     if(fan) h += spotsView(t) + merchView(t);
+    h += tcView(t);
 
 
     if(!ckItems.length) h += ckBuild();
@@ -2766,6 +2847,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('') : '<div class="empty">飯店或民宿的入住退房日、地址與訂房代號，可以記在這裡。</div>') +
       '</section>';
 
+    h += tcEditSec(t);
+
     if(fan) h += '<section class="sec"><div class="sh"><h3>應援打卡點' + (t.spots.length ? '<small>' + spProg(t) + '</small>' : '') + '</h3><div class="btns">' +
         '<button class="mini" type="button" data-do="addsp">＋ 新增一筆</button></div></div>' +
         (t.spots.length ? t.spots.map(function(x){
@@ -2801,7 +2884,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function renderDetail(){
     var t = cur(), el = $('detail');
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.wish = t.wish || []; t.merch = t.merch || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
@@ -2888,9 +2971,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           var lkw = ic && ic.querySelector('.itx-lksp'); if(lkw) lkw.hidden = !(el.value === '活動' || it2.lkSpot);
           var hOn = hrsOn(it2), hr0 = ic && ic.querySelector('.ihr'), hd0 = ic && ic.querySelector('.ihwd'), hw0 = ic && ic.querySelector('.ihw');
           if(ic) ic.querySelectorAll('.ihr').forEach(function(r){ r.hidden = !hOn; }); if(hd0) hd0.hidden = !hOn; if(hw0) hw0.innerHTML = hoursWarnHtml(pd, it2);
-          var lkb0 = ic && ic.querySelector('select[data-k="lkBk"]'), lks0 = ic && ic.querySelector('select[data-k="lkStay"]'), lkbox = ic && ic.querySelector('.itx-lkbs');
-          if(lkb0) lkb0.hidden = !(it2.cat === '交通' || it2.lkBk); if(lks0) lks0.hidden = !(it2.cat === '住宿' || it2.lkStay);
-          if(lkbox) lkbox.hidden = !((lkb0 && !lkb0.hidden) || (lks0 && !lks0.hidden));
+          var lkb0 = ic && ic.querySelector('select[data-k="lkBk"]'), lks0 = ic && ic.querySelector('select[data-k="lkStay"]'), lkt0 = ic && ic.querySelector('select[data-k="lkTc"]'), lkbox = ic && ic.querySelector('.itx-lkbs');
+          if(lkb0) lkb0.hidden = !(it2.cat === '交通' || it2.lkBk); if(lks0) lks0.hidden = !(it2.cat === '住宿' || it2.lkStay); if(lkt0) lkt0.hidden = !(it2.cat === '交通' || it2.lkTc);
+          if(lkbox) lkbox.hidden = !((lkb0 && !lkb0.hidden) || (lks0 && !lks0.hidden) || (lkt0 && !lkt0.hidden));
         }
         if(ds.k === 'time' || ds.k === 'end'){
           var dEl = el.closest('.icard').querySelector('.idurt'), dtx = durText(it2);
@@ -2960,6 +3043,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(ds.k === 'type'){ var spb = el.closest('.bk').querySelector('.spbook'), rb2 = el.closest('.bk').querySelector('.sprsv'); if(spb) spb.hidden = !spBook(spx); if(rb2) rb2.hidden = !rsvOn(spx); }
           if(ds.k === 'type' || ds.k === 'rsvStatus') syncRsv(el.closest('.bk'), spx);
           if(ds.k === 'from'){ var spTo = el.closest('.bk').querySelector('input[data-k="to"]'); if(spTo) spTo.min = el.value || ''; }
+        }
+      }
+    } else if(ds.tc){
+      var tcx = byId(t.tcards, ds.tc);
+      if(tcx){
+        if(ds.k === 'lkExpAdd') addExpLink(t, el, tcx, 'tc', '');
+        else if(el.type === 'checkbox') tcx[ds.k] = el.checked;
+        else {
+          tcx[ds.k] = el.value;
+          if(ds.k === 'type'){ var tb = el.closest('.bk'), pp = tcPass(tcx); [].forEach.call(tb.querySelectorAll('.tccard'), function(n){ n.hidden = pp; }); [].forEach.call(tb.querySelectorAll('.tcpass'), function(n){ n.hidden = !pp; }); }
+          if(ds.k === 'from'){ var tto = el.closest('.bk').querySelector('input[data-k="to"]'); if(tto) tto.min = el.value || ''; }
         }
       }
     } else if(ds.s){
@@ -3050,7 +3144,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(ro && !e.target.closest('button')){ openModal(ro.dataset.open, ro.dataset.id, ro.dataset.day, false); return; }
     var b = e.target.closest('button[data-do]'); if(!b) return;
     var t = cur(); if(!t) return;
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.wish = t.wish || []; t.merch = t.merch || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
     if(viewOnly && ['goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
@@ -3093,6 +3187,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       });
       return;
     }
+    if(act === 'tctop' || act === 'tcdep' || act === 'tcrefund'){ tcAct(t, act, b.dataset.id); return; }
     if(act === 'delexplk'){
       var lkK = b.dataset.kind || 'it', lkO = expOwner(t, lkK, b.dataset.day, b.dataset.id);
       if(lkO){
@@ -3317,6 +3412,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'addtc'){
+      t.tcards.push({ id:uid(), type:'交通卡', name:'', way:'實體卡', status:'未使用', range:'', from:'', to:'', cur:(t.currency || 'TWD'), deposit:'', refund:true, balance:'', low:'', note:'' });
+    } else if(act === 'deltc'){
+      t.tcards = t.tcards.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addstay'){
       var prev = t.stays.length ? t.stays[t.stays.length - 1] : null;
       t.stays.push({ id:uid(), name:'', checkin: prev ? (prev.checkout || '') : (t.start || ''), checkout: prev ? '' : (t.end || ''), address:'', code:'', note:'' });
@@ -3345,6 +3444,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'addbk'){ openModal('bk', t.bookings[t.bookings.length - 1].id, '', true); }
     if(newItemId){ openModal('it', newItemId, b.dataset.day, true); }
     if(act === 'addsp'){ openModal('sp', t.spots[t.spots.length - 1].id, '', true); }
+    if(act === 'addtc'){ openModal('tc', t.tcards[t.tcards.length - 1].id, '', true); }
     if(act === 'addstay'){ openModal('st', t.stays[t.stays.length - 1].id, '', true); }
     if(act === 'addexp'){ openModal('ex', t.expenses[t.expenses.length - 1].id, '', true); }
     if(act === 'addck'){
@@ -3383,7 +3483,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!sh.exp){
       c.expenses = []; c.budgets = {}; c.people = ''; c._noExp = true;
       shows.forEach(function(x){ delete x.price; delete x.qty; delete x.cur; });
-      [].concat((c.days || []).reduce(function(a, dy){ return a.concat(dy.items || []); }, []), c.bookings || [], c.stays || [], c.spots || []).forEach(function(x){ delete x.lkExps; delete x.lkExp; });
+      [].concat((c.days || []).reduce(function(a, dy){ return a.concat(dy.items || []); }, []), c.bookings || [], c.stays || [], c.spots || [], c.tcards || []).forEach(function(x){ delete x.lkExps; delete x.lkExp; });
     }
     return c;
   }
