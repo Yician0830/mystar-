@@ -2461,7 +2461,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var open = !!spOpen[x.id];
         var body = (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
           ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip ' + rsvCls(rsvSt(x)) + '">需先預約・' + esc(rsvSt(x)) + '</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') +
-            ((rsvOn(x) && safeUrl(x.rsvLink)) ? '<a class="spchip spgo" href="' + esc(safeUrl(x.rsvLink)) + '" target="_blank" rel="noopener">預約頁面 ↗</a>' : '') + '</div>' : '') +
+            ((rsvOn(x) && !rslOn(x) && safeUrl(x.rsvLink)) ? '<a class="spchip spgo" href="' + esc(safeUrl(x.rsvLink)) + '" target="_blank" rel="noopener">預約頁面 ↗</a>' : '') + '</div>' : '') +
           ((x.addr || map) ? '<div class="vtext addrline">' + (x.addr ? esc(x.addr) : '') + (map ? (x.addr ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
           (rslHas(x) ? '<div class="vtext sphours"><span class="spk-lbl">預約場次</span>' + rslText(x, true) + '</div>' : '') +
           (String(x.hours || '').trim() ? '<div class="vtext sphours"><span class="spk-lbl">活動時間</span>' + esc(x.hours) + '</div>' : '') +
