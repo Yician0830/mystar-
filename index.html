@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>推し手帳｜我的追星手帳</title>
+<title>推し手帳｜我的追星紀錄</title>
 
 <!-- PWA：加到主畫面後可像 App 一樣開啟 -->
 <link rel="manifest" href="manifest.json">
@@ -1189,8 +1189,8 @@
       <div class="brand">
         <div class="brand-mark maru">推</div>
         <div class="brand-text">
-          <div class="title maru">推し手帳</div>
-          <div class="sub" id="headerSub">我的追星手帳</div>
+          <div class="title maru">推し紀錄</div>
+          <div class="sub" id="headerSub">我的追星紀錄</div>
         </div>
       </div>
       <div class="top-row-actions">
@@ -2229,7 +2229,7 @@ async function init(){
 function renderProfile(){
   const label = currentUser ? (currentUser.displayName || '已登入雲端') : (state.profile.nickname ? state.profile.nickname : '登入 / 設定');
   document.getElementById('profileLabel').textContent = label;
-  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星手帳' : '我的追星手帳';
+  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星紀錄' : '我的追星紀錄';
   const dot = document.getElementById('profileDot');
   if(currentUser && currentUser.photoURL){
     dot.innerHTML = `<img src="${currentUser.photoURL}" alt="" loading="lazy">`;
