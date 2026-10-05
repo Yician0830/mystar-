@@ -473,6 +473,19 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .rate .rmeta:empty{display:none;}
   .nw{white-space:nowrap;}
   .bk.v .stime{font-size:13px; letter-spacing:-0.01em;}
+  .itx{display:grid; gap:6px;}
+  .itx[hidden]{display:none;}
+  .itx .dhead{display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; color:var(--ink-dim);}
+  .itx .dish{display:grid; grid-template-columns:1fr minmax(90px,34%) auto; gap:8px; align-items:center;}
+  .itx .dish input{width:100%; min-width:0;}
+  .itintro{font-size:13px; color:var(--ink-dim); line-height:1.7;}
+  .dishes{display:flex; flex-wrap:wrap; align-items:center; gap:6px;}
+  .dishes .dlabel{font-size:12px; font-weight:900; color:var(--accent); letter-spacing:0.06em; margin-right:2px;}
+  .dishes .dchip{font-size:13px; font-weight:700; padding:2px 10px; border:1px solid var(--accent); border-radius:99px; background:var(--paper); color:var(--ink);}
+  .dishes .dtotal{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink-faint);}
+  .dishes .dtotal b{color:var(--accent); font-size:14px; font-weight:900;}
+  .itx .dsum{color:var(--accent); font-weight:900;}
+  .dishes .dchip em{font-style:normal; font-weight:500; color:var(--ink-faint); margin-left:6px; font-size:12px;}
   .bk.v .nights{margin-left:6px; font-size:12px; font-weight:700; color:var(--accent);}
   .bk.v .addrline .vlink{font-size:inherit; margin-left:8px;}
 </style>
@@ -1119,9 +1132,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var n = Math.round((toDate(x.checkout) - toDate(x.checkin)) / 86400000);
     return n > 0 ? '共 ' + n + ' 晚' : '退房日要晚於入住日';
   }
-  // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note }
+  // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note, intro（景點介紹）, dishes（美食必點，[{id,name,price}]） }
   var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','現場候位','臨時'];
-  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'' }; }
+  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'', intro:'', dishes:[] }; }
   // 交通拆成兩欄：transport＝搭乘的交通工具，route＝路線（步行幾分鐘／JR 線名／地鐵幾號線哪站到哪站…），輸入提示會跟著交通工具變
   // 每種交通工具各自的圖示，一看就知道；沒對到的才用通用的 🚃
   var TICONS = [
@@ -1244,6 +1257,28 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }); });
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
+  // 必點預估總額：從價格文字抓出數字加總（「¥1,600」「約 800 円」都可以）；幣別符號不一致時不顯示，避免加錯
+  function dishTotal(x){
+    var sum = 0, n = 0, sym = null, ok = true;
+    (x.dishes || []).forEach(function(y){
+      var m = String(y.price || '').match(/^\s*([^\d\s.,-]*)\s*(\d[\d,]*(?:\.\d+)?)\s*(.*)$/);
+      if(!m) return;
+      var num = Number(m[2].replace(/,/g, '')); if(!isFinite(num)) return;
+      var key = (m[1] || '').replace(/^約|^≈|^~/, '').trim() + '|' + (m[3] || '').trim();
+      if(sym === null) sym = key; else if(sym !== key) ok = false;
+      sum += num; n++;
+    });
+    if(!n || !ok) return '';
+    var p = sym.split('|');
+    return p[0] + money(sum) + (p[1] ? ' ' + p[1] : '');
+  }
+  function dishView(x){
+    var ds = (x.dishes || []).filter(function(y){ return String(y.name || '').trim(); });
+    if(!ds.length) return '';
+    return '<div class="dishes"><span class="dlabel">必點</span>' + ds.map(function(y){
+      return '<span class="dchip">' + esc(y.name) + (String(y.price || '').trim() ? '<em>' + esc(y.price) + '</em>' : '') + '</span>';
+    }).join('') + (dishTotal(x) ? '<span class="dtotal">預估 <b>' + esc(dishTotal(x)) + '</b></span>' : '') + '</div>';
+  }
   function itemView(x){
     var dt = durText(x);
     var pills = pill(x.cat) + pill(x.status) + (dt ? '<span class="pill" data-v="停留">⏱ 停留 ' + esc(dt) + '</span>' : '');
@@ -1252,6 +1287,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="icard" id="lk-it-' + x.id + '"><div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + fwdLinks(t0, x) +
+      ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
+      (x.cat === '美食' ? dishView(x) : '') +
       (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
       ((x.transport || x.route) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + '</div>' : '') +
       (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
@@ -1344,7 +1381,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time);
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin;
@@ -1425,6 +1462,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
+      '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea></div>' +
+      '<div class="itx itx-food"' + (x.cat === '美食' ? '' : ' hidden') + '><div class="dhead"><span>必點推薦<small class="dsum">' + (dishTotal(x) ? '　預估 ' + esc(dishTotal(x)) : '') + '</small></span>' +
+        '<button class="mini" type="button" data-do="adddish" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增必點</button></div>' +
+        (x.dishes || []).map(function(ds){
+          var da = ' data-p="' + day.id + '" data-i="' + x.id + '" data-dd="' + ds.id + '"';
+          return '<div class="dish"><input' + da + ' data-k="name" aria-label="必點菜名" placeholder="菜名" value="' + esc(ds.name || '') + '">' +
+            '<input' + da + ' data-k="price" aria-label="價格" placeholder="價格（選填）" value="' + esc(ds.price || '') + '">' +
+            '<button class="del" type="button" data-do="deldish" data-day="' + day.id + '" data-id="' + x.id + '" data-dd="' + ds.id + '" aria-label="刪除" title="刪除">×</button></div>';
+        }).join('') + '</div>' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="注意事項、營業時間…">' + esc(x.note || '') + '</textarea></div>';
   }
   // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
@@ -1724,12 +1770,26 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
       return;
     }
-    if(ds.i){
+    if(ds.dd){
+      var dpd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
+      var dit = dpd && (dpd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
+      var dsh = dit && (dit.dishes || []).filter(function(y){ return String(y.id) === ds.dd; })[0];
+      if(dsh){
+        dsh[ds.k] = el.value;
+        var dsm = el.closest('.itx-food') && el.closest('.itx-food').querySelector('.dsum');
+        if(dsm) dsm.textContent = dishTotal(dit) ? '　預估 ' + dishTotal(dit) : '';
+      }
+    } else if(ds.i){
       var pd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
       var it2 = pd && (pd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
       if(it2 && ds.k === 'lkExpAdd'){ addExpLink(t, el, it2, 'it', pd.id); doPersist(); return; }
       if(it2){
         it2[ds.k] = el.value;
+        if(ds.k === 'cat'){
+          var ic = el.closest('.icard'), sp0 = ic && ic.querySelector('.itx-spot'), fd0 = ic && ic.querySelector('.itx-food');
+          if(sp0) sp0.hidden = el.value !== '景點';
+          if(fd0) fd0.hidden = el.value !== '美食';
+        }
         if(ds.k === 'time' || ds.k === 'end'){
           var dEl = el.closest('.icard').querySelector('.idurt'), dtx = durText(it2);
           if(dEl){ dEl.textContent = dtx ? '停留 ' + dtx : '← 離開時間（選填，會自動算停留時長）'; dEl.classList.toggle('has', !!dtx); }
@@ -1870,6 +1930,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(lkB2){ lkB2.outerHTML = lkExpHtml(t, lkK, b.dataset.day, lkO); var lkF2 = lkC.querySelector('.ielk select, .ielk button'); if(lkF2) lkF2.focus(); }
         doPersist();
       }
+      return;
+    }
+    if(act === 'adddish' || act === 'deldish'){
+      var dae = document.activeElement; if(dae && dae.blur) dae.blur();      // 先讓正在輸入的欄位存進去
+      var dday = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
+      var ditm = dday && (dday.items || []).filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(!ditm) return;
+      ditm.dishes = ditm.dishes || [];
+      if(act === 'adddish') ditm.dishes.push({ id:uid(), name:'', price:'' });
+      else ditm.dishes = ditm.dishes.filter(function(y){ return String(y.id) !== b.dataset.dd; });
+      var wasNew = !!(modalCtx && modalCtx.isNew), mbx = emodal && emodal.querySelector('.mbox'), stp = mbx ? mbx.scrollTop : 0;
+      renderDetail(); doPersist();
+      openModal('it', ditm.id, dday.id, wasNew);
+      mbx = emodal && emodal.querySelector('.mbox'); if(mbx) mbx.scrollTop = stp;
+      if(act === 'adddish'){ var dn = emodal.querySelectorAll('.dish input[data-k="name"]'); if(dn.length) dn[dn.length - 1].focus({ preventScroll:false }); }
       return;
     }
     if(act === 'dupit'){
