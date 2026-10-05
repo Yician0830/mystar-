@@ -449,6 +449,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .fcount{font-size:13px; font-weight:500; color:var(--ink-faint); padding:0 0 4px;}
   /* 卡片上的關鍵資訊摘要 */
   .trip .due,.meta .due b{color:var(--danger); font-weight:700;}
+  .nobuy{display:inline-block; color:var(--danger); font-weight:900; font-size:1.05em; line-height:1.5; padding:0 8px; margin:0 2px; border:1px solid var(--danger); border-radius:3px; letter-spacing:0.06em;}
   .dueok{color:var(--ink-faint); font-size:13px;}
   .shows{display:grid; gap:8px;}
   .shows .shd{display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; color:var(--ink-dim);}
@@ -773,6 +774,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<label>幣別<select data-sh="' + x.id + '" data-k="cur">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select></label>' +
       '<label>張數<input type="text" inputmode="numeric" autocomplete="off" data-sh="' + x.id + '" data-k="qty" placeholder="1" value="' + esc(x.qty || '') + '"></label></div></div>';
   }
+  function saleSt(st){ return st === '未購票' ? '<span class="nobuy">未購票</span>' : esc(st); }   // 還沒買到票的狀態用醒目標籤提醒
   function saleChip(t, fan, ph){
     var fi = t.fanInfo;
     if(!fan || !fi || ph.k === 'past') return '';
@@ -780,7 +782,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var sd = toDate(fi.saleDate);
     if(sd){
       var sl = dueLeft(sd), open = !closed;
-      out += '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + '</b>' + (st ? '・' + esc(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
+      out += '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
     }
     var step = function(label, key){
       var dt = toDate(fi[key]); if(!dt) return '';
@@ -1973,7 +1975,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
-        vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + esc(fi.saleStatus) : '')) +
+        vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
         vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') +
         vrow('繳費／取票期限', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票') : '') +
         showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
