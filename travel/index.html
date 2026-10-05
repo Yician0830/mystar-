@@ -204,6 +204,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .spv .spperk{background:var(--paper); border-left:3px solid var(--accent); padding:6px 10px; font-weight:700;}
   .spv .spperk .spk-ico{margin-right:6px;}
   .spv .spnote{color:var(--ink-faint); font-size:13px;}
+  .spv .sphead{display:flex; align-items:center; cursor:pointer; user-select:none;}
+  .spv .sphead input[type="checkbox"]{flex:0 0 auto; width:20px; height:20px; padding:0; accent-color:var(--accent); cursor:pointer;}
+  .spv .sphead .sptail{margin-left:auto; flex:0 0 auto;}
+  .spv .sphead .sptail .dueok,.spv .sphead .sptail .due{font-size:12px; font-weight:700; padding:0 8px; border-radius:99px; background:var(--paper); border:1px solid var(--line); white-space:nowrap;}
+  .spv .sphead .sptail .due{border-color:var(--danger);}
+  .spv .sphead .spchev{flex:0 0 auto; color:var(--ink-faint); font-size:14px; transition:transform .2s; transform:rotate(-90deg);}
+  .spv .sphead .bname + .spchev{margin-left:auto;}
+  .spv .sphead .sptail + .spchev{margin-left:4px;}
+  .spv.open .sphead .spchev{transform:none;}
+  .spv .spdetail{display:none; gap:8px;}
+  .spv.open .spdetail{display:grid;}
   .spv.done .spk .bname{text-decoration:line-through; color:var(--ink-faint);}
   .spv.done .sptype{opacity:.6;}
   .spv.done{opacity:0.72;}
@@ -1527,7 +1538,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var SPOT_BOOK = ['咖啡廳','展覽','快閃店'];   // 只有這幾種類型才有「需先預約／開放現場名額」
   function spBook(x){ return SPOT_BOOK.indexOf(x.type) >= 0; }
   function spProg(t){ var a = t.spots || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
-  function spWhen(x){
+  function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
     var f = x.from, e = x.to; if(!f && !e) return '';
     var txt = (f ? esc(d(f)) : '') + (f && e ? ' – ' : (f ? ' 起' : '')) + (e ? (f ? '' : '至 ') + esc(d(e)) : '');
     var tail = '';
@@ -1536,22 +1547,34 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(l2 && l2.n > 0) tail = '<span class="dueok">' + (l2.n === 1 ? '明天開始' : l2.n + ' 天後開始') + '</span>';
       else if(l) tail = l.n < 0 ? '<span class="due">已結束</span>' : '<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
     }
+    if(part === 'txt') return txt;
+    if(part === 'tail') return tail;
     return txt + (tail ? '　' + tail : '');
   }
+  var spOpen = {}, spOnly = false;      // 打卡點：哪幾張展開、是否只看未打卡
   function spotsView(t){
-    var sp = t.spots || [];
-    return '<section class="sec"><div class="sh"><h3>應援打卡點' + (sp.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3></div>' +
+    var all = t.spots || [];
+    // 未打卡的在前、已打卡的沉到最下面（各自維持原本順序）
+    var sp = all.filter(function(x){ return !x.done; }).concat(spOnly ? [] : all.filter(function(x){ return x.done; }));
+    var doneN = all.filter(function(x){ return x.done; }).length;
+    return '<section class="sec" id="spsec"><div class="sh"><h3>應援打卡點' + (all.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3>' +
+      (doneN ? '<div class="btns"><button class="mini" type="button" data-do="spfilter" aria-pressed="' + spOnly + '">只看未打卡</button></div>' : '') + '</div>' +
       (sp.length ? sp.map(function(x){
-        var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x);
-        return '<div class="bk v spv' + (x.done ? ' done' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
-          '<label class="ck v spk"><input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡"><span class="sptype">' + esc(x.type || '其他') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></label>' +
-          (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
+        var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x, 'txt'), tail = spWhen(x, 'tail');
+        var open = !!spOpen[x.id];
+        var body = (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
           ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip">需先預約</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') + '</div>' : '') +
           ((x.addr || map) ? '<div class="vtext addrline">' + (x.addr ? esc(x.addr) : '') + (map ? (x.addr ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
           (x.perk ? '<div class="vtext spperk"><span class="spk-ico">🎁</span>' + esc(x.perk) + '</div>' : '') +
           (x.note ? '<div class="vtext spnote">' + esc(x.note) + '</div>' : '') +
-          (expIds(x).length ? '<div class="lks">' + expChips(t, x) + '</div>' : '') + '</div>';
-      }).join('') : '<p class="vempty">還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…</p>') + '</section>';
+          (expIds(x).length ? '<div class="lks">' + expChips(t, x) + '</div>' : '');
+        return '<div class="bk v spv' + (x.done ? ' done' : '') + (open ? ' open' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
+          '<div class="sphead spk" role="button" tabindex="0" aria-expanded="' + open + '" data-spt="' + x.id + '" title="點一下展開／收合">' +
+            '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
+            '<span class="sptype">' + esc(x.type || '其他') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
+            (tail ? '<span class="sptail">' + tail + '</span>' : '') + '<span class="spchev" aria-hidden="true">▾</span></div>' +
+          (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
+      }).join('') : '<p class="vempty">' + (all.length ? '全部都打卡完成了 🎉' : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + '</section>';
   }
   function spotEdit(x){
     var a = ' data-sp="' + x.id + '"';
@@ -1830,6 +1853,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(ds.k === 'done'){
             var spc = el.closest('.spv'); if(spc) spc.classList.toggle('done', el.checked);
             if($('spprog')) $('spprog').textContent = spProg(t);
+            var sps2 = $('spsec'); if(sps2) sps2.outerHTML = spotsView(t);      // 重排：已打卡的沉到最下面
           }
         } else {
           spx[ds.k] = el.value;
@@ -1892,6 +1916,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(e.key !== 'Enter' && e.key !== ' ') return;
     var rw = e.target.classList && e.target.classList.contains('crow') ? e.target : null;
     if(rw){ e.preventDefault(); openModal(rw.dataset.open, rw.dataset.id, rw.dataset.day, false); return; }
+    if(e.target.classList && e.target.classList.contains('sphead')){ e.preventDefault(); e.target.click(); return; }
     var cc = e.target.closest && e.target.closest('.ccard[data-cat]'); if(!cc) return;
     e.preventDefault(); toggleCat(cc.dataset.cat);
   });
@@ -1899,6 +1924,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(emodal && e.target === emodal){ requestCloseModal(); return; }
     var cc = e.target.closest('.ccard[data-cat]');
     if(cc && !editMode){ toggleCat(cc.dataset.cat); return; }
+    var sph = e.target.closest('.sphead');
+    if(sph && !e.target.closest('input,a')){
+      var sid = sph.dataset.spt, scard = sph.closest('.spv'); spOpen[sid] = !spOpen[sid];
+      if(scard) scard.classList.toggle('open', !!spOpen[sid]);
+      sph.setAttribute('aria-expanded', String(!!spOpen[sid]));
+      return;
+    }
     var ro = e.target.closest('.crow[data-open]');
     if(ro && !e.target.closest('button')){ openModal(ro.dataset.open, ro.dataset.id, ro.dataset.day, false); return; }
     var b = e.target.closest('button[data-do]'); if(!b) return;
@@ -1945,6 +1977,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       openModal('it', ditm.id, dday.id, wasNew);
       mbx = emodal && emodal.querySelector('.mbox'); if(mbx) mbx.scrollTop = stp;
       if(act === 'adddish'){ var dn = emodal.querySelectorAll('.dish input[data-k="name"]'); if(dn.length) dn[dn.length - 1].focus({ preventScroll:false }); }
+      return;
+    }
+    if(act === 'spfilter'){
+      spOnly = !spOnly;
+      var sps = $('spsec'); if(sps) sps.outerHTML = spotsView(t);
       return;
     }
     if(act === 'dupit'){
