@@ -1977,8 +1977,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 天氣與時差：用 Open-Meteo（免金鑰）。16 天內用預報；更遠的用「去年同期」的實際天氣當參考；已過的日期用實際紀錄。抓不到就靜默不顯示 ----
   var WX_KEY = 'travel-wx-v1', WX_TTL = 6 * 3600 * 1000, wxMem = {}, wxBusy = {}, wxFailAt = {};
-  function wxCity(t){ return citiesOf(t)[0] || ''; }
-  function wxKeyOf(t){ return [t.id, wxCity(t), t.start || '', t.end || '', (t.days || []).map(function(x){ return x.date || ''; }).join(',')].join('|'); }
+  function wxCands(t){      // 候選地點：先用「地點」欄；沒填就從住宿地址、行程標題猜
+    var out = [], seen = {};
+    function add(c){ c = String(c || '').trim(); if(c && c.length <= 30 && !seen[c]){ seen[c] = 1; out.push(c); } }
+    citiesOf(t).forEach(add);
+    if(!out.length){
+      var g = [];
+      (t.stays || []).forEach(function(x){
+        String(x.address || '').split(/[,，]/).forEach(function(p){
+          p = p.replace(/日本|Japan/ig, '').replace(/〒\s*[\d-]+/g, '').trim();
+          if(p && !/[0-9０-９]/.test(p)) g.push(p);
+        });
+      });
+      g.sort(function(a, b){ return (/[\u3400-\u9fff]/.test(b) ? 1 : 0) - (/[\u3400-\u9fff]/.test(a) ? 1 : 0); });
+      g.slice(0, 4).forEach(add);
+      add(String(t.title || '').replace(/(之旅|旅遊|旅行|行程|自由行|跟團|遊記|[0-9０-９]+\s*[日天].*)$/g, ''));
+    }
+    return out;
+  }
+  function wxCity(t){ return wxCands(t)[0] || ''; }
+  function wxSay(msg){ var n = $('wxnote'); if(n && !n.innerHTML) n.innerHTML = '<span>' + msg + '</span>'; }
+  function wxGeo(list, i){
+    if(i >= list.length) return Promise.resolve(null);
+    return wxReq('https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&name=' + encodeURIComponent(list[i])).then(function(g){
+      var loc = g && g.results && g.results[0];
+      if(loc){ loc._q = list[i]; return loc; }
+      return wxGeo(list, i + 1);
+    });
+  }
+  function wxKeyOf(t){ return [t.id, wxCands(t).join('/'), t.start || '', t.end || '', (t.days || []).map(function(x){ return x.date || ''; }).join(',')].join('|'); }
   function wxRaw(key){
     if(wxMem[key]) return wxMem[key];
     try{ var o = JSON.parse(localStorage.getItem(WX_KEY) || '{}'); return o[key] || null; }catch(e){ return null; }
@@ -2011,9 +2038,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function wxRange(a){ var s = a.slice().sort(); return { from:s[0], to:s[s.length - 1] }; }
   function wxFetch(t){
-    var city = wxCity(t); if(!city) return Promise.resolve(null);
-    return wxReq('https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&name=' + encodeURIComponent(city)).then(function(g){
-      var loc = g && g.results && g.results[0]; if(!loc) return null;
+    var cands = wxCands(t); if(!cands.length) return Promise.resolve(null);
+    return wxGeo(cands, 0).then(function(loc){
+      if(!loc) return null;
+      var city = loc._q;
       var td = new Date(); td.setHours(0, 0, 0, 0);
       var lim = new Date(td.getTime() + 15 * DAY), fc = [], past = [], far = [], shiftMap = {};
       (t.days || []).map(function(x){ return x.date; }).filter(Boolean).forEach(function(s){
@@ -2051,12 +2079,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
       [].forEach.call(document.querySelectorAll('#detail [data-wx]'), function(el){ var w = raw.days && raw.days[el.dataset.wx]; el.innerHTML = w ? wxHtml(w) : ''; });
       var n = $('wxnote'); if(n) n.innerHTML = tzNote(t, raw);
     }
-    var fresh = raw && !raw.fail && Date.now() - raw.ts < WX_TTL;
-    if(fresh || wxBusy[key] || (wxFailAt[key] && Date.now() - wxFailAt[key] < 600000) || !wxCity(t)) return;
+    var fresh = raw && !raw.fail && Date.now() - raw.ts < WX_TTL, hasRaw = raw && !raw.fail;
+    if(!wxCity(t)){ wxSay('🌤 要顯示天氣與時差，請按「編輯」填寫「地點」（例：札幌）'); return; }
+    if(!hasRaw && wxFailAt[key] && Date.now() - wxFailAt[key] < 600000){ wxSay('🌤 查不到這個地點的天氣，請在「編輯」把地點改成城市名（例：札幌）'); return; }
+    if(fresh || wxBusy[key] || (wxFailAt[key] && Date.now() - wxFailAt[key] < 600000)) return;
     wxBusy[key] = 1;
     wxFetch(t).then(function(r){
       wxBusy[key] = 0;
-      if(!r){ wxFailAt[key] = Date.now(); return; }
+      if(!r){ wxFailAt[key] = Date.now(); var t3 = cur(); if(t3 && wxKeyOf(t3) === key && !editMode) wxSay('🌤 查不到這個地點的天氣，請在「編輯」把地點改成城市名（例：札幌）'); return; }
       wxPut(key, r);
       var t2 = cur(); if(t2 && wxKeyOf(t2) === key && !editMode) fillWx(t2);
     });
