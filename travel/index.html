@@ -2044,7 +2044,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') +
           (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + lkRow(t, x, 'lkBk') + '</div>';
+          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
@@ -2059,7 +2059,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           ((dt || hint) ? '<div class="btime stime">' + dt + (hint ? (dt ? ' ' : '') + '<span class="nights nw">' + esc(hint) + '</span>' : '') + '</div>' : '') +
           ((x.address || map) ? '<div class="vtext addrline">' + (x.address ? esc(x.address) : '') + (map ? (x.address ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
           (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
-          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + lkRow(t, x, 'lkStay') + '</div>';
+          (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
     if(fan) h += spotsView(t);
@@ -2078,7 +2078,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var approx = has && cur !== 'TWD' ? (r ? '<div class="xs xap">約 ' + money(signed(x) * r) + ' 元</div>' : '<div class="xs xap">尚未填匯率</div>') : '';
       return '<div class="xcard' + (expGap(x) ? ' xwarn' : '') + '" id="lk-exp-' + x.id + '"><div class="xn" title="' + esc(x.cat || '') + '">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.name || '（未命名）') + '</div>' +
         '<div class="xa">' + (has ? '<small>' + esc(cur) + '</small> ' + money(signed(x)) : '—') + (expPre(t, x) ? '<span class="xpre" title="提前買好，不算進行程的當日花費">提前買好</span>' : '') + '</div>' + approx +
-        (expGap(x) ? '<div class="xs xw">⚠ 尚未填' + expGap(x) + '，按右上角「編輯」補上</div>' : '') + amtTag(x) + payTag(t, x) + revLinks(t, 'lkExp', x.id) + '</div>';
+        (expGap(x) ? '<div class="xs xw">⚠ 尚未填' + expGap(x) + '，按右上角「編輯」補上</div>' : '') + amtTag(x) + payTag(t, x) + '</div>';
     };
     var xBody;
     if(!shown.length) xBody = '<p class="vempty xempty">這個類別還沒有花費明細。</p>';
