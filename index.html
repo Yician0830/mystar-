@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>推し手帳｜我的追星手帳</title>
+<title>推し紀錄｜我的追星紀錄</title>
 
 <!-- PWA：加到主畫面後可像 App 一樣開啟 -->
 <link rel="manifest" href="manifest.json">
@@ -16,7 +16,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="推し手帳">
+<meta name="apple-mobile-web-app-title" content="推し紀錄">
 <script>
 /* 提早套用深色/淺色模式，避免畫面載入時閃爍 */
 (function(){
@@ -1176,7 +1176,7 @@
 
   <div class="loading-screen" id="loadingScreen">
     <div class="lmark maru">推</div>
-    <div class="ltext">正在連線雲端並讀取手帳資料...</div>
+    <div class="ltext">正在連線雲端並讀取紀錄資料...</div>
   </div>
 
   <div class="storage-warn" id="storageWarning">
@@ -1204,8 +1204,8 @@
       <div class="brand">
         <div class="brand-mark maru">推</div>
         <div class="brand-text">
-          <div class="title maru">推し手帳</div>
-          <div class="sub" id="headerSub">我的追星手帳</div>
+          <div class="title maru">推し紀錄</div>
+          <div class="sub" id="headerSub">我的追星紀錄</div>
         </div>
       </div>
       <div class="top-row-actions">
@@ -2322,7 +2322,7 @@ async function init(){
 function renderProfile(){
   const label = currentUser ? (currentUser.displayName || '已登入雲端') : (state.profile.nickname ? state.profile.nickname : '登入 / 設定');
   document.getElementById('profileLabel').textContent = label;
-  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星手帳' : '我的追星手帳';
+  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星紀錄' : '我的追星紀錄';
   const dot = document.getElementById('profileDot');
   if(currentUser && currentUser.photoURL){
     dot.innerHTML = `<img src="${currentUser.photoURL}" alt="" loading="lazy">`;
@@ -2983,7 +2983,7 @@ function renderYearRecapBlock(){
     return `
     <div class="recap-card">
       <div class="recap-head">
-        <div class="recap-title maru">🌸 歡迎使用追星手帳</div>
+        <div class="recap-title maru">🌸 歡迎使用追星紀錄</div>
         <div class="recap-sub">還沒有任何紀錄，從第一筆行程開始寫下你的追星旅程吧</div>
       </div>
       <button class="recap-btn" data-goto="schedule">新增第一筆行程 →</button>
@@ -3183,7 +3183,7 @@ async function generateYearSummaryCanvas(year, themeId){
   ctx.textBaseline = 'alphabetic';
 
   // 頂部品牌列（置中 + 分隔點）
-  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し手帳';
+  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し紀錄';
   const yearLabelText = `${year} 年度回顧`;
   const dotGap = 18, dotR = 4;
   ctx.font = '700 32px "Zen Maru Gothic"';
@@ -3499,7 +3499,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   ctx.textBaseline = 'alphabetic';
 
   // 品牌列
-  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し手帳';
+  const brandText = nickname ? `🌸 ${nickname}` : '🌸 推し紀錄';
   const yearLabelText = `${year} 年度回顧`;
   const dotGap = 16, dotR = 4;
   ctx.font = '700 30px "Zen Maru Gothic"';
@@ -3785,7 +3785,7 @@ function showYsShareModal(year, cache, activeFormat, activeTheme){
   document.getElementById('ysDownloadBtn').addEventListener('click', ()=>{
     const a = document.createElement('a');
     a.href = dataUrl;
-    a.download = `推し手帳年度總結-${year}${meta.fileSuffix}.png`;
+    a.download = `我的年度總結-${year}${meta.fileSuffix}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -3794,7 +3794,7 @@ function showYsShareModal(year, cache, activeFormat, activeTheme){
   if(canShareFile){
     document.getElementById('ysShareBtn').addEventListener('click', async ()=>{
       try{
-        const file = new File([entry.blob], `推し手帳年度總結-${year}${meta.fileSuffix}.png`, {type:'image/png'});
+        const file = new File([entry.blob], `我的年度總結-${year}${meta.fileSuffix}.png`, {type:'image/png'});
         await navigator.share({ files:[file], title:`${year} 年度追星總結`, text:'我的年度追星總結來了 🌸' });
       }catch(err){
         if(err && err.name !== 'AbortError') showToast('分享失敗，請改用下載圖片');
@@ -3928,7 +3928,7 @@ function showDailyReminderModal(items){
   `).join('');
   modal.innerHTML = `
     <h3 class="maru">☀️ 今日提醒</h3>
-    <p style="font-size:13px; color:var(--ink-soft); margin:-8px 2px 16px;">打開手帳的時候，順便看看有沒有要注意的事</p>
+    <p style="font-size:13px; color:var(--ink-soft); margin:-8px 2px 16px;">打開的時候，順便看看有沒有要注意的事</p>
     ${rows}
     <div class="modal-actions">
       <button class="btn primary" id="reminderCloseBtn" style="width:100%;">知道了</button>
@@ -9911,7 +9911,7 @@ function openProfileForm(){
     const isPushOn = !!(state.profile.pushEnabled && state.profile.pushToken);
     pushSectionHtml = `
       <button type="button" class="btn ${isPushOn?'ghost':'primary'}" id="pushToggleBtn" style="width:100%;">${isPushOn ? '🔕 關閉這台裝置的推播通知' : '🔔 開啟這台裝置的推播通知'}</button>
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">開啟後，就算沒開著手帳，手機也會在行程當天、開賣日、藝人生日時收到通知。（僅限這台裝置，換手機需要重新開啟一次）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">開啟後，就算沒開著，手機也會在行程當天、開賣日、藝人生日時收到通知。（僅限這台裝置，換手機需要重新開啟一次）</div>
     `;
   }
   const accountHtml = currentUser ? `
@@ -9960,7 +9960,7 @@ function openProfileForm(){
         <button type="button" class="seg-btn ${state.profile.dailyReminder!==false?'active':''}" data-val="on">🔔 開啟</button>
         <button type="button" class="seg-btn ${state.profile.dailyReminder===false?'active':''}" data-val="off">🔕 關閉</button>
       </div>
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">每天第一次打開，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
     </div>
     <div class="field">
       <label>到貨提前提醒</label>
@@ -9995,7 +9995,7 @@ function openProfileForm(){
         <input type="url" id="playlistNewUrl" placeholder="貼上 YouTube 影片或播放清單連結" style="flex:1;min-width:0;">
         <button type="button" class="btn ghost" id="playlistAddBtn" style="flex-shrink:0;">➕ 加入</button>
       </div>
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">支援單一影片連結，也支援整份 YouTube 播放清單連結（例如 youtube.com/playlist?list=... ）—— 加入整份清單後，會依序（或隨機）播放清單裡的每一首歌。加入歌曲後，打開手帳會自動輪播播放清單裡的內容（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">支援單一影片連結，也支援整份 YouTube 播放清單連結（例如 youtube.com/playlist?list=... ）—— 加入整份清單後，會依序（或隨機）播放清單裡的每一首歌。加入歌曲後，打開會自動輪播播放清單裡的內容（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
     </div>
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
@@ -10200,7 +10200,7 @@ function exportBackupData(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `推し手帳備份-${todayStr()}.json`;
+  a.download = `推し紀錄備份-${todayStr()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
