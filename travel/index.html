@@ -224,6 +224,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dx .rtl{font-size:12px; font-weight:700; color:var(--accent); text-decoration:none; border:1px solid var(--accent); padding:1px 8px; white-space:nowrap;}
   .dx .rtl:hover,.dx .rtl:focus-visible{background:var(--accent); color:var(--paper);}
   #wxnote:empty{display:none;}
+  .mgrow{display:flex; justify-content:space-between; align-items:center; gap:8px; padding:4px 0; border-bottom:1px dashed var(--line-strong);}
+  .mgact{display:flex; align-items:center; gap:6px; flex:none;}
+  .mgp{font-size:12px; color:var(--ink-dim);}
+  .mgtag{font-style:normal; font-size:11px; font-weight:700; color:var(--danger); border:1px solid var(--danger); padding:0 4px;}
+  .mgsum{margin-top:6px;}
+  .mgadd{display:grid; gap:6px; margin-top:10px;}
+  .mgadd2{display:grid; grid-template-columns:1.4fr 0.9fr 0.8fr; gap:6px;}
+  .mgadd2 input,.mgadd2 select{min-width:0;}
+  .mgadd3{display:flex; justify-content:space-between; align-items:center;}
+  .phv{font-size:14px; margin:2px 0;}
+  .phrow{display:grid; grid-template-columns:1.4fr 1fr 0.8fr 0.9fr auto; gap:6px; margin:6px 0;}
+  .phrow input,.phrow select{min-width:0;}
+  .shst{margin-top:6px;}
+  .shv-st{font-size:12px; font-weight:700; margin-left:8px;}
+  .shv .spadd-wrap{margin-top:8px;}
+  .ihrs{font-size:12px; color:var(--ink-dim); margin-top:4px;}
+  .ihrs.warn{color:var(--danger); font-weight:700;}
+  .ihr,.ihwd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:13px;}
+  .ihwd label{display:inline-flex; align-items:center; gap:3px;}
+  .cardfee[hidden]{display:none;}
+  .wishrow{padding:8px 0; border-bottom:1px dashed var(--line-strong);}
+  .wishhd{display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:700;}
+  .wishadd{display:flex; gap:8px; margin-top:10px;}
+  .wishadd input{flex:1; min-width:0;}
   .split .sgsum{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-dim);}
   .split .sgsum b{font-size:17px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--ink);}
   .split .sgsum .sgleft b{color:var(--accent);}
@@ -748,7 +772,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var trips = [], docRef = null, unsub = null;
   var $ = function(id){ return document.getElementById(id); };
 
-  function esc(t){ return String(t).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function esc(t){ return String(t).replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c){ return c.normalize('NFKC'); }).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function d(s){ return s ? s.replace(/-/g,'.') : ''; }
   function showErr(m){ $('err').textContent = m || ''; }
 
@@ -808,20 +832,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var nx = nextShow(t); if(!nx) return '';
     return '<span' + (nx.l.n <= 3 ? ' class="due"' : '') + '>演出 <b>' + esc(d(nx.x.date)) + '</b>・' + nx.l.txt + '</span>';
   }
+  function showAddPanel(t, x){
+    var days = t.days || []; if(viewOnly || !days.length) return '';
+    var pick = days.filter(function(dy){ return dy.date && dy.date === x.date; })[0] || days[0];
+    var opts = days.map(function(dy, i){ return '<option value="' + dy.id + '"' + (dy === pick ? ' selected' : '') + '>Day ' + (i + 1) + (dy.date ? '　' + esc(d(dy.date)) + '（' + esc(wk(dy.date).replace(/[（）()]/g, '')) + '）' : '') + (dy.date && dy.date === x.date ? '　★演出日' : '') + '</option>'; }).join('');
+    return '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button><div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
+      '<input class="spadd-time" type="time" aria-label="行程時間" value="' + esc(x.door || x.show || '') + '"><button class="mini spadd-go" type="button" data-do="showgo" data-id="' + x.id + '">加入</button></div></div>';
+  }
   function showsView(t){
     var arr = showsSorted(t), n = arr.length; if(!n) return '';
     var cards = arr.map(function(x, i){
       var dt = toDate(x.date), l = dt ? dueLeft(dt) : null, past = !!(l && l.n < 0);
       var left = l && l.n >= 0 ? '<span class="shv-left ' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : (past ? '<span class="shv-left dueok">已結束</span>' : '');
       var top = '<div class="shv-top">' + (n > 1 ? '<span class="shv-no">' + (i + 1) + '</span>' : '') +
-        '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + left + '</div>';
+        '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
       var tm = (x.door ? '<span>入場 <b>' + esc(x.door) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(x.show) + '</b></span>' : '');
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
       return '<div class="shv' + (past ? ' past' : '') + '">' + top +
         (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
-        (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + '</div>';
+        (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x) + '</div>';
     }).join('');
     return '<div class="shwrap"><dt>' + (n > 1 ? '場次（' + n + '）' : '場次') + '</dt><dd class="shlist">' + cards + '</dd></div>';
   }
@@ -855,7 +886,30 @@ a.name{display:block; color:inherit; text-decoration:none;}
       A('date', 'date', '日期') + A('seat', 'text', '座位／票種', '例如：1F 12 排、一般席') + A('door', 'time', '入場時間') + A('show', 'time', '開演時間') + '</div>' +
       '<div class="shpay"><label>票價（每張）<input type="text" inputmode="decimal" autocomplete="off" data-sh="' + x.id + '" data-k="price" placeholder="例如：12000" value="' + esc(x.price || '') + '"></label>' +
       '<label>幣別<select data-sh="' + x.id + '" data-k="cur">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select></label>' +
-      '<label>張數<input type="text" inputmode="numeric" autocomplete="off" data-sh="' + x.id + '" data-k="qty" placeholder="1" value="' + esc(x.qty || '') + '"></label></div></div>';
+      '<label>張數<input type="text" inputmode="numeric" autocomplete="off" data-sh="' + x.id + '" data-k="qty" placeholder="1" value="' + esc(x.qty || '') + '"></label></div>' +
+      '<div class="shst"><label>這場的票務狀態<select data-sh="' + x.id + '" data-k="status"><option value="">未設定</option>' + SALE_ST.map(function(c){ return '<option' + (c === x.status ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label></div></div>';
+  }
+  function phasesSorted(t){ return ((t.fanInfo && t.fanInfo.phases) || []).slice().sort(function(a, b){ var A = (a.date || '9999') + ' ' + (a.time || ''), B = (b.date || '9999') + ' ' + (b.time || ''); return A < B ? -1 : A > B ? 1 : 0; }); }
+  function phClosed(x){ return x.status === '已購票' || x.status === '落選' || x.status === '未購票'; }
+  function phasesView(t){
+    var arr = phasesSorted(t).filter(function(x){ return x.name || x.date || x.time || x.status; });
+    if(!arr.length) return '';
+    return arr.map(function(x){
+      var dt = toDate(x.date), l = dt && !phClosed(x) ? dueLeft(dt) : null;
+      return '<div class="phv"><b>' + esc(x.name || '階段') + '</b>　' + (x.date ? esc(d(x.date)) + esc(wk(x.date)) : '日期未定') + (x.time ? ' ' + esc(x.time) : '') +
+        (x.status ? '・' + saleSt(x.status) : '') + (l && l.n >= 0 ? '　<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : '') + '</div>';
+    }).join('');
+  }
+  function phasesEdit(t){
+    var ph = (t.fanInfo && t.fanInfo.phases) || [];
+    return '<div class="full shows"><div class="shd"><span>售票階段</span><button class="mini" type="button" data-do="addph">＋ 新增階段</button></div>' +
+      (ph.length ? ph.map(function(x){
+        var a = ' data-ph="' + x.id + '"';
+        return '<div class="phrow"><input' + a + ' data-k="name" list="phnames" aria-label="階段名稱" placeholder="例如：會員先行" value="' + esc(x.name || '') + '">' +
+          '<input type="date"' + a + ' data-k="date" aria-label="日期" value="' + esc(x.date || '') + '"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
+          '<select' + a + ' data-k="status" aria-label="狀態"><option value="">狀態</option>' + SALE_ST.map(function(c){ return '<option' + (c === x.status ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+          '<button class="del" type="button" data-do="delph" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+      }).join('') + '<datalist id="phnames"><option value="會員先行"><option value="一般販售"><option value="候補釋票"><option value="追加場"></datalist>' : '<div class="empty">會員先行、一般販售、候補釋票…可以各記一組日期、時間與結果。</div>') + '</div>';
   }
   function saleSt(st){ return st === '未購票' ? '<span class="nobuy">未購票</span>' : esc(st); }   // 還沒買到票的狀態用醒目標籤提醒
   function saleChip(t, fan, ph){
@@ -865,7 +919,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var sd = toDate(fi.saleDate);
     if(sd){
       var sl = dueLeft(sd), open = !closed;
-      out += '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
+      out += '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
+    }
+    if(!closed){
+      var nph = phasesSorted(t).filter(function(x){ return !phClosed(x) && toDate(x.date) && dueLeft(toDate(x.date)).n >= 0; })[0];
+      if(nph){ var pl = dueLeft(toDate(nph.date)); out += '<span' + (pl.n <= 3 ? ' class="due"' : '') + '>' + esc(nph.name || '售票') + ' <b>' + esc(d(nph.date)) + (nph.time ? ' ' + esc(nph.time) : '') + '</b>・' + pl.txt + '</span>'; }
     }
     var step = function(label, key){
       var dt = toDate(fi[key]); if(!dt) return '';
@@ -1249,6 +1307,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function money(n){ return Math.round(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
   // ---- 多幣別花費：每筆可選幣別，匯率依幣別各填一次，總花費換算成新台幣 ----
   function ecur(t, x){ return x.cur || 'TWD'; }
+  function feeK(t, x){ var p = amt(t.feePct); return (x && x.card && ecur(t, x) !== 'TWD' && p > 0) ? 1 + p / 100 : 1; }   // 外幣刷卡加收的海外手續費
+  function fxFetch(c){      // 取得 1 外幣 = 幾新台幣（市場中間價）；第一個來源失敗就換第二個
+    var lc = c.toLowerCase();
+    return fetch('https://open.er-api.com/v6/latest/' + c).then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(j){ return j && j.rates && j.rates.TWD > 0 ? j.rates.TWD : null; }).catch(function(){ return null; })
+      .then(function(v){
+        if(v) return v;
+        return fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/' + lc + '.json').then(function(r){ return r.ok ? r.json() : null; })
+          .then(function(j){ return j && j[lc] && j[lc].twd > 0 ? j[lc].twd : null; }).catch(function(){ return null; });
+      });
+  }
   function rateOf(t, c){ if(c === 'TWD') return 1; var r = amt((t.rates || {})[c]); return r > 0 ? r : 0; }
   // 舊資料（整趟共用一個幣別＋一個匯率）一次轉成新格式：每筆記下幣別、匯率改存各幣別、預算換成新台幣
   function migCur(t){
@@ -1289,7 +1358,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var rs = t.rates || {};
     return list.map(function(c){
       return '<div class="rrow"><label>匯率　1 ' + esc(c) + ' =<input data-r="' + esc(c) + '" inputmode="decimal" autocomplete="off" aria-label="' + esc(c) + ' 匯率" placeholder="例如 0.21" value="' + esc(rs[c] == null ? '' : rs[c]) + '"> 新台幣</label><span class="rmeta" data-for="' + esc(c) + '">' + rateMeta(t, c) + '</span></div>';
-    }).join('') + '<div class="rhint">每個外幣填一次匯率，就會換算進新台幣總花費。</div>';
+    }).join('') + '<div class="rrow"><label>海外刷卡手續費<input data-t="1" data-k="feePct" inputmode="decimal" autocomplete="off" aria-label="海外刷卡手續費百分比" placeholder="依你的卡片填，例如 1.5" value="' + esc(t.feePct == null ? '' : t.feePct) + '"> %</label><span class="rmeta">只加在有勾「刷卡付款」的外幣花費</span></div>' +
+      '<div class="rrow"><button class="mini" type="button" data-do="fxget">取得最新匯率</button><span class="rmeta" id="fxmsg"></span></div>' +
+      '<div class="rhint">每個外幣填一次匯率，就會換算進新台幣總花費。「取得最新匯率」是市場中間價，實際換匯或刷卡會略有差異。</div>';
   }
   // 「機票」併入「交通」：舊花費改歸交通，兩邊的預算加總
   function migCat(t){
@@ -1302,10 +1373,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
       delete t.budgets['機票'];
     }
   }
+  function plainDeep(o){      // 整趟資料裡的花式字（𝘽𝙏𝙎 這類數學字母）一次轉回一般字母
+    if(typeof o === 'string') return plainName(o);
+    if(Array.isArray(o)){ for(var i = 0; i < o.length; i++) o[i] = plainDeep(o[i]); }
+    else if(o && typeof o === 'object'){ Object.keys(o).forEach(function(k){ o[k] = plainDeep(o[k]); }); }
+    return o;
+  }
   function cur(){
     if(viewOnly) return sharedTrip;
     var t = trips.filter(function(x){ return String(x.id) === String(currentId); })[0];
-    if(t){ migCur(t); migCat(t); }
+    if(t){ migCur(t); migCat(t); if(!t.fontV1){ plainDeep(t); t.fontV1 = 1; } }
     return t;
   }
 
@@ -1417,7 +1494,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       any++;
       if(P.indexOf(x.payer) < 0){ badPayer++; return; }
       var r = rateOf(t, ecur(t, x)); if(!r){ noRate++; return; }
-      var tot = n * r, sh = sharersOf(t, x, P);
+      var tot = n * r * feeK(t, x), sh = sharersOf(t, x, P);
       paid[x.payer] += tot;
       sh.forEach(function(p){ owe[p] += tot / sh.length; });
       used++;
@@ -1489,7 +1566,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     (t.expenses || []).forEach(function(x){
       var n = signed(x); if(!n) return;
       var r = rateOf(t, ecur(t, x)); if(!r) return;
-      by[x.cat] = (by[x.cat] || 0) + n * r;
+      by[x.cat] = (by[x.cat] || 0) + n * r * feeK(t, x);
     });
     CATS.forEach(function(c){
       if(c === REFUND) return;
@@ -1513,7 +1590,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(!(c in byCur)){ byCur[c] = 0; curOrder.push(c); }
       byCur[c] += n;
       if(!r){ miss[c] = 1; return; }
-      total += n * r; by[x.cat] = (by[x.cat] || 0) + n * r;
+      var fk = feeK(t, x); total += n * r * fk; by[x.cat] = (by[x.cat] || 0) + n * r * fk;
     });
     var h = '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>';
     var bsum = 0, bspent = 0, free = 0;
@@ -1567,7 +1644,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 每日行程：每一個行程是一張卡片 { time, title, cat, status, place, note, intro（景點介紹）, dishes（美食必點，[{id,name,price}]） }
   var IT_CATS = ['景點','美食','交通','購物','住宿','活動','其他'], IT_ST = ['已預訂','未預訂','不用訂','現場候位','臨時'];
-  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'', intro:'', dishes:[], lkSpot:'' }; }
+  function newItem(){ return { id:uid(), time:'', end:'', title:'', cat:'', status:'', place:'', transport:'', route:'', note:'', intro:'', dishes:[], lkSpot:'', open:'', close:'', closed:[] }; }
   // 交通拆成兩欄：transport＝搭乘的交通工具，route＝路線（步行幾分鐘／JR 線名／地鐵幾號線哪站到哪站…），輸入提示會跟著交通工具變
   // 每種交通工具各自的圖示，一看就知道；沒對到的才用通用的 🚃
   var TICONS = [
@@ -1647,7 +1724,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       expIds(it).forEach(function(id){
         if(seen[id]) return; seen[id] = 1;
         var ex = (t.expenses || []).filter(function(e){ return String(e.id) === String(id); })[0]; if(!ex || expPre(t, ex)) return;
-        var n = signed(ex), r = rateOf(t, ecur(t, ex)); if(n && r) tot += n * r;
+        var n = signed(ex), r = rateOf(t, ecur(t, ex)); if(n && r) tot += n * r * feeK(t, ex);
       });
     });
     return tot;
@@ -1724,7 +1801,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<span class="dchip">' + esc(y.name) + (String(y.price || '').trim() ? '<em>' + esc(y.price) + '</em>' : '') + '</span>';
     }).join('') + (dishTotal(x) ? '<span class="dtotal">預估 <b>' + esc(dishTotal(x)) + '</b></span>' : '') + '</div>';
   }
-  function itemView(x){
+  // ---- 營業時間與公休日：排到公休日、或預計時間不在營業時間內，就提醒 ----
+  var WD = ['日','一','二','三','四','五','六'];
+  function hoursWarn(day, x){
+    var w = [], cl = (x.closed || []).map(Number), dt = day && day.date ? toDate(day.date) : null;
+    if(dt && cl.indexOf(dt.getDay()) >= 0) w.push('這天（週' + WD[dt.getDay()] + '）公休');
+    var o = toMin(x.open), c = toMin(x.close), s0 = toMin(x.time), e0 = toMin(x.end);
+    if(o != null && c != null && c > o){
+      if(s0 != null && s0 < o) w.push('預計時間早於開門（' + x.open + '）');
+      else if(s0 != null && s0 >= c) w.push('預計時間已過打烊（' + x.close + '）');
+      else if(e0 != null && e0 > c) w.push('離開時間晚於打烊（' + x.close + '）');
+    }
+    return w;
+  }
+  function hoursWarnHtml(day, x){ return hoursWarn(day, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join(''); }
+  function hoursLine(x){
+    var cl = (x.closed || []).map(Number).sort(), parts = [];
+    if(x.open && x.close) parts.push('營業 ' + esc(x.open) + '–' + esc(x.close));
+    if(cl.length) parts.push('公休 週' + cl.map(function(n){ return WD[n]; }).join('、'));
+    return parts.length ? '<div class="ihrs">🕒 ' + parts.join('・') + '</div>' : '';
+  }
+  function itemView(x, day){
     var dt = durText(x);
     // 分類與需要注意的狀態（未預訂、現場候位、臨時）用色塊；「已預訂」「停留」改成安靜的小字，「不用訂」不顯示
     var calm = x.status === '已預訂' || x.status === '不用訂';
@@ -1734,7 +1831,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var isNx = nxtMark && String(nxtMark.id) === String(x.id);
     return '<div class="icard' + (isNx ? ' nxt' : '') + '" id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
-      (pills ? '<div class="pills">' + pills + '</div>' : '') + fwdLinks(t0, x) +
+      (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + fwdLinks(t0, x) +
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       (x.cat === '美食' ? dishView(x) : '') +
       (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
@@ -1817,7 +1914,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<select data-e="' + x.id + '" data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === ecur(t, x) ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
-          '<label class="ck"><input type="checkbox" data-e="' + x.id + '" data-k="pre"' + (expPre(t, x) ? ' checked' : '') + '><span>提前買好（不算進行程裡的「當日花費」，總花費照算）</span></label>' + splitEdit(t, x);
+          '<label class="ck"><input type="checkbox" data-e="' + x.id + '" data-k="pre"' + (expPre(t, x) ? ' checked' : '') + '><span>提前買好（不算進行程裡的「當日花費」，總花費照算）</span></label>' +
+          '<label class="ck cardfee"' + (ecur(t, x) === 'TWD' ? ' hidden' : '') + '><input type="checkbox" data-e="' + x.id + '" data-k="card"' + (x.card ? ' checked' : '') + '><span>刷卡付款（加計海外手續費，比率在花費區的匯率設定）</span></label>' + splitEdit(t, x);
   }
   function splitEdit(t, x){
     var P = peopleOf(t); if(P.length < 2) return '';
@@ -1860,7 +1958,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && !(x.closed || []).length && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.hours);
@@ -1938,6 +2036,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="iet"><input type="time"' + a + ' data-k="end" aria-label="離開時間" value="' + esc(x.end || '') + '">' +
       '<span class="idurt' + (durText(x) ? ' has' : '') + '">' + (durText(x) ? '停留 ' + esc(durText(x)) : '← 離開時間（選填，會自動算停留時長）') + '</span></div>' +
+      '<div class="ihr"><span class="dcl">營業時間</span><input type="time"' + a + ' data-k="open" aria-label="開門時間" value="' + esc(x.open || '') + '"><span>～</span><input type="time"' + a + ' data-k="close" aria-label="打烊時間" value="' + esc(x.close || '') + '"></div>' +
+      '<div class="ihwd"><span class="dcl">公休日</span>' + WD.map(function(n, i){ return '<label><input type="checkbox"' + a + ' data-k="closedDay" data-wd="' + i + '"' + ((x.closed || []).map(Number).indexOf(i) >= 0 ? ' checked' : '') + '>' + n + '</label>'; }).join('') + '</div>' +
+      '<div class="ihw">' + hoursWarnHtml(day, x) + '</div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       lkSelects(a, x, day) +
@@ -2137,6 +2238,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!rl && !hasWx) return '';
     return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rl + '</div>';
   }
+  // ---- 備選景點：想去但還沒排進哪天的暫存區（一般旅遊），一鍵加入某一天 ----
+  function wishView(t){
+    if(viewOnly) return '';
+    var w = t.wish || [], days = t.days || [];
+    var opts = days.map(function(dy, i){ return '<option value="' + dy.id + '">Day ' + (i + 1) + (dy.date ? '　' + esc(d(dy.date)) + '（' + esc(wk(dy.date).replace(/[（）()]/g, '')) + '）' : '') + '</option>'; }).join('');
+    return '<section class="sec" id="wishsec"><div class="sh"><h3>備選景點' + (w.length ? '<small>' + w.length + '</small>' : '') + '</h3></div>' +
+      (w.length ? w.map(function(x){
+        var q = String(x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
+        return '<div class="wishrow"><div class="wishhd"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(q) + '</a>' +
+          '<span class="wishbtns"><button class="del" type="button" data-do="wishdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span></div>' +
+          (days.length ? '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button><div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
+            '<input class="spadd-time" type="time" aria-label="預計時間（選填）"><button class="mini spadd-go" type="button" data-do="wishgo" data-id="' + x.id + '">加入</button></div></div>' : '') + '</div>';
+      }).join('') : '<p class="vempty">想去但還沒排進哪天的地方，先記在這裡，之後一鍵加入某一天。</p>') +
+      (days.length ? '' : '<p class="vempty">要加入行程，請先到「編輯」按「依日期產生」排出每一天。</p>') +
+      '<div class="wishadd"><input id="wishin" type="text" autocomplete="off" placeholder="景點名稱或地址" aria-label="新增備選景點"><button class="mini" type="button" data-do="wishadd">＋ 新增</button></div></section>';
+  }
   function boardHtml(t, edit){
     var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
     if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
@@ -2159,7 +2276,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
         '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + (dayExpTotal(t, day) ? '<span class="dsum">當日花費 ' + money(dayExpTotal(t, day)) + ' 元</span>' : '') + '</div>' + dayExtra(t, day) + '</div>' +
-        (n ? sortedItems(day).map(itemView).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
+        (n ? sortedItems(day).map(function(x){ return itemView(x, day); }).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
     }).join('') + '</div></section>';
   }
   function isBlank(t){
@@ -2227,7 +2344,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function spToItem(x){
     var it = newItem(), notes = [];
-    it.title = x.name || ''; it.cat = SP2IT[x.type] || '其他'; it.place = (x.addr || x.name || ''); it.lkSpot = x.id;
+    it.title = plainName(x.name || ''); it.cat = SP2IT[x.type] || '其他'; it.place = plainName(x.addr || x.name || ''); it.lkSpot = x.id;
     if(rsvOn(x)) it.status = rsvSt(x) === '已預約' ? '已預訂' : rsvSt(x) === '未預約' ? '未預訂' : '';
     else if(spBook(x) && x.walkin) it.status = '現場候位';
     if(String(x.hours || '').trim()) notes.push('活動時間：' + String(x.hours).trim());
@@ -2238,6 +2355,40 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function plainName(v){   // 把 𝘽𝙏𝙎 這類「花式字」(數學字母) 轉回一般字母；中文與全形標點不動
     return String(v == null ? '' : v).replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c){ return c.normalize('NFKC'); });
+  }
+  // ---- 周邊／物販清單（追星旅程）：想買、已買、預估金額、限量；買好的可一鍵記入花費（類別：周邊）----
+  function mgTotal(x){ return Math.round(amt(x.price) * (amt(x.qty) || 1) * 100) / 100; }
+  function mgSum(t, bought){
+    var by = {}, order = [], twd = 0, miss = {};
+    (t.merch || []).forEach(function(x){
+      if(!!x.bought !== bought) return;
+      var n = mgTotal(x); if(!n) return;
+      var c = x.cur || 'TWD', r = rateOf(t, c);
+      if(!(c in by)){ by[c] = 0; order.push(c); }
+      by[c] += n; if(r) twd += n * r; else miss[c] = 1;
+    });
+    if(!order.length) return '';
+    var foreign = order.length > 1 || order[0] !== 'TWD';
+    return order.map(function(c){ return esc(c) + ' ' + money(by[c]); }).join('＋') + (foreign && twd ? ' ≈ ' + money(twd) + ' 元' : '') + (Object.keys(miss).length ? '（' + Object.keys(miss).map(esc).join('、') + ' 未填匯率）' : '');
+  }
+  function merchView(t){
+    if(viewOnly) return '';
+    var m = t.merch || [], bn = m.filter(function(x){ return x.bought; }).length, left = mgSum(t, false), got = mgSum(t, true);
+    var rows = m.slice().sort(function(a, b){ return (a.bought ? 1 : 0) - (b.bought ? 1 : 0); }).map(function(x){
+      var tot = mgTotal(x), ex = x.expId && byId(t.expenses, x.expId);
+      var price = tot ? '<span class="mgp">' + esc(x.cur || 'TWD') + ' ' + money(tot) + (amt(x.qty) > 1 ? '（' + money(amt(x.price)) + ' × ' + money(amt(x.qty)) + '）' : '') + '</span>' : '';
+      return '<div class="mgrow"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') + ' ' + price + '</span></label>' +
+        '<span class="mgact">' + (ex ? '<small class="dueok">已記入花費</small>' : (x.bought && tot ? '<button class="mini" type="button" data-do="merchexp" data-id="' + x.id + '">記入花費</button>' : '')) +
+        '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span></div>';
+    }).join('');
+    return '<section class="sec" id="merchsec"><div class="sh"><h3>周邊／物販' + (m.length ? '<small>' + bn + '／' + m.length + '</small>' : '') + '</h3></div>' +
+      (rows || '<p class="vempty">想買的周邊先記在這裡，買到就勾起來，還沒買的一目了然。</p>') +
+      ((left || got) ? '<div class="dcl mgsum">' + (left ? '還沒買預估 <b>' + left + '</b>' : '') + (left && got ? '　' : '') + (got ? '已買 <b>' + got + '</b>' : '') + '</div>' : '') +
+      '<div class="mgadd"><input id="mgname" type="text" autocomplete="off" placeholder="品項名稱" aria-label="周邊品項">' +
+      '<div class="mgadd2"><input id="mgprice" type="text" inputmode="decimal" autocomplete="off" placeholder="單價（選填）" aria-label="單價"><select id="mgcur" aria-label="幣別">' +
+        CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (t.currency || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
+      '<input id="mgqty" type="text" inputmode="numeric" autocomplete="off" placeholder="數量" aria-label="數量"></div>' +
+      '<div class="mgadd3"><label class="ck"><input id="mglim" type="checkbox"><span>限量</span></label><button class="mini" type="button" data-do="merchadd">＋ 新增</button></div></div></section>';
   }
   function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
   var spOpen = {}, spOnly = false, spType = '';      // 打卡點：哪幾張展開、是否只看未打卡
@@ -2313,7 +2464,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
-        vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
+        vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
+        vrow('售票階段', phasesView(t)) +
         vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') +
         vrow('繳費／取票期限', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票') : '') +
         showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
@@ -2356,7 +2508,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
-    if(fan) h += spotsView(t);
+    if(fan) h += spotsView(t) + merchView(t);
 
 
     if(!ckSoon) h += ckBuild();
@@ -2369,7 +2521,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var xRow = function(x){
       var has = String(x.amount == null ? '' : x.amount).trim();
       var cur = ecur(t, x), r = rateOf(t, cur);
-      var approx = has && cur !== 'TWD' ? (r ? '<div class="xs xap">約 ' + money(signed(x) * r) + ' 元</div>' : '<div class="xs xap">尚未填匯率</div>') : '';
+      var approx = has && cur !== 'TWD' ? (r ? '<div class="xs xap">約 ' + money(signed(x) * r * feeK(t, x)) + ' 元' + (feeK(t, x) > 1 ? '（含手續費）' : '') + '</div>' : '<div class="xs xap">尚未填匯率</div>') : '';
       return '<div class="xcard' + (expGap(x) ? ' xwarn' : '') + '" id="lk-exp-' + x.id + '"><div class="xn" title="' + esc(x.cat || '') + '">' + (CAT_ICON[x.cat] || '') + ' ' + esc(x.name || '（未命名）') + '</div>' +
         '<div class="xa">' + (has ? '<small>' + esc(cur) + '</small> ' + money(signed(x)) : '—') + (expPre(t, x) ? '<span class="xpre" title="提前買好，不算進行程的當日花費">提前買好</span>' : '') + '</div>' + approx +
         (expGap(x) ? '<div class="xs xw">⚠ 尚未填' + expGap(x) + '，按右上角「編輯」補上</div>' : '') + amtTag(x) + payTag(t, x) + '</div>';
@@ -2392,11 +2544,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var rest = shown.filter(function(e){ return !placed[e.id]; });
       if(rest.length) groups.push({ title:'未排入行程', list:rest });
       xBody = groups.map(function(g){
-        var sub = 0; g.list.forEach(function(e){ if(expPre(t, e)) return; var n = signed(e), r = rateOf(t, ecur(t, e)); if(n && r) sub += n * r; });
+        var sub = 0; g.list.forEach(function(e){ if(expPre(t, e)) return; var n = signed(e), r = rateOf(t, ecur(t, e)); if(n && r) sub += n * r * feeK(t, e); });
         return '<div class="xdh"><span>' + g.title + '</span>' + (sub ? '<b>' + money(sub) + ' 元</b>' : '') + '</div>' + g.list.map(xRow).join('');
       }).join('');
     } else xBody = shown.map(xRow).join('');
-    h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
+    h += '</div><div class="col c2">' + boardHtml(t, false) + (fan ? '' : wishView(t)) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
       (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' :
       exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section></div></div>';
@@ -2412,12 +2564,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<label' + (full ? ' class="full"' : '') + '>' + label + '<input type="' + type + '" data-f="1" data-k="' + key + '" value="' + esc(fi[key] || '') + '"></label>';
       };
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div><div class="fgrid">' +
-        FI('售票／抽選日', 'date', 'saleDate') +
+        FI('售票／抽選日', 'date', 'saleDate') + FI('售票／抽選時間（選填）', 'time', 'saleTime') +
         '<label>售票狀態<select data-f="1" data-k="saleStatus"><option value="">未設定</option>' +
           SALE_ST.map(function(c){ return '<option' + (c === fi.saleStatus ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
         FI('結果公布日', 'date', 'resultDate') + FI('繳費／取票期限', 'date', 'payDate') +
         '<div class="full dcl">狀態選「已中籤」後，旅程列表會改為倒數繳費／取票期限；選「已購票」、「落選」或「未購票」就不再提醒。</div>' +
-        '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
+        phasesEdit(t) + '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
           (shows.length ? shows.map(function(x, i){ return showEdit(t, x, i); }).join('') + '<div class="dcl">票價與張數預設只做票券紀錄；要算進花費，按場次卡片上的「加入花費」。</div>' : '<div class="empty">每一場的日期、入場／開演時間、座位和票價都可以分開記，巡演也能一次記完。</div>') + '</div>' +
         FI('同行者（選填）', 'text', 'companions', true) +
         '<label class="full">相關連結（推し手帳的活動、售票頁）<div class="bcode"><input type="text" inputmode="url" autocomplete="off" data-f="1" data-k="link" placeholder="貼上網址" value="' + esc(fi.link || '') + '">' +
@@ -2473,7 +2625,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function renderDetail(){
     var t = cur(), el = $('detail');
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
@@ -2518,7 +2670,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(mf && nd && nd !== mf.day){
         mf.day.items = mf.day.items.filter(function(x){ return x !== mf.x; });
         nd.items = nd.items || []; nd.items.push(mf.x);
-        modalCtx.day = nd.id;
+        modalCtx.day = nd.id; var hw2 = emodal.querySelector('.ihw'); if(hw2) hw2.innerHTML = hoursWarnHtml(nd, mf.x);
         [].forEach.call(emodal.querySelectorAll('[data-p]'), function(n){ n.setAttribute('data-p', nd.id); });
         doPersist();
       }
@@ -2538,7 +2690,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var it2 = pd && (pd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
       if(it2 && ds.k === 'lkExpAdd'){ addExpLink(t, el, it2, 'it', pd.id); doPersist(); return; }
       if(it2){
-        it2[ds.k] = el.value;
+        if(ds.k === 'closedDay'){
+          var cdl = (it2.closed || []).map(Number).filter(function(n){ return n !== +el.dataset.wd; });
+          if(el.checked) cdl.push(+el.dataset.wd);
+          it2.closed = cdl.sort();
+        } else it2[ds.k] = el.value;
+        if(ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'time' || ds.k === 'end'){
+          var hw = el.closest('.icard') && el.closest('.icard').querySelector('.ihw'); if(hw) hw.innerHTML = hoursWarnHtml(pd, it2);
+        }
         if(ds.k === 'cat'){
           var ic = el.closest('.icard'), sp0 = ic && ic.querySelector('.itx-spot'), fd0 = ic && ic.querySelector('.itx-food');
           if(sp0) sp0.hidden = el.value !== '景點';
@@ -2577,10 +2736,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(!chk.length || chk.length === P0.length){ delete ex.sharers; if(!chk.length) [].forEach.call(sbox.querySelectorAll('input[data-k="sharer"]'), function(c){ c.checked = true; }); }
           else ex.sharers = chk;
         } else if(ds.k === 'pre') ex.pre = el.checked;
+        else if(ds.k === 'card') ex.card = el.checked;
         else ex[ds.k] = el.value;
         if(ds.k === 'payer'){ var shb = el.closest('.xsplit') && el.closest('.xsplit').querySelector('.sharers'); if(shb) shb.hidden = !el.value; }
-        if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer') $('sum').innerHTML = sumHtml(t);
+        if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer' || ds.k === 'card') $('sum').innerHTML = sumHtml(t);
         if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
+        if(ds.k === 'cur' && emodal){ var cfb = emodal.querySelector('.cardfee'); if(cfb) cfb.hidden = el.value === 'TWD'; }
       }
     } else if(ds.settle){
       t.settled = t.settled || {};
@@ -2625,6 +2786,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(shB) shB.outerHTML = showBtns(t, shx);
         }
       }
+    } else if(ds.mg){
+      var mgx = byId(t.merch, ds.mg);
+      if(mgx && ds.k === 'bought'){ mgx.bought = el.checked; var mgs = $('merchsec'); if(mgs) mgs.outerHTML = merchView(t); }
+    } else if(ds.ph){
+      var phx = ((t.fanInfo || {}).phases || []).filter(function(x){ return String(x.id) === ds.ph; })[0];
+      if(phx) phx[ds.k] = el.value;
     } else if(ds.f){
       t.fanInfo = t.fanInfo || {}; t.fanInfo[ds.k] = el.value;
     } else if(ds.bud){
@@ -2687,7 +2854,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(ro && !e.target.closest('button')){ openModal(ro.dataset.open, ro.dataset.id, ro.dataset.day, false); return; }
     var b = e.target.closest('button[data-do]'); if(!b) return;
     var t = cur(); if(!t) return;
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
     if(viewOnly && ['goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
@@ -2712,6 +2879,23 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if($('sum')) $('sum').innerHTML = sumHtml(t);
       if($('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
       doPersist(); return;
+    }
+    if(act === 'fxget'){
+      var fl = usedForeign(t); if(!fl.length) return;
+      if(fl.some(function(c){ return amt((t.rates || {})[c]) > 0; }) && !confirm('會用最新市場匯率覆蓋已填的匯率，確定嗎？')) return;
+      var fm = $('fxmsg'); if(fm) fm.textContent = '查詢中…';
+      b.disabled = true; var ftid = t.id;
+      Promise.all(fl.map(fxFetch)).then(function(vals){
+        b.disabled = false;
+        var t2 = cur(); if(!t2 || t2.id !== ftid) return;
+        var ok = 0; t2.rates = t2.rates || {}; t2.rateDates = t2.rateDates || {};
+        fl.forEach(function(c, i){ if(vals[i]){ t2.rates[c] = String(Number(vals[i].toPrecision(5))); t2.rateDates[c] = ymd(new Date()); ok++; } });
+        if($('sum')) $('sum').innerHTML = sumHtml(t2);
+        if($('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t2);
+        var m2 = $('fxmsg'); if(m2) m2.textContent = ok === fl.length ? '已更新為最新市場匯率' : ok ? '部分幣別查不到，請手動填寫' : '查不到匯率，請檢查網路或手動填寫';
+        if(ok) doPersist();
+      });
+      return;
     }
     if(act === 'delexplk'){
       var lkK = b.dataset.kind || 'it', lkO = expOwner(t, lkK, b.dataset.day, b.dataset.id);
@@ -2755,6 +2939,58 @@ a.name{display:block; color:inherit; text-decoration:none;}
       renderDetail(); doPersist();
       var gone = document.getElementById('lk-sp-' + spx3.id); if(gone) gone.scrollIntoView({block:'nearest'});
       return;
+    }
+    if(act === 'merchadd'){
+      var mn = $('mgname'), mv = mn ? mn.value.trim() : '';
+      if(!mv){ if(mn) mn.focus(); return; }
+      t.merch.push({ id:uid(), name:mv, price:($('mgprice') || {}).value || '', cur:($('mgcur') || {}).value || 'TWD', qty:($('mgqty') || {}).value || '', limited:!!($('mglim') && $('mglim').checked), bought:false });
+      renderDetail(); doPersist();
+      var mn2 = $('mgname'); if(mn2) mn2.focus();
+      return;
+    }
+    if(act === 'merchdel'){ t.merch = t.merch.filter(function(x){ return String(x.id) !== b.dataset.id; }); renderDetail(); doPersist(); return; }
+    if(act === 'merchexp'){
+      var mgi = byId(t.merch, b.dataset.id); if(!mgi || !mgTotal(mgi)) return;
+      var mge = mgi.expId && byId(t.expenses, mgi.expId);
+      if(mge){ mge.amount = String(mgTotal(mgi)); mge.cur = mgi.cur || 'TWD'; }
+      else { mge = { id:uid(), cat:'周邊', name:mgi.name || '周邊', amount:String(mgTotal(mgi)), cur:mgi.cur || 'TWD' }; t.expenses.push(mge); mgi.expId = mge.id; }
+      renderDetail(); doPersist(); return;
+    }
+    if(act === 'showgo'){
+      var sw = b.closest('.spadd-wrap'), sd2 = sw && sw.querySelector('.spadd-day'), st2 = sw && sw.querySelector('.spadd-time');
+      var sx = fanShows(t).filter(function(y){ return String(y.id) === b.dataset.id; })[0], sday = sd2 && t.days.filter(function(y){ return String(y.id) === sd2.value; })[0];
+      if(!sx || !sday) return;
+      sday.items = sday.items || [];
+      if(sday.items.some(function(y){ return String(y.lkShow) === String(sx.id); }) && !confirm('這一天已經有這個場次的行程了，還要再加一筆嗎？')) return;
+      var sit = newItem(), snotes = [], sn = fanShows(t).filter(shHas).length;
+      sit.title = '演出：' + (t.event || t.title || '') + (sn > 1 && sx.date ? '（' + d(sx.date) + '）' : ''); sit.cat = '活動'; sit.lkShow = sx.id;
+      sit.time = st2 ? st2.value : ''; sit.status = sx.status === '已購票' ? '已預訂' : '';
+      if(sx.door) snotes.push('入場 ' + sx.door); if(sx.show) snotes.push('開演 ' + sx.show); if(String(sx.seat || '').trim()) snotes.push('座位：' + String(sx.seat).trim());
+      sit.note = snotes.join('\n');
+      sday.items.push(sit); dayFilter = sday.id;
+      renderDetail(); doPersist(); return;
+    }
+    if(act === 'wishadd'){
+      var wi = $('wishin'), wv = wi ? wi.value.trim() : '';
+      if(!wv){ if(wi) wi.focus(); return; }
+      t.wish.push({ id:uid(), name:wv });
+      renderDetail(); doPersist();
+      var wi2 = $('wishin'); if(wi2) wi2.focus();
+      return;
+    }
+    if(act === 'wishdel'){
+      t.wish = t.wish.filter(function(x){ return String(x.id) !== b.dataset.id; });
+      renderDetail(); doPersist(); return;
+    }
+    if(act === 'wishgo'){
+      var ww = b.closest('.spadd-wrap'), wd = ww && ww.querySelector('.spadd-day'), wt = ww && ww.querySelector('.spadd-time');
+      var wx = byId(t.wish, b.dataset.id), wday = wd && t.days.filter(function(y){ return String(y.id) === wd.value; })[0];
+      if(!wx || !wday) return;
+      var wit = newItem(); wit.title = wx.name || ''; wit.place = wx.name || ''; wit.time = wt ? wt.value : '';
+      wday.items = wday.items || []; wday.items.push(wit);
+      t.wish = t.wish.filter(function(y){ return y !== wx; });      // 排進行程後就從備選清單拿掉
+      dayFilter = wday.id;
+      renderDetail(); doPersist(); return;
     }
     if(act === 'sptype'){
       spType = b.dataset.ty || '';
@@ -2846,6 +3082,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.bookings.push({ id:uid(), type:'航班', name:'', time:'', code:'', note:'' });
     } else if(act === 'delbk'){
       t.bookings = t.bookings.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'addph'){
+      t.fanInfo = t.fanInfo || {}; t.fanInfo.phases = t.fanInfo.phases || [];
+      t.fanInfo.phases.push({ id:uid(), name:'', date:'', time:'', status:'' });
+    } else if(act === 'delph'){
+      t.fanInfo = t.fanInfo || {}; t.fanInfo.phases = (t.fanInfo.phases || []).filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addshow'){
       var shl = fanShows(t, true), shLast = shl[shl.length - 1];
       shl.push({ id:uid(), date:'', door: shLast ? (shLast.door || '') : '', show: shLast ? (shLast.show || '') : '', seat:'', price:'', cur: shLast ? (shLast.cur || 'TWD') : (t.currency || 'TWD'), qty:'' });
@@ -3060,6 +3301,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     toggle();
   })();
 
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && e.target && e.target.id === 'wishin'){ e.preventDefault(); var bt = document.querySelector('[data-do="wishadd"]'); if(bt) bt.click(); }
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Enter' && e.target && e.target.id === 'mgname'){ e.preventDefault(); var bt = document.querySelector('[data-do="merchadd"]'); if(bt) bt.click(); }
+  });
   // ---- 離線支援：註冊 service worker（需要 https，sw.js 要和本檔放在同一個資料夾） ----
   // 切到別的 App、鎖螢幕或關掉分頁時，先讓正在輸入的欄位送出變更（手機上不一定會觸發「離開欄位」）
   function flushEdits(){
