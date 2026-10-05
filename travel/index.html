@@ -96,6 +96,10 @@
     .list .trip .where{line-height:1.5;}
   }
 
+  .payrow{flex-direction:row; align-items:center; gap:10px; margin:6px 0;}
+  .payrow select{flex:1; min-width:0;}
+  .fneed{font-weight:900; font-size:1.18em; color:var(--accent);}
+  .fneed .fnsub{font-size:0.75em; font-weight:500; color:var(--ink-faint);}
   [hidden]{display:none !important;}
   .login{border-top:1px solid var(--line-strong); padding:32px 0 8px;}
   .login p{color:var(--ink-dim); font-size:15px; line-height:1.7; margin-bottom:18px; max-width:460px;}
@@ -1425,6 +1429,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function money(n){ return Math.round(n).toLocaleString(undefined, {maximumFractionDigits:0}); }
   // ---- 多幣別花費：每筆可選幣別，匯率依幣別各填一次，總花費換算成新台幣 ----
   function ecur(t, x){ return x.cur || 'TWD'; }
+  var PAYS = ['台幣','外幣現金','信用卡','轉帳'];
+  function payOf(x){ return (x && x.pay) || (x && x.card ? '信用卡' : ''); }   // 舊資料只勾了「刷卡」的視為信用卡
   function feeK(t, x){ var p = amt(t.feePct); return (x && x.card && ecur(t, x) !== 'TWD' && p > 0) ? 1 + p / 100 : 1; }   // 外幣刷卡加收的海外手續費
   function fxFetch(c){      // 取得 1 外幣 = 幾新台幣（市場中間價）；第一個來源失敗就換第二個
     var lc = c.toLowerCase();
@@ -1807,22 +1813,33 @@ a.name{display:block; color:inherit; text-decoration:none;}
     (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){
       if(!fareHas(x)) return;
       var c = x.lkTc ? byId(t.tcards, x.lkTc) : null, cu = fareCur(t, x);
-      if(c){ var k = String(c.id); cards[k] = cards[k] || { n:0, cnt:0 }; cards[k].n += fareOf(x); cards[k].cnt++; }
+      if(c){ var k = String(c.id); cards[k] = cards[k] || { n:0, cnt:0, rem:0 }; cards[k].n += (x.fareDone && amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x)); if(!x.fareDone) cards[k].rem += fareOf(x); cards[k].cnt++; }
       else { other[cu] = other[cu] || { n:0, cnt:0 }; other[cu].n += fareOf(x); other[cu].cnt++; }
     }); });
     return { cards:cards, other:other };
   }
-  // 這張卡預計要儲值多少：預計車資 − 目前餘額（票券／一日券不用儲值）
+  // 還沒搭的車資 − 目前餘額 − 已預計但還沒實際儲值的金額（票券／一日券不用儲值）
+  function tcPlanned(t, c){ var n = 0; tcTops(t, c).forEach(function(e){ if(e.tcPlan && ecur(t, e) === tcCur(t, c)) n += amt(e.amount); }); return n; }
+  // 已搭乘：勾了就從卡片餘額扣掉實際車資（沒填實際車資就用預估）；取消勾選、換卡、刪除行程會補回
+  function fareBalSync(t, x){
+    var oc = x.fareCardId != null ? byId(t.tcards, x.fareCardId) : null, old = amt(x.fareApplied);
+    if(oc && old > 0 && (!x.fareDone || !x.lkTc || String(x.lkTc) !== String(oc.id))){ oc.balance = tcFmt(amt(oc.balance) + old); x.fareApplied = 0; old = 0; delete x.fareCardId; }
+    var c = x.lkTc ? byId(t.tcards, x.lkTc) : null; if(!c || tcPass(c)) return;
+    var nw = (x.fareDone && String(c.balance == null ? '' : c.balance).trim()) ? (amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x)) : 0;
+    if(nw === old) return;
+    c.balance = tcFmt(Math.max(0, amt(c.balance) + old - nw)); x.fareApplied = nw; x.fareCardId = c.id;
+  }
+  // 這張卡預計要儲值多少
   function fareNeed(t, c, f){
     var r = (f || fareCalc(t)).cards[String(c.id)];
-    return (r && !tcPass(c)) ? Math.max(0, Math.ceil(r.n - amt(c.balance))) : 0;
+    return (r && !tcPass(c)) ? Math.max(0, Math.ceil(r.rem - amt(c.balance) - tcPlanned(t, c))) : 0;
   }
   function fareCardLine(t, c, f){
     var r = (f || fareCalc(t)).cards[String(c.id)]; if(!r) return '';
     var cu = esc(c.cur || t.currency || 'TWD');
     if(tcPass(c)) return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段・票券範圍內不用另外儲值）';
     var need = fareNeed(t, c, f);
-    return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段）・目前餘額 ' + cu + ' ' + money(amt(c.balance)) + '・' + (need > 0 ? '建議再儲值 約 <b>' + cu + ' ' + money(need) + '</b>' : '餘額夠用');
+    return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段）・目前餘額 ' + cu + ' ' + money(amt(c.balance)) + '・' + (need > 0 ? '<b class="fneed">建議再儲值 約 ' + cu + ' ' + money(need) + '</b>' : '餘額夠用') + (tcPlanned(t, c) > 0 ? '・已預計儲值 ' + cu + ' ' + money(tcPlanned(t, c)) + '（還沒實際儲值）' : '');
   }
   function fareSummary(t){
     var f = fareCalc(t), tot = {}, need = {}, cnt = 0, other = '', has = false;
@@ -1838,13 +1855,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var fmt = function(o){ return Object.keys(o).map(function(cu){ return esc(cu) + ' ' + money(o[cu]); }).join('＋'); };
     if(oc.length) other = oc.map(function(cu){ return f.other[cu].cnt + ' 段（' + esc(cu) + ' ' + money(f.other[cu].n) + '）'; }).join('、');
     return '<div class="fsum"><div>🚆 預計交通費合計 約 <b>' + fmt(tot) + '</b>（' + cnt + ' 段）</div>' +
-      (Object.keys(need).length ? '<div>💳 建議儲值合計 約 <b>' + fmt(need) + '</b>（已扣掉卡片目前餘額）</div>' : (Object.keys(f.cards).length ? '<div>💳 目前卡片餘額夠用</div>' : '')) +
+      (Object.keys(need).length ? '<div class="fneed">💳 建議儲值合計 約 ' + fmt(need) + '<span class="fnsub">（已扣掉卡片目前餘額）</span></div>' : (Object.keys(f.cards).length ? '<div>💳 目前卡片餘額夠用</div>' : '')) +
       (other ? '<div class="fo">另有 ' + other + ' 還沒指定交通卡，不會算進建議儲值</div>' : '') + '</div>';
   }
   function fareTag(t, x){
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null;
     if(!fareHas(x) && !c) return '';
-    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) : '') + (c ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + '</span>';
+    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
   }
   function fareRow(a, x){
     var t = cur(), cards = t.tcards || [], on = !!String(x.transport || '').trim() || !!x.lkTc || fareHas(x);
@@ -1852,6 +1869,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="ifare"' + (on ? '' : ' hidden') + '><div class="ie3">' +
       (cards.length ? '<select' + a + ' data-k="lkTc" aria-label="使用的交通卡"><option value="">使用的交通卡</option>' + cards.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x.lkTc) ? ' selected' : '') + '>' + esc(lkText('lkTc', y)) + '</option>'; }).join('') + '</select>' : '') +
       '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資" placeholder="預估車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div></div>' +
+      (cards.length ? '<div class="ie3"><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
       (cards.length ? '' : '<div class="muted" style="font-size:12px">先到「交通卡／票券」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
   }
@@ -1947,7 +1965,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function fwdLinks(t, x){
     var btn = function(key, y){ return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '" title="' + esc(lkText(key, y)) + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>'; };
     var h = ['lkBk', 'lkStay', 'lkTc'].map(function(key){
-      var y = x[key] && byId(t[LK[key][0]], x[key]); return y ? btn(key, y) : '';
+      var y = x[key] && byId(t[LK[key][0]], x[key]); if(key === 'lkTc' && (t.tcards || []).length <= 1) return '';   // 只有一張交通卡就不用標示
+      return y ? btn(key, y) : '';
     }).join('') + expChips(t, x) +
       ((x.lkSpot && byId(t.spots, x.lkSpot)) ? '<button class="lk" type="button" data-do="goto" data-to="lk-sp-' + x.lkSpot + '" title="' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '">📌 ' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '</button>' : '');
     return h ? '<div class="lks">' + h + '</div>' : '';
@@ -2169,7 +2188,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         (expIds(x).length ? '<div class="vtext">儲值／花費合計 約 ' + money(tw.n) + ' 元' + (tw.miss ? '（有外幣還沒填匯率）' : '') + '</div>' : '') +
         tcTopsHtml(t, x, false) +
         tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') +
-        (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + lkRow(t, x, 'lkTc') + '</div>';
+        (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
     }).join('') + '</section>';
   }
   function tcEditSec(t){
@@ -2190,7 +2209,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="bg tccard"' + (pass ? ' hidden' : '') + '><select' + A + ' data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
       inp('deposit', '押金或卡費', '押金／卡費') + inp('balance', '剩餘餘額', '剩餘餘額') + inp('low', '提醒門檻', '低於多少提醒儲值') + '</div>' +
       '<label class="ck tccard"' + (pass ? ' hidden' : '') + '><input type="checkbox"' + A + ' data-k="refund"' + (x.refund ? ' checked' : '') + '><span>押金可退（退卡時記成退款）</span></label>' +
-      '<div class="btns"><button class="mini" type="button" data-do="tctop" data-id="' + x.id + '">＋ 新增儲值</button>' +
+      '<div class="btns"><button class="mini" type="button" data-do="tctop" data-id="' + x.id + '">＋ 預計儲值</button><button class="mini tccard" type="button" data-do="tctopnow" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>＋ 已儲值</button><button class="mini tccard" type="button" data-do="tcbal" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>更新餘額</button>' +
       '<button class="mini tccard" type="button" data-do="tcdep" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>押金記成花費</button>' +
       '<button class="mini tccard" type="button" data-do="tcrefund" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>退卡（記退款）</button></div>' +
       (fareCardLine(t, x) ? '<div class="nn" role="status">' + fareCardLine(t, x) + '</div>' : '') +
@@ -2203,7 +2222,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function tcFmt(n){ return String(Math.round(n * 100) / 100); }
   function tcCur(t, o){ return o.cur || t.currency || 'TWD'; }
   function tcBalSync(t, e){
-    var o = e && e.tcTop != null ? byId(t.tcards, e.tcTop) : null; if(!o || tcPass(o)) return;
+    var o = e && e.tcTop != null ? byId(t.tcards, e.tcTop) : null; if(!o || tcPass(o) || e.tcPlan) return;   // 預計儲值（還沒實際儲值）不動餘額
     var nw = ecur(t, e) === tcCur(t, o) ? Math.max(0, amt(e.amount)) : 0, old = amt(e.tcApplied);   // 幣別跟卡片不同就不加進餘額
     if(nw === old) return;
     o.balance = tcFmt(Math.max(0, amt(o.balance) + nw - old)); e.tcApplied = nw;
@@ -2221,11 +2240,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var by = {}, order = [];
     rows.forEach(function(e){ var c = ecur(t, e); if(!(c in by)){ by[c] = 0; order.push(c); } by[c] += amt(e.amount); });
     var tot = order.map(function(c){ return esc(c) + ' ' + money(by[c]); }).join('＋');
-    return '<div class="tclist"><div class="tclh">儲值紀錄（' + rows.length + ' 筆・合計 ' + tot + '）</div>' + rows.map(function(e){
+    return '<div class="tclist"><div class="tclh">儲值紀錄（' + rows.length + ' 筆・合計 ' + tot + (rows.some(function(e){ return e.tcPlan; }) ? '・含預計未儲值' : '') + '）</div>' + rows.map(function(e){
       var md = typeof e.tcDate === 'string' && e.tcDate.length >= 10 ? (+e.tcDate.slice(5, 7)) + '/' + (+e.tcDate.slice(8, 10)) : ((String(e.name || '').match(/(\d{1,2}\/\d{1,2})\s*$/) || [])[1] || '');
-      return '<div class="tclr"><span>' + esc(md || '—') + '</span><b>＋ ' + esc(ecur(t, e)) + ' ' + money(amt(e.amount)) + '</b>' +
-        (edit ? '<button class="del" type="button" data-do="tcdeltop" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '" aria-label="刪除這筆儲值" title="刪除這筆儲值">×</button>' : '<span></span>') + '</div>';
+      return '<div class="tclr"><span>' + esc(md || '—') + '</span><b>' + (e.tcPlan ? '預計 ' : '') + '＋ ' + esc(ecur(t, e)) + ' ' + money(amt(e.amount)) + '</b>' +
+        (edit ? '<span>' + (e.tcPlan ? '<button class="mini" type="button" data-do="tcconfirm" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '">確認已儲值</button>' : '') + '<button class="del" type="button" data-do="tcdeltop" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '" aria-label="刪除這筆儲值" title="刪除這筆儲值">×</button></span>' : '<span></span>') + '</div>';
     }).join('') + '</div>';
+  }
+  function tcConfirm(t, cid, eid){      // 預計儲值 → 實際儲值：填實際金額後才加進餘額
+    var o = byId(t.tcards, cid), e = byId(t.expenses, eid); if(!o || !e || !e.tcPlan) return;
+    var v = prompt('實際儲值金額（' + ecur(t, e) + '）', String(e.amount == null ? '' : e.amount)); if(v === null || !String(v).trim()) return;
+    e.amount = String(v).trim(); delete e.tcPlan; e.tcDate = ymd(new Date()); tcBalSync(t, e);
+    if(emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(o);
+    amtScan(); doPersist();
   }
   function tcDelTop(t, cid, eid){
     var o = byId(t.tcards, cid), e = byId(t.expenses, eid); if(!o || !e) return;
@@ -2240,7 +2266,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function tcAct(t, act, id){      // 儲值／押金／退卡：新增一筆花費並連結到這張卡，不重畫整頁（彈窗開著）
     var o = byId(t.tcards, id); if(!o) return;
     var cc = o.cur || t.currency || 'TWD', nm = o.name || '交通卡', now = new Date(), md = (now.getMonth() + 1) + '/' + now.getDate(), v, e;
-    if(act === 'tctop'){ var nd0 = fareNeed(t, o); v = prompt('儲值金額（' + cc + '）' + (nd0 > 0 ? '　依預計車資，建議約 ' + nd0 : ''), nd0 > 0 ? String(nd0) : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc, tcTop:o.id, tcDate:ymd(now) }; }
+    if(act === 'tcbal'){
+      if(tcPass(o)) return;
+      v = prompt('目前卡片上的實際餘額（' + cc + '）', String(o.balance == null ? '' : o.balance)); if(v === null || !String(v).trim()) return;
+      var ob = amt(o.balance), nb = amt(v), df = Math.round((ob - nb) * 100) / 100;
+      o.balance = tcFmt(nb);
+      alert(df > 0 ? '比記錄少了 ' + df + '（其他消費，或沒勾「已搭乘」的車程）' : df < 0 ? '比記錄多了 ' + (-df) + '（可能有儲值還沒記）' : '和記錄的餘額相同');
+      emodal.querySelector('.mbody').innerHTML = tcEdit(o); doPersist(); return;
+    }
+    if(act === 'tctop' || act === 'tctopnow'){ var plan = act === 'tctop', nd0 = fareNeed(t, o); v = prompt((plan ? '預計儲值金額（' + cc + '，出國實際儲值後再按「確認已儲值」才會加進餘額）' : '實際儲值金額（' + cc + '）') + (nd0 > 0 ? '　依預計車資，建議約 ' + nd0 : ''), nd0 > 0 ? String(nd0) : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc, tcTop:o.id, tcDate:ymd(now) }; if(plan) e.tcPlan = true; }
     else if(act === 'tcdep'){ if(!String(o.deposit || '').trim()){ alert('先填押金或卡費金額'); return; } e = { id:uid(), cat:'交通', name:nm + ' 押金／卡費', amount:String(o.deposit).trim(), cur:cc }; }
     else { v = prompt('退卡拿回的金額（' + cc + '，含押金與退回餘額）', o.refund ? String(o.deposit || '') : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:REFUND, name:nm + ' 退卡退款 ' + md, amount:String(v).trim(), cur:cc }; o.status = '已退卡'; }
     t.expenses.push(e); o.lkExps = expIds(o).concat([e.id]); delete o.lkExp;
@@ -2255,7 +2289,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input data-e="' + x.id + '" data-k="amount" aria-label="花費金額" inputmode="decimal" autocomplete="off" placeholder="金額" value="' + esc(x.amount == null ? '' : x.amount) + '">' +
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
           '<label class="ck"><input type="checkbox" data-e="' + x.id + '" data-k="pre"' + (expPre(t, x) ? ' checked' : '') + '><span>提前買好（不算進行程裡的「當日花費」，總花費照算）</span></label>' +
-          '<label class="ck cardfee"' + (ecur(t, x) === 'TWD' ? ' hidden' : '') + '><input type="checkbox" data-e="' + x.id + '" data-k="card"' + (x.card ? ' checked' : '') + '><span>刷卡付款（加計海外手續費，比率在花費區的匯率設定）</span></label>' + splitEdit(t, x);
+          '<label class="payrow">付款方式<select data-e="' + x.id + '" data-k="pay" aria-label="付款方式"><option value="">未選擇</option>' + PAYS.map(function(p){ return '<option value="' + p + '"' + (payOf(x) === p ? ' selected' : '') + '>' + p + (p === '信用卡' ? '（外幣會加計海外手續費）' : '') + '</option>'; }).join('') + '</select></label>' + splitEdit(t, x);
   }
   function splitEdit(t, x){
     var P = peopleOf(t); if(P.length < 2) return '';
@@ -2989,7 +3023,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       (peopleOf(t).length >= 2 ? '<p class="hint">分攤成員：' + peopleOf(t).map(esc).join('、') + '（要修改請到旅程列表按「編輯」）</p>' : '<p class="hint">想分攤花費：到旅程列表按「編輯」，在「分攤成員」填兩位以上（記得包含自己），這裡每筆花費就能選誰付的、誰分攤。</p>') +
       t.expenses.map(function(x){
-        return crow('ex', x.id, '', (CAT_ICON[x.cat] || '') + ' ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), esc(x.cat || '') + (x.payer ? '・' + esc(x.payer) + ' 付' : ''), String(x.amount == null ? '' : x.amount).trim() ? '<small>' + esc(ecur(t, x)) + '</small> ' + money(signed(x)) : '', 'delexp');
+        return crow('ex', x.id, '', (CAT_ICON[x.cat] || '') + ' ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), esc(x.cat || '') + (payOf(x) ? '・' + esc(payOf(x)) : '') + (x.payer ? '・' + esc(x.payer) + ' 付' : ''), String(x.amount == null ? '' : x.amount).trim() ? '<small>' + esc(ecur(t, x)) + '</small> ' + money(signed(x)) : '', 'delexp');
       }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
       '<div class="rate" id="rateRow">' + rateRowsHtml(t) + '</div>' +
       budgetEdit(t) +
@@ -3069,8 +3103,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           var cdl = (it2.closed || []).map(Number).filter(function(n){ return n !== +el.dataset.wd; });
           if(el.checked) cdl.push(+el.dataset.wd);
           it2.closed = cdl.sort();
-        } else it2[ds.k] = el.value;
-        if(ds.k === 'fare' || ds.k === 'lkTc'){
+        } else if(ds.k === 'fareDone') it2.fareDone = el.checked; else it2[ds.k] = el.value;
+        if(ds.k === 'fare' || ds.k === 'lkTc' || ds.k === 'fareAct' || ds.k === 'fareDone'){
+          fareBalSync(t, it2);
           var fic = el.closest('.icard'), fnt = fic && fic.querySelector('.itx-fnote'), fci = fic && fic.querySelector('[data-k="fare"]');
           var fcd = it2.lkTc ? byId(t.tcards, it2.lkTc) : null;
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
@@ -3136,11 +3171,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(!chk.length || chk.length === P0.length){ delete ex.sharers; if(!chk.length) [].forEach.call(sbox.querySelectorAll('input[data-k="sharer"]'), function(c){ c.checked = true; }); }
           else ex.sharers = chk;
         } else if(ds.k === 'pre') ex.pre = el.checked;
+        else if(ds.k === 'pay'){ ex.pay = el.value; ex.card = el.value === '信用卡'; }
         else if(ds.k === 'card') ex.card = el.checked;
         else ex[ds.k] = el.value;
         if(ex.tcTop != null && (ds.k === 'amount' || ds.k === 'cur')){ tcBalSync(t, ex); var tcs0 = $('tcsec'); if(tcs0) tcs0.outerHTML = tcView(t); }   // 儲值改金額／幣別：餘額補差額
         if(ds.k === 'payer'){ var shb = el.closest('.xsplit') && el.closest('.xsplit').querySelector('.sharers'); if(shb) shb.hidden = !el.value; }
-        if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer' || ds.k === 'card') $('sum').innerHTML = sumHtml(t);
+        if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer' || ds.k === 'card' || ds.k === 'pay') $('sum').innerHTML = sumHtml(t);
         if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
         if(ds.k === 'cur' && emodal){ var cfb = emodal.querySelector('.cardfee'); if(cfb) cfb.hidden = el.value === 'TWD'; }
       }
@@ -3312,7 +3348,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       });
       return;
     }
-    if(act === 'tctop' || act === 'tcdep' || act === 'tcrefund'){ tcAct(t, act, b.dataset.id); return; }
+    if(act === 'tctop' || act === 'tctopnow' || act === 'tcbal' || act === 'tcdep' || act === 'tcrefund'){ tcAct(t, act, b.dataset.id); return; }
+    if(act === 'tcconfirm'){ tcConfirm(t, b.dataset.id, b.dataset.eid); return; }
     if(act === 'tcdeltop'){ tcDelTop(t, b.dataset.id, b.dataset.eid); return; }
     if(act === 'delexplk'){
       var lkK = b.dataset.kind || 'it', lkO = expOwner(t, lkK, b.dataset.day, b.dataset.id);
@@ -3502,6 +3539,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var dd2 = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
       if(!dd2) return;
       var it3 = dd2.items.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(it3 && it3.fareApplied){ it3.fareDone = false; fareBalSync(t, it3); }
       dd2.items = dd2.items.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addbk'){
       t.bookings.push({ id:uid(), type:'航班', name:'', time:'', code:'', note:'' });
