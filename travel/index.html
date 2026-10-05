@@ -200,6 +200,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .split .sgt{font-size:13px; font-weight:900; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap;}
   .split .sgr{display:flex; justify-content:space-between; gap:8px; padding:5px 0 0; font-size:14px; font-variant-numeric:tabular-nums;}
   .split .sgr b{font-weight:900;}
+  .split .sgsum{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-dim);}
+  .split .sgsum b{font-size:17px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--ink);}
+  .split .sgsum .sgleft b{color:var(--accent);}
+  .split .sgsum.fin{color:#2e8b57; font-weight:700;}
+  .split .sgsum + .spbar{margin:0;}
+  .split .sgr{align-items:center; flex-wrap:wrap; cursor:pointer;}
+  .split .sgr .sgn{display:inline-flex; align-items:center; gap:8px; min-width:0; overflow-wrap:anywhere;}
+  .split .sgr input[type="checkbox"]{width:20px; height:20px; padding:0; accent-color:var(--accent); cursor:pointer;}
+  .split .sgr small{font-size:11px; font-weight:700; color:#2e8b57; margin-left:2px;}
+  .split .sgr.paid{color:var(--ink-faint);}
+  .split .sgr.paid b{text-decoration:line-through; font-weight:700;}
+  .split .sgr .sgw{flex:0 0 100%; font-size:12px; color:var(--danger);}
   .split .sgcopy{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .split .spdet{font-size:13px; color:var(--ink-dim);}
   .split .spdet summary{cursor:pointer; font-weight:700; padding:4px 0;}
@@ -254,6 +266,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .vlink{color:var(--accent); text-decoration:underline; text-underline-offset:3px;}
   .btag{font-size:12px; font-weight:900; color:var(--accent); letter-spacing:0.06em; white-space:nowrap;}
   .bk.v{gap:6px;}
+  .bkgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start;}
+  .bkgrid .bk{margin-bottom:0; padding:12px; min-width:0;}
+  .bkgrid .bvh{flex-wrap:wrap; gap:2px 8px;}
+  .bkgrid .bname{font-size:15px; overflow-wrap:anywhere;}
+  .bkgrid .bcv code{font-size:13px;}
+  @container (max-width:330px){ .bkgrid{grid-template-columns:minmax(0,1fr);} }
   /* ── 應援打卡點卡片：左側依類型上色、名稱靠左、日期／地址／特典分層 ── */
   .spv{--tc:var(--line-strong); border-left:4px solid var(--tc); padding:14px 16px 14px 14px; gap:8px; transition:opacity .2s;}
   .spv[data-t="咖啡廳"]{--tc:#b8741a;} .spv[data-t="廣告"]{--tc:#3f7cc4;} .spv[data-t="快閃店"]{--tc:#d1436b;} .spv[data-t="展覽"]{--tc:#3a9a74;}
@@ -862,7 +880,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     sts.filter(function(x){ return x.name; })
       .sort(function(a,b){ return String(a.checkin || '9999').localeCompare(String(b.checkin || '9999')); })
       .forEach(function(st){
-        rows.push(['住宿', esc(st.name) + (st.checkin ? '　' + esc(d(st.checkin)) + ' 入住' : '')]);
+        rows.push(['住宿', esc(st.name) + (st.checkin ? '　' + esc(d(st.checkin)) + (st.checkinTime ? ' ' + esc(st.checkinTime) : '') + ' 入住' : '')]);
       });
     if(fan){
       var fi = t.fanInfo || {}, tk = bks.filter(function(x){ return x.type === '門票' && (x.name || x.code); })[0], parts = [];
@@ -1372,17 +1390,32 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!c.any) return editMode ? '<div class="split"><div class="shint">在每筆花費的編輯視窗選「誰付的」，這裡就會算出誰該付誰多少錢。</div></div>' : '';
     var h = '<div class="split"><div class="sph">分攤結算<small>新台幣</small></div>';
     if(c.xf.length){
-      var groups = [], gm = {}, lines = ['分攤結算（新台幣）'];
+      var groups = [], gm = {}, lines = ['還沒給的轉帳（新台幣）'], stl = t.settled || {}, totAll = 0, totPaid = 0, nUn = 0;
       c.xf.forEach(function(f){
-        if(!gm[f.to]){ gm[f.to] = { to:f.to, sum:0, list:[] }; groups.push(gm[f.to]); }
+        var key = f.from + '→' + f.to, amtN = Math.round(f.v), sv = stl[key];
+        f.key = key; f.amtN = amtN;
+        f.paid = sv != null && Math.abs(Number(sv) - amtN) <= 1;
+        f.changed = sv != null && !f.paid;
+        if(!gm[f.to]){ gm[f.to] = { to:f.to, sum:0, got:0, list:[] }; groups.push(gm[f.to]); }
         gm[f.to].sum += f.v; gm[f.to].list.push(f);
-        lines.push(f.from + ' → ' + f.to + '　' + money(f.v) + ' 元');
+        totAll += f.v;
+        if(f.paid){ gm[f.to].got += f.v; totPaid += f.v; }
+        else { nUn++; lines.push(f.from + ' → ' + f.to + '　' + money(f.v) + ' 元'); }
       });
+      var left = totAll - totPaid, pct = totAll > 0 ? Math.round(totPaid / totAll * 100) : 0;
+      h += '<div class="sgsum' + (nUn ? '' : ' fin') + '">' + (nUn
+        ? '<span>已給 <b>' + money(totPaid) + '</b> 元</span><span class="sgleft">還沒給 <b>' + money(left) + '</b> 元</span>'
+        : '<span>✓ 全部結清（共 <b>' + money(totAll) + '</b> 元）</span>') + '</div>' +
+        '<div class="spbar' + (nUn ? '' : ' full') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="結清進度"><i style="width:' + pct + '%"></i></div>';
       h += groups.map(function(g){
-        return '<div class="sgrp"><div class="sgh"><span>轉給 <b>' + esc(g.to) + '</b></span><span class="sgt">共 ' + money(g.sum) + ' 元</span></div>' +
-          g.list.map(function(f){ return '<div class="sgr"><span>' + esc(f.from) + '</span><b>' + money(f.v) + '</b></div>'; }).join('') + '</div>';
+        var rest = g.sum - g.got;
+        return '<div class="sgrp"><div class="sgh"><span>轉給 <b>' + esc(g.to) + '</b></span><span class="sgt">' + (rest < 0.5 ? '✓ 已收齊 ' + money(g.sum) + ' 元' : (g.got > 0.5 ? '待收 ' + money(rest) + '／共 ' : '共 ') + (rest < 0.5 ? '' : money(g.sum) + ' 元')) + '</span></div>' +
+          g.list.map(function(f){
+            return '<label class="sgr' + (f.paid ? ' paid' : '') + '"><span class="sgn"><input type="checkbox" data-settle="' + esc(f.key) + '" data-amt="' + f.amtN + '"' + (f.paid ? ' checked' : '') + ' aria-label="' + esc(f.from) + ' 已給"> ' + esc(f.from) + (f.paid ? '<small>已給</small>' : '') + '</span><b>' + money(f.v) + '</b>' +
+              (f.changed ? '<span class="sgw">⚠ 金額有變動（之前標記的是 ' + money(stl[f.key]) + '），請重新確認</span>' : '') + '</label>';
+          }).join('') + '</div>';
       }).join('');
-      h += '<div class="sgcopy"><button class="mini" type="button" data-do="copy" data-code="' + esc(lines.join('\n')) + '">複製</button><span class="dcl">複製轉帳清單，可直接貼到群組</span></div>';
+      h += '<div class="sgcopy"><button class="mini" type="button" data-do="copy" data-code="' + esc(nUn ? lines.join('\n') : '分攤已全部結清') + '">複製</button><span class="dcl">' + (nUn ? '複製還沒給的轉帳清單，可直接貼到群組' : '已全部結清') + '</span></div>';
     } else if(c.used) h += '<div class="shint">大家都打平了，不用互相轉帳。</div>';
     h += '<details class="spdet"><summary>每個人的明細</summary>' + c.P.map(function(p){
       var net = c.paid[p] - c.owe[p];
@@ -1713,6 +1746,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="del" type="button" data-do="delstay" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
           '<div class="sdates"><label>入住<input type="date" data-s="' + x.id + '" data-k="checkin" value="' + esc(x.checkin || '') + '"></label>' +
           '<label>退房<input type="date" data-s="' + x.id + '" data-k="checkout" min="' + esc(x.checkin || '') + '" value="' + esc(x.checkout || '') + '"></label></div>' +
+          '<div class="sdates"><label>入住時間<input type="time" data-s="' + x.id + '" data-k="checkinTime" value="' + esc(x.checkinTime || '') + '"></label>' +
+          '<label>退房時間<input type="time" data-s="' + x.id + '" data-k="checkoutTime" value="' + esc(x.checkoutTime || '') + '"></label></div>' +
           '<div class="nn" role="status">' + esc(stayHint(x)) + '</div>' +
           '<input data-s="' + x.id + '" data-k="address" aria-label="住宿地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.address || '') + '">' +
           '<div class="bcode"><input data-s="' + x.id + '" data-k="code" aria-label="訂房代號" placeholder="訂房代號" autocomplete="off" value="' + esc(x.code || '') + '">' +
@@ -2062,13 +2097,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var ckPh = phase(t), ckSoon = ckPh.k === 'up' && ckPh.n <= 30 && t.checklist.some(function(x){ return String(x.text || '').trim() && !x.done; });
     if(ckSoon) h += ckBuild();
     h += '<section class="sec"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
-      (t.bookings.length ? t.bookings.map(function(x){
+      (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') +
           (x.code ? '<div class="bcv"><code>' + esc(x.code) + '</code><button class="mini" type="button" data-do="copy" data-code="' + esc(x.code) + '">複製</button></div>' : '') +
           (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
-      }).join('') : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
+      }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
     h += '<section class="sec"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
       (t.stays.length ? t.stays.map(function(x){
@@ -2076,8 +2111,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
         var hint = stayHint(x);
         // 入住、退房、共幾晚各自是一個不可拆開的單位：放不下時整段換到下一行，不會把「共 5 晚」拆成兩行
-        var dt = (x.checkin ? '<span class="nw">' + esc(d(x.checkin)) + esc(wk(x.checkin)) + ' 入住</span>' : '') + (x.checkin && x.checkout ? ' <span class="nw">→</span> ' : '') +
-          (x.checkout ? '<span class="nw">' + esc(d(x.checkout)) + esc(wk(x.checkout)) + ' 退房</span>' : '');
+        var dt = (x.checkin ? '<span class="nw">' + esc(d(x.checkin)) + esc(wk(x.checkin)) + (x.checkinTime ? ' ' + esc(x.checkinTime) : '') + ' 入住</span>' : '') + (x.checkin && x.checkout ? ' <span class="nw">→</span> ' : '') +
+          (x.checkout ? '<span class="nw">' + esc(d(x.checkout)) + esc(wk(x.checkout)) + (x.checkoutTime ? ' ' + esc(x.checkoutTime) : '') + ' 退房</span>' : '');
         return '<div class="bk v" id="lk-stay-' + x.id + '"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           ((dt || hint) ? '<div class="btime stime">' + dt + (hint ? (dt ? ' ' : '') + '<span class="nights nw">' + esc(hint) + '</span>' : '') + '</div>' : '') +
           ((x.address || map) ? '<div class="vtext addrline">' + (x.address ? esc(x.address) : '') + (map ? (x.address ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
@@ -2310,6 +2345,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer') $('sum').innerHTML = sumHtml(t);
         if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
       }
+    } else if(ds.settle){
+      t.settled = t.settled || {};
+      if(el.checked) t.settled[ds.settle] = Number(ds.amt); else delete t.settled[ds.settle];
+      var sumEl = $('sum');
+      if(sumEl){ var wasOpen = !!(sumEl.querySelector('.spdet') && sumEl.querySelector('.spdet').open); sumEl.innerHTML = sumHtml(t); var dd0 = sumEl.querySelector('.spdet'); if(dd0 && wasOpen) dd0.open = true; }
     } else if(ds.sp){
       var spx = byId(t.spots, ds.sp);
       if(spx){
