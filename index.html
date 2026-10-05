@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>推し手帳｜我的追星紀錄</title>
+<title>推し手帳｜我的追星手帳</title>
 
 <!-- PWA：加到主畫面後可像 App 一樣開啟 -->
 <link rel="manifest" href="manifest.json">
@@ -62,11 +62,10 @@
     --peach-pale:#FBE7D3;
     --night-pale:#E4E6F5;
     --night:#7B7FB0;
+    --accent-text:var(--rose-deep);
     --shadow: 0 6px 20px rgba(90,60,45,0.12);
     --shadow-sm: 0 2px 8px rgba(90,60,45,0.10);
     --radius: 20px;
-    --blob-1: rgba(243,201,214,0.28);
-    --blob-2: rgba(149,132,194,0.16);
   }
   /* ===== 深色模式（底色／文字色，主題色由 JS 依使用者選擇的顏色套用） ===== */
   [data-theme="dark"]{
@@ -74,20 +73,44 @@
     --bg-deep:#14100D;
     --surface:#2A2320;
     --surface-soft:#332A25;
-    --ink:#F3E9DE;
-    --ink-soft:#B3A08C;
-    --ink-faint:#6B5C4D;
+    --ink:#FFFFFF;
+    --ink-soft:#FFFFFF;
+    --ink-faint:#D9D9D9;
+    --accent-text:#FFFFFF;
     --shadow: 0 6px 20px rgba(0,0,0,0.45);
     --shadow-sm: 0 2px 10px rgba(0,0,0,0.35);
+    --matcha-pale:#2B3324;
+    --wisteria-pale:#2E2A3E;
+    --gold-pale:#383020;
+    --sky-pale:#222E34;
+    --peach-pale:#3A2D22;
+    --night-pale:#2A2C40;
   }
+  /* 深色模式：白色／半透明白底的小按鈕仍用主題色字，避免白字白底看不見 */
+  [data-theme="dark"] .pc-series-edit-cover, [data-theme="dark"] .mc-series-edit-cover, [data-theme="dark"] .recap-btn{ color:var(--rose-deep); }
+  [data-theme="dark"] .year-msg, [data-theme="dark"] .month-msg{ color:#FF9B9B; }
+  [data-theme="dark"] .btn.danger, [data-theme="dark"] .icon-btn.del:hover{ background:#4A2626; color:#FFB4B4; }
+  /* 深色模式：固定淺色底的標籤／統計卡改成深色底＋亮色字，避免在深色背景上太刺眼 */
+  [data-theme="dark"] .tag.matcha{ background:#2B3324; color:#FFFFFF; }
+  [data-theme="dark"] .tag.wisteria{ background:#2E2A3E; color:#FFFFFF; }
+  [data-theme="dark"] .tag.gold{ background:#383020; color:#FFFFFF; }
+  [data-theme="dark"] .tag.rose{ background:#3D2630; color:#FFFFFF; }
+  [data-theme="dark"] .tag.sky{ background:#222E34; color:#FFFFFF; }
+  [data-theme="dark"] .tag.peach{ background:#3A2D22; color:#FFFFFF; }
+  [data-theme="dark"] .tag.lavender{ background:#2B2A40; color:#FFFFFF; }
+  [data-theme="dark"] .tag.mint{ background:#22332F; color:#FFFFFF; }
+  [data-theme="dark"] .tag.coral{ background:#3A2733; color:#FFFFFF; }
+  [data-theme="dark"] .tag.amber{ background:#38301F; color:#FFFFFF; }
+  [data-theme="dark"] .tag.slate{ background:#34312C; color:#FFFFFF; }
+  [data-theme="dark"] .home-stat-grid .stat-card.c-pc .num{ color:#FFFFFF; }
+  [data-theme="dark"] .home-stat-grid .stat-card.c-support .num{ color:#FFFFFF; }
+  [data-theme="dark"] .home-stat-grid .stat-card.c-flip .num{ color:#FFFFFF; }
+  [data-theme="dark"] .oshi-stat{ background:rgba(255,255,255,0.08); }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0; width:100%; min-height:100%;}
   body{
     font-family:'Noto Sans TC', sans-serif;
-    background:
-      radial-gradient(circle at 15% 8%, var(--blob-1), transparent 40%),
-      radial-gradient(circle at 90% 15%, var(--blob-2), transparent 45%),
-      var(--bg);
+    background:var(--bg);
     transition: background-color 0.2s ease;
     color:var(--ink);
     min-height:100vh;
@@ -146,7 +169,7 @@
     flex-shrink:0;
   }
   .brand-text .title{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:19px; letter-spacing:0.5px;}
-  .brand-text .sub{ font-size:11px; color:var(--ink-soft); margin-top:1px;}
+  .brand-text .sub{ font-size:12px; color:var(--ink-soft); margin-top:1px;}
   .profile-chip{
     display:flex; align-items:center; gap:6px;
     background:var(--surface);
@@ -212,11 +235,11 @@
   .tag{
     display:inline-block;
     max-width:100%;
-    font-size:11px;
+    font-size:12px;
     padding:2px 9px;
     border-radius:999px;
     background:var(--sakura-pale);
-    color:var(--rose-deep);
+    color:var(--accent-text);
     margin-right:6px;
     margin-top:4px;
     white-space:normal;
@@ -246,7 +269,7 @@
     cursor:pointer; font-size:14px;
     transition:0.15s;
   }
-  .icon-btn:hover{ background:var(--sakura-pale); color:var(--rose-deep);}
+  .icon-btn:hover{ background:var(--sakura-pale); color:var(--accent-text);}
   .icon-btn.del:hover{ background:#F7D9D9; color:#B54545;}
 
   .empty{
@@ -262,7 +285,7 @@
     border-radius:50%;
     display:flex; align-items:center; justify-content:center;
     font-family:'Zen Maru Gothic'; font-weight:700; font-size:26px;
-    color:var(--rose-deep);
+    color:var(--accent-text);
     border:2px solid currentColor;
     outline:1.5px solid currentColor;
     outline-offset:5px;
@@ -281,22 +304,17 @@
   .greet-card{
     position:relative; overflow:hidden;
     display:flex; align-items:center; gap:14px;
-    background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
+    background:var(--sakura-pale);
     border-radius:var(--radius);
     padding:16px 18px; margin-bottom:18px; box-shadow:var(--shadow-sm);
     transition: background 0.4s ease;
   }
   /* 依時段變換卡片底色：晨／午／午後／晚／深夜 各有不同漸層氣氛 */
-  .greet-card.time-morning{ background:linear-gradient(135deg, var(--peach-pale), var(--sakura-pale)); }
-  .greet-card.time-noon{ background:linear-gradient(135deg, var(--sky-pale), var(--sakura-pale)); }
-  .greet-card.time-afternoon{ background:linear-gradient(135deg, var(--sakura-pale), var(--gold-pale)); }
-  .greet-card.time-evening{ background:linear-gradient(135deg, var(--wisteria-pale), var(--sakura-pale)); }
-  .greet-card.time-night{ background:linear-gradient(135deg, var(--night-pale), var(--wisteria-pale)); }
-  /* 卡片內兩顆柔霧色塊，呼應整頁背景的裝飾光斑，讓招呼卡不只是純色塊 */
-  .greet-card-blob{ position:absolute; border-radius:50%; filter:blur(2px); pointer-events:none; opacity:0.55; }
-  .greet-card-blob.b1{ width:90px; height:90px; right:-24px; top:-30px; background:rgba(255,255,255,0.55); }
-  .greet-card-blob.b2{ width:60px; height:60px; right:38px; bottom:-30px; background:rgba(255,255,255,0.35); }
-  [data-theme="dark"] .greet-card-blob{ opacity:0.06; background:#fff; }
+  .greet-card.time-morning{ background:var(--peach-pale); }
+  .greet-card.time-noon{ background:var(--sky-pale); }
+  .greet-card.time-afternoon{ background:var(--gold-pale); }
+  .greet-card.time-evening{ background:var(--wisteria-pale); }
+  .greet-card.time-night{ background:var(--night-pale); }
   .greet-card-icon{
     position:relative; z-index:1;
     width:50px;height:50px;border-radius:50%;
@@ -346,10 +364,10 @@
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
   .home-thumb-meta{
-    font-size:11px; color:var(--ink-soft); margin-top:2px;
+    font-size:12px; color:var(--ink-soft); margin-top:2px;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .home-thumb-amt{ font-size:12.5px; font-weight:700; color:var(--rose-deep); flex-shrink:0; }
+  .home-thumb-amt{ font-size:12.5px; font-weight:700; color:var(--accent-text); flex-shrink:0; }
   .greet{
     font-family:'Zen Maru Gothic';
     font-size:17px;
@@ -365,8 +383,8 @@
     background:var(--surface); border-radius:16px; padding:12px 8px;
     text-align:center; box-shadow:var(--shadow-sm);
   }
-  .stat-card .num{ font-family:'Zen Maru Gothic'; font-size:19px; font-weight:700; color:var(--rose-deep);}
-  .stat-card .lbl{ font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+  .stat-card .num{ font-family:'Zen Maru Gothic'; font-size:19px; font-weight:700; color:var(--accent-text);}
+  .stat-card .lbl{ font-size:12px; color:var(--ink-soft); margin-top:2px;}
   /* 首頁頂端 4 格總覽：每格依主題上色，加小圖示與 hover 回饋 */
   .home-stat-grid .stat-card{
     transition:transform 0.15s, box-shadow 0.15s;
@@ -384,7 +402,7 @@
   .home-stat-grid .stat-card.c-flip .num{ color:#8C6239; }
   .oshi-banner{
     position:relative; overflow:hidden;
-    background: linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
+    background:var(--sakura-pale);
     border-radius:var(--radius);
     padding:16px;
     display:flex; flex-direction:column; gap:12px;
@@ -392,12 +410,6 @@
     box-shadow: var(--shadow-sm);
   }
   /* 右下角很淡的星星/愛心裝飾，只是氣氛點綴，不影響閱讀 */
-  .oshi-watermark{
-    position:absolute; right:-16px; bottom:-16px;
-    width:112px; height:112px;
-    opacity:0.14; pointer-events:none; z-index:0;
-  }
-  [data-theme="dark"] .oshi-watermark{ opacity:0.10; }
   .oshi-banner .oshi-top{ position:relative; z-index:1; display:flex; gap:14px; align-items:center; }
   .oshi-banner img, .oshi-banner .ph{
     width:58px;height:58px;border-radius:50%;
@@ -420,22 +432,22 @@
   }
   .oshi-stat .v{
     font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;
-    color:var(--rose-deep);
+    color:var(--accent-text);
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .oshi-stat .l{ font-size:10px; color:var(--ink-soft); margin-top:2px;}
+  .oshi-stat .l{ font-size:12px; color:var(--ink-soft); margin-top:2px;}
   /* 「入坑多久」做成徽章樣式，跟另外兩個純資訊格區隔出來，是本命橫幅裡最想被看到的數字 */
   .oshi-stat.badge{
-    background:linear-gradient(135deg, var(--rose-deep), var(--wisteria));
+    background:var(--rose-deep);
     border-radius:999px;
-    box-shadow:0 3px 10px rgba(193,91,121,0.28);
+    box-shadow:0 3px 10px rgba(0,0,0,0.15);
   }
   .oshi-stat.badge .v{ color:#fff; }
   .oshi-stat.badge .l{ color:rgba(255,255,255,0.85); }
   @media (min-width:700px){
     .oshi-stat{ padding:12px 8px; }
     .oshi-stat .v{ font-size:15px; }
-    .oshi-stat .l{ font-size:11px; }
+    .oshi-stat .l{ font-size:12px; }
   }
   .bday-grid{
     display:grid; grid-template-columns:repeat(3,1fr); gap:10px;
@@ -450,13 +462,13 @@
     font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px;
     color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .bday-card .date{ font-size:11.5px; color:var(--ink-soft); }
+  .bday-card .date{ font-size:12px; color:var(--ink-soft); }
   .dday-artist{
-    font-size:10.5px; color:var(--ink-soft); display:flex; align-items:center; justify-content:center;
+    font-size:12px; color:var(--ink-soft); display:flex; align-items:center; justify-content:center;
     gap:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .bday-card .days{ font-size:12px; font-weight:700; color:var(--rose-deep); }
-  .bday-card.today{ background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale)); }
+  .bday-card .days{ font-size:12px; font-weight:700; color:var(--accent-text); }
+  .bday-card.today{ background:var(--sakura-pale); }
   /* 「今天」的卡片右上角加個會呼吸的小圓點，比單純換底色更容易被注意到 */
   .bday-card.today::after{
     content:'';
@@ -467,9 +479,9 @@
   }
   .dday-card.onsale.today::after{ background:var(--matcha); animation-name: today-pulse-matcha; }
   @keyframes today-pulse{
-    0%{ box-shadow:0 0 0 0 rgba(193,91,121,0.45); }
-    70%{ box-shadow:0 0 0 8px rgba(193,91,121,0); }
-    100%{ box-shadow:0 0 0 0 rgba(193,91,121,0); }
+    0%{ box-shadow:0 0 0 0 rgba(128,128,128,0.45); }
+    70%{ box-shadow:0 0 0 8px rgba(128,128,128,0); }
+    100%{ box-shadow:0 0 0 0 rgba(128,128,128,0); }
   }
   @keyframes today-pulse-matcha{
     0%{ box-shadow:0 0 0 0 rgba(127,160,95,0.45); }
@@ -484,11 +496,11 @@
     .bday-card .name{ font-size:14px; }
     .bday-card .date{ font-size:12px; }
     .bday-card .days{ font-size:13px; }
-    .dday-artist{ font-size:11.5px; }
+    .dday-artist{ font-size:12px; }
   }
   /* 倒數計時卡片：依需求移除左側色條，改回一般置中卡片 */
-  .dday-card.onsale .days{ color:var(--matcha); }
-  .dday-card.onsale.today{ background:linear-gradient(135deg, var(--matcha-pale), var(--sakura-pale)); }
+  .dday-card.onsale .days{ color:var(--accent-text); }
+  .dday-card.onsale.today{ background:var(--matcha-pale); }
   .home-block{ margin-bottom:22px;}
   .home-block .block-head{
     display:flex; justify-content:space-between; align-items:center;
@@ -499,7 +511,7 @@
     color:var(--ink);
   }
   .home-block .block-head a{
-    font-size:11.5px; color:var(--rose-deep); cursor:pointer; text-decoration:none;
+    font-size:12px; color:var(--accent-text); cursor:pointer; text-decoration:none;
     display:inline-flex; align-items:center; gap:2px;
     transition:transform 0.15s, opacity 0.15s;
   }
@@ -517,7 +529,7 @@
     margin-bottom:8px; box-shadow:var(--shadow-sm); font-size:13px;
   }
   .mini-row .l{ color:var(--ink); }
-  .mini-row .r{ color:var(--ink-soft); font-size:11.5px;}
+  .mini-row .r{ color:var(--ink-soft); font-size:12px;}
 
   /* ===== Schedule calendar ===== */
   .cal-filter-row{
@@ -538,7 +550,7 @@
     border:1px dashed var(--sakura-pale); background:transparent; color:var(--ink-soft);
     font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:500;
   }
-  .year-review-more-btn:hover{ background:var(--sakura-pale); color:var(--rose-deep); }
+  .year-review-more-btn:hover{ background:var(--sakura-pale); color:var(--accent-text); }
   .month-trend-scroll{ scrollbar-width:thin; scrollbar-color:var(--sakura-pale) transparent; }
   .month-trend-scroll::-webkit-scrollbar{ height:5px; }
   .month-trend-scroll::-webkit-scrollbar-track{ background:transparent; }
@@ -550,7 +562,7 @@
     font-size:12.5px; font-family:'Noto Sans TC'; cursor:pointer; font-weight:500;
   }
   .cal-filter-btn.active{ background:var(--rose-deep); color:#fff; border-color:var(--rose-deep); font-weight:700;}
-  .cal-filter-btn.qualify{ background:var(--sakura-pale); border-color:var(--sakura-pale); color:var(--rose-deep); font-weight:700;}
+  .cal-filter-btn.qualify{ background:var(--sakura-pale); border-color:var(--sakura-pale); color:var(--accent-text); font-weight:700;}
   .cal-filter-btn.qualify.active{ background:var(--rose-deep); border-color:var(--rose-deep); color:#fff;}
   .cal-filter-dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
   .artist-multiselect{ display:flex; flex-wrap:wrap; gap:7px; margin-bottom:8px; }
@@ -569,9 +581,9 @@
   .chip-filter-btn:hover{ transform:translateY(-1px); }
   .cal-head{ display:flex; align-items:center; justify-content:space-between; margin:0 2px 14px;}
   .cal-title{ font-weight:700; font-size:16px; cursor:pointer; display:flex; align-items:center; gap:4px; padding:4px 10px; border-radius:10px; }
-  .cal-title:hover{ background:var(--sakura-pale); color:var(--rose-deep); }
-  .cal-title-caret{ font-size:11px; color:var(--ink-soft); }
-  .cal-title:hover .cal-title-caret{ color:var(--rose-deep); }
+  .cal-title:hover{ background:var(--sakura-pale); color:var(--accent-text); }
+  .cal-title-caret{ font-size:12px; color:var(--ink-soft); }
+  .cal-title:hover .cal-title-caret{ color:var(--accent-text); }
   .month-pick-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
   .month-pick-btn{
     padding:11px 0; border-radius:12px; border:1px solid var(--sakura-pale);
@@ -585,9 +597,9 @@
     width:32px;height:32px;border-radius:50%; border:none; background:var(--bg-deep);
     color:var(--ink-soft); font-size:17px; cursor:pointer; display:flex; align-items:center; justify-content:center;
   }
-  .cal-nav-btn:hover{ background:var(--sakura-pale); color:var(--rose-deep);}
+  .cal-nav-btn:hover{ background:var(--sakura-pale); color:var(--accent-text);}
   .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:20px; width:100%; }
-  .cal-dow{ text-align:center; font-size:11.5px; font-weight:700; color:var(--ink-soft); padding-bottom:6px;}
+  .cal-dow{ text-align:center; font-size:12px; font-weight:700; color:var(--ink-soft); padding-bottom:6px;}
   .cal-day{
     position:relative; min-height:78px; border-radius:12px; background:var(--surface);
     display:flex; flex-direction:column; align-items:stretch;
@@ -597,17 +609,17 @@
   .cal-day .daynum{ font-size:12px; font-weight:700; color:var(--ink); align-self:flex-start; }
   .cal-day.empty{ background:transparent; box-shadow:none; cursor:default;}
   .cal-day.today{ border:2px solid var(--rose-deep); background:var(--sakura-pale);}
-  .cal-day.today .daynum{ color:var(--rose-deep); }
+  .cal-day.today .daynum{ color:var(--accent-text); }
   .event-pill{
     display:block; width:100%; box-sizing:border-box;
-    font-size:10px; line-height:1.5; padding:1px 6px; border-radius:6px;
+    font-size:12px; line-height:1.5; padding:1px 6px; border-radius:6px;
     color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
     cursor:pointer;
   }
   .event-pill-icon{ margin-right:2px; }
   .event-pill-cat{ display:none; }
-  .event-more{ font-size:9.5px; color:var(--ink-soft); padding:1px 6px; cursor:pointer; text-decoration:underline; text-decoration-color:var(--ink-faint); }
-  .event-more:hover{ color:var(--rose-deep); }
+  .event-more{ font-size:12px; color:var(--ink-soft); padding:1px 6px; cursor:pointer; text-decoration:underline; text-decoration-color:var(--ink-faint); }
+  .event-more:hover{ color:var(--accent-text); }
   /* 跨天行程橫條：用負邊距把左右兩側的格線縫隙填滿，接上鄰居格子看起來像同一條連續色塊 */
   .event-pill.event-bar{ font-weight:700; }
   .event-pill.event-bar.bridge-left{ margin-left:-6px; padding-left:8px; border-top-left-radius:0; border-bottom-left-radius:0; }
@@ -615,15 +627,15 @@
   @media (min-width:700px){
     .cal-day{ min-height:120px; padding:8px 7px; gap:5px; }
     .cal-day .daynum{ font-size:13.5px; }
-    .event-pill{ font-size:11.5px; padding:3px 8px; border-radius:8px; }
+    .event-pill{ font-size:12px; padding:3px 8px; border-radius:8px; }
     .event-pill-cat{ display:inline; opacity:0.85; font-weight:500; }
   }
   .cal-daylist-title{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:14.5px; margin:4px 2px 14px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .chip-clear{
-    font-size:11px; border:none; background:var(--bg-deep); color:var(--ink-soft);
+    font-size:12px; border:none; background:var(--bg-deep); color:var(--ink-soft);
     border-radius:999px; padding:4px 12px; cursor:pointer; font-weight:500;
   }
-  .chip-clear:hover{ background:var(--sakura-pale); color:var(--rose-deep);}
+  .chip-clear:hover{ background:var(--sakura-pale); color:var(--accent-text);}
 
   /* ===== 年度／月份回顧 (schedule & fanlog) ===== */
   .review-block{ margin-bottom:22px;}
@@ -639,7 +651,7 @@
   .year-num{ font-weight:700; font-size:17px;}
   .year-count{ font-size:12px; color:var(--ink-soft); margin-top:3px;}
   .year-msg{ font-size:12px; margin-top:5px; font-weight:700; color:#B54545;}
-  .year-card.qualify .year-msg{ color:var(--rose-deep);}
+  .year-card.qualify .year-msg{ color:var(--accent-text);}
 
   .month-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
   .month-card{
@@ -649,9 +661,9 @@
   .month-card:hover{ transform:translateY(-1px);}
   .month-card.active{ border-color:var(--rose-deep);}
   .month-num{ font-weight:700; font-size:12.5px;}
-  .month-count{ font-size:10px; color:var(--ink-soft); margin-top:3px;}
-  .month-msg{ font-size:10px; margin-top:4px; font-weight:700; color:#B54545;}
-  .month-card.happy .month-msg{ color:var(--rose-deep);}
+  .month-count{ font-size:12px; color:var(--ink-soft); margin-top:3px;}
+  .month-msg{ font-size:12px; margin-top:4px; font-weight:700; color:#B54545;}
+  .month-card.happy .month-msg{ color:var(--accent-text);}
 
   .sched-layout{ display:block; }
   @media (min-width:900px){
@@ -664,7 +676,7 @@
   .pc-count{ font-size:12px; color:var(--ink-soft);}
   .pc-owned{
     display:flex; align-items:center; gap:6px;
-    font-size:11px; color:var(--ink); margin:5px 0 6px; cursor:pointer;
+    font-size:12px; color:var(--ink); margin:5px 0 6px; cursor:pointer;
   }
   .pc-owned input{ width:13px;height:13px; accent-color:var(--rose-deep); cursor:pointer; flex-shrink:0;}
 
@@ -704,7 +716,7 @@
   .pc-series-cover.ph{ display:flex; align-items:center; justify-content:center; font-size:32px; color:var(--ink-faint);}
   .pc-series-edit-cover, .mc-series-edit-cover{
     position:absolute; bottom:9px; right:9px; width:26px; height:26px; border-radius:50%;
-    border:none; background:rgba(255,255,255,0.92); color:var(--rose-deep); font-size:12px;
+    border:none; background:rgba(255,255,255,0.92); color:var(--accent-text); font-size:12px;
     display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow:var(--shadow-sm);
     z-index:2;
   }
@@ -716,13 +728,13 @@
   .pc-series-name{
     font-weight:700; font-size:12.5px; white-space:normal; overflow-wrap:break-word; line-height:1.35;
   }
-  .pc-series-count{ font-size:11px; color:var(--ink-soft); margin-top:1px;}
+  .pc-series-count{ font-size:12px; color:var(--ink-soft); margin-top:1px;}
   .pc-series-progress-track{ width:100%; height:5px; background:var(--bg-deep); border-radius:4px; margin-top:5px; overflow:hidden;}
   .pc-series-progress-fill{ height:100%; background:var(--rose); border-radius:4px;}
 
   .pc-back{
     display:inline-flex; align-items:center; gap:6px; cursor:pointer;
-    color:var(--rose-deep); font-weight:700; font-size:13.5px; margin:0 2px 14px; user-select:none;
+    color:var(--accent-text); font-weight:700; font-size:13.5px; margin:0 2px 14px; user-select:none;
   }
 
   /* Individual photocard grid — auto-adjusts by device width, capped at 8 columns */
@@ -748,8 +760,8 @@
   }
   .pc-img.ph{ display:flex; align-items:center; justify-content:center; font-size:26px; color:var(--ink-faint);}
   .pc-body{ padding:8px 8px 8px; flex:1; display:flex; flex-direction:column;}
-  .pc-name{ font-weight:700; font-size:11.5px; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .pc-sub{ font-size:10px; color:var(--ink-soft); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .pc-name{ font-weight:700; font-size:12px; margin:0 0 2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .pc-sub{ font-size:12px; color:var(--ink-soft); margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   /* edit / delete buttons anchored to the bottom-right corner of each card */
   .pc-actions{ display:flex; justify-content:flex-end; gap:4px; margin-top:auto; padding-top:6px;}
   .pc-actions .icon-btn{ width:22px;height:22px; font-size:10px;}
@@ -775,7 +787,7 @@
     background:var(--rose-deep);
     color:#fff; border:none;
     font-size:24px;
-    box-shadow:0 8px 18px rgba(42,143,199,0.35);
+    box-shadow:var(--shadow);
     cursor:pointer;
     display:flex;align-items:center;justify-content:center;
     z-index:20;
@@ -788,7 +800,7 @@
     right:20px;
     width:54px;height:54px;border-radius:50%;
     background:var(--surface);
-    color:var(--rose-deep);
+    color:var(--accent-text);
     border:1px solid var(--sakura-pale);
     font-size:20px;
     font-weight:700;
@@ -814,7 +826,7 @@
     display:flex; justify-content:center; gap:2px;
     padding:8px 4px calc(8px + env(safe-area-inset-bottom));
     z-index:15;
-    box-shadow: 0 -6px 20px rgba(42,143,199,0.08);
+    box-shadow: 0 -6px 20px rgba(0,0,0,0.08);
   }
   nav.bottom .nav-btn{ max-width:110px; }
   .nav-btn{
@@ -833,8 +845,8 @@
     transition:0.15s;
   }
   .nav-btn.active .stamp{ background:var(--rose-deep); color:#fff;}
-  .nav-btn.active{ color:var(--rose-deep); font-weight:700;}
-  .nav-btn .lbl{ font-size:9.5px;}
+  .nav-btn.active{ color:var(--accent-text); font-weight:700;}
+  .nav-btn .lbl{ font-size:12px;}
 
   /* Modal */
   .overlay{
@@ -886,10 +898,10 @@
   .exp-badges{ display:flex; flex-wrap:wrap; gap:0; margin-bottom:2px; }
   .exp-name{ margin-top:2px; }
   .exp-price{ flex-shrink:0; text-align:right; }
-  .exp-date{ font-size:11px; color:var(--rose-deep); font-weight:700; margin-bottom:3px; white-space:nowrap; }
-  .exp-unit{ font-size:11px; color:var(--ink-soft); }
+  .exp-date{ font-size:12px; color:var(--accent-text); font-weight:700; margin-bottom:3px; white-space:nowrap; }
+  .exp-unit{ font-size:12px; color:var(--ink-soft); }
   .exp-total{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:15.5px; margin-top:2px; }
-  .exp-orig{ font-size:10.5px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; }
+  .exp-orig{ font-size:12px; color:var(--ink-faint); margin-top:3px; white-space:nowrap; }
 
   /* 分類與歷年標題外觀 */
   .exp-group-header{
@@ -916,21 +928,21 @@
     font-family:'Zen Maru Gothic', sans-serif;
     font-weight:700;
     font-size:15px;
-    color:var(--rose-deep);
+    color:var(--accent-text);
   }
   .exp-group-count{
-    font-size:11.5px;
+    font-size:12px;
     color:var(--ink-soft);
     font-weight:400;
   }
   /* 消費總計漸層卡 */
   .exp-total-hero{
-    background:linear-gradient(135deg, var(--sakura-pale), var(--wisteria-pale));
+    background:var(--sakura-pale);
     border-radius:var(--radius); padding:18px 20px; margin-bottom:16px;
     box-shadow:var(--shadow-sm); display:flex; align-items:center; justify-content:space-between; gap:12px;
   }
   .exp-total-hero-label{ font-size:13px; color:var(--ink-soft); font-weight:700; }
-  .exp-total-hero-amount{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:26px; color:var(--rose-deep); margin-top:3px; }
+  .exp-total-hero-amount{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:26px; color:var(--accent-text); margin-top:3px; }
   @media (min-width:700px){ .exp-total-hero-amount{ font-size:30px; } }
   /* 分類佔比橫條圖 */
   .exp-cat-bar-wrap{
@@ -945,7 +957,7 @@
   .exp-cat-bar-seg{ height:100%; box-sizing:border-box; border-right:2px solid var(--surface); }
   .exp-cat-bar-seg:last-child{ border-right:none; }
   .exp-cat-bar-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; }
-  .exp-cat-bar-legend-item{ display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-soft); }
+  .exp-cat-bar-legend-item{ display:flex; align-items:center; gap:5px; font-size:12px; color:var(--ink-soft); }
   .exp-cat-bar-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
 
   /* Segmented toggle (支出 / 售出) */
@@ -959,11 +971,11 @@
   .seg-btn.active{ background:var(--rose-deep); color:#fff; }
   /* 首頁「本月/本年花費排行」切換：改用跟首頁其他區塊一致的柔和漸層，取代單一實色紅塊 */
   #homeSpendScopeToggle{ background:var(--sakura-pale); }
-  #homeSpendScopeToggle .seg-btn{ color:var(--rose-deep); }
+  #homeSpendScopeToggle .seg-btn{ color:var(--accent-text); }
   #homeSpendScopeToggle .seg-btn.active{
-    background:linear-gradient(135deg, var(--rose-deep), var(--wisteria));
+    background:var(--rose-deep);
     color:#fff;
-    box-shadow:0 2px 8px rgba(193,91,121,0.25);
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
   }
 
   /* Tag chip input (標籤) */
@@ -973,7 +985,7 @@
   }
   .tag-chip{
     display:inline-flex; align-items:center; gap:4px;
-    background:var(--sakura-pale); color:var(--rose-deep);
+    background:var(--sakura-pale); color:var(--accent-text);
     font-size:12px; padding:4px 4px 4px 10px; border-radius:999px;
   }
   .tag-chip-x{ cursor:pointer; padding:0 5px; font-size:13px; }
@@ -1009,7 +1021,7 @@
   }
   .global-search-result .gsr-body{ display:flex; flex-direction:column; gap:2px; min-width:0; }
   .global-search-result .gsr-title{ font-weight:700; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .global-search-result .gsr-meta{ font-size:11.5px; color:var(--ink-soft); }
+  .global-search-result .gsr-meta{ font-size:12px; color:var(--ink-soft); }
   .btn{
     flex:1; padding:12px; border-radius:14px; border:none;
     font-family:'Noto Sans TC'; font-weight:700; font-size:14px; cursor:pointer;
@@ -1034,12 +1046,12 @@
   }
   .account-box .name{ font-weight:700; font-size:14px; }
   .account-box .mail{ font-size:12px; color:var(--ink-soft); }
-  .account-box .synced{ font-size:11px; color:var(--rose-deep); margin-top:2px; }
-  .login-hint{ font-size:11.5px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
+  .account-box .synced{ font-size:12px; color:var(--accent-text); margin-top:2px; }
+  .login-hint{ font-size:12px; color:var(--ink-soft); margin-top:8px; line-height:1.6; }
 
   .toast{
     position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-40px);
-    background:#2E4C5E; color:#fff; padding:9px 18px; border-radius:999px;
+    background:var(--rose-deep); color:#fff; padding:9px 18px; border-radius:999px;
     font-size:12.5px; z-index:60; opacity:0; transition:0.25s;
     pointer-events:none;
   }
@@ -1061,11 +1073,11 @@
   .storage-warn{
     display:none;
     position:relative;
-    background:#FBEBC7; color:#8A6A28;
-    font-size:11.5px; line-height:1.6;
+    background:var(--sakura-pale); color:var(--accent-text);
+    font-size:12px; line-height:1.6;
     padding:10px 34px 10px 18px; text-align:center;
   }
-  .storage-warn.info{ background:var(--matcha-pale); color:#4E6B49; }
+  .storage-warn.info{ background:var(--sakura-pale); color:var(--accent-text); }
   .storage-warn-close{
     position:absolute; right:10px; top:50%; transform:translateY(-50%);
     cursor:pointer; font-size:13px; opacity:0.6; padding:4px;
@@ -1084,13 +1096,13 @@
     color:#fff; font-size:14px; text-shadow:0 1px 3px rgba(0,0,0,0.45); font-weight:700;
   }
   .theme-swatch.custom-swatch{
-    background:conic-gradient(from 180deg, #F5C0D2, #E6D091, #A9E0D2, #C9BEEA, #8FD3F4, #F5C0D2);
+    background:var(--ink-faint);
     display:flex; align-items:center; justify-content:center; font-size:14px;
   }
 
   /* ===== 年度追星總結 (home recap card + modal) ===== */
   .recap-card{
-    background: linear-gradient(135deg, var(--rose-deep), var(--rose));
+    background:var(--rose-deep);
     border-radius:var(--radius);
     padding:18px 18px 16px;
     color:#fff;
@@ -1105,17 +1117,17 @@
   }
   .recap-head{ margin-bottom:14px; position:relative; z-index:1; }
   .recap-title{ font-size:16px; font-weight:700; }
-  .recap-sub{ font-size:11.5px; opacity:0.88; margin-top:2px; }
+  .recap-sub{ font-size:12px; opacity:0.88; margin-top:2px; }
   .recap-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; position:relative; z-index:1; }
   .recap-stat{ background:rgba(255,255,255,0.16); border-radius:14px; padding:10px 4px; text-align:center; }
   .recap-stat .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:17px; }
-  .recap-stat .l{ font-size:9.5px; opacity:0.88; margin-top:3px; }
+  .recap-stat .l{ font-size:12px; opacity:0.88; margin-top:3px; }
   .recap-info-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; position:relative; z-index:1; }
   .recap-info{ background:rgba(255,255,255,0.14); border-radius:14px; padding:9px 12px; display:flex; flex-direction:column; gap:2px; min-width:0; }
-  .recap-info .l{ font-size:10px; opacity:0.88; }
+  .recap-info .l{ font-size:12px; opacity:0.88; }
   .recap-info .v{ font-family:'Zen Maru Gothic'; font-weight:700; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .recap-btn{
-    width:100%; border:none; background:rgba(255,255,255,0.94); color:var(--rose-deep);
+    width:100%; border:none; background:rgba(255,255,255,0.94); color:var(--accent-text);
     font-weight:700; padding:10px; border-radius:12px; cursor:pointer;
     font-family:'Noto Sans TC'; font-size:13px; position:relative; z-index:1;
   }
@@ -1179,6 +1191,9 @@
     <span id="backupReminderText"></span>
     <span class="storage-warn-close" id="backupReminderClose">✕</span>
   </div>
+  <div class="storage-warn" id="unsyncedBanner" style="cursor:pointer;">
+    <span id="unsyncedText"></span>
+  </div>
   <div class="storage-warn" id="arrivalReminderBanner" style="cursor:pointer;">
     <span id="arrivalReminderText"></span>
     <span class="storage-warn-close" id="arrivalReminderClose">✕</span>
@@ -1189,8 +1204,8 @@
       <div class="brand">
         <div class="brand-mark maru">推</div>
         <div class="brand-text">
-          <div class="title maru">推し紀錄</div>
-          <div class="sub" id="headerSub">我的追星紀錄</div>
+          <div class="title maru">推し手帳</div>
+          <div class="sub" id="headerSub">我的追星手帳</div>
         </div>
       </div>
       <div class="top-row-actions">
@@ -1414,14 +1429,62 @@ async function loadKey(key, fallback){
   }
 }
 
+/* ================= 尚未同步到雲端的變更標記 ================= */
+const UNSYNCED_STORAGE_KEY = LOCAL_PREFIX + 'unsynced-keys';
+let unsyncedKeys = (()=>{
+  try{ const raw = window.localStorage.getItem(UNSYNCED_STORAGE_KEY); return new Set(raw ? JSON.parse(raw) : []); }
+  catch(e){ return new Set(); }
+})();
+function persistUnsyncedKeys(){
+  try{ window.localStorage.setItem(UNSYNCED_STORAGE_KEY, JSON.stringify([...unsyncedKeys])); }catch(e){}
+}
+function markKeyUnsynced(key){
+  unsyncedKeys.add(key);
+  persistUnsyncedKeys();
+  updateUnsyncedBanner();
+}
+function markKeySynced(key){
+  if(!unsyncedKeys.has(key)) return;
+  unsyncedKeys.delete(key);
+  persistUnsyncedKeys();
+  updateUnsyncedBanner();
+}
+function updateUnsyncedBanner(){
+  const el = document.getElementById('unsyncedBanner');
+  if(!el) return;
+  if(!(useCloud && currentUser) || unsyncedKeys.size===0){ el.style.display='none'; return; }
+  document.getElementById('unsyncedText').textContent = `⚠️ 有 ${unsyncedKeys.size} 項變更尚未同步到雲端，點此重試（換裝置前請先處理）`;
+  el.style.display='block';
+}
+let unsyncedRetrying = false;
+async function retryUnsyncedKeys(){
+  if(unsyncedRetrying || !(useCloud && currentUser)) return;
+  unsyncedRetrying = true;
+  const map = getStorageToStateKeyMap();
+  const keys = [...unsyncedKeys];
+  for(const key of keys){
+    const stateKey = map[key];
+    if(!stateKey){ markKeySynced(key); continue; }
+    await saveKey(key, state[stateKey]);
+  }
+  unsyncedRetrying = false;
+  showToast(unsyncedKeys.size===0 ? '已全部同步到雲端 ☁️' : `還有 ${unsyncedKeys.size} 項沒同步成功，請稍後再試`);
+}
+
 async function saveKey(key, value){
   if(useCloud && currentUser){
+    const docRef = db.collection('users').doc(currentUser.uid).collection('data').doc(key);
+    const writePromise = docRef.set({ value: value });
     try{
-      const docRef = db.collection('users').doc(currentUser.uid).collection('data').doc(key);
-      await docRef.set({ value: value });
+      // 離線時 Firestore 會一直排隊不會報錯，所以加上逾時；逾時或失敗都先標記成「尚未同步」
+      await Promise.race([writePromise, timeoutAfter(8000, '雲端儲存逾時')]);
+      markKeySynced(key);
     }catch(e){
-      showToast('雲端儲存失敗，請檢查網路連線');
+      markKeyUnsynced(key);
+      showToast('雲端儲存失敗，已標記為尚未同步');
       console.error(e);
+      // 若稍後寫入其實成功了（例如網路恢復），自動清掉標記
+      writePromise.then(()=> markKeySynced(key)).catch(()=>{});
     }
     return;
   } else {
@@ -1548,11 +1611,40 @@ function applyTheme(theme){
   const vars = theme.accent==='custom'
     ? buildCustomThemeVars(theme.customColor||DEFAULT_THEME.customColor)
     : (preset ? preset.vars : THEME_PRESETS[0].vars);
-  Object.entries(vars).forEach(([k,v])=> root.style.setProperty(k, v));
-  const roseRgb = hexToRgb(vars['--rose']);
-  const deepRgb = hexToRgb(vars['--rose-deep']);
-  root.style.setProperty('--blob-1', `rgba(${roseRgb.r},${roseRgb.g},${roseRgb.b},0.22)`);
-  root.style.setProperty('--blob-2', `rgba(${deepRgb.r},${deepRgb.g},${deepRgb.b},0.16)`);
+  const isDark = resolveThemeMode(theme.mode)==='dark';
+  const finalVars = Object.assign({}, vars);
+  if(isDark){
+    // 深色模式：主題色的「淺底」系列改成往深色底混合，主色本身稍微提亮以維持對比
+    finalVars['--sakura-pale'] = mixHex(vars['--rose'], '#1C1712', 0.80);
+    finalVars['--sakura'] = mixHex(vars['--rose'], '#1C1712', 0.55);
+    finalVars['--rose-deep'] = mixHex(vars['--rose-deep'], '#ffffff', 0.22);
+  }
+  // 整個介面的底色／卡片色／淡色底都跟著主題色走（原本是固定的米黃色，換成藍色主題時背景還是黃的）
+  const base = vars['--rose'];
+  const tint = {};
+  if(isDark){
+    tint['--bg'] = mixHex(base, '#000000', 0.90);
+    tint['--bg-deep'] = mixHex(base, '#000000', 0.94);
+    tint['--surface'] = mixHex(base, '#000000', 0.84);
+    tint['--surface-soft'] = mixHex(base, '#000000', 0.78);
+    const darkPale = mixHex(base, '#000000', 0.80);
+    ['--peach-pale','--sky-pale','--gold-pale','--wisteria-pale','--matcha-pale','--night-pale'].forEach(k=>{ tint[k] = darkPale; });
+  } else {
+    tint['--bg'] = mixHex(base, '#ffffff', 0.93);
+    tint['--bg-deep'] = mixHex(base, '#ffffff', 0.86);
+    tint['--surface'] = mixHex(base, '#ffffff', 0.98);
+    tint['--surface-soft'] = mixHex(base, '#ffffff', 0.90);
+    const lightPale = finalVars['--sakura-pale'];
+    ['--peach-pale','--sky-pale','--gold-pale','--wisteria-pale','--matcha-pale','--night-pale'].forEach(k=>{ tint[k] = lightPale; });
+    // 文字色也往主題色偏一點，避免藍色底配棕色字
+    const ink = mixHex(finalVars['--rose-deep'], '#000000', 0.60);
+    tint['--ink'] = ink;
+    tint['--ink-soft'] = mixHex(ink, '#ffffff', 0.45);
+    tint['--ink-faint'] = mixHex(base, '#ffffff', 0.65);
+  }
+  Object.assign(finalVars, tint);
+  if(isDark){ ['--ink','--ink-soft','--ink-faint'].forEach(k=> root.style.removeProperty(k)); }
+  Object.entries(finalVars).forEach(([k,v])=> root.style.setProperty(k, v));
 }
 
 /* ================= App state ================= */
@@ -2197,6 +2289,7 @@ async function init(){
       updatePendingUploadsBanner();
       updateBackupReminderBanner();
       updateArrivalReminderBanner();
+      updateUnsyncedBanner();
       renderProfile();
       render();
       maybeShowDailyReminder();
@@ -2212,6 +2305,7 @@ async function init(){
     updatePendingUploadsBanner();
     updateBackupReminderBanner();
     updateArrivalReminderBanner();
+    updateUnsyncedBanner();
     renderProfile();
     render();
     maybeShowDailyReminder();
@@ -2222,14 +2316,13 @@ async function init(){
       if(state.theme && state.theme.mode==='system') applyTheme(state.theme);
     });
   }
-  spawnPetals();
   bindNav();
 }
 
 function renderProfile(){
   const label = currentUser ? (currentUser.displayName || '已登入雲端') : (state.profile.nickname ? state.profile.nickname : '登入 / 設定');
   document.getElementById('profileLabel').textContent = label;
-  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星紀錄' : '我的追星紀錄';
+  document.getElementById('headerSub').textContent = state.profile.nickname ? state.profile.nickname + ' 的追星手帳' : '我的追星手帳';
   const dot = document.getElementById('profileDot');
   if(currentUser && currentUser.photoURL){
     dot.innerHTML = `<img src="${currentUser.photoURL}" alt="" loading="lazy">`;
@@ -2464,6 +2557,8 @@ function bindNav(){
     backupReminderDismissed = true;
     document.getElementById('backupReminderBanner').style.display = 'none';
   });
+  document.getElementById('unsyncedBanner').addEventListener('click', retryUnsyncedKeys);
+  window.addEventListener('online', ()=>{ if(unsyncedKeys.size>0) retryUnsyncedKeys(); });
   document.getElementById('arrivalReminderBanner').addEventListener('click', (e)=>{
     if(e.target.id==='arrivalReminderClose') return;
     const overdueMerch = arrivalOverdueList('merch').length + arrivalUpcomingList('merch').length;
@@ -2946,7 +3041,7 @@ function renderYsModalBody(year){
     </div>
     <div class="mini-row" style="margin-bottom:8px;">
       <span class="l" style="font-weight:700;">💰 ${year} 年度總支出</span>
-      <span class="r" style="font-weight:700; color:var(--rose-deep); font-size:14px;">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span>
+      <span class="r" style="font-weight:700; color:var(--accent-text); font-size:14px;">NT$ ${Math.round(s.totalExpense).toLocaleString()}</span>
     </div>
     ${s.topArtist ? `<div class="mini-row" style="margin-bottom:8px;"><span class="l">👑 最常紀錄的藝人</span><span class="r">${esc(s.topArtist.name)}・${s.topArtist.count} 次</span></div>` : ''}
     ${s.flipCount>0 ? `<div class="mini-row" style="margin-bottom:18px;"><span class="l">💌 今年被翻牌</span><span class="r">${s.flipCount} 次</span></div>` : `<div style="margin-bottom:18px;"></div>`}
@@ -3031,11 +3126,7 @@ async function generateYearSummaryCanvas(year, themeId){
 
   function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
   function blob(cx,cy,r,color,a){
-    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
-    g.addColorStop(0, hx(color,a));
-    g.addColorStop(1, hx(color,0));
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    /* 純色模式：不再繪製柔光色塊 */
   }
   function roundRectPath(x,y,w,h,r){
     ctx.beginPath();
@@ -3048,9 +3139,6 @@ async function generateYearSummaryCanvas(year, themeId){
   }
   function card(x,y,w,h,r,fill){
     ctx.save();
-    ctx.shadowColor = 'rgba(74,50,35,0.16)';
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 12;
     ctx.fillStyle = fill;
     roundRectPath(x,y,w,h,r);
     ctx.fill();
@@ -3077,54 +3165,12 @@ async function generateYearSummaryCanvas(year, themeId){
     ctx.fillText(text, x+w/2, topY+h/2+1);
     ctx.textBaseline = 'alphabetic';
   }
-  function sakuraFlower(cx, cy, r, color, alpha, rotation){
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(rotation||0);
-    ctx.fillStyle = hx(color, alpha);
-    for(let i=0;i<5;i++){
-      ctx.save();
-      ctx.rotate((Math.PI*2/5)*i);
-      ctx.beginPath();
-      ctx.ellipse(0, -r*0.55, r*0.4, r*0.62, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    }
-    ctx.beginPath();
-    ctx.arc(0,0,r*0.16,0,Math.PI*2);
-    ctx.fillStyle = hx(color, Math.min(1, alpha+0.12));
-    ctx.fill();
-    ctx.restore();
-  }
-  function handDrawnSwirl(x, y, len, color, alpha, rotation){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(rotation||0);
-    ctx.strokeStyle = hx(color, alpha);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.quadraticCurveTo(len*0.42, -len*0.48, len, -len*0.08);
-    ctx.stroke();
-    ctx.restore();
-  }
-  function miniAccent(cx, cy, glyph, color, alpha, size){
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${size}px "Zen Maru Gothic"`;
-    ctx.fillStyle = hx(color, alpha);
-    ctx.fillText(glyph, cx, cy);
-    ctx.restore();
-    ctx.textBaseline = 'alphabetic';
-  }
+  function sakuraFlower(cx, cy, r, color, alpha, rotation){ /* 純色模式：不繪製裝飾圖案 */ }
+  function handDrawnSwirl(x, y, len, color, alpha, rotation){ /* 純色模式：不繪製裝飾圖案 */ }
+  function miniAccent(cx, cy, glyph, color, alpha, size){ /* 純色模式：不繪製裝飾圖案 */ }
 
   // 背景（先鋪滿預留高度，最後會依實際內容裁切）
-  const bgGrad = ctx.createLinearGradient(0,0,0,MAXH);
-  bgGrad.addColorStop(0, bg);
-  bgGrad.addColorStop(1, bgDeep);
-  ctx.fillStyle = bgGrad;
+  ctx.fillStyle = bg;
   ctx.fillRect(0,0,W,MAXH);
   blob(90,120,340,sakura,0.55);
   blob(1010,200,300,rose,0.30);
@@ -3165,8 +3211,6 @@ async function generateYearSummaryCanvas(year, themeId){
   // 標題（實色疊字營造立體感，不用模糊陰影避免糊出髒感）
   ctx.textAlign = 'center';
   ctx.font = '900 130px "Zen Maru Gothic"';
-  ctx.fillStyle = hx(roseDeep, 0.28);
-  ctx.fillText(String(year), W/2, y+116);
   ctx.fillStyle = roseDeep;
   ctx.fillText(String(year), W/2, y+110);
   y += 150;
@@ -3220,13 +3264,7 @@ async function generateYearSummaryCanvas(year, themeId){
   // 年度總支出（大卡片強調）
   const exH = yoy.prevHasData ? 254 : 210;
   ctx.save();
-  ctx.shadowColor = 'rgba(193,91,121,0.35)';
-  ctx.shadowBlur = 40;
-  ctx.shadowOffsetY = 16;
-  const grad = ctx.createLinearGradient(PAD,y,PAD+CW,y+exH);
-  grad.addColorStop(0, roseDeep);
-  grad.addColorStop(1, rose);
-  ctx.fillStyle = grad;
+  ctx.fillStyle = roseDeep;
   roundRectPath(PAD,y,CW,exH,36);
   ctx.fill();
   ctx.restore();
@@ -3403,11 +3441,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
 
   function hx(hex,a){ const c = hexToRgb(hex); return `rgba(${c.r},${c.g},${c.b},${a})`; }
   function blob(cx,cy,r,color,a){
-    const g = ctx.createRadialGradient(cx,cy,0,cx,cy,r);
-    g.addColorStop(0, hx(color,a));
-    g.addColorStop(1, hx(color,0));
-    ctx.fillStyle = g;
-    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    /* 純色模式：不再繪製柔光色塊 */
   }
   function roundRectPath(x,y,w,h,r){
     ctx.beginPath();
@@ -3420,9 +3454,6 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   }
   function card(x,y,w,h,r,fill){
     ctx.save();
-    ctx.shadowColor = 'rgba(74,50,35,0.16)';
-    ctx.shadowBlur = 30;
-    ctx.shadowOffsetY = 12;
     ctx.fillStyle = fill;
     roundRectPath(x,y,w,h,r);
     ctx.fill();
@@ -3449,54 +3480,12 @@ async function generateYearSummaryStoryCanvas(year, themeId){
     ctx.fillText(text, x+w/2, topY+h/2+1);
     ctx.textBaseline = 'alphabetic';
   }
-  function sakuraFlower(cx, cy, r, color, alpha, rotation){
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(rotation||0);
-    ctx.fillStyle = hx(color, alpha);
-    for(let i=0;i<5;i++){
-      ctx.save();
-      ctx.rotate((Math.PI*2/5)*i);
-      ctx.beginPath();
-      ctx.ellipse(0, -r*0.55, r*0.4, r*0.62, 0, 0, Math.PI*2);
-      ctx.fill();
-      ctx.restore();
-    }
-    ctx.beginPath();
-    ctx.arc(0,0,r*0.16,0,Math.PI*2);
-    ctx.fillStyle = hx(color, Math.min(1, alpha+0.12));
-    ctx.fill();
-    ctx.restore();
-  }
-  function handDrawnSwirl(x, y, len, color, alpha, rotation){
-    ctx.save();
-    ctx.translate(x,y);
-    ctx.rotate(rotation||0);
-    ctx.strokeStyle = hx(color, alpha);
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(0,0);
-    ctx.quadraticCurveTo(len*0.42, -len*0.48, len, -len*0.08);
-    ctx.stroke();
-    ctx.restore();
-  }
-  function miniAccent(cx, cy, glyph, color, alpha, size){
-    ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `${size}px "Zen Maru Gothic"`;
-    ctx.fillStyle = hx(color, alpha);
-    ctx.fillText(glyph, cx, cy);
-    ctx.restore();
-    ctx.textBaseline = 'alphabetic';
-  }
+  function sakuraFlower(cx, cy, r, color, alpha, rotation){ /* 純色模式：不繪製裝飾圖案 */ }
+  function handDrawnSwirl(x, y, len, color, alpha, rotation){ /* 純色模式：不繪製裝飾圖案 */ }
+  function miniAccent(cx, cy, glyph, color, alpha, size){ /* 純色模式：不繪製裝飾圖案 */ }
 
   // 全版背景（滿版鋪色，讓限動上下被系統介面遮住的區域也有延伸的色調）
-  const bgGrad = ctx.createLinearGradient(0,0,0,H);
-  bgGrad.addColorStop(0, bg);
-  bgGrad.addColorStop(1, bgDeep);
-  ctx.fillStyle = bgGrad;
+  ctx.fillStyle = bg;
   ctx.fillRect(0,0,W,H);
   blob(90,180,380,sakura,0.5);
   blob(1000,260,320,rose,0.26);
@@ -3538,8 +3527,6 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   // 年份主標
   ctx.textAlign = 'center';
   ctx.font = '900 118px "Zen Maru Gothic"';
-  ctx.fillStyle = hx(roseDeep, 0.28);
-  ctx.fillText(String(year), W/2, y+104);
   ctx.fillStyle = roseDeep;
   ctx.fillText(String(year), W/2, y+98);
   y += 132;
@@ -3593,13 +3580,7 @@ async function generateYearSummaryStoryCanvas(year, themeId){
   // 年度總支出（大卡片強調）
   const exH = 220;
   ctx.save();
-  ctx.shadowColor = 'rgba(193,91,121,0.35)';
-  ctx.shadowBlur = 40;
-  ctx.shadowOffsetY = 16;
-  const grad = ctx.createLinearGradient(PAD,y,PAD+CW,y+exH);
-  grad.addColorStop(0, roseDeep);
-  grad.addColorStop(1, rose);
-  ctx.fillStyle = grad;
+  ctx.fillStyle = roseDeep;
   roundRectPath(PAD,y,CW,exH,34);
   ctx.fill();
   ctx.restore();
@@ -4084,8 +4065,6 @@ function renderHome(){
 
   let main = `
     <div class="greet-card time-${greetPeriod}">
-      <div class="greet-card-blob b1"></div>
-      <div class="greet-card-blob b2"></div>
       <div class="greet-card-icon">${greetIcon}</div>
       <div class="greet-card-text">
         <div class="greet maru">${greetTime}${state.profile.nickname ? '，'+esc(state.profile.nickname) : ''}</div>
@@ -4106,15 +4085,10 @@ function renderHome(){
   if(oshi){
     main += `
     <div class="oshi-banner">
-      <svg class="oshi-watermark" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
-        <path d="M70 108 C34 84 12 60 12 38 C12 18 27 6 43 6 C57 6 66 16 70 30 C74 16 83 6 97 6 C113 6 128 18 128 38 C128 60 106 84 70 108 Z" fill="var(--rose-deep)"/>
-        <path d="M24 4 C24 11 30 17 37 17 C30 17 24 23 24 30 C24 23 18 17 11 17 C18 17 24 11 24 4 Z" fill="var(--wisteria)"/>
-        <path d="M104 86 C104 91 108 95 113 95 C108 95 104 99 104 104 C104 99 100 95 95 95 C100 95 104 91 104 86 Z" fill="var(--gold)"/>
-      </svg>
       <div class="oshi-top">
         ${oshi.photoUrl ? `<img src="${esc(oshi.photoUrl)}" alt="${esc(oshi.name)}" loading="lazy" onerror="this.style.display='none'">` : `<div class="ph">💫</div>`}
         <div>
-          <div style="font-size:11px;color:var(--rose-deep);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
+          <div style="font-size:12px;color:var(--accent-text);font-weight:700;margin-bottom:2px;">本命 OSHI</div>
           <div class="name">${esc(oshi.name)}</div>
         </div>
       </div>
@@ -4182,7 +4156,7 @@ function renderHome(){
 
   side += `<div class="home-block">
     <div class="block-head"><h3>💰 本月花費</h3><a data-goto="expense" role="button" tabindex="0">查看全部</a></div>
-    <div class="mini-row"><span class="l">${thisMonth.replace('-','年')}月 消費總計</span><span class="r" style="font-weight:700;color:var(--rose-deep)">NT$ ${monthTotal.toLocaleString()}</span></div>`;
+    <div class="mini-row"><span class="l">${thisMonth.replace('-','年')}月 消費總計</span><span class="r" style="font-weight:700;color:var(--accent-text)">NT$ ${monthTotal.toLocaleString()}</span></div>`;
   if(monthItemsTop.length>0){
     monthItemsTop.forEach(item=>{ side += renderHomeExpenseThumb(item); });
   }
@@ -4606,9 +4580,9 @@ function renderExpenseStats(items, statsYear){
         const label = amt>=10000 ? Math.round(amt/1000)+'k' : (amt>=1000 ? (amt/1000).toFixed(1)+'k' : amt);
         return `
         <div style="display:flex;flex-direction:column;align-items:center;flex:0 0 auto;min-width:36px;">
-          <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px;white-space:nowrap;">${label}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:2px;white-space:nowrap;">${label}</div>
           <div style="width:22px;height:${h}px;background:var(--rose);border-radius:6px 6px 0 0;"></div>
-          <div style="font-size:10px;color:var(--ink-faint);margin-top:4px;">${parseInt(mm,10)}月</div>
+          <div style="font-size:12px;color:var(--ink-faint);margin-top:4px;">${parseInt(mm,10)}月</div>
         </div>`;
       }).join('')}
     </div>` : `<div class="empty" style="padding:20px 0;"><div class="msg">尚無月份資料</div></div>`;
@@ -4739,7 +4713,7 @@ function renderExpenseCard(item){
   return `
   <div class="card exp-card" style="border-left-color:${catColor.fg};">
     <div class="exp-row">
-      <div class="exp-thumb" style="background:linear-gradient(135deg, ${catColor.bg}, var(--wisteria-pale));">
+      <div class="exp-thumb" style="background:${catColor.bg};">
         ${cover ? `<img src="${esc(cover)}" alt="${esc(item.name||item.item||'記帳項目照片')}" loading="lazy" onerror="this.parentElement.innerHTML='${catIcon}'">` : catIcon}
       </div>
       <div class="exp-info">
@@ -4887,8 +4861,8 @@ function openExpenseForm(id, prefill){
         <option value="">請選擇</option>
         ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${mappedVal===s?'selected':''}>${esc(s)}</option>`).join('')}
       </select>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">🔗 這筆已連結到貨追蹤「${esc(linkedArrivalForForm.name)}」，狀態會自動同步，如需更新請
-        <span id="expGotoArrivalLink" style="color:var(--rose-deep);text-decoration:underline;cursor:pointer;">前往到貨管理編輯</span>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">🔗 這筆已連結到貨追蹤「${esc(linkedArrivalForForm.name)}」，狀態會自動同步，如需更新請
+        <span id="expGotoArrivalLink" style="color:var(--accent-text);text-decoration:underline;cursor:pointer;">前往到貨管理編輯</span>
       </div>
     </div>`;
   } else {
@@ -4955,7 +4929,7 @@ function openExpenseForm(id, prefill){
         <input type="number" id="expOrigAmount" value="${src?esc(src.origAmount||''):''}" min="0" placeholder="原始金額" style="flex:1;">
         <button type="button" class="btn ghost" id="expConvertBtn" style="flex:0 0 auto;padding:10px 14px;">⇄ 換算</button>
       </div>
-      <div id="expRateHint" style="font-size:11px;color:var(--ink-soft);margin-top:4px;"></div>
+      <div id="expRateHint" style="font-size:12px;color:var(--ink-soft);margin-top:4px;"></div>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>連結到（可以連結好幾個項目）</label>
@@ -4963,7 +4937,7 @@ function openExpenseForm(id, prefill){
       <datalist id="expLinkDatalist">
         ${expLinkOpts.map(o=>`<option value="${esc(o.label)}">`).join('')}
       </datalist>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">輸入關鍵字搜尋應援／紀錄／系列／代言／雜誌／影視，從建議清單點選後會自動加入，一筆記帳可以連好幾個；同一場活動/系列/項目的花費也可以連到同一筆，對應頁面會自動加總花了多少錢</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">輸入關鍵字搜尋應援／紀錄／系列／代言／雜誌／影視，從建議清單點選後會自動加入，一筆記帳可以連好幾個；同一場活動/系列/項目的花費也可以連到同一筆，對應頁面會自動加總花了多少錢</div>
     </div>
     <div class="field"><label>消費年月日 *</label><input type="date" id="expDate" value="${existing?esc(existing.date||''):todayStr()}"></div>
     <div class="field"><label>購物平台</label>
@@ -5751,7 +5725,7 @@ function renderCollectionCard(kind, item, seriesLabel){
       <button class="${cfg.wishBtnClass}" data-id="${item.id}" title="加入願望清單" style="position:absolute; top:6px; right:6px; width:28px; height:28px; border:none; border-radius:50%; background:rgba(255,255,255,0.9); box-shadow:var(--shadow-sm); font-size:15px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; color:${wished?'#E8A33D':'var(--ink-faint)'};">${wished?'⭐':'☆'}</button>
     </div>
     <div class="pc-body">
-      ${seriesLabel ? `<div class="pc-series-label" style="font-size:11px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
+      ${seriesLabel ? `<div class="pc-series-label" style="font-size:12px;color:var(--ink-soft);margin-bottom:2px;">🗂️ ${esc(seriesLabel)}</div>` : ''}
       <div class="pc-name">${esc(item.name)}</div>
       <label class="pc-owned">
         <input type="checkbox" class="${cfg.ownedInputClass}" data-id="${item.id}" ${owned?'checked':''}>
@@ -5829,9 +5803,9 @@ function renderCollectionTab(kind){
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">${cfg.icon} 收藏進度</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">${totalOwned} / ${totalCount} ${cfg.unit}（${totalPct}%）</span>
+    <span class="r" style="font-weight:700; color:var(--accent-text);">${totalOwned} / ${totalCount} ${cfg.unit}（${totalPct}%）</span>
   </div>
-  ${totalSpent>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalSpent.toLocaleString()}</div>` : ''}
+  ${totalSpent>0 ? `<div style="font-size:12px;color:var(--ink-soft);margin:-10px 2px 16px;">💰 已連結記帳花費合計 NT$ ${totalSpent.toLocaleString()}</div>` : ''}
   `;
 
   // 願望清單篩選：只影響下方顯示的圖鑑/清單，收藏進度總覽維持顯示全部
@@ -5884,9 +5858,9 @@ function renderCollectionTab(kind){
     if(wishTotal>0){
       html += `<div class="mini-row" style="margin:0 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
         <span class="l" style="font-weight:700;">🌟 願望清單預估花費</span>
-        <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${wishTotal.toLocaleString()}</span>
+        <span class="r" style="font-weight:700; color:var(--accent-text);">NT$ ${wishTotal.toLocaleString()}</span>
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} ${cfg.unit}願望清單中，${wishPricedCount} ${cfg.unit}有填價格</div>`;
+      <div style="font-size:12px;color:var(--ink-soft);margin:-10px 2px 16px;">${wishItems.length} ${cfg.unit}願望清單中，${wishPricedCount} ${cfg.unit}有填價格</div>`;
     }
   }
 
@@ -6039,7 +6013,7 @@ function fmtDateTime(iso){
 function renderArrivalTimeline(a){
   const entries = arrivalTimelineEntries(a);
   if(entries.length===0){
-    return `<div style="margin-top:8px;padding:10px 12px;background:var(--surface-soft);border-radius:12px;font-size:11.5px;color:var(--ink-soft);">目前還沒有時間軸紀錄</div>`;
+    return `<div style="margin-top:8px;padding:10px 12px;background:var(--surface-soft);border-radius:12px;font-size:12px;color:var(--ink-soft);">目前還沒有時間軸紀錄</div>`;
   }
   return `<div class="arrival-timeline" style="margin-top:8px;padding:10px 12px;background:var(--surface-soft);border-radius:12px;">
     ${entries.map(e=>{
@@ -6115,14 +6089,14 @@ function renderArrivalsBody(itemType){
   }
   if(upcoming.length>0){
     html += `<div class="mini-row" style="margin:${overdue.length>0?'0 0 16px':'12px 0 16px'}; background:var(--gold-pale); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
-      <span class="l" style="font-weight:700;color:var(--gold);">⏳ 即將到貨</span>
-      <span class="r" style="font-weight:700; color:var(--gold);">${upcoming.length} 件（${arrivalReminderDaysSetting()} 天內）</span>
+      <span class="l" style="font-weight:700;color:var(--accent-text);">⏳ 即將到貨</span>
+      <span class="r" style="font-weight:700; color:var(--accent-text);">${upcoming.length} 件（${arrivalReminderDaysSetting()} 天內）</span>
     </div>`;
   }
   html += `
   <div class="mini-row" style="margin:${(overdue.length>0||upcoming.length>0)?'0':'12px'} 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">🚚 待到貨</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">${pending.length} 件</span>
+    <span class="r" style="font-weight:700; color:var(--accent-text);">${pending.length} 件</span>
   </div>`;
 
   const arrivedThisMonth = arrivalArrivedThisMonthCount(itemType);
@@ -6130,12 +6104,12 @@ function renderArrivalsBody(itemType){
   html += `
   <div style="display:flex; gap:10px; margin:0 0 16px;">
     <div style="flex:1; min-width:0; background:var(--matcha-pale); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow-sm);">
-      <div style="font-size:11.5px; color:var(--matcha); font-weight:700;">📅 本月已到貨</div>
-      <div style="font-size:19px; font-weight:700; color:var(--matcha); margin-top:2px;">${arrivedThisMonth} 件</div>
+      <div style="font-size:12px; color:var(--accent-text); font-weight:700;">📅 本月已到貨</div>
+      <div style="font-size:19px; font-weight:700; color:var(--accent-text); margin-top:2px;">${arrivedThisMonth} 件</div>
     </div>
     <div style="flex:1; min-width:0; background:var(--wisteria-pale); border-radius:14px; padding:12px 14px; box-shadow:var(--shadow-sm);">
-      <div style="font-size:11.5px; color:var(--wisteria); font-weight:700;">💰 在途總金額</div>
-      <div style="font-size:19px; font-weight:700; color:var(--wisteria); margin-top:2px;">NT$ ${inTransitTotal.toLocaleString()}</div>
+      <div style="font-size:12px; color:var(--accent-text); font-weight:700;">💰 在途總金額</div>
+      <div style="font-size:19px; font-weight:700; color:var(--accent-text); margin-top:2px;">NT$ ${inTransitTotal.toLocaleString()}</div>
     </div>
   </div>`;
 
@@ -6178,7 +6152,7 @@ function renderArrivalsBody(itemType){
   const selectedInView = viewIds.filter(id=>arrivalSelectedIds.has(id));
   const allSelected = viewIds.length>0 && selectedInView.length===viewIds.length;
   html += `<div style="display:flex;justify-content:flex-end;margin:2px 2px 8px;">
-    <button type="button" class="arrival-select-all-btn" data-ids='${esc(JSON.stringify(viewIds))}' style="background:none;border:none;color:var(--rose-deep);font-size:12px;cursor:pointer;padding:4px;">${allSelected ? '取消全選' : '☑️ 全選本頁'}</button>
+    <button type="button" class="arrival-select-all-btn" data-ids='${esc(JSON.stringify(viewIds))}' style="background:none;border:none;color:var(--accent-text);font-size:12px;cursor:pointer;padding:4px;">${allSelected ? '取消全選' : '☑️ 全選本頁'}</button>
   </div>`;
   if(selectedInView.length>0){
     html += `<div class="mini-row arrival-batch-bar" style="margin:0 0 12px; background:var(--wisteria-pale); border-radius:14px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
@@ -6358,7 +6332,7 @@ function renderArrivalCard(a, compact){
   const trackUrl = arrivalTrackingUrl(a);
   const trackingLine = (!compact && a.trackingNo)
     ? `<br>🔖 單號：${trackUrl
-        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--rose-deep);text-decoration:underline;" onclick="event.stopPropagation();">${esc(a.trackingNo)}${a.carrier?`（${esc(a.carrier)}）`:''} ↗</a>`
+        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--accent-text);text-decoration:underline;" onclick="event.stopPropagation();">${esc(a.trackingNo)}${a.carrier?`（${esc(a.carrier)}）`:''} ↗</a>`
         : esc(a.trackingNo)}`
     : '';
   const isSelected = arrivalSelectedIds.has(String(a.id));
@@ -6385,7 +6359,7 @@ function renderArrivalCard(a, compact){
             ${a.paymentMethod ? `<span class="tag">💳 ${esc(a.paymentMethod)}</span>` : ''}
             ${linkedExpense ? `<span class="tag matcha arrival-linked-expense-tag" data-expense-id="${esc(linkedExpense.id)}" style="cursor:pointer;" title="點擊查看記帳">🔗 已同步記帳 NT$ ${expenseAmount(linkedExpense).toLocaleString()}</span>` : ''}
           </div>
-          <button type="button" class="arrival-timeline-toggle-btn" data-id="${esc(a.id)}" style="background:none;border:none;color:var(--ink-soft);font-size:11.5px;cursor:pointer;padding:6px 0 0;">🕘 ${isTimelineOpen?'收合時間軸':'查看時間軸'}</button>
+          <button type="button" class="arrival-timeline-toggle-btn" data-id="${esc(a.id)}" style="background:none;border:none;color:var(--ink-soft);font-size:12px;cursor:pointer;padding:6px 0 0;">🕘 ${isTimelineOpen?'收合時間軸':'查看時間軸'}</button>
           ${isTimelineOpen ? renderArrivalTimeline(a) : ''}
         </div>
       </div>
@@ -6425,7 +6399,7 @@ function renderArrivalPackageGroup(group){
     </div>
     <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;">
       🔖 單號：${trackUrl
-        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--rose-deep);text-decoration:underline;">${esc(first.trackingNo)}${first.carrier?`（${esc(first.carrier)}）`:''} ↗</a>`
+        ? `<a href="${esc(trackUrl)}" target="_blank" rel="noopener" style="color:var(--accent-text);text-decoration:underline;">${esc(first.trackingNo)}${first.carrier?`（${esc(first.carrier)}）`:''} ↗</a>`
         : esc(first.trackingNo)}
     </div>
     ${groupNextStatus ? `<button type="button" class="btn ghost arrival-package-advance-btn" data-ids='${esc(JSON.stringify(group.map(a=>String(a.id))))}' data-status="${groupNextStatus}" style="padding:6px 12px;font-size:12px;margin-bottom:10px;">整批標記為${ARRIVAL_STATUS_META[groupNextStatus].icon} ${ARRIVAL_STATUS_META[groupNextStatus].label}</button>` : ''}
@@ -6597,13 +6571,13 @@ function openArrivalForm(id, itemType, prefill){
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : '新增'} · 到貨追蹤（${typeLabel}）</h3>
-    ${(!existing && prefill) ? `<p style="font-size:11.5px;color:var(--rose-deep);background:var(--sakura-pale);border-radius:10px;padding:8px 10px;margin:-4px 0 12px;">📋 已複製「${esc(prefill.name||'')}」的內容，確認/調整後再儲存</p>` : ''}
+    ${(!existing && prefill) ? `<p style="font-size:12px;color:var(--accent-text);background:var(--sakura-pale);border-radius:10px;padding:8px 10px;margin:-4px 0 12px;">📋 已複製「${esc(prefill.name||'')}」的內容，確認/調整後再儲存</p>` : ''}
     <div class="field"><label>名稱 *</label><input type="text" id="avName" value="${src?esc(src.name):''}" placeholder="例：官方商城預購小卡組"></div>
     <div class="field"><label>藝人</label>${artistFieldHtml}</div>
     <div class="field"><label>系列</label>
       <input type="text" id="avSeries" list="avSeriesList" value="${src?esc(src.series||''):''}" placeholder="例：4Reasons、U:NFOLD...">
       <datalist id="avSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟${typeLabel}圖鑑打得一模一樣，到貨後才能正確連動顯示在一起</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟${typeLabel}圖鑑打得一模一樣，到貨後才能正確連動顯示在一起</p>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
@@ -6612,7 +6586,7 @@ function openArrivalForm(id, itemType, prefill){
     </div>
     <div class="field"><label>數量</label><input type="number" id="avQuantity" min="1" value="${src&&src.quantity?esc(src.quantity):1}"></div>
     <div class="field"><label>單價 (NT$)</label><input type="number" id="avPrice" min="0" value="${src&&src.price!==undefined&&src.price!==''?esc(src.price):''}" placeholder="選填，填一件多少錢">
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">這裡填的是「一件」的價格，不是這批的總價；同步到記帳時會自動乘上數量算出總金額</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">這裡填的是「一件」的價格，不是這批的總價；同步到記帳時會自動乘上數量算出總金額</p>
     </div>
     <div class="field"><label>付款方式</label>
       <select id="avPaymentMethod">
@@ -6625,14 +6599,14 @@ function openArrivalForm(id, itemType, prefill){
         <input type="checkbox" id="avSyncExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);" ${syncExpenseChecked?'checked':''}>
         同步到記帳
       </label>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填價格且勾選時，會自動建立/更新一筆對應花費（分類：${type==='photocard'?'小卡':'周邊商品'}），記帳那筆會即時顯示這裡的到貨狀態；取消勾選只會解除連結，記帳紀錄本身不會被刪除</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">有填價格且勾選時，會自動建立/更新一筆對應花費（分類：${type==='photocard'?'小卡':'周邊商品'}），記帳那筆會即時顯示這裡的到貨狀態；取消勾選只會解除連結，記帳紀錄本身不會被刪除</div>
     </div>
     <div class="field"><label>下單日期</label><input type="date" id="avOrderedAt" value="${existing?esc(existing.orderedAt||''):todayStr()}"></div>
     <div class="field"><label>狀態</label>
       <select id="avStatus">
         ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='ordered'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
       </select>
-      <p id="avShippingHint" style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;display:${initialShowShipping?'none':'block'};">狀態選「🚚 出貨中」或「✅ 已到貨」後，才會出現預計到貨日／物流公司／追蹤單號欄位</p>
+      <p id="avShippingHint" style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;display:${initialShowShipping?'none':'block'};">狀態選「🚚 出貨中」或「✅ 已到貨」後，才會出現預計到貨日／物流公司／追蹤單號欄位</p>
     </div>
     <div id="avShippingFieldsWrap" style="display:${initialShowShipping?'block':'none'};">
       <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
@@ -6641,12 +6615,12 @@ function openArrivalForm(id, itemType, prefill){
           <option value="">不指定</option>
           ${ARRIVAL_CARRIER_OPTIONS.map(c=>`<option value="${esc(c)}" ${src&&src.carrier===c?'selected':''}>${esc(c)}</option>`).join('')}
         </select>
-        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">選「黑貓宅急便」可以直接連到官網查詢；其他物流商會用 17TRACK 幫忙自動辨識查詢</p>
+        <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">選「黑貓宅急便」可以直接連到官網查詢；其他物流商會用 17TRACK 幫忙自動辨識查詢</p>
       </div>
       <div class="field"><label>追蹤單號</label>
         <input type="text" id="avTrackingNo" list="avTrackingNoList" value="${existing?esc(existing.trackingNo||''):''}" placeholder="選填，填了會自動產生查詢連結">
         <datalist id="avTrackingNoList">${trackingNoOptions.map(t=>`<option value="${esc(t)}">`).join('')}</datalist>
-        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">填跟其他品項一樣的單號，到貨管理清單會自動把它們合併顯示成同一個包裹</p>
+        <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">填跟其他品項一樣的單號，到貨管理清單會自動把它們合併顯示成同一個包裹</p>
       </div>
     </div>
     <div class="field">
@@ -6659,7 +6633,7 @@ function openArrivalForm(id, itemType, prefill){
           <option value="">🆕 到貨後自動新增一筆新的</option>
           ${linkedItemOptionsHtml}
         </select>
-        <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">如果${typeLabel}圖鑑裡已經有這筆了，選它就不會重複新增，到貨時只會直接幫那筆打勾「已擁有」</p>
+        <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">如果${typeLabel}圖鑑裡已經有這筆了，選它就不會重複新增，到貨時只會直接幫那筆打勾「已擁有」</p>
       </div>
     </div>
     <div class="field"><label>備註</label><input type="text" id="avNote" value="${existing?esc(existing.note||''):''}" placeholder="選填"></div>
@@ -6818,7 +6792,7 @@ function renderArtists(){
             ? `<img src="${esc(a.photoUrl)}" alt="${esc(a.name)}" loading="lazy" onerror="this.style.display='none'" style="width:52px;height:52px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
             : `<div style="width:52px;height:52px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">✨</div>`}
           <div>
-            <div class="card-title">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</div>
+            <div class="card-title">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--accent-text)">♡</span>':''}</div>
             <div class="card-meta">${esc(a.group||'')}</div>
             <div>
               ${oshiLevelTag(artistOshiLevel(a))}
@@ -6939,9 +6913,9 @@ function openArtistDetail(id){
   if(lastYearSamePeriodSpent>0){
     const yoyPct = Math.round((thisYearSpent-lastYearSamePeriodSpent)/lastYearSamePeriodSpent*100);
     const up = yoyPct>=0;
-    yoyBadgeHtml = ` <span style="font-size:9.5px;color:${up?'var(--rose-deep)':'var(--matcha)'};">${up?'↑':'↓'}${Math.abs(yoyPct)}%</span>`;
+    yoyBadgeHtml = ` <span style="font-size:12px;color:${up?'var(--rose-deep)':'var(--matcha)'};">${up?'↑':'↓'}${Math.abs(yoyPct)}%</span>`;
   } else if(thisYearSpent>0){
-    yoyBadgeHtml = ` <span style="font-size:9.5px;color:var(--ink-faint);">去年同期無資料</span>`;
+    yoyBadgeHtml = ` <span style="font-size:12px;color:var(--ink-faint);">去年同期無資料</span>`;
   }
   const pcOwnedCount = state.photocards.filter(p=>p.artist===a.name && p.owned).length;
   const pcTotalCount = state.photocards.filter(p=>p.artist===a.name).length;
@@ -6964,13 +6938,13 @@ function openArtistDetail(id){
         ${collectiblePct>0 ? `<div style="width:${collectiblePct}%;background:var(--rose);"></div>` : ''}
         ${experiencePct>0 ? `<div style="width:${experiencePct}%;background:var(--wisteria);"></div>` : ''}
       </div>
-      <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--ink-soft);margin-top:8px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--ink-soft);margin-top:8px;">
         <span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--rose);margin-right:4px;"></span>換得收藏（專輯/小卡/周邊等）NT$ ${collectibleSpent.toLocaleString()}（${collectiblePct}%）</span>
       </div>
-      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px;">
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--wisteria);margin-right:4px;"></span>體驗／其他支出（門票/交通/餐飲等）NT$ ${experienceSpent.toLocaleString()}（${experiencePct}%）
       </div>
-      ${avgPerPc!==null ? `<div style="font-size:11.5px;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--ink-faint);padding-top:8px;">平均每張擁有的小卡花費約 NT$ ${avgPerPc.toLocaleString()}</div>` : ''}
+      ${avgPerPc!==null ? `<div style="font-size:12px;color:var(--ink-faint);margin-top:8px;border-top:1px dashed var(--ink-faint);padding-top:8px;">平均每張擁有的小卡花費約 NT$ ${avgPerPc.toLocaleString()}</div>` : ''}
     </div>` : '';
 
   const birthdayInfo = a.birthday ? nextOccurrenceInfo(a.birthday) : null;
@@ -6985,7 +6959,7 @@ function openArtistDetail(id){
         ? `<img src="${esc(a.photoUrl)}" alt="${esc(a.name)}" loading="lazy" onerror="this.style.display='none'" style="width:64px;height:64px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
         : `<div style="width:64px;height:64px;border-radius:50%;background:var(--sakura-pale);display:flex;align-items:center;justify-content:center;font-size:26px;flex-shrink:0;">✨</div>`}
       <div>
-        <h3 class="maru" style="margin:0;">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--rose-deep)">♡</span>':''}</h3>
+        <h3 class="maru" style="margin:0;">${esc(a.name)} ${artistOshiLevel(a)==='本命' ? '<span style="color:var(--accent-text)">♡</span>':''}</h3>
         <div class="card-meta">${esc(a.group||'')}</div>
       </div>
     </div>
@@ -7128,9 +7102,9 @@ function renderSupportTab(){
   html += `
   <div class="mini-row" style="margin:12px 0 16px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
     <span class="l" style="font-weight:700;">💰 應援花費總計</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${totalSpent.toLocaleString()}</span>
+    <span class="r" style="font-weight:700; color:var(--accent-text);">NT$ ${totalSpent.toLocaleString()}</span>
   </div>
-  ${totalLinkedEntries>0 ? `<div style="font-size:11px;color:var(--ink-soft);margin:-10px 2px 16px;">共 ${linkedEventCount} 場應援已連動記帳本，合計 ${totalLinkedEntries} 筆花費紀錄</div>` : ''}
+  ${totalLinkedEntries>0 ? `<div style="font-size:12px;color:var(--ink-soft);margin:-10px 2px 16px;">共 ${linkedEventCount} 場應援已連動記帳本，合計 ${totalLinkedEntries} 筆花費紀錄</div>` : ''}
   `;
 
   const renderSupportCard = (s, isEnded)=>{
@@ -7299,7 +7273,7 @@ function openSupportForm(id, prefill){
           <input type="checkbox" id="supAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
           同時加入記帳本
         </label>
-        <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">會在記帳本自動建立/更新一筆對應花費（分類：應援物/飯製商品）</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">會在記帳本自動建立/更新一筆對應花費（分類：應援物/飯製商品）</div>
       </div>
     </div>
     <div class="field"><label>展示圖片（最多 6 張，可從手機/電腦上傳照片，或貼上圖片連結）</label>
@@ -7565,7 +7539,7 @@ function renderMediaOverviewBody(){
   html += `
   <div class="mini-row" style="margin:12px 0 10px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm); flex-wrap:wrap; gap:6px;">
     <span class="l" style="font-weight:700;">🗂️ ${esc(scopeLabel)} 媒體總覽</span>
-    <span class="r" style="font-weight:700; color:var(--rose-deep);">合計 ${filtered.length} 檔</span>
+    <span class="r" style="font-weight:700; color:var(--accent-text);">合計 ${filtered.length} 檔</span>
   </div>
   <div class="cal-filter-row" style="margin:0 0 14px;">
     <span class="tag">🤝 代言 ${countBy.endorsement}</span>
@@ -7769,7 +7743,7 @@ function openEndorsementForm(id){
         <input type="checkbox" id="endAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
         同時加入記帳本
       </label>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：代言周邊支出）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：代言周邊支出）</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -7957,7 +7931,7 @@ function openMagazineForm(id){
         <input type="checkbox" id="magAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
         同時加入記帳本
       </label>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：雜誌寫真）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：雜誌寫真）</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -8134,7 +8108,7 @@ function openMovieForm(id){
         <input type="checkbox" id="movAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
         同時加入記帳本
       </label>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：電影/影視）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">有填金額且勾選時，會自動建立/更新一筆對應花費（分類：電影/影視）</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -8444,7 +8418,7 @@ function openSeriesCoverForm(seriesKey){
     <div class="field">
       <label>圖鑑建立日期</label>
       <input type="date" id="seriesDateInput" value="${esc(currentDate)}">
-      <p style="font-size:11.5px;color:var(--ink-soft);margin:4px 2px 0;">這是「圖鑑」本身的日期，跟裡面每張小卡各自的建立日期是分開的，可用來排序圖鑑顯示順序。</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">這是「圖鑑」本身的日期，跟裡面每張小卡各自的建立日期是分開的，可用來排序圖鑑顯示順序。</p>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -8487,7 +8461,7 @@ function openMerchSeriesCoverForm(seriesKey){
     <div class="field">
       <label>圖鑑建立日期</label>
       <input type="date" id="seriesDateInput" value="${esc(currentDate)}">
-      <p style="font-size:11.5px;color:var(--ink-soft);margin:4px 2px 0;">用來排序圖鑑顯示順序，跟裡面每件品項各自的建立日期是分開的。</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">用來排序圖鑑顯示順序，跟裡面每件品項各自的建立日期是分開的。</p>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -8712,7 +8686,7 @@ function openPhotocardForm(id, prefill){
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
       <input type="text" id="pcSeries" list="pcSeriesList" placeholder="例：4Reasons、U:NFOLD..." value="${src?esc(src.series||''):''}">
       <datalist id="pcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟周邊圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟周邊圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>小卡類別</label>${categoryFieldHtml}</div>
     <div class="field"><label>通路</label>
@@ -8867,7 +8841,7 @@ function openMerchForm(id, prefill){
     <div class="field"><label>系列 / 專輯（大圖鑑分組用）</label>
       <input type="text" id="mcSeries" list="mcSeriesList" placeholder="例：Proof、BE..." value="${src?esc(src.series||''):''}">
       <datalist id="mcSeriesList">${seriesOptions.map(s=>`<option value="${esc(s)}">`).join('')}</datalist>
-      <p style="font-size:11px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟小卡圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
+      <p style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;">系列名稱跟小卡圖鑑打得一模一樣，兩邊就會自動互相連動顯示</p>
     </div>
     <div class="field"><label>分類</label>${categoryFieldHtml}</div>
     <div class="field"><label>購入通路</label>
@@ -9048,7 +9022,7 @@ function openFanlogForm(id, prefill){
         <input type="checkbox" id="flAddToExpense" style="width:16px;height:16px;accent-color:var(--rose-deep);">
         同時加入記帳本
       </label>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">有填花費金額且勾選時，會自動建立/更新一筆對應花費（分類：其他追星支出）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">有填花費金額且勾選時，會自動建立/更新一筆對應花費（分類：其他追星支出）</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -9369,7 +9343,7 @@ function openScheduleForm(id, prefill){
     </div>
     <div class="field"><label>地點</label><input type="text" id="schLocation" value="${existing?esc(existing.location||''):''}" placeholder="例：台北小巨蛋"></div>
     <div class="field"><label>類型</label>${categoryFieldHtml}</div>
-    <div class="field"><label>開賣日期（選填）</label><input type="date" id="schOnSaleDate" value="${existing?esc(existing.onSaleDate||''):''}"><div style="font-size:11px;color:var(--ink-soft);margin-top:4px;">門票／預售開賣日期，設定後會出現在首頁倒數計時</div></div>
+    <div class="field"><label>開賣日期（選填）</label><input type="date" id="schOnSaleDate" value="${existing?esc(existing.onSaleDate||''):''}"><div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">門票／預售開賣日期，設定後會出現在首頁倒數計時</div></div>
     <div class="field">
       <label>待辦清單（選填）</label>
       <div class="checklist-box" id="schChecklistBox"></div>
@@ -9578,7 +9552,7 @@ function renderFanlogTab(){
   if(fanlogPeriodTotal>0){
     listHtml += `<div class="mini-row" style="margin:10px 0 14px; background:var(--surface); border-radius:14px; padding:12px 16px; box-shadow:var(--shadow-sm);">
       <span class="l" style="font-weight:700;">💰 這段期間花費</span>
-      <span class="r" style="font-weight:700; color:var(--rose-deep);">NT$ ${fanlogPeriodTotal.toLocaleString()}</span>
+      <span class="r" style="font-weight:700; color:var(--accent-text);">NT$ ${fanlogPeriodTotal.toLocaleString()}</span>
     </div>`;
   }
 
@@ -9719,9 +9693,9 @@ function openCategoryManager(){
         <div class="cat-manage-row" data-cfg="${cfg.key}" data-name="${esc(name)}" style="display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:12px;padding:8px 10px;margin-bottom:6px;box-shadow:var(--shadow-sm);${disabled?'opacity:0.55;':''}">
           <div class="cat-manage-row-view" style="flex:1;display:flex;align-items:center;gap:8px;min-width:0;">
             <span style="font-size:13.5px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${disabled?'text-decoration:line-through;':''}">${esc(name)}</span>
-            ${isFixed ? `<span style="font-size:10.5px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--sakura-pale);border-radius:6px;padding:1px 5px;">內建</span>` : ''}
-            ${disabled ? `<span style="font-size:10.5px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--ink-faint);border-radius:6px;padding:1px 5px;">已停用</span>` : ''}
-            <span style="font-size:11px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
+            ${isFixed ? `<span style="font-size:12px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--sakura-pale);border-radius:6px;padding:1px 5px;">內建</span>` : ''}
+            ${disabled ? `<span style="font-size:12px;color:var(--ink-faint);flex-shrink:0;border:1px solid var(--ink-faint);border-radius:6px;padding:1px 5px;">已停用</span>` : ''}
+            <span style="font-size:12px;color:var(--ink-faint);flex-shrink:0;">${count>0?`使用中 ${count} 筆`:'未使用'}</span>
           </div>
           <div class="cat-manage-row-edit" style="display:none;flex:1;gap:6px;">
             <input type="text" class="cat-manage-rename-input" value="${esc(name)}" style="flex:1;min-width:0;padding:6px 8px;font-size:13px;">
@@ -9937,7 +9911,7 @@ function openProfileForm(){
     const isPushOn = !!(state.profile.pushEnabled && state.profile.pushToken);
     pushSectionHtml = `
       <button type="button" class="btn ${isPushOn?'ghost':'primary'}" id="pushToggleBtn" style="width:100%;">${isPushOn ? '🔕 關閉這台裝置的推播通知' : '🔔 開啟這台裝置的推播通知'}</button>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">開啟後，就算沒開著手帳，手機也會在行程當天、開賣日、藝人生日時收到通知。（僅限這台裝置，換手機需要重新開啟一次）</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">開啟後，就算沒開著手帳，手機也會在行程當天、開賣日、藝人生日時收到通知。（僅限這台裝置，換手機需要重新開啟一次）</div>
     `;
   }
   const accountHtml = currentUser ? `
@@ -9986,12 +9960,12 @@ function openProfileForm(){
         <button type="button" class="seg-btn ${state.profile.dailyReminder!==false?'active':''}" data-val="on">🔔 開啟</button>
         <button type="button" class="seg-btn ${state.profile.dailyReminder===false?'active':''}" data-val="off">🔕 關閉</button>
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">每天第一次打開手帳時，會彈出今天／明天有沒有行程、開賣、生日的小提醒。</div>
     </div>
     <div class="field">
       <label>到貨提前提醒</label>
       <input type="number" id="profArrivalReminderDays" min="0" max="30" value="${arrivalReminderDaysSetting()}">
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">到貨管理裡「已下單／出貨中」的品項，距離預計到貨日還剩幾天內就開始提醒（填 0 代表關閉提前提醒，只保留逾期提醒）。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">到貨管理裡「已下單／出貨中」的品項，距離預計到貨日還剩幾天內就開始提醒（填 0 代表關閉提前提醒，只保留逾期提醒）。</div>
     </div>
     <div class="field">
       <label>手機推播通知</label>
@@ -10021,7 +9995,7 @@ function openProfileForm(){
         <input type="url" id="playlistNewUrl" placeholder="貼上 YouTube 影片或播放清單連結" style="flex:1;min-width:0;">
         <button type="button" class="btn ghost" id="playlistAddBtn" style="flex-shrink:0;">➕ 加入</button>
       </div>
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">支援單一影片連結，也支援整份 YouTube 播放清單連結（例如 youtube.com/playlist?list=... ）—— 加入整份清單後，會依序（或隨機）播放清單裡的每一首歌。加入歌曲後，打開手帳會自動輪播播放清單裡的內容（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">支援單一影片連結，也支援整份 YouTube 播放清單連結（例如 youtube.com/playlist?list=... ）—— 加入整份清單後，會依序（或隨機）播放清單裡的每一首歌。加入歌曲後，打開手帳會自動輪播播放清單裡的內容（背景播放，畫面上不會出現播放器或控制項）。因為瀏覽器限制，「一打開就播放」實際上會在你第一次點擊畫面任何地方時開始出聲音，幾乎感覺不到延遲。</div>
     </div>
     <div class="field">
       <button type="button" class="btn ghost" id="goArtistsBtn" style="width:100%;">✨ 管理藝人</button>
@@ -10036,7 +10010,7 @@ function openProfileForm(){
         <button type="button" class="btn ghost" id="importBackupBtn" style="flex:1;">📥 匯入還原</button>
       </div>
       <input type="file" id="backupFileInput" accept="application/json" style="display:none;">
-      <div style="font-size:11px;color:var(--ink-soft);margin-top:6px;">匯出成 JSON 檔存到手機或電腦，換裝置或想還原時可以匯入。匯入會覆蓋目前所有資料，請先確認。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">匯出成 JSON 檔存到手機或電腦，換裝置或想還原時可以匯入。匯入會覆蓋目前所有資料，請先確認。</div>
     </div>
     <div class="modal-actions">
       <button class="btn ghost" id="cancelBtn">取消</button>
@@ -10313,11 +10287,11 @@ function confirmDelete(tab, id){
       if(total>0){
         warningHtml = `
         <div style="background:var(--rose-pale, #FBEAEA);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-          <div style="font-size:13px;font-weight:700;color:var(--rose-deep);margin-bottom:6px;">⚠️ 「${esc(artist.name)}」名下還有 ${total} 筆關聯紀錄</div>
+          <div style="font-size:13px;font-weight:700;color:var(--accent-text);margin-bottom:6px;">⚠️ 「${esc(artist.name)}」名下還有 ${total} 筆關聯紀錄</div>
           <div style="font-size:12px;color:var(--ink-soft);line-height:1.8;">
             ${nonZero.map(k=> `${ARTIST_USAGE_LABELS[k]} ${counts[k]} 筆`).join('　')}
           </div>
-          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:6px;">刪除藝人不會連帶刪除這些紀錄，但之後在各分頁會少了這個藝人可以篩選/歸類。</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">刪除藝人不會連帶刪除這些紀錄，但之後在各分頁會少了這個藝人可以篩選/歸類。</div>
         </div>`;
       }
     }
@@ -10353,15 +10327,58 @@ function confirmDelete(tab, id){
 
 let modalDirty = false;
 let modalHasForm = false;
+const MODAL_FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+let modalPrevFocus = null;
+function modalFocusableList(){
+  return [...document.getElementById('modal').querySelectorAll(MODAL_FOCUSABLE)]
+    .filter(el=> el.offsetParent !== null || el === document.activeElement);
+}
 function showModal(){
   modalDirty = false;
-  modalHasForm = !!document.getElementById('modal').querySelector('#saveBtn');
-  document.getElementById('overlay').classList.add('show');
+  const overlay = document.getElementById('overlay');
+  const modal = document.getElementById('modal');
+  modalHasForm = !!modal.querySelector('#saveBtn');
+  if(!overlay.classList.contains('show')) modalPrevFocus = document.activeElement;
+  modal.setAttribute('role','dialog');
+  modal.setAttribute('aria-modal','true');
+  overlay.classList.add('show');
+  // 開啟後把焦點移進彈窗（若裡面已有元素自行取得焦點，例如搜尋框，就不搶）
+  setTimeout(()=>{
+    if(!overlay.classList.contains('show')) return;
+    if(modal.contains(document.activeElement)) return;
+    const list = modalFocusableList();
+    if(list.length) list[0].focus();
+  }, 0);
 }
 function closeModal(){
   modalDirty = false;
   document.getElementById('overlay').classList.remove('show');
+  if(modalPrevFocus && document.body.contains(modalPrevFocus) && typeof modalPrevFocus.focus==='function'){
+    try{ modalPrevFocus.focus(); }catch(e){}
+  }
+  modalPrevFocus = null;
 }
+/* 鍵盤支援：Esc 關閉彈窗（有未儲存內容時先確認），Tab 只在彈窗內循環，不會跑到背景 */
+document.addEventListener('keydown', (e)=>{
+  const overlay = document.getElementById('overlay');
+  if(!overlay || !overlay.classList.contains('show')) return;
+  if(e.key==='Escape'){
+    e.preventDefault();
+    if(modalDirty && !confirm('目前輸入的內容還沒儲存，確定要放棄嗎？')) return;
+    closeModal();
+    return;
+  }
+  if(e.key==='Tab'){
+    const list = modalFocusableList();
+    if(list.length===0){ e.preventDefault(); return; }
+    const first = list[0], last = list[list.length-1];
+    const active = document.activeElement;
+    const inside = document.getElementById('modal').contains(active);
+    if(!inside){ e.preventDefault(); first.focus(); }
+    else if(e.shiftKey && active===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && active===last){ e.preventDefault(); first.focus(); }
+  }
+});
 
 function showToast(msg){
   const toast = document.getElementById('toast');
