@@ -242,6 +242,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ihrs{font-size:12px; color:var(--ink-dim); margin-top:4px;}
   .ihrs.warn{color:var(--danger); font-weight:700;}
   .ihr,.ihwd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:13px;}
+  .ihr[hidden],.ihwd[hidden]{display:none;}
   .ihwd label{display:inline-flex; align-items:center; gap:3px;}
   .cardfee[hidden]{display:none;}
   .wishsec{padding-bottom:4px; border-bottom:1px dashed var(--line-strong); margin-bottom:6px;}
@@ -346,6 +347,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .spv .spnote{color:var(--ink-faint); font-size:13px;}
   .sprsv{display:grid; grid-template-columns:auto 1fr; gap:8px; align-items:center;}
   .sprsv[hidden]{display:none;}
+  .sprsl{display:grid; grid-template-columns:1fr 1fr; gap:8px; align-items:center;}
+  .sprsl[hidden],.sprsv input[hidden]{display:none;}
   .spchip.rs-ok{color:#3a9a74; border-color:#3a9a74;}
   .spchip.rs-wait{color:var(--accent); border-color:var(--accent);}
   .spchip.rs-no{color:var(--danger); border-color:var(--danger);}
@@ -444,6 +447,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .lkrow{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; border:1px solid var(--line-strong); padding:2px 2px 2px 10px;}
   .lkt{font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; min-width:0;}
   .lkt.gone{color:var(--ink-faint); font-weight:500;}
+  .ie3[hidden]{display:none;}
   .ie3{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px;}
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
   .expv b{font-variant-numeric:tabular-nums;}
@@ -1824,6 +1828,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 營業時間與公休日：排到公休日、或預計時間不在營業時間內，就提醒 ----
   var WD = ['日','一','二','三','四','五','六'];
+  function hrsOn(x){ return ['景點','美食','購物'].indexOf(x.cat) >= 0; }   // 營業時間／公休日只在景點、美食、購物才出現
   function hoursWarn(day, x){
     var w = [], cl = (x.closed || []).map(Number), dt = day && day.date ? toDate(day.date) : null;
     if(dt && cl.indexOf(dt.getDay()) >= 0) w.push('這天（週' + WD[dt.getDay()] + '）公休');
@@ -1835,8 +1840,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     return w;
   }
-  function hoursWarnHtml(day, x){ return hoursWarn(day, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join(''); }
+  function hoursWarnHtml(day, x){ if(!hrsOn(x)) return ''; return hoursWarn(day, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join(''); }
   function hoursLine(x){
+    if(!hrsOn(x)) return '';
     var cl = (x.closed || []).map(Number).sort(), parts = [];
     if(x.open && x.close) parts.push('營業 ' + esc(x.open) + '–' + esc(x.close));
     if(cl.length) parts.push('公休 週' + cl.map(function(n){ return WD[n]; }).join('、'));
@@ -1893,7 +1899,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<select' + a + ' data-k="' + key + '" aria-label="' + ph[key] + '"><option value="">' + ph[key] + '</option>' +
         list.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x[key]) ? ' selected' : '') + '>' + esc(lkText(key, y)) + '</option>'; }).join('') + '</select>';
     }).join('');
-    return (h ? '<div class="ie3">' + h + '</div>' : '') + lkExpHtml(t, 'it', day.id, x);
+    // 追星：類型選「活動」時可連結到應援打卡點（已連結過的行程維持顯示）
+    var spH = (t.kind === 'fan' && (t.spots || []).length) ? '<div class="ie3 itx-lksp"' + ((x.cat === '活動' || x.lkSpot) ? '' : ' hidden') + '><select' + a + ' data-k="lkSpot" aria-label="連結打卡點"><option value="">連結應援打卡點</option>' +
+      t.spots.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x.lkSpot) ? ' selected' : '') + '>' + esc(lkText('lkSp', y)) + '</option>'; }).join('') + '</select></div>' : '';
+    return (h ? '<div class="ie3">' + h + '</div>' : '') + spH + lkExpHtml(t, 'it', day.id, x);
   }
   // ── 編輯模式：清單只顯示精簡的一列，新增／編輯都用彈跳窗，項目再多頁面也不會拉很長 ──
   function crow(open, id, day, c1, c2, right, delAct){
@@ -1982,7 +1991,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && !(x.closed || []).length && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
-    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.hours);
+    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
     return e(x.name) && e(x.amount);
   }
   function openModal(kind, id, dayId, isNew){
@@ -2057,8 +2066,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="iet"><input type="time"' + a + ' data-k="end" aria-label="離開時間" value="' + esc(x.end || '') + '">' +
       '<span class="idurt' + (durText(x) ? ' has' : '') + '">' + (durText(x) ? '停留 ' + esc(durText(x)) : '← 離開時間（選填，會自動算停留時長）') + '</span></div>' +
-      '<div class="ihr"><span class="dcl">營業時間</span><input type="time"' + a + ' data-k="open" aria-label="開門時間" value="' + esc(x.open || '') + '"><span>～</span><input type="time"' + a + ' data-k="close" aria-label="打烊時間" value="' + esc(x.close || '') + '"></div>' +
-      '<div class="ihwd"><span class="dcl">公休日</span>' + WD.map(function(n, i){ return '<label><input type="checkbox"' + a + ' data-k="closedDay" data-wd="' + i + '"' + ((x.closed || []).map(Number).indexOf(i) >= 0 ? ' checked' : '') + '>' + n + '</label>'; }).join('') + '</div>' +
+      '<div class="ihr"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">營業時間</span><input type="time"' + a + ' data-k="open" aria-label="開門時間" value="' + esc(x.open || '') + '"><span>～</span><input type="time"' + a + ' data-k="close" aria-label="打烊時間" value="' + esc(x.close || '') + '"></div>' +
+      '<div class="ihwd"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">公休日</span>' + WD.map(function(n, i){ return '<label><input type="checkbox"' + a + ' data-k="closedDay" data-wd="' + i + '"' + ((x.closed || []).map(Number).indexOf(i) >= 0 ? ' checked' : '') + '>' + n + '</label>'; }).join('') + '</div>' +
       '<div class="ihw">' + hoursWarnHtml(day, x) + '</div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
@@ -2336,6 +2345,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var RSV_ST = ['未預約','已預約','候補'];
   function rsvOn(x){ return spBook(x) && !!x.reserve; }                       // 有勾「需先預約」才會有預約狀態
   function rsvSt(x){ return RSV_ST.indexOf(x.rsvStatus) >= 0 ? x.rsvStatus : '未預約'; }
+  // 預約狀態選「已預約」才記預約到的場次（日期＋時間）
+  function rslOn(x){ return rsvOn(x) && rsvSt(x) === '已預約'; }
+  function syncRsv(bk, x){   // 已預約：連結那格換成預約場次（日期＋時間）；其他狀態維持連結
+    if(!bk) return;
+    var rl = bk.querySelector('.sprsl'), lk = bk.querySelector('input[data-k="rsvLink"]');
+    if(rl) rl.hidden = !rslOn(x); if(lk) lk.hidden = rslOn(x);
+  }
+  function rslHas(x){ return rslOn(x) && !!(String(x.rsvDate || '').trim() || String(x.rsvTime || '').trim()); }
+  function rslText(x, full){ return (x.rsvDate ? esc(d(x.rsvDate)) + (full ? esc(wk(x.rsvDate)) : '') : '') + (x.rsvTime ? (x.rsvDate ? ' ' : '') + esc(x.rsvTime) : ''); }
   function rsvCls(st){ return st === '已預約' ? 'rs-ok' : st === '候補' ? 'rs-wait' : 'rs-no'; }
   function spProg(t){ var a = t.spots || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
@@ -2356,14 +2374,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function spAddPanel(t, x){
     var days = t.days || [];
     if(!days.length) return '<div class="spadd-none">還沒有每日行程，到編輯模式按「依日期產生」後就能加入。</div>';
-    var pick = days.filter(function(dy){ return dy.date && (!x.from || dy.date >= x.from) && (!x.to || dy.date <= x.to); })[0] || days[0];
+    var pick = (rslOn(x) && x.rsvDate && days.filter(function(dy){ return dy.date === x.rsvDate; })[0]) || days.filter(function(dy){ return dy.date && (!x.from || dy.date >= x.from) && (!x.to || dy.date <= x.to); })[0] || days[0];
     var opts = days.map(function(dy, i){
       var inr = dy.date && (x.from || x.to) && (!x.from || dy.date >= x.from) && (!x.to || dy.date <= x.to);
       return '<option value="' + dy.id + '"' + (dy === pick ? ' selected' : '') + '>Day ' + (i + 1) + (dy.date ? '　' + esc(d(dy.date)) + '（' + esc(wk(dy.date).replace(/[（）()]/g, '')) + '）' : '') + (inr ? '　★活動期間內' : '') + '</option>';
     }).join('');
     return '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button>' +
       '<div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
-      '<input class="spadd-time" type="time" aria-label="預計時間（選填）">' +
+      '<input class="spadd-time" type="time" aria-label="預計時間（選填）"' + (rslOn(x) && x.rsvTime ? ' value="' + esc(x.rsvTime) + '"' : '') + '>' +
       '<button class="mini spadd-go" type="button" data-do="spaddgo" data-id="' + x.id + '">加入</button></div></div>';
   }
   function spToItem(x){
@@ -2371,6 +2389,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     it.title = plainName(x.name || ''); it.cat = SP2IT[x.type] || '其他'; it.place = plainName(x.addr || x.name || ''); it.lkSpot = x.id;
     if(rsvOn(x)) it.status = rsvSt(x) === '已預約' ? '已預訂' : rsvSt(x) === '未預約' ? '未預訂' : '';
     else if(spBook(x) && x.walkin) it.status = '現場候位';
+    if(rslHas(x)) notes.push('預約場次：' + rslText(x).replace(/&amp;/g, '&'));
     if(String(x.hours || '').trim()) notes.push('活動時間：' + String(x.hours).trim());
     if(String(x.perk || '').trim()) notes.push('特典：' + String(x.perk).trim());
     if(String(x.note || '').trim()) notes.push(String(x.note).trim());
@@ -2444,6 +2463,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip ' + rsvCls(rsvSt(x)) + '">需先預約・' + esc(rsvSt(x)) + '</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') +
             ((rsvOn(x) && safeUrl(x.rsvLink)) ? '<a class="spchip spgo" href="' + esc(safeUrl(x.rsvLink)) + '" target="_blank" rel="noopener">預約頁面 ↗</a>' : '') + '</div>' : '') +
           ((x.addr || map) ? '<div class="vtext addrline">' + (x.addr ? esc(x.addr) : '') + (map ? (x.addr ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
+          (rslHas(x) ? '<div class="vtext sphours"><span class="spk-lbl">預約場次</span>' + rslText(x, true) + '</div>' : '') +
           (String(x.hours || '').trim() ? '<div class="vtext sphours"><span class="spk-lbl">活動時間</span>' + esc(x.hours) + '</div>' : '') +
           (x.perk ? '<div class="vtext spperk"><span class="spk-ico">🎁</span>' + esc(x.perk) + '</div>' : '') +
           (x.note ? '<div class="vtext spnote">' + esc(x.note) + '</div>' : '') +
@@ -2453,7 +2473,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
             '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
             '<span class="sptype">' + esc(x.type || '其他') + '</span><b class="bname">' + (x.name ? esc(plainName(x.name)) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
             '<span class="spchev" aria-hidden="true">▾</span>' +
-            ((rsvOn(x) && !x.done) || tail ? '<div class="spsub">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + '</span>' : '') + (tail ? '<span class="sptail">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
+            ((rsvOn(x) && !x.done) || tail ? '<div class="spsub">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + (rslHas(x) ? ' ' + rslText(x) : '') + '</span>' : '') + (tail ? '<span class="sptail">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">' + (all.length ? (spType && !sp.length ? '這個類型沒有符合的項目' : '全部都打卡完成了 🎉') : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + '</section>';
   }
@@ -2477,7 +2497,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '</div>' +
       '<div class="sprsv"' + (rsvOn(x) ? '' : ' hidden') + '><select' + a + ' data-k="rsvStatus" aria-label="預約狀態">' +
         RSV_ST.map(function(c){ return '<option' + (c === rsvSt(x) ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
-        '<input' + a + ' data-k="rsvLink" inputmode="url" autocomplete="off" aria-label="預約連結" placeholder="預約連結（貼上網址，檢視時可一鍵開啟）" value="' + esc(x.rsvLink || '') + '"></div>' +
+        '<input' + a + ' data-k="rsvLink" inputmode="url" autocomplete="off" aria-label="預約連結" placeholder="預約連結（貼上網址，檢視時可一鍵開啟）" value="' + esc(x.rsvLink || '') + '"' + (rslOn(x) ? ' hidden' : '') + '>' +
+        '<div class="sprsl"' + (rslOn(x) ? '' : ' hidden') + '>' +
+        '<input type="date"' + a + ' data-k="rsvDate" aria-label="預約場次日期" value="' + esc(x.rsvDate || '') + '">' +
+        '<input type="time"' + a + ' data-k="rsvTime" aria-label="預約場次時間" value="' + esc(x.rsvTime || '') + '"></div></div>' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   function viewBody(t, fan){
@@ -2723,10 +2746,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'time' || ds.k === 'end'){
           var hw = el.closest('.icard') && el.closest('.icard').querySelector('.ihw'); if(hw) hw.innerHTML = hoursWarnHtml(pd, it2);
         }
+        if(ds.k === 'lkSpot' && el.value){   // 選了打卡點：行程名稱、地點還空著就帶入
+          var lsp = byId(t.spots, el.value), lic = el.closest('.icard');
+          if(lsp && lic){
+            if(!String(it2.title || '').trim()){ it2.title = plainName(lsp.name || ''); var lti = lic.querySelector('[data-k="title"]'); if(lti) lti.value = it2.title; }
+            if(!String(it2.place || '').trim()){ it2.place = plainName(lsp.addr || lsp.name || ''); var lpl = lic.querySelector('[data-k="place"]'); if(lpl) lpl.value = it2.place; }
+          }
+        }
         if(ds.k === 'cat'){
           var ic = el.closest('.icard'), sp0 = ic && ic.querySelector('.itx-spot'), fd0 = ic && ic.querySelector('.itx-food');
           if(sp0) sp0.hidden = el.value !== '景點';
           if(fd0) fd0.hidden = el.value !== '美食';
+          var lkw = ic && ic.querySelector('.itx-lksp'); if(lkw) lkw.hidden = !(el.value === '活動' || it2.lkSpot);
+          var hOn = hrsOn(it2), hr0 = ic && ic.querySelector('.ihr'), hd0 = ic && ic.querySelector('.ihwd'), hw0 = ic && ic.querySelector('.ihw');
+          if(hr0) hr0.hidden = !hOn; if(hd0) hd0.hidden = !hOn; if(hw0) hw0.innerHTML = hoursWarnHtml(pd, it2);
         }
         if(ds.k === 'time' || ds.k === 'end'){
           var dEl = el.closest('.icard').querySelector('.idurt'), dtx = durText(it2);
@@ -2779,7 +2812,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(ds.k === 'lkExpAdd') addExpLink(t, el, spx, 'sp', '');
         else if(el.type === 'checkbox'){
           spx[ds.k] = el.checked;
-          if(ds.k === 'reserve'){ var rb = el.closest('.bk').querySelector('.sprsv'); if(rb) rb.hidden = !rsvOn(spx); }
+          if(ds.k === 'reserve'){ var rb = el.closest('.bk').querySelector('.sprsv'); if(rb) rb.hidden = !rsvOn(spx); syncRsv(el.closest('.bk'), spx); }
           if(ds.k === 'done'){
             var spc = el.closest('.spv'); if(spc) spc.classList.toggle('done', el.checked);
             if($('spprog')) $('spprog').textContent = spProg(t);
@@ -2788,6 +2821,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         } else {
           spx[ds.k] = el.value;
           if(ds.k === 'type'){ var spb = el.closest('.bk').querySelector('.spbook'), rb2 = el.closest('.bk').querySelector('.sprsv'); if(spb) spb.hidden = !spBook(spx); if(rb2) rb2.hidden = !rsvOn(spx); }
+          if(ds.k === 'type' || ds.k === 'rsvStatus') syncRsv(el.closest('.bk'), spx);
           if(ds.k === 'from'){ var spTo = el.closest('.bk').querySelector('input[data-k="to"]'); if(spTo) spTo.min = el.value || ''; }
         }
       }
@@ -3142,7 +3176,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var shd = fanShows(t, true), shT = shd.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       t.fanInfo.shows = shd.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addsp'){
-      t.spots.push({ id:uid(), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', hours:'', done:false });
+      t.spots.push({ id:uid(), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });
