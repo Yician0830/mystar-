@@ -593,6 +593,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dishes .dchip em{font-style:normal; font-weight:500; color:var(--ink-faint); margin-left:6px; font-size:12px;}
   .bk.v .nights{margin-left:6px; font-size:12px; font-weight:700; color:var(--accent);}
   .bk.v .addrline .vlink{font-size:inherit; margin-left:8px;}
+  /* ── 唯讀分享 ── */
+  .shmodal{position:fixed; inset:0; z-index:60; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; padding:16px;}
+  .shmodal[hidden]{display:none;}
+  .shbox{background:var(--paper); color:var(--ink); border:1px solid var(--line-strong); width:100%; max-width:480px; max-height:90vh; overflow:auto; padding:20px; display:grid; gap:12px;}
+  .shbox h3{font-size:17px; font-weight:900; letter-spacing:0.04em;}
+  .shbox p{font-size:14px; line-height:1.7; color:var(--ink-dim);}
+  .shbox .shopts{display:grid; gap:8px;}
+  .shbox .shopts label{display:flex; align-items:flex-start; gap:10px; font-size:14px; font-weight:500; color:var(--ink); line-height:1.5;}
+  .shbox .shopts input{width:18px; height:18px; margin-top:2px; flex:0 0 auto; accent-color:var(--accent);}
+  .shbox .shurl{display:flex; gap:8px;}
+  .shbox .shurl input{flex:1 1 auto; min-width:0; font-size:13px;}
+  .shbox .shbtns{display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-end;}
+  .shbox .shwarn{color:var(--danger); font-size:13px;}
+  body.viewonly .spadd-wrap,body.viewonly .spadd-none{display:none !important;}
+  body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr);}
+  @media (min-width:800px){ body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);} }
 </style>
 </head>
 <body>
@@ -683,8 +699,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function showErr(m){ $('err').textContent = m || ''; }
 
   function persist(){
-    if(!docRef) return Promise.resolve(true);
-    return docRef.set({ value: trips }).then(function(){ return true; }, function(e){
+    if(!docRef || viewOnly) return Promise.resolve(true);
+    return docRef.set({ value: trips }).then(function(){ scheduleShareSync(); return true; }, function(e){
       console.error(e); alert('儲存失敗，請檢查網路連線後再試一次'); return false;
     });
   }
@@ -962,6 +978,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('kind').addEventListener('change', function(){ $('eventWrap').hidden = this.value !== 'fan'; });
 
   auth.onAuthStateChanged(function(user){
+    if(shareRoute()){ route(); return; }      // 朋友打開分享連結：不用登入
     if(unsub){ unsub(); unsub = null; }
     docRef = null; trips = []; loaded = false;
     if(!user){
@@ -1203,6 +1220,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
   }
   function cur(){
+    if(viewOnly) return sharedTrip;
     var t = trips.filter(function(x){ return String(x.id) === String(currentId); })[0];
     if(t){ migCur(t); migCat(t); }
     return t;
@@ -2170,9 +2188,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(phase(t).k === 'now'){ var td = ymd(new Date()), hit = t.days.filter(function(x){ return x.date === td; })[0]; if(hit) dayFilter = hit.id; }
     }
     var fan = t.kind === 'fan';
-    var h = '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
+    var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
-      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>' +
+      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div></div>';
@@ -2186,6 +2204,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(modalCtx && !findEntry(t, modalCtx)) closeModal(true);
     var newBoard = el.querySelector('.board'); if(newBoard) newBoard.scrollLeft = bx;
     [].forEach.call(el.querySelectorAll('textarea'), autosize);
+    if(viewOnly){      // 唯讀：不能勾、不能改；沒分享花費時整欄拿掉
+      [].forEach.call(el.querySelectorAll('input,select,textarea'), function(x){ x.disabled = true; });
+      if(t._noExp){ var c3 = el.querySelector('.col.c3'); if(c3) c3.remove(); var cs = el.querySelector('.cols'); if(cs) cs.classList.add('nox'); }
+    }
     window.scrollTo(0, y);
     refreshOffline();
     amtScan();
@@ -2369,6 +2391,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
+    if(viewOnly && ['goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
     if(act === 'goto'){
@@ -2463,6 +2486,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(ae && ae !== b && $('detail').contains(ae) && ae.blur) ae.blur();
       doPersist(); return;
     }
+    if(act === 'share'){ openShare(t); return; }
     if(act === 'edit'){ editMode = true; renderDetail(); return; }
     if(act === 'done'){
       // 先讓正在輸入的欄位送出變更，再切回檢視
@@ -2592,8 +2616,120 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(add) add.click();
   });
 
+
+  // ---- 唯讀分享：把「這一趟」的快照複製到 shared/{隨機代碼}，任何拿到連結的人都能看（不能改）----
+  // 旅程資料變動時會自動更新快照；停止分享就刪掉那份快照，連結立刻失效
+  var viewOnly = false, sharedTrip = null, shownShare = null, shareCache = {}, shareTimer = null;
+  function shareRoute(){ var m = location.hash.match(/^#\/s\/([0-9a-f]{20,64})$/); return m ? m[1] : null; }
+  function newShareId(){ var a = new Uint8Array(16); crypto.getRandomValues(a); return Array.prototype.map.call(a, function(b){ return ('0' + b.toString(16)).slice(-2); }).join(''); }
+  function shareUrl(id){ return location.origin + location.pathname + '#/s/' + id; }
+  // 分享出去的內容：預設不含訂位代號／座位，也不含花費、預算與分攤
+  function shareSnap(t){
+    var c = JSON.parse(JSON.stringify(t)), sh = t.share || {};
+    delete c.share;
+    var shows = (c.fanInfo && c.fanInfo.shows) || [];
+    if(!sh.codes){
+      (c.bookings || []).forEach(function(x){ x.code = ''; });
+      (c.stays || []).forEach(function(x){ x.code = ''; });
+      shows.forEach(function(x){ x.seat = ''; });
+    }
+    if(!sh.exp){
+      c.expenses = []; c.budgets = {}; c.people = ''; c._noExp = true;
+      shows.forEach(function(x){ delete x.price; delete x.qty; delete x.cur; });
+      [].concat((c.days || []).reduce(function(a, dy){ return a.concat(dy.items || []); }, []), c.bookings || [], c.stays || [], c.spots || []).forEach(function(x){ delete x.lkExps; delete x.lkExp; });
+    }
+    return c;
+  }
+  function syncShare(t){
+    var u = auth.currentUser;
+    if(!u || !t.share || !t.share.id) return Promise.resolve(true);
+    var json = JSON.stringify(shareSnap(t));
+    if(shareCache[t.share.id] === json) return Promise.resolve(true);
+    return db.collection('shared').doc(t.share.id).set({ owner: u.uid, title: t.title || '', data: json, updated: firebase.firestore.FieldValue.serverTimestamp() })
+      .then(function(){ shareCache[t.share.id] = json; return true; }, function(e){ console.error(e); return false; });
+  }
+  function scheduleShareSync(){
+    clearTimeout(shareTimer);
+    shareTimer = setTimeout(function(){ trips.forEach(function(t){ if(t.share && t.share.id) syncShare(t); }); }, 1500);
+  }
+  var shModal = document.createElement('div'); shModal.className = 'shmodal'; shModal.hidden = true; document.body.appendChild(shModal);
+  var shTripId = null, shMsg = '';
+  function shTrip(){ return trips.filter(function(x){ return String(x.id) === String(shTripId); })[0]; }
+  function shRender(){
+    var t = shTrip(); if(!t){ shModal.hidden = true; return; }
+    var sh = t.share, on = !!(sh && sh.id);
+    var opts = '<div class="shopts"><label><input type="checkbox" data-sh="codes"' + (on && sh.codes ? ' checked' : '') + '><span>也分享訂位代號、座位<br><small>預設不分享，這些是別人拿去可能會冒用的資料</small></span></label>' +
+      '<label><input type="checkbox" data-sh="exp"' + (on && sh.exp ? ' checked' : '') + '><span>也分享花費、預算與分攤<br><small>預設不分享</small></span></label></div>';
+    shModal.innerHTML = '<div class="shbox" role="dialog" aria-modal="true" aria-label="分享旅程"><h3>分享「' + esc(t.title || '這趟旅程') + '」</h3>' +
+      (on
+        ? '<p>拿到連結的人可以看這一趟的內容，但不能修改，也不用登入。你之後修改旅程，對方重新整理就會看到最新的。</p>' +
+          '<div class="shurl"><input id="shurl" readonly value="' + esc(shareUrl(sh.id)) + '" aria-label="分享連結"><button class="mini" type="button" data-shdo="copy">複製</button></div>' + opts +
+          '<p>連結沒有加密，知道網址的人都能打開，請只傳給信任的人。</p>'
+        : '<p>會產生一個只讀的連結，傳給朋友就能看這一趟的行程、住宿與打卡點。你只分享這一趟，其他旅程不會被看到。</p>' + opts) +
+      (shMsg ? '<p class="shwarn">' + esc(shMsg) + '</p>' : '') +
+      '<div class="shbtns">' + (on ? '<button class="mini" type="button" data-shdo="stop">停止分享</button>' : '<button class="save" type="button" data-shdo="make">產生分享連結</button>') + '<button class="mini" type="button" data-shdo="close">關閉</button></div></div>';
+  }
+  function openShare(t){ shTripId = t.id; shMsg = ''; shRender(); shModal.hidden = false; }
+  function shClose(){ shModal.hidden = true; if(!viewOnly && currentId) renderDetail(); }
+  shModal.addEventListener('click', function(e){
+    if(e.target === shModal){ shClose(); return; }
+    var b = e.target.closest('button[data-shdo]'); if(!b) return;
+    var t = shTrip(); if(!t) return;
+    var act = b.dataset.shdo;
+    if(act === 'close'){ shClose(); return; }
+    if(act === 'copy'){
+      var inp = $('shurl'), txt = inp ? inp.value : '';
+      var done = function(){ b.textContent = '已複製'; setTimeout(function(){ b.textContent = '複製'; }, 1500); };
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(done, function(){ inp.select(); });
+      else { inp.select(); try{ document.execCommand('copy'); done(); }catch(x){} }
+      return;
+    }
+    if(act === 'make'){
+      t.share = { id:newShareId(), codes: !!shModal.querySelector('[data-sh="codes"]').checked, exp: !!shModal.querySelector('[data-sh="exp"]').checked };
+      b.disabled = true; b.textContent = '產生中…'; shMsg = '';
+      syncShare(t).then(function(ok){
+        if(!ok){ delete t.share; shMsg = '分享失敗：請確認 Firebase 規則已加入 shared 的設定（見說明），或檢查網路。'; shRender(); return; }
+        doPersist(); shRender();
+      });
+      return;
+    }
+    if(act === 'stop'){
+      if(!confirm('停止分享後，這個連結會立刻失效，確定嗎？')) return;
+      var id = t.share && t.share.id;
+      db.collection('shared').doc(id).delete().then(function(){
+        delete shareCache[id]; delete t.share; shMsg = ''; doPersist(); shRender();
+      }, function(err){ console.error(err); shMsg = '停止分享失敗，請檢查網路後再試一次。'; shRender(); });
+    }
+  });
+  shModal.addEventListener('change', function(e){
+    var el = e.target; if(!el.dataset || !el.dataset.sh) return;
+    var t = shTrip(); if(!t || !t.share) return;       // 還沒產生連結時，只是先選好
+    t.share[el.dataset.sh] = el.checked;
+    doPersist(); syncShare(t);
+  });
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !shModal.hidden) shClose(); });
+  // 朋友打開的唯讀頁面
+  function openShared(id){
+    viewOnly = true; shownShare = id; sharedTrip = null; currentId = null; editMode = false;
+    document.body.classList.add('viewonly', 'wide');
+    $('login').hidden = true; $('who').hidden = true; $('app').hidden = true; $('head').hidden = true; $('detail').hidden = false;
+    $('detail').innerHTML = '<p class="vempty" style="padding:40px 0">讀取中…</p>';
+    var fail = function(msg){ if(shownShare === id) $('detail').innerHTML = '<div class="empty" style="margin-top:40px">' + msg + '</div>'; };
+    db.collection('shared').doc(id).get().then(function(doc){
+      if(shownShare !== id) return;
+      if(!doc.exists){ fail('這個分享連結已經失效，或分享已被關閉。'); return; }
+      try{ sharedTrip = JSON.parse(doc.data().data); }catch(x){ fail('讀取分享內容失敗。'); return; }
+      currentId = String(sharedTrip.id); dayInitFor = null; loaded = true;
+      document.title = (sharedTrip.title || '旅遊紀錄') + ' — 分享';
+      renderDetail();
+    }, function(e){ console.error(e); fail('讀取失敗，請檢查網路，或請對方確認分享仍然有效。'); });
+  }
+
   // ---- 簡易路由：#/t/旅程id 顯示詳細頁，其餘顯示列表 ----
   function route(){
+    var sid = shareRoute();
+    if(sid){ if(!viewOnly || shownShare !== sid) openShared(sid); return; }
+    if(viewOnly){ location.reload(); return; }      // 離開分享頁：重新載入，回到自己的旅程
     hideUndo();
     var m = location.hash.match(/^#\/t\/(.+)$/);
     currentId = m ? decodeURIComponent(m[1]) : null;
