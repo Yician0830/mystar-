@@ -194,6 +194,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .split .spr .spn{grid-column:2; grid-row:1 / span 2; align-self:center; font-weight:900; font-variant-numeric:tabular-nums; white-space:nowrap;}
   .split .spr .spn.get{color:var(--accent);}
   .split .xfer{padding:6px 10px; background:var(--fill); border-left:3px solid var(--accent); font-size:14px; font-weight:700; font-variant-numeric:tabular-nums; overflow-wrap:anywhere;}
+  .split .sgrp{border:1px solid var(--line); background:var(--fill); border-left:3px solid var(--accent); padding:8px 12px 6px;}
+  .split .sgh{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:14px; padding-bottom:4px; border-bottom:1px solid var(--line);}
+  .split .sgh b{font-weight:900;}
+  .split .sgt{font-size:13px; font-weight:900; color:var(--accent); font-variant-numeric:tabular-nums; white-space:nowrap;}
+  .split .sgr{display:flex; justify-content:space-between; gap:8px; padding:5px 0 0; font-size:14px; font-variant-numeric:tabular-nums;}
+  .split .sgr b{font-weight:900;}
+  .split .sgcopy{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .split .spdet{font-size:13px; color:var(--ink-dim);}
+  .split .spdet summary{cursor:pointer; font-weight:700; padding:4px 0;}
   .split .swarn{font-size:12px; color:var(--danger);}
   .split .shint{font-size:12px; color:var(--ink-faint); line-height:1.6;}
   .xgrid .xcard .xpay{grid-column:1 / -1;}
@@ -1359,13 +1368,25 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function splitHtml(t){
     var c = splitCalc(t); if(!c) return '';
     if(!c.any) return editMode ? '<div class="split"><div class="shint">在每筆花費的編輯視窗選「誰付的」，這裡就會算出誰該付誰多少錢。</div></div>' : '';
-    var h = '<div class="split"><div class="sph">分攤結算<small>新台幣</small></div>' + c.P.map(function(p){
+    var h = '<div class="split"><div class="sph">分攤結算<small>新台幣</small></div>';
+    if(c.xf.length){
+      var groups = [], gm = {}, lines = ['分攤結算（新台幣）'];
+      c.xf.forEach(function(f){
+        if(!gm[f.to]){ gm[f.to] = { to:f.to, sum:0, list:[] }; groups.push(gm[f.to]); }
+        gm[f.to].sum += f.v; gm[f.to].list.push(f);
+        lines.push(f.from + ' → ' + f.to + '　' + money(f.v) + ' 元');
+      });
+      h += groups.map(function(g){
+        return '<div class="sgrp"><div class="sgh"><span>轉給 <b>' + esc(g.to) + '</b></span><span class="sgt">共 ' + money(g.sum) + ' 元</span></div>' +
+          g.list.map(function(f){ return '<div class="sgr"><span>' + esc(f.from) + '</span><b>' + money(f.v) + '</b></div>'; }).join('') + '</div>';
+      }).join('');
+      h += '<div class="sgcopy"><button class="mini" type="button" data-do="copy" data-code="' + esc(lines.join('\n')) + '">複製</button><span class="dcl">複製轉帳清單，可直接貼到群組</span></div>';
+    } else if(c.used) h += '<div class="shint">大家都打平了，不用互相轉帳。</div>';
+    h += '<details class="spdet"><summary>每個人的明細</summary>' + c.P.map(function(p){
       var net = c.paid[p] - c.owe[p];
       var txt = net > 0.5 ? '<span class="spn get">應收 ' + money(net) + '</span>' : net < -0.5 ? '<span class="spn">應付 ' + money(-net) + '</span>' : '<span class="spn">已打平</span>';
       return '<div class="spr"><b>' + esc(p) + '</b><span class="spd">已付 ' + money(c.paid[p]) + '　應分攤 ' + money(c.owe[p]) + '</span>' + txt + '</div>';
-    }).join('');
-    if(c.xf.length) h += c.xf.map(function(f){ return '<div class="xfer">' + esc(f.from) + ' → ' + esc(f.to) + '　' + money(f.v) + ' 元</div>'; }).join('');
-    else if(c.used) h += '<div class="shint">大家都打平了，不用互相轉帳。</div>';
+    }).join('') + '</details>';
     if(c.noRate) h += '<div class="swarn">有 ' + c.noRate + ' 筆外幣花費還沒填匯率，沒算進分攤。</div>';
     if(c.badPayer) h += '<div class="swarn">有 ' + c.badPayer + ' 筆花費的付款人不在成員名單裡，沒算進分攤。</div>';
     return h + '</div>';
