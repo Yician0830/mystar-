@@ -513,6 +513,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .lkrow{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:6px; border:1px solid var(--line-strong); padding:2px 2px 2px 10px;}
   .lkt{font-size:14px; font-weight:600; color:var(--ink); overflow-wrap:anywhere; min-width:0;}
   .lkt.gone{color:var(--ink-faint); font-weight:500;}
+  /* 交通卡：儲值紀錄 */
+  .tclist{display:grid; gap:2px; margin:6px 0 2px; font-size:13px;}
+  .tclh{font-weight:700; color:var(--ink-dim); letter-spacing:0.02em;}
+  .tclr{display:grid; grid-template-columns:52px minmax(0,1fr) auto; gap:8px; align-items:center; padding:3px 0; border-bottom:1px dashed var(--line-strong); font-variant-numeric:tabular-nums;}
+  .tclr b{font-weight:900; color:var(--accent);}
+  .tclr .del{padding:0 6px;}
   .ie3[hidden]{display:none;}
   .ie3{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px;}
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
@@ -2095,6 +2101,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         '<div class="btime">' + [esc(x.status || '未使用'), esc(x.way || ''), val].filter(Boolean).join(' ・ ') + '</div>' +
         (x.range ? '<div class="vtext">適用：' + esc(x.range) + '</div>' : '') + (mny ? '<div class="vtext">' + mny + '</div>' : '') +
         (expIds(x).length ? '<div class="vtext">儲值／花費合計 約 ' + money(tw.n) + ' 元' + (tw.miss ? '（有外幣還沒填匯率）' : '') + '</div>' : '') +
+        tcTopsHtml(t, x, false) +
         tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') +
         (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + lkRow(t, x, 'lkTc') + '</div>';
     }).join('') + '</section>';
@@ -2120,16 +2127,57 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="btns"><button class="mini" type="button" data-do="tctop" data-id="' + x.id + '">＋ 新增儲值</button>' +
       '<button class="mini tccard" type="button" data-do="tcdep" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>押金記成花費</button>' +
       '<button class="mini tccard" type="button" data-do="tcrefund" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>退卡（記退款）</button></div>' +
+      tcTopsHtml(t, x, true) +
       lkExpHtml(t, 'tc', '', x) +
       '<textarea' + A + ' data-k="note" aria-label="備註" placeholder="購買地點、儲值方式、退卡櫃檯等">' + esc(x.note || '') + '</textarea></div>';
+  }
+  // ---- 儲值：每筆儲值 = 一筆花費（tcTop 記是哪張卡），並同步增減卡片餘額 ----
+  // tcApplied：這筆儲值已經加進餘額的金額，之後改金額／刪除／取消連結時才能正確補差額
+  function tcFmt(n){ return String(Math.round(n * 100) / 100); }
+  function tcCur(t, o){ return o.cur || t.currency || 'TWD'; }
+  function tcBalSync(t, e){
+    var o = e && e.tcTop != null ? byId(t.tcards, e.tcTop) : null; if(!o || tcPass(o)) return;
+    var nw = ecur(t, e) === tcCur(t, o) ? Math.max(0, amt(e.amount)) : 0, old = amt(e.tcApplied);   // 幣別跟卡片不同就不加進餘額
+    if(nw === old) return;
+    o.balance = tcFmt(Math.max(0, amt(o.balance) + nw - old)); e.tcApplied = nw;
+  }
+  function tcBalRevert(t, e){
+    var o = e && e.tcTop != null ? byId(t.tcards, e.tcTop) : null;
+    if(o && !tcPass(o) && amt(e.tcApplied) > 0) o.balance = tcFmt(Math.max(0, amt(o.balance) - amt(e.tcApplied)));
+    if(e) delete e.tcApplied;
+  }
+  // 舊資料（沒有 tcTop）：名稱含「儲值」、不是退款的連結花費，也會列在明細裡，但不會動到餘額
+  function tcIsTop(x, e){ return e.tcTop != null ? String(e.tcTop) === String(x.id) : (e.cat !== REFUND && /儲值/.test(e.name || '')); }
+  function tcTops(t, x){ return expIds(x).map(function(id){ return byId(t.expenses, id); }).filter(function(e){ return e && tcIsTop(x, e); }); }
+  function tcTopsHtml(t, x, edit){
+    var rows = tcTops(t, x); if(!rows.length) return '';
+    var by = {}, order = [];
+    rows.forEach(function(e){ var c = ecur(t, e); if(!(c in by)){ by[c] = 0; order.push(c); } by[c] += amt(e.amount); });
+    var tot = order.map(function(c){ return esc(c) + ' ' + money(by[c]); }).join('＋');
+    return '<div class="tclist"><div class="tclh">儲值紀錄（' + rows.length + ' 筆・合計 ' + tot + '）</div>' + rows.map(function(e){
+      var md = typeof e.tcDate === 'string' && e.tcDate.length >= 10 ? (+e.tcDate.slice(5, 7)) + '/' + (+e.tcDate.slice(8, 10)) : ((String(e.name || '').match(/(\d{1,2}\/\d{1,2})\s*$/) || [])[1] || '');
+      return '<div class="tclr"><span>' + esc(md || '—') + '</span><b>＋ ' + esc(ecur(t, e)) + ' ' + money(amt(e.amount)) + '</b>' +
+        (edit ? '<button class="del" type="button" data-do="tcdeltop" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '" aria-label="刪除這筆儲值" title="刪除這筆儲值">×</button>' : '<span></span>') + '</div>';
+    }).join('') + '</div>';
+  }
+  function tcDelTop(t, cid, eid){
+    var o = byId(t.tcards, cid), e = byId(t.expenses, eid); if(!o || !e) return;
+    var bal = e.tcTop != null && amt(e.tcApplied) > 0 && !tcPass(o);
+    if(!confirm('刪除這筆儲值？花費紀錄會一併刪除' + (bal ? '，餘額也會扣回' : '') + '。')) return;
+    tcBalRevert(t, e);
+    t.expenses = t.expenses.filter(function(y){ return y !== e; });
+    o.lkExps = expIds(o).filter(function(v){ return String(v) !== String(eid); }); delete o.lkExp;
+    if(emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(o);
+    amtScan(); doPersist();
   }
   function tcAct(t, act, id){      // 儲值／押金／退卡：新增一筆花費並連結到這張卡，不重畫整頁（彈窗開著）
     var o = byId(t.tcards, id); if(!o) return;
     var cc = o.cur || t.currency || 'TWD', nm = o.name || '交通卡', now = new Date(), md = (now.getMonth() + 1) + '/' + now.getDate(), v, e;
-    if(act === 'tctop'){ v = prompt('儲值金額（' + cc + '）'); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc }; }
+    if(act === 'tctop'){ v = prompt('儲值金額（' + cc + '）'); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc, tcTop:o.id, tcDate:ymd(now) }; }
     else if(act === 'tcdep'){ if(!String(o.deposit || '').trim()){ alert('先填押金或卡費金額'); return; } e = { id:uid(), cat:'交通', name:nm + ' 押金／卡費', amount:String(o.deposit).trim(), cur:cc }; }
     else { v = prompt('退卡拿回的金額（' + cc + '，含押金與退回餘額）', o.refund ? String(o.deposit || '') : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:REFUND, name:nm + ' 退卡退款 ' + md, amount:String(v).trim(), cur:cc }; o.status = '已退卡'; }
     t.expenses.push(e); o.lkExps = expIds(o).concat([e.id]); delete o.lkExp;
+    if(e.tcTop != null) tcBalSync(t, e);      // 儲值：餘額跟著增加
     emodal.querySelector('.mbody').innerHTML = tcEdit(o); amtScan(); doPersist();
   }
   function expEdit(t, x){
@@ -3016,6 +3064,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         } else if(ds.k === 'pre') ex.pre = el.checked;
         else if(ds.k === 'card') ex.card = el.checked;
         else ex[ds.k] = el.value;
+        if(ex.tcTop != null && (ds.k === 'amount' || ds.k === 'cur')){ tcBalSync(t, ex); var tcs0 = $('tcsec'); if(tcs0) tcs0.outerHTML = tcView(t); }   // 儲值改金額／幣別：餘額補差額
         if(ds.k === 'payer'){ var shb = el.closest('.xsplit') && el.closest('.xsplit').querySelector('.sharers'); if(shb) shb.hidden = !el.value; }
         if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer' || ds.k === 'card') $('sum').innerHTML = sumHtml(t);
         if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
@@ -3048,7 +3097,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.tc){
       var tcx = byId(t.tcards, ds.tc);
       if(tcx){
-        if(ds.k === 'lkExpAdd') addExpLink(t, el, tcx, 'tc', '');
+        if(ds.k === 'lkExpAdd'){ addExpLink(t, el, tcx, 'tc', ''); if(emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(tcx); }
         else if(el.type === 'checkbox') tcx[ds.k] = el.checked;
         else {
           tcx[ds.k] = el.value;
@@ -3188,12 +3237,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return;
     }
     if(act === 'tctop' || act === 'tcdep' || act === 'tcrefund'){ tcAct(t, act, b.dataset.id); return; }
+    if(act === 'tcdeltop'){ tcDelTop(t, b.dataset.id, b.dataset.eid); return; }
     if(act === 'delexplk'){
       var lkK = b.dataset.kind || 'it', lkO = expOwner(t, lkK, b.dataset.day, b.dataset.id);
       if(lkO){
+        if(lkK === 'tc'){ var lkE = byId(t.expenses, b.dataset.eid); if(lkE && lkE.tcTop != null && String(lkE.tcTop) === String(lkO.id)){ tcBalRevert(t, lkE); delete lkE.tcTop; delete lkE.tcDate; } }   // 取消連結 = 不再算這張卡的儲值，餘額扣回
         lkO.lkExps = expIds(lkO).filter(function(v){ return String(v) !== b.dataset.eid; }); delete lkO.lkExp;
         var lkC = b.closest('.icard, .bk'), lkB2 = lkC && lkC.querySelector('.ielk');
         if(lkB2){ lkB2.outerHTML = lkExpHtml(t, lkK, b.dataset.day, lkO); var lkF2 = lkC.querySelector('.ielk select, .ielk button'); if(lkF2) lkF2.focus(); }
+        if(lkK === 'tc' && emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(lkO);
         doPersist();
       }
       return;
@@ -3437,6 +3489,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.expenses.push({ id:uid(), cat:'其他', name:'', amount:'', cur:(t.currency || 'TWD') });
     } else if(act === 'delexp'){
       var ex0 = t.expenses.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(ex0 && ex0.tcTop != null) tcBalRevert(t, ex0);      // 刪掉儲值：餘額扣回
       t.expenses = t.expenses.filter(function(x){ return String(x.id) !== b.dataset.id; });
     }
     renderDetail(); doPersist();
