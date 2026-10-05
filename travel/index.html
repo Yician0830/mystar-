@@ -354,6 +354,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .spbar i{display:block; height:100%; background:var(--accent); border-radius:99px; transition:width .3s;}
   .spbar.full i{background:#3a9a74;}
   .sptypes{display:flex; flex-wrap:wrap; gap:6px; margin:0 0 12px;}
+  .salemode{align-items:center; margin:0;} .salemode .lb{font-size:12px; opacity:.7; margin-right:2px;}
   .sptypes .mini{padding:2px 10px; font-size:12px; min-height:0;}
   .sptypes .mini[aria-pressed="true"],.sptypes .mini[aria-pressed="true"]:hover{background:var(--ink); color:var(--paper); border-color:var(--ink);}
   .spv .sphead{display:flex; align-items:center; cursor:pointer; user-select:none;}
@@ -919,7 +920,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var sd = toDate(fi.saleDate);
     if(sd){
       var sl = dueLeft(sd), open = !closed;
-      out += '<span>售票／抽選 <b>' + esc(d(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
+      out += '<span>' + SALE_MODES[saleMode(fi)] + ' <b>' + esc(d(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') + '</b>' + (st ? '・' + saleSt(st) : '') + (open && sl.n >= 0 ? '・' + (sl.n === 0 ? '就是今天' : '還有 ' + sl.n + ' 天') : '') + '</span>';
     }
     if(!closed){
       var nph = phasesSorted(t).filter(function(x){ return !phClosed(x) && toDate(x.date) && dueLeft(toDate(x.date)).n >= 0; })[0];
@@ -931,7 +932,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<span' + (l.n <= 3 ? ' class="due"' : '') + '>' + label + ' <b>' + esc(d(fi[key])) + '</b>・' + l.txt + '</span>';
     };
     if(!closed){
-      if(!won) out += step('結果公布', 'resultDate');
+      if(!won && saleMode(fi) === 'lottery') out += step('結果公布', 'resultDate');
       out += step('繳費／取票期限', 'payDate');
     }
     return out;
@@ -1472,6 +1473,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
     general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
   };
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','未購票','已購票'];
+  // 活動資訊的購票方式：售票／抽選二選一，狀態選項與欄位會跟著切換
+  var SALE_MODES = { ticket:'售票', lottery:'抽選' }, SALE_BY_MODE = { ticket:['待開賣','未購票','已購票'], lottery:['待抽選','已中籤','落選','已購票','未購票'] };
+  function saleMode(fi){
+    fi = fi || {};
+    if(fi.saleMode === 'ticket' || fi.saleMode === 'lottery') return fi.saleMode;
+    return (fi.saleStatus === '待抽選' || fi.saleStatus === '已中籤' || fi.saleStatus === '落選' || fi.resultDate) ? 'lottery' : 'ticket';
+  }
+  function saleOpts(mode, cur){
+    var l = SALE_BY_MODE[mode].slice(); if(cur && l.indexOf(cur) < 0) l.push(cur);
+    return l.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join('');
+  }
   function prog(t){ var a = t.checklist || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   var CAT_ICON = {'交通':'🚆','住宿':'🏨','門票':'🎫','周邊':'🛍️','餐飲':'🍴','服飾':'👕','美妝':'💄','伴手禮':'🎁','娛樂':'🎡','其他':'📦','退款':'↩️'};
   // ---- 分攤花費：成員名單存在 t.people（以「、」分隔）；每筆花費 payer＝誰付的、sharers＝誰分攤（沒填＝全員）----
@@ -2464,9 +2476,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
-        vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
+        vrow(SALE_MODES[saleMode(fi)], (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) + (fi.saleTime ? ' ' + esc(fi.saleTime) : '') : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + saleSt(fi.saleStatus) : '')) +
         vrow('售票階段', phasesView(t)) +
-        vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') +
+        (saleMode(fi) === 'lottery' ? vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') : '') +
         vrow('繳費／取票期限', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票') : '') +
         showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
         vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
@@ -2559,16 +2571,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var h = '';
     h += '<div class="cols"><div class="col c1">';
     if(fan){
-      var shows = fanShows(t, true), fi = t.fanInfo || {};
+      var shows = fanShows(t, true), fi = t.fanInfo || {}, smode = saleMode(fi), sml = SALE_MODES[smode];
       var FI = function(label, type, key, full){
         return '<label' + (full ? ' class="full"' : '') + '>' + label + '<input type="' + type + '" data-f="1" data-k="' + key + '" value="' + esc(fi[key] || '') + '"></label>';
       };
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div><div class="fgrid">' +
-        FI('售票／抽選日', 'date', 'saleDate') + FI('售票／抽選時間（選填）', 'time', 'saleTime') +
-        '<label>售票狀態<select data-f="1" data-k="saleStatus"><option value="">未設定</option>' +
-          SALE_ST.map(function(c){ return '<option' + (c === fi.saleStatus ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></label>' +
-        FI('結果公布日', 'date', 'resultDate') + FI('繳費／取票期限', 'date', 'payDate') +
-        '<div class="full dcl">狀態選「已中籤」後，旅程列表會改為倒數繳費／取票期限；選「已購票」、「落選」或「未購票」就不再提醒。</div>' +
+        '<div class="full sptypes salemode" role="group" aria-label="購票方式"><span class="lb">購票方式</span>' +
+          ['ticket','lottery'].map(function(k){ return '<button class="mini" type="button" data-do="salemode" data-v="' + k + '" aria-pressed="' + (k === smode) + '">' + SALE_MODES[k] + '</button>'; }).join('') + '</div>' +
+        FI(sml + '日', 'date', 'saleDate') + FI(sml + '時間（選填）', 'time', 'saleTime') +
+        '<label>' + sml + '狀態<select data-f="1" data-k="saleStatus"><option value="">未設定</option>' + saleOpts(smode, fi.saleStatus) + '</select></label>' +
+        (smode === 'lottery' ? FI('結果公布日', 'date', 'resultDate') : '') + FI('繳費／取票期限', 'date', 'payDate') +
+        '<div class="full dcl">' + (smode === 'lottery' ? '狀態選「已中籤」後，旅程列表會改為倒數繳費／取票期限；選「已購票」、「落選」或「未購票」就不再提醒。' : '狀態選「已購票」或「未購票」後，旅程列表就不再提醒售票日與繳費／取票期限。') + '</div>' +
         phasesEdit(t) + '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
           (shows.length ? shows.map(function(x, i){ return showEdit(t, x, i); }).join('') + '<div class="dcl">票價與張數預設只做票券紀錄；要算進花費，按場次卡片上的「加入花費」。</div>' : '<div class="empty">每一場的日期、入場／開演時間、座位和票價都可以分開記，巡演也能一次記完。</div>') + '</div>' +
         FI('同行者（選填）', 'text', 'companions', true) +
@@ -3082,6 +3095,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.bookings.push({ id:uid(), type:'航班', name:'', time:'', code:'', note:'' });
     } else if(act === 'delbk'){
       t.bookings = t.bookings.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'salemode'){
+      t.fanInfo = t.fanInfo || {};
+      var nm = b.dataset.v === 'lottery' ? 'lottery' : 'ticket';
+      t.fanInfo.saleMode = nm;
+      if(t.fanInfo.saleStatus && SALE_BY_MODE[nm].indexOf(t.fanInfo.saleStatus) < 0) t.fanInfo.saleStatus = '';
     } else if(act === 'addph'){
       t.fanInfo = t.fanInfo || {}; t.fanInfo.phases = t.fanInfo.phases || [];
       t.fanInfo.phases.push({ id:uid(), name:'', date:'', time:'', status:'' });
