@@ -1999,8 +1999,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function wxSay(msg){ var n = $('wxnote'); if(n && !n.innerHTML) n.innerHTML = '<span>' + msg + '</span>'; }
   function wxGeo(list, i){
     if(i >= list.length) return Promise.resolve(null);
-    return wxReq('https://geocoding-api.open-meteo.com/v1/search?count=1&language=zh&name=' + encodeURIComponent(list[i])).then(function(g){
+    var kn = wxKnown(list[i]); if(kn) return Promise.resolve(kn);
+    var nm = encodeURIComponent(list[i]), base = 'https://geocoding-api.open-meteo.com/v1/search?count=1&name=' + nm;
+    return wxReq(base + '&language=zh').then(function(g){
       var loc = g && g.results && g.results[0];
+      if(loc) return loc;
+      return wxReq(base + '&language=en').then(function(g2){ return g2 && g2.results && g2.results[0]; });
+    }).then(function(loc){
       if(loc){ loc._q = list[i]; return loc; }
       return wxGeo(list, i + 1);
     });
@@ -2027,7 +2032,39 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var c = wxCode(w.code), rain = w.pop != null ? '降雨 ' + w.pop + '%' : (w.rain >= 0.5 ? '雨量 ' + Math.round(w.rain) + 'mm' : '');
     return c[1] + ' ' + w.min + '°～' + w.max + '°　' + c[2] + (rain ? '　' + rain : '') + (w.src === 'last' ? '<small>去年同期</small>' : w.src === 'ar' ? '<small>實際</small>' : '');
   }
-  function wxReq(url){ return fetch(url).then(function(r){ return r.ok ? r.json() : null; }).catch(function(){ return null; }); }
+  var wxErr = '';
+  function wxReq(url){
+    return fetch(url).then(function(r){
+      if(!r.ok){ wxErr = '伺服器回應 ' + r.status; return null; }
+      return r.json().catch(function(){ wxErr = '回傳內容不是天氣資料，可能被 sw.js 快取或攔截'; return null; });
+    }).catch(function(e){ wxErr = '網路請求被擋或失敗' + (e && e.message ? '：' + e.message : ''); return null; });
+  }
+  function wxFailMsg(){ return '🌤 暫時抓不到天氣' + (wxErr ? '（' + wxErr + '）' : '（地點查無結果）'); }
+  // 常見地點內建座標：不用再靠地名搜尋也能查天氣與算時差
+  var WX_KNOWN = [
+    [['札幌','北海道','sapporo','hokkaido'], 43.0618, 141.3545, 'Asia/Tokyo'], [['東京','tokyo'], 35.6895, 139.6917, 'Asia/Tokyo'],
+    [['大阪','osaka'], 34.6937, 135.5023, 'Asia/Tokyo'], [['京都','kyoto'], 35.0116, 135.7681, 'Asia/Tokyo'],
+    [['福岡','fukuoka'], 33.5902, 130.4017, 'Asia/Tokyo'], [['沖繩','那霸','okinawa','naha'], 26.2124, 127.6809, 'Asia/Tokyo'],
+    [['名古屋','nagoya'], 35.1815, 136.9066, 'Asia/Tokyo'], [['首爾','seoul'], 37.5665, 126.978, 'Asia/Seoul'],
+    [['釜山','busan'], 35.1796, 129.0756, 'Asia/Seoul'], [['濟州','jeju'], 33.4996, 126.5312, 'Asia/Seoul'],
+    [['香港','hong kong'], 22.3193, 114.1694, 'Asia/Hong_Kong'], [['澳門','macau'], 22.1987, 113.5439, 'Asia/Macau'],
+    [['高雄','kaohsiung'], 22.6273, 120.3014, 'Asia/Taipei'], [['台北','臺北','taipei'], 25.033, 121.5654, 'Asia/Taipei'],
+    [['台中','臺中','taichung'], 24.1477, 120.6736, 'Asia/Taipei'], [['台南','臺南','tainan'], 22.9999, 120.227, 'Asia/Taipei'],
+    [['曼谷','bangkok'], 13.7563, 100.5018, 'Asia/Bangkok'], [['新加坡','singapore'], 1.3521, 103.8198, 'Asia/Singapore'],
+    [['吉隆坡','kuala lumpur'], 3.139, 101.6869, 'Asia/Kuala_Lumpur'], [['上海','shanghai'], 31.2304, 121.4737, 'Asia/Shanghai'],
+    [['北京','beijing'], 39.9042, 116.4074, 'Asia/Shanghai'], [['胡志明','saigon','ho chi minh'], 10.8231, 106.6297, 'Asia/Ho_Chi_Minh'],
+    [['河內','hanoi'], 21.0278, 105.8342, 'Asia/Bangkok'], [['巴黎','paris'], 48.8566, 2.3522, 'Europe/Paris'],
+    [['倫敦','london'], 51.5074, -0.1278, 'Europe/London'], [['紐約','new york'], 40.7128, -74.006, 'America/New_York'],
+    [['洛杉磯','los angeles'], 34.0522, -118.2437, 'America/Los_Angeles'], [['雪梨','sydney'], -33.8688, 151.2093, 'Australia/Sydney']
+  ];
+  function wxKnown(name){
+    var n = String(name || '').toLowerCase();
+    for(var i = 0; i < WX_KNOWN.length; i++){
+      var k = WX_KNOWN[i];
+      if(k[0].some(function(x){ return n.indexOf(x) >= 0; })) return { latitude:k[1], longitude:k[2], timezone:k[3], _q:name };
+    }
+    return null;
+  }
   function wxPick(js, map, src, out){
     var dy = js && js.daily; if(!dy || !dy.time) return;
     dy.time.forEach(function(s, i){
@@ -2038,7 +2075,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function wxRange(a){ var s = a.slice().sort(); return { from:s[0], to:s[s.length - 1] }; }
   function wxFetch(t){
-    var cands = wxCands(t); if(!cands.length) return Promise.resolve(null);
+    wxErr = ''; var cands = wxCands(t); if(!cands.length) return Promise.resolve(null);
     return wxGeo(cands, 0).then(function(loc){
       if(!loc) return null;
       var city = loc._q;
@@ -2055,7 +2092,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(fc.length){ var r1 = wxRange(fc); jobs.push(wxReq('https://api.open-meteo.com/v1/forecast?daily=' + daily + 'precipitation_probability_max' + base + '&start_date=' + r1.from + '&end_date=' + r1.to).then(function(j){ wxPick(j, null, 'fc', out); })); }
       if(past.length){ var r2 = wxRange(past); jobs.push(wxReq('https://archive-api.open-meteo.com/v1/archive?daily=' + daily + 'precipitation_sum' + base + '&start_date=' + r2.from + '&end_date=' + r2.to).then(function(j){ wxPick(j, null, 'ar', out); })); }
       if(far.length){ var r3 = wxRange(far); jobs.push(wxReq('https://archive-api.open-meteo.com/v1/archive?daily=' + daily + 'precipitation_sum' + base + '&start_date=' + r3.from + '&end_date=' + r3.to).then(function(j){ wxPick(j, shiftMap, 'last', out); })); }
-      return Promise.all(jobs).then(function(){ return { ts:Date.now(), tz:loc.timezone || '', city:city, days:out }; });
+      return Promise.all(jobs).then(function(){
+        var r = { ts:Date.now(), tz:loc.timezone || '', city:city, days:out };
+        if(!Object.keys(out).length){ r.err = wxErr || '這些日期查不到天氣資料'; r.ts = Date.now() - WX_TTL + 60000; }   // 沒抓到天氣：1 分鐘後再試，不存 6 小時
+        return r;
+      });
     }).catch(function(){ return null; });
   }
   function wxOff(tz, dt){      // 某個時區在 dt 當下比 UTC 快幾分鐘
@@ -2071,7 +2112,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         txt = diff === 0 ? '🕒 與台灣同時區' : '🕒 當地時間比台灣' + (diff > 0 ? '快' : '慢') + ' ' + Math.abs(diff) + ' 小時';
       }
     }catch(e){}
-    return (txt ? '<span>' + txt + '</span>' : '') + '<span>🌤 天氣地點：' + esc(ent.city || '') + '</span>';
+    return (txt ? '<span>' + txt + '</span>' : '') + '<span>🌤 天氣地點：' + esc(ent.city || '') + '</span>' + (ent.err ? '<span>⚠ 天氣暫時抓不到（' + esc(ent.err) + '）</span>' : '');
   }
   function fillWx(t){
     var key = wxKeyOf(t), raw = wxRaw(key);
@@ -2081,12 +2122,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     var fresh = raw && !raw.fail && Date.now() - raw.ts < WX_TTL, hasRaw = raw && !raw.fail;
     if(!wxCity(t)){ wxSay('🌤 要顯示天氣與時差，請按「編輯」填寫「地點」（例：札幌）'); return; }
-    if(!hasRaw && wxFailAt[key] && Date.now() - wxFailAt[key] < 600000){ wxSay('🌤 查不到這個地點的天氣，請在「編輯」把地點改成城市名（例：札幌）'); return; }
+    if(!hasRaw && wxFailAt[key] && Date.now() - wxFailAt[key] < 600000){ wxSay(wxFailMsg()); return; }
     if(fresh || wxBusy[key] || (wxFailAt[key] && Date.now() - wxFailAt[key] < 600000)) return;
     wxBusy[key] = 1;
     wxFetch(t).then(function(r){
       wxBusy[key] = 0;
-      if(!r){ wxFailAt[key] = Date.now(); var t3 = cur(); if(t3 && wxKeyOf(t3) === key && !editMode) wxSay('🌤 查不到這個地點的天氣，請在「編輯」把地點改成城市名（例：札幌）'); return; }
+      if(!r){ wxFailAt[key] = Date.now(); var t3 = cur(); if(t3 && wxKeyOf(t3) === key && !editMode) wxSay(wxFailMsg()); return; }
       wxPut(key, r);
       var t2 = cur(); if(t2 && wxKeyOf(t2) === key && !editMode) fillWx(t2);
     });
