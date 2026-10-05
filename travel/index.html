@@ -425,6 +425,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ck.v{flex-direction:row; align-items:center; font-size:16px; font-weight:500; color:var(--ink); cursor:pointer; padding:3px 0;}
   .ck.v span{flex:1; min-width:0; line-height:1.6;}
   .ck.v.done span{text-decoration:line-through; color:var(--ink-faint);}
+  /* 行前清單：頁面最上方的摺疊列，標題旁顯示進度，點開才展開；全部勾完自動收起 */
+  .ckbar{margin:0 0 20px; border:1px solid var(--line-strong); background:var(--fill);}
+  .ckbar>summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:10px; min-height:44px; padding:10px 16px; font-size:15px; font-weight:900;}
+  .ckbar>summary::-webkit-details-marker{display:none;}
+  .ckbar>summary::after{content:''; margin-left:auto; width:8px; height:8px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
+  .ckbar[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
+  .ckbar>summary small{font-size:13px; font-weight:700; color:var(--accent);}
+  .ckbar.alldone>summary small{color:var(--ink-faint);}
+  .ckbar>summary:focus-visible{outline:2px solid var(--accent); outline-offset:-2px;}
+  .ckbar .ckbody{padding:0 16px 12px; border-top:1px solid var(--line);}
+  .ckbar .ckbody .ck.v{padding:6px 0;}
   .approx{margin-top:4px; font-size:13px; font-weight:500; color:var(--ink-faint);}
   .approx b{color:var(--ink-dim); font-variant-numeric:tabular-nums;}
   .ssub{margin:22px 0 10px; font-size:13px; font-weight:900; letter-spacing:0.08em; color:var(--ink-dim);}
@@ -575,6 +586,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shv{display:grid; gap:6px; padding:10px 12px 10px 14px; background:var(--fill); border-left:3px solid var(--accent);}
   .shv.past{opacity:0.6; border-left-color:var(--line-strong);}
   .shv-top{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  /* 場次超過一筆：每張卡片預設收合，只留日期／狀態／倒數，點開看入場時間、座位、票價 */
+  .shd>summary{list-style:none; cursor:pointer; min-height:32px;}
+  .shd>summary::-webkit-details-marker{display:none;}
+  .shd>summary::after{content:''; flex:0 0 auto; width:8px; height:8px; margin-left:4px; border-right:2px solid var(--ink-dim); border-bottom:2px solid var(--ink-dim); transform:rotate(45deg) translate(-2px,-2px); transition:transform .15s;}
+  .shd[open]>summary::after{transform:rotate(-135deg) translate(-2px,-2px);}
+  .shd>summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .shd .shv-body{display:grid; gap:6px; margin-top:6px;}
   .shv-no{flex:0 0 auto; min-width:22px; height:22px; padding:0 6px; display:inline-flex; align-items:center; justify-content:center; background:var(--ink); color:var(--paper); font-size:12px; font-weight:900;}
   .shv-date{font-size:17px; font-weight:900; letter-spacing:0.01em;}
   .shv-date small{font-size:13px; font-weight:700; color:var(--ink-faint); margin-left:3px;}
@@ -862,6 +880,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button><div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
       '<input class="spadd-time" type="time" aria-label="行程時間" value="' + esc(x.door || x.show || '') + '"><button class="mini spadd-go" type="button" data-do="showgo" data-id="' + x.id + '">加入</button></div></div>';
   }
+  var shOpen = {};   // 場次卡片（多筆時）哪幾張展開，重畫頁面時維持原狀
   function showsView(t){
     var arr = showsSorted(t), n = arr.length; if(!n) return '';
     var cards = arr.map(function(x, i){
@@ -873,9 +892,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
-      return '<div class="shv' + (past ? ' past' : '') + '">' + top +
-        (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
-        (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x) + '</div>';
+      var body = (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
+        (x.seat ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x);
+      if(n > 1) return '<div class="shv' + (past ? ' past' : '') + '"><details class="shd" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
+        '<summary class="shv-top">' + top.replace(/^<div class="shv-top">/, '').replace(/<\/div>$/, '') + '</summary><div class="shv-body">' + body + '</div></details></div>';
+      return '<div class="shv' + (past ? ' past' : '') + '">' + top + body + '</div>';
     }).join('');
     return '<div class="shwrap"><dt>' + (n > 1 ? '場次（' + n + '）' : '場次') + '</dt><dd class="shlist">' + cards + '</dd></div>';
   }
@@ -2539,11 +2560,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
         '<input type="time"' + a + ' data-k="rsvTime" aria-label="預約場次時間" value="' + esc(x.rsvTime || '') + '"></div></div>' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
+  var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
-    var h = nextUpHtml(t, nInfo) + budgetAlertHtml(t) + '<div class="cols"><div class="col c1">';
+    var h = nextUpHtml(t, nInfo) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1">';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
@@ -2556,17 +2579,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div>' +
         (rows ? '<dl class="kv">' + rows + '</dl>' : '<p class="vempty">還沒填活動資訊，按右上角「編輯」新增。</p>') + '</section>';
     }
-    var ckBuild = function(){
-      var cks = t.checklist.filter(function(x){ return String(x.text || '').trim(); });
-      var ckSec = '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3></div>' +
-        (cks.length ? cks.map(function(x){
-          return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
-        }).join('') : '<p class="vempty">還沒有清單，按右上角「編輯」套用範本。</p>') + '</section>';
-      return ckSec;
+    var ckBuild = function(){   // 沒有清單項目時，留在最下面顯示「套用範本」的提示
+      return '<section class="sec"><div class="sh"><h3>行前清單</h3></div><p class="vempty">還沒有清單，按右上角「編輯」套用範本。</p></section>';
     };
-    // 出發前 30 天內、而且還有沒勾的項目：行前清單提到預訂資料上方
-    var ckPh = phase(t), ckSoon = ckPh.k === 'up' && ckPh.n <= 30 && t.checklist.some(function(x){ return String(x.text || '').trim() && !x.done; });
-    if(ckSoon) h += ckBuild();
+    var ckItems = t.checklist.filter(function(x){ return String(x.text || '').trim(); });
+    var ckTop = '';
+    if(ckItems.length){
+      var ckAll = t.checklist.every(function(x){ return x.done || !String(x.text || '').trim(); });
+      ckTop = '<details id="ckbar" class="ckbar' + (ckAll ? ' alldone' : '') + '"' + (ckBarOpen && !ckAll ? ' open' : '') + '><summary>行前清單<small id="prog">' + prog(t) + '</small></summary><div class="ckbody">' +
+        ckItems.map(function(x){
+          return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
+        }).join('') + '</div></details>';
+    }
     h += '<section class="sec"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
@@ -2594,7 +2618,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(fan) h += spotsView(t) + merchView(t);
 
 
-    if(!ckSoon) h += ckBuild();
+    if(!ckItems.length) h += ckBuild();
+    h = h.replace('<!--CKTOP-->', ckTop);
 
     var xOpenNow = xOpen || catFilter !== 'all';
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
@@ -2819,6 +2844,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
           it.done = el.checked;
           el.closest('.ck').classList.toggle('done', el.checked);
           if($('prog')) $('prog').textContent = prog(t);
+          var cbar = $('ckbar');
+          if(cbar){
+            var allDone = (t.checklist || []).every(function(x){ return x.done || !String(x.text || '').trim(); });
+            cbar.classList.toggle('alldone', allDone);
+            if(allDone) setTimeout(function(){ var b2 = $('ckbar'); if(b2 && b2.classList.contains('alldone')) b2.open = false; }, 500);   // 全部勾完：稍等一下再自動收起
+          }
         } else { it.text = el.value; }
       }
     } else if(ds.e){
