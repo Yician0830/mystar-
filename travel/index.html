@@ -1428,8 +1428,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
       Object.keys(fi).some(function(k){ return k !== 'shows' && String(fi[k] || '').trim(); }) || fanShows(t).some(shHas));
   }
   function safeUrl(u){
+    var v = String(u == null ? '' : u).trim();
+    if(!v || /^(undefined|null)$/i.test(v)) return '';
+    if(!/^[a-z][a-z0-9+.-]*:/i.test(v)){          // 沒寫 https:// 的網址（像 www.example.com）幫忙補上；一般文字不當成連結
+      if(/^[^\s\/]+\.[^\s]+$/.test(v)) v = 'https://' + v; else return '';
+    }
     try{
-      var x = new URL(String(u || '').trim(), location.href);
+      var x = new URL(v);
       return (x.protocol === 'http:' || x.protocol === 'https:') ? x.href : '';
     }catch(e){ return ''; }
   }
@@ -1487,13 +1492,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function viewBody(t, fan){
     var h = '<div class="cols"><div class="col c1">';
     if(fan){
-      var fi = t.fanInfo || {}, href = safeUrl(fi.link);
+      var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
         vrow('售票／抽選', (fi.saleDate ? esc(d(fi.saleDate)) + esc(wk(fi.saleDate)) : '') + (fi.saleStatus ? (fi.saleDate ? '・' : '') + esc(fi.saleStatus) : '')) +
         vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '已中籤') : '') +
         vrow('繳費／取票期限', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選') : '') +
         showsView(t) + ticketTotal(t) + vrow('同行者', esc(fi.companions || '')) +
-        vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(fi.link) + '</a>' : esc(fi.link || ''));
+        vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
       h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div>' +
         (rows ? '<dl class="kv">' + rows + '</dl>' : '<p class="vempty">還沒填活動資訊，按右上角「編輯」新增。</p>') + '</section>';
       h += spotsView(t);
@@ -1642,6 +1647,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || [];
     normDays(t);
+    if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
       dayInitFor = currentId; dayFilter = 'all';
       if(phase(t).k === 'now'){ var td = ymd(new Date()), hit = t.days.filter(function(x){ return x.date === td; })[0]; if(hit) dayFilter = hit.id; }
