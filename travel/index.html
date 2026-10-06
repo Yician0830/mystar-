@@ -561,7 +561,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .board{display:flex; flex-direction:column; gap:26px; padding:2px 0 16px;}
   /* 日期分頁固定在頂端工作列下方：往下滑看行程時，不用捲回最上面就能切換每一天。欄數由程式依天數算好（--dcols），最多排成兩行，不用左右滑動 */
   .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; max-width:calc(var(--dcols,6) * 80px); margin-bottom:12px; padding:8px 0; position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper); box-shadow:0 1px 0 var(--line);}
-  .dtabs .dtab{min-width:0; padding:6px 2px; font-size:13px; text-align:center; white-space:nowrap;}
+  .dtabs .dtab{min-width:0; width:100%; justify-self:stretch; padding:6px 2px; font-size:13px; text-align:center; white-space:nowrap;}
   .dtab[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
   .dcol{display:grid; gap:10px; align-content:start; min-width:0; width:100%;}
   .dchd{display:grid; gap:6px; padding:2px 2px 4px;}
