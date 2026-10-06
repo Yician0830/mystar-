@@ -282,10 +282,24 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .wishcar{font-size:12px; font-weight:500; color:var(--ink-dim); white-space:nowrap;}
   .wishtog:hover .wishcar,.wishtog:focus-visible .wishcar{color:var(--accent);}
   .wishbody{max-height:min(46vh,380px); overflow-y:auto; padding-bottom:6px; overscroll-behavior:contain;}
-  .wishrow{padding:8px 0; border-bottom:1px dashed var(--line-strong);}
-  .wishhd{display:flex; justify-content:space-between; align-items:center; gap:8px; font-weight:700;}
-  .wishadd{display:flex; gap:8px; margin-top:10px;}
-  .wishadd input{flex:1; min-width:0;}
+  .wishbody{display:grid; gap:8px; align-content:start;}
+  .wishrow{display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px 6px; padding:10px 8px 10px 12px; background:var(--fill); border:1px solid var(--line); border-left:3px solid var(--accent);}
+  .wishrow:hover{border-color:var(--line-strong); border-left-color:var(--accent);}
+  .wishrow .wishname{grid-column:1; grid-row:1; min-width:0; font-size:15px; font-weight:700; line-height:1.4; color:var(--ink); text-decoration:none; overflow-wrap:anywhere;}
+  .wishrow .wishname::before{content:"📍"; margin-right:6px; font-size:13px;}
+  .wishrow .wishname:hover,.wishrow .wishname:focus-visible{color:var(--accent); text-decoration:underline; text-underline-offset:3px;}
+  .wishrow .spadd-wrap{display:contents; margin:0;}
+  .wishrow .spadd-wrap>.mini{grid-column:2; grid-row:1; white-space:nowrap; background:var(--paper);}
+  .wishrow .wishdel{grid-column:3; grid-row:1; padding:2px 8px; font-size:20px; line-height:1;}
+  .wishrow .spadd{grid-column:1 / -1; grid-row:2; padding-top:8px; border-top:1px dashed var(--line-strong);}
+  .wishrow .spadd .spadd-go{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .wishrow .spadd .spadd-go:hover,.wishrow .spadd .spadd-go:focus-visible{background:var(--accent); border-color:var(--accent); color:var(--paper);}
+  .wishbody>.vempty{padding:14px 12px; margin:0; text-align:center; border:1px dashed var(--line-strong); background:var(--fill);}
+  .wishadd{display:flex; gap:8px; margin-top:4px;}
+  .wishadd input{flex:1; min-width:0; background:var(--fill); border:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong); padding:9px 12px;}
+  .wishadd input:focus{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent);}
+  .wishadd .mini{padding:8px 16px; background:var(--ink); color:var(--paper); border-color:var(--ink);}
+  .wishadd .mini:hover,.wishadd .mini:focus-visible{background:var(--accent); border-color:var(--accent); color:var(--paper);}
   .split .sgsum{display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:13px; color:var(--ink-dim);}
   .split .sgsum b{font-size:17px; font-weight:900; font-variant-numeric:tabular-nums; color:var(--ink);}
   .split .sgsum .sgleft b{color:var(--accent);}
@@ -793,8 +807,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:800px){ body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);} }
   .tccard[hidden], .tcpass[hidden]{display:none !important;}
   .payrow input{flex:1; min-width:0;}
-  .tcdet{margin-top:6px; font-size:13px; color:var(--ink-dim);}
-  .tcdet>summary{list-style:none; cursor:pointer; text-align:right; font-weight:700; padding:4px 0; min-height:32px;}
+  .tcdet{margin-top:0; font-size:13px; color:var(--ink-dim);}
+  .tcdet.up{margin-top:-30px;}   /* 「詳細」拉到餘額那一列的右邊，卡片底下不留空白 */
+  .tcdet>summary{list-style:none; cursor:pointer; text-align:right; font-weight:700; padding:0; min-height:24px; line-height:24px; width:fit-content; margin-left:auto;}
+  .tcdet[open]>summary{margin-bottom:2px;}
   .tcdet>summary::-webkit-details-marker{display:none;}
   .tcdet>summary::after{content:' ▸';}
   .tcdet[open]>summary::after{content:' ▾';}
@@ -2270,8 +2286,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       ].filter(Boolean).join('');
       return '<div class="bk v" id="lk-tc-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '交通卡') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
         (mny ? '<div class="vtext">' + mny + '</div>' : '') +
-        tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') +
-        '<details class="tcdet" data-tcd="' + x.id + '"' + (tcOpen[x.id] ? ' open' : '') + '><summary>詳細</summary><div class="tcdb">' + det + '</div></details></div>';
+        '<details class="tcdet' + (mny ? ' up' : '') + '" data-tcd="' + x.id + '"' + (tcOpen[x.id] ? ' open' : '') + '><summary>詳細</summary><div class="tcdb">' + det + '</div></details>' +
+        tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') + '</div>';
     }).join('') + '</section>';
   }
   function tcEditSec(t){
@@ -2721,10 +2737,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return head + '<div class="wishbody">' +
       (w.length ? w.map(function(x){
         var q = String(x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
-        return '<div class="wishrow"><div class="wishhd"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(q) + '</a>' +
-          '<span class="wishbtns"><button class="del" type="button" data-do="wishdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span></div>' +
+        return '<div class="wishrow"><a class="wishname" href="' + esc(map) + '" target="_blank" rel="noopener" title="在地圖開啟">' + esc(q) + '</a>' +
           (days.length ? '<div class="spadd-wrap"><button class="mini" type="button" data-do="spaddt">＋ 加入行程</button><div class="spadd" hidden><select class="spadd-day" aria-label="加入哪一天">' + opts + '</select>' +
-            '<input class="spadd-time" type="time" aria-label="預計時間（選填）"><button class="mini spadd-go" type="button" data-do="wishgo" data-id="' + x.id + '">加入</button></div></div>' : '') + '</div>';
+            '<input class="spadd-time" type="time" aria-label="預計時間（選填）"><button class="mini spadd-go" type="button" data-do="wishgo" data-id="' + x.id + '">加入</button></div></div>' : '') +
+          '<button class="del wishdel" type="button" data-do="wishdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') : '<p class="vempty">想去但還沒排進哪天的地方，先記在這裡，之後一鍵加入某一天。</p>') +
       (days.length ? '' : '<p class="vempty">要加入行程，請先到「編輯」按「依日期產生」排出每一天。</p>') +
       '<div class="wishadd"><input id="wishin" type="text" autocomplete="off" placeholder="景點名稱或地址" aria-label="新增備選景點"><button class="mini" type="button" data-do="wishadd">＋ 新增</button></div></div></section>';
