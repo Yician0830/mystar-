@@ -985,7 +985,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var left = l && l.n >= 0 ? '<span class="shv-left ' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : (past ? '<span class="shv-left dueok">已結束</span>' : '');
       var top = '<div class="shv-top">' + (n > 1 ? '<span class="shv-no">' + (i + 1) + '</span>' : '') +
         '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (n > 1 && x.seat ? '<span class="shv-seatin">' + esc(x.seat) + '</span>' : '') + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
-      var tm = (x.door ? '<span>入場 <b>' + esc(x.door) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(x.show) + '</b></span>' : '');
+      var tm = (x.door ? '<span>入場 <b>' + esc(tm12(x.door)) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(tm12(x.show)) + '</b></span>' : '');
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
@@ -1044,7 +1044,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var dt = toDate(x.date), l = dt && !phClosed(x) ? dueLeft(dt) : null, pc = phPast(x) ? ' phpast' : '';
       return '<div class="phv"><b class="phn">' + esc(x.name || '階段') + '</b>' +
         '<span class="phd' + pc + '">' + (x.date ? esc(d(x.date)) + esc(wk(x.date)) : '日期未定') + '</span>' +
-        '<span class="pht' + pc + '">' + (x.time ? esc(x.time) : '') + '</span>' +
+        '<span class="pht' + pc + '">' + (x.time ? esc(tm12(x.time)) : '') + '</span>' +
         '<span class="phs">' + (x.status ? saleSt(x.status) : '') + (l && l.n >= 0 ? (x.status ? '　' : '') + '<span class="' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : '') + '</span></div>';
     }).join('') + '</div>';
   }
@@ -1110,13 +1110,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     // 每一段航班各列一行（依時間排序）：第一段＝去程、最後一段＝回程，中間的（轉機等）標「航班」
     fl.forEach(function(f, i){
       var lb = fl.length === 1 ? '航班' : i === 0 ? '去程' : i === fl.length - 1 ? '回程' : '航班';
-      rows.push([lb, esc(f.name || '') + (f.time ? (f.name ? ' ' : '') + '<span class="kp">' + esc(f.time) + '</span>' : '')]);
+      rows.push([lb, esc(f.name || '') + (f.time ? (f.name ? ' ' : '') + '<span class="kp">' + esc(tmText(f.time)) + '</span>' : '')]);
     });
     // 每一筆住宿各列一行（依入住日排序），多間住宿都會顯示
     sts.filter(function(x){ return x.name; })
       .sort(function(a,b){ return String(a.checkin || '9999').localeCompare(String(b.checkin || '9999')); })
       .forEach(function(st){
-        rows.push(['住宿', esc(st.name) + (st.checkin ? ' <span class="kp">' + esc(d(st.checkin)) + (st.checkinTime ? ' ' + esc(st.checkinTime) : '') + ' 入住</span>' : '')]);
+        rows.push(['住宿', esc(st.name) + (st.checkin ? ' <span class="kp">' + esc(d(st.checkin)) + (st.checkinTime ? ' ' + esc(tm12(st.checkinTime)) : '') + ' 入住</span>' : '')]);
       });
     if(fan){
       var fi = t.fanInfo || {}, tk = bks.filter(function(x){ return x.type === '門票' && (x.name || x.code); })[0], parts = [];
@@ -1979,7 +1979,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return (h ? h + ' 小時' : '') + (h && mm ? ' ' : '') + (mm ? mm + ' 分' : '') + (toMin(x.end) < toMin(x.time) ? '（隔天離開）' : '');
   }
   function timeRange(x){
-    if(x.time) return x.time + (x.end ? '–' + x.end : '');
+    if(x.time) return tm12(x.time) + (x.end ? '–' + tm12(x.end) : '');
     return x.end ? '至 ' + x.end : '';
   }
   // 舊資料是一大段文字（每行一個行程）：轉成卡片。id 由日期 id 加序號決定，重複轉換也不會變
@@ -2114,6 +2114,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 營業型態：fixed 固定時段（一段）／two 兩段式／24h 全天營業；舊資料有填第二段的視為兩段式
   // 營業時間顯示成 12 小時制加上午／下午（11:00 → 上午 11:00，15:00 → 下午 3:00），跟編輯時時間欄的樣子一致
   function tm12(v){ var m = toMin(v); if(m == null) return String(v || ''); var h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return (h < 12 ? '上午 ' : '下午 ') + (h % 12 === 0 ? 12 : h % 12) + ':' + mm; }
+  // 自由文字（例如預訂時間「02/20 08:30 → 13:10」）裡的 HH:MM 一律換成上午／下午；已經寫了上午／下午的不再重複轉換
+  function tmText(v){
+    return String(v == null ? '' : v).replace(/(?<![上下]午\s?)(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])/g, function(m, h, mi){
+      return +h > 23 || +mi > 59 ? m : tm12(('0' + h).slice(-2) + ':' + mi);
+    });
+  }
   function hMode(x){ return x.hmode === '24h' || x.hmode === 'two' || x.hmode === 'fixed' ? x.hmode : ((x.open2 || x.close2) ? 'two' : 'fixed'); }
   // 取出營業時段（分鐘）。打烊比開門早＝跨午夜（例如 18:00–02:00），打烊時間加 24 小時
   function hSegs(x){
@@ -2154,9 +2160,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     fanShows(t).forEach(function(sh){
       if(sh.date !== day.date) return;
       var dr = toMin(sh.door), sw = toMin(sh.show), ent = dr != null ? dr : sw; if(ent == null) return;
-      var lb = dr != null ? '入場' : '開演', raw = dr != null ? sh.door : sh.show;
-      if(s0 < ent && e0 != null && e0 > ent) w.push('離開時間（' + x.end + '）晚於' + lb + '時間（' + raw + '），會趕不上場次');
-      else if(dr != null && sw != null && s0 > dr && s0 < sw) w.push('排在入場（' + sh.door + '）與開演（' + sh.show + '）之間，跟場次衝突');
+      var lb = dr != null ? '入場' : '開演', raw = tm12(dr != null ? sh.door : sh.show);
+      if(s0 < ent && e0 != null && e0 > ent) w.push('離開時間（' + tm12(x.end) + '）晚於' + lb + '時間（' + raw + '），會趕不上場次');
+      else if(dr != null && sw != null && s0 > dr && s0 < sw) w.push('排在入場（' + tm12(sh.door) + '）與開演（' + tm12(sh.show) + '）之間，跟場次衝突');
     });
     return w;
   }
@@ -2323,7 +2329,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(ckDone(x)) return '✓ ' + (x.ckState === '已線上報到' ? '已報到' : x.ckState) + (String(x.seat || '').trim() ? '・座位 ' + esc(x.seat) : '');
     var o = ckDT(x.ckOpen), w = x.ckWay || '';
     var lb = !w || w === '線上報到' ? '線上報到' : w + '報到';
-    return '✈ ' + lb + (o ? ' ' + o.md + ' ' + o.hm + ' 開放' : '');
+    return '✈ ' + lb + (o ? ' ' + o.md + ' ' + tm12(o.hm) + ' 開放' : '');
   }
   function ckBookBtn(x){
     if(!isFlight(x) || !ckAny(x)) return '';
@@ -2333,7 +2339,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var o = ckDT(x.ckOpen), due = ckDT(x.ckDue);
     var rows = [
       ['報到方式', x.ckWay], ['狀態', x.ckState || '未報到'],
-      ['線上報到開放', o ? o.md + ' ' + o.hm : ''], ['櫃檯截止', due ? due.md + ' ' + due.hm : ''],
+      ['線上報到開放', o ? o.md + ' ' + tm12(o.hm) : ''], ['櫃檯截止', due ? due.md + ' ' + tm12(due.hm) : ''],
       ['座位', x.seat], ['行李額度', x.bag], ['航廈', x.term]
     ].filter(function(r){ return String(r[1] == null ? '' : r[1]).trim(); });
     return '<div class="mbox ckbox" role="document"><div class="mhead"><h3>' + esc(x.name || '航班') + ' 報到資訊</h3></div><div class="mbody">' +
@@ -2360,8 +2366,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(diff > 1) return;
       if(due ? now > due.at : diff < -3) return;
       var lb = !x.ckWay || x.ckWay === '線上報到' ? '線上報到' : '報到';
-      var when = diff === 1 ? '明天 ' + o.hm + ' 開放' + lb : diff === 0 && now < o.at ? '今天 ' + o.hm + ' 開放' + lb : '已開放' + lb;
-      items.push('<b>' + esc(x.name || '航班') + '</b> <span class="warn">' + when + (due ? '（櫃檯 ' + due.md + ' ' + due.hm + ' 截止）' : '') + '</span>');
+      var when = diff === 1 ? '明天 ' + tm12(o.hm) + ' 開放' + lb : diff === 0 && now < o.at ? '今天 ' + tm12(o.hm) + ' 開放' + lb : '已開放' + lb;
+      items.push('<b>' + esc(x.name || '航班') + '</b> <span class="warn">' + when + (due ? '（櫃檯 ' + due.md + ' ' + tm12(due.hm) + ' 截止）' : '') + '</span>');
     });
     return items.length ? '<div class="budalert" role="status">✈ 報到提醒　' + items.join('　') + '</div>' : '';
   }
@@ -2369,7 +2375,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function ckDayHtml(t, day, x){
     if(!day || !day.date || sortedItems(day)[0] !== x) return '';
     return (t.bookings || []).filter(function(b){ var due = ckDT(b.ckDue); return isFlight(b) && due && due.date === day.date && b.ckState !== '已托運'; }).map(function(b){
-      return '<div class="ihrs ckday">✈ ' + esc(b.name || '航班') + '　櫃檯 ' + ckDT(b.ckDue).hm + ' 截止</div>';
+      return '<div class="ihrs ckday">✈ ' + esc(b.name || '航班') + '　櫃檯 ' + tm12(ckDT(b.ckDue).hm) + ' 截止</div>';
     }).join('');
   }
   function tcView(t){
@@ -2867,7 +2873,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(!edit && !n && dayFilter === 'all'){      // 還沒排行程的日子縮成一行
         return '<div class="dcol dempty"><div class="dtop"><b>' + label + '</b><span class="wk">' + wk(day.date) + '</span>' + (day.date ? '<span class="dedate">' + esc(d(day.date)) + '</span>' : '') + '<span class="dehint">尚未安排</span></div></div>';
       }
-      var top = '<div class="dtop"><b>' + label + '</b><span class="wk">' + wk(day.date) + '</span><span class="cnt">' + (n ? n + ' 項' : '') + '</span>';
+      var top = '<div class="dtop"><b>' + label + '</b><span class="wk">' + wk(day.date) + '</span><span class="cnt">' + (n ? '共 ' + n + ' 個行程' : '') + '</span>';
       if(edit){
         return '<div class="dcol"><div class="dchd">' + top + '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除這一天" title="刪除這一天">×</button></div>' +
           '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="' + label + ' 日期" value="' + esc(day.date || '') + '">' +
@@ -2921,7 +2927,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(rl) rl.hidden = !rslOn(x); if(lk) lk.hidden = rslOn(x);
   }
   function rslHas(x){ return rslOn(x) && !!(String(x.rsvDate || '').trim() || String(x.rsvTime || '').trim()); }
-  function rslText(x, full){ return (x.rsvDate ? esc(d(x.rsvDate)) + (full ? esc(wk(x.rsvDate)) : '') : '') + (x.rsvTime ? (x.rsvDate ? ' ' : '') + esc(x.rsvTime) : ''); }
+  function rslText(x, full){ return (x.rsvDate ? esc(d(x.rsvDate)) + (full ? esc(wk(x.rsvDate)) : '') : '') + (x.rsvTime ? (x.rsvDate ? ' ' : '') + esc(tm12(x.rsvTime)) : ''); }
   function rsvCls(st){ return st === '已預約' ? 'rs-ok' : st === '候補' ? 'rs-wait' : 'rs-no'; }
   function spProg(t){ var a = t.spots || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
@@ -3115,7 +3121,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
-          (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') + ckBookBtn(x) +
+          (x.time ? '<div class="btime">' + esc(tmText(x.time)) + '</div>' : '') + ckBookBtn(x) +
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
@@ -3125,8 +3131,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
         var hint = stayHint(x);
         // 入住、退房、共幾晚各自是一個不可拆開的單位：放不下時整段換到下一行，不會把「共 5 晚」拆成兩行
-        var dt = (x.checkin ? '<span class="nw">' + esc(d(x.checkin)) + esc(wk(x.checkin)) + (x.checkinTime ? ' ' + esc(x.checkinTime) : '') + ' 入住</span>' : '') + (x.checkin && x.checkout ? ' <span class="nw">→</span> ' : '') +
-          (x.checkout ? '<span class="nw">' + esc(d(x.checkout)) + esc(wk(x.checkout)) + (x.checkoutTime ? ' ' + esc(x.checkoutTime) : '') + ' 退房</span>' : '');
+        var dt = (x.checkin ? '<span class="nw">' + esc(d(x.checkin)) + esc(wk(x.checkin)) + (x.checkinTime ? ' ' + esc(tm12(x.checkinTime)) : '') + ' 入住</span>' : '') + (x.checkin && x.checkout ? ' <span class="nw">→</span> ' : '') +
+          (x.checkout ? '<span class="nw">' + esc(d(x.checkout)) + esc(wk(x.checkout)) + (x.checkoutTime ? ' ' + esc(tm12(x.checkoutTime)) : '') + ' 退房</span>' : '');
         return '<div class="bk v" id="lk-stay-' + x.id + '"><div class="bvh"><span class="btag">住宿</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
           ((dt || hint) ? '<div class="btime stime">' + dt + (hint ? (dt ? ' ' : '') + '<span class="nights nw">' + esc(hint) + '</span>' : '') + '</div>' : '') +
           ((x.address || map) ? '<div class="vtext addrline">' + (x.address ? esc(x.address) : '') + (map ? (x.address ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
@@ -3208,7 +3214,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
-        return crow('bk', x.id, '', '<span class="btag">' + esc(x.type || '') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.time, x.code].filter(Boolean).map(esc).join(' ・ '), '', 'delbk');
+        return crow('bk', x.id, '', '<span class="btag">' + esc(x.type || '') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [tmText(x.time), x.code].filter(Boolean).map(esc).join(' ・ '), '', 'delbk');
       }).join('') : '<div class="empty">航班、住宿、門票的班次、時間與訂位代號，都可以記在這裡，出發時一次看得到。</div>') +
       '</section>';
 
@@ -3667,7 +3673,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var sit = newItem(), snotes = [], sn = fanShows(t).filter(shHas).length;
       sit.title = '演出：' + (t.event || t.title || '') + (sn > 1 && sx.date ? '（' + d(sx.date) + '）' : ''); sit.cat = '活動'; sit.lkShow = sx.id;
       sit.time = st2 ? st2.value : ''; sit.status = sx.status === '已購票' ? '已預訂' : '';
-      if(sx.door) snotes.push('入場 ' + sx.door); if(sx.show) snotes.push('開演 ' + sx.show); if(String(sx.seat || '').trim()) snotes.push('座位：' + String(sx.seat).trim());
+      if(sx.door) snotes.push('入場 ' + tm12(sx.door)); if(sx.show) snotes.push('開演 ' + tm12(sx.show)); if(String(sx.seat || '').trim()) snotes.push('座位：' + String(sx.seat).trim());
       sit.note = snotes.join('\n');
       sday.items.push(sit); dayFilter = sday.id;
       renderDetail(); doPersist(); return;
