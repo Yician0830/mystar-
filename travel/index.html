@@ -133,6 +133,10 @@
 a.name{display:block; color:inherit; text-decoration:none;}
   a.name:hover,a.name:focus-visible{color:var(--accent);}
   .dhead{padding:clamp(20px,5vh,40px) 0 20px;}
+  .dhead{position:relative;}
+  .secnav{display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;}
+  .secnav .mini{padding:4px 10px; font-size:12px;}
+  @media (min-width:1100px){ .secnav{position:absolute; right:0; top:clamp(20px,5vh,40px); max-width:46%; justify-content:flex-end; margin-top:0;} }
   .dhead h2{font-weight:900; font-size:clamp(26px,5vw,40px); letter-spacing:0.03em; line-height:1.25; margin-top:4px;}
   .dhead .dm{margin-top:8px; display:flex; flex-wrap:wrap; gap:4px 16px; font-size:13px; font-weight:500; color:var(--ink-faint);}
   .sec{padding:26px 0 12px;}
@@ -560,7 +564,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .nn:empty{display:none;}
   .board{display:flex; flex-direction:column; gap:26px; padding:2px 0 16px;}
   /* 日期分頁固定在頂端工作列下方：往下滑看行程時，不用捲回最上面就能切換每一天。欄數由程式依天數算好（--dcols），最多排成兩行，不用左右滑動 */
-  .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; max-width:calc(var(--dcols,6) * 80px); margin-bottom:12px; padding:8px 0; position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper); box-shadow:0 1px 0 var(--line);}
+  .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; max-width:calc(var(--dcols,6) * 80px); margin-bottom:12px; padding:8px 0; position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper);}
   @media (min-width:900px){ .dtabs{grid-template-columns:repeat(var(--dcolsw,6),minmax(0,1fr)); max-width:calc(var(--dcolsw,6) * 80px);} }
   .dtabs .dtab{min-width:0; width:100%; justify-self:stretch; padding:6px 2px; font-size:13px; text-align:center; white-space:nowrap;}
   .dtab[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
@@ -633,6 +637,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:800px){
     .cols{grid-template-columns:repeat(2,minmax(0,1fr));}
     .col.c3{grid-column:1 / -1;}
+  .expbot{margin-top:clamp(24px,4vh,40px); max-width:1100px;}
   }
   @media (min-width:1200px){
     .cols{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}
@@ -686,6 +691,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shv-times b{color:var(--ink); font-weight:700;}
   .shv-seat{font-size:15px; font-weight:700; color:var(--ink);}
   .shv-seat span{display:inline-block; margin-right:8px; padding:0 6px; font-size:11px; font-weight:900; letter-spacing:0.06em; color:var(--ink-faint); border:1px solid var(--line-strong);}
+  .vmuted{color:var(--ink-dim); font-size:13px;}
+  .shv-back{display:flex; flex-wrap:wrap; align-items:baseline; gap:2px 14px; font-size:13px; color:var(--ink-dim);}
+  .shv-back b{font-size:15px; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .shv-gap{font-weight:700; width:100%;}
+  .shv-gap.ok{color:var(--ink-faint);}
+  .shv-gap.tight{color:#c0392b;}
   .shv-price{display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:2px 12px; padding-top:6px; border-top:1px dashed var(--line-strong); font-size:13px; color:var(--ink-dim);}
   .shv-price b{font-size:15px; color:var(--accent); font-variant-numeric:tabular-nums;}
   .shpay{display:grid; grid-template-columns:minmax(0,1fr) 5.5em 5em; gap:10px 14px; margin-top:10px; align-items:end;}
@@ -1010,10 +1021,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var top = '<div class="shv-top">' + (n > 1 ? '<span class="shv-no">' + (i + 1) + '</span>' : '') +
         '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (n > 1 && x.seat ? '<span class="shv-seatin">' + esc(x.seat) + '</span>' : '') + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
       var tm = (x.door ? '<span>入場 <b>' + esc(tm12(x.door)) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(tm12(x.show)) + '</b></span>' : '');
+      var back = '';
+      if(x.end || x.last){
+        var em = toMin(x.end), lm = toMin(x.last), gap = null;
+        if(em != null && lm != null){ if(lm < em) lm += 1440; gap = lm - em; }
+        var gtxt = gap == null ? '' : gap < 0 ? '' : '<span class="shv-gap ' + (gap < 30 ? 'tight' : 'ok') + '">' + (gap < 30 ? '⚠ 只剩 ' + gap + ' 分鐘，來不及就要提早走或另外搭車' : '散場後有 ' + (gap >= 60 ? Math.floor(gap / 60) + ' 小時' + (gap % 60 ? ' ' + (gap % 60) + ' 分' : '') : gap + ' 分鐘') + '可以回住處') + '</span>';
+        back = '<div class="shv-back">' + (x.end ? '<span>散場 <b>' + esc(tm12(x.end)) + '</b></span>' : '') + (x.last ? '<span>最晚回程 <b>' + esc(tm12(x.last)) + '</b></span>' : '') + gtxt + '</div>';
+      }
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
       else if(qy) price = '<div class="shv-price"><span>' + money(qy) + ' 張</span></div>';
-      var body = (tm ? '<div class="shv-times">' + tm + '</div>' : '') +
+      var body = (tm ? '<div class="shv-times">' + tm + '</div>' : '') + back +
         (x.seat && n < 2 ? '<div class="shv-seat"><span>座位</span>' + esc(x.seat) + '</div>' : '') + price + showAddPanel(t, x);
       if(n > 1) return '<div class="shv shv-c' + (past ? ' past' : '') + '"><details class="shdet" data-sh="' + esc(x.id) + '"' + (shOpen[x.id] ? ' open' : '') + '>' +
         '<summary class="shv-top">' + top.replace(/^<div class="shv-top">/, '').replace(/<\/div>$/, '') + '</summary><div class="shv-body">' + body + '</div></details></div>';
@@ -1048,7 +1066,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function showEdit(t, x, i){
     var A = function(k, type, label, ph){ return '<label>' + label + '<input type="' + type + '" data-sh="' + x.id + '" data-k="' + k + '"' + (ph ? ' placeholder="' + ph + '"' : '') + ' value="' + esc(x[k] || '') + '"></label>'; };
     return '<div class="shcard"><div class="shn"><span>場次 ' + (i + 1) + '</span>' + showBtns(t, x) + '</div><div class="fgrid">' +
-      A('date', 'date', '日期') + A('seat', 'text', '座位／票種', '例如：1F 12 排、一般席') + A('door', 'time', '入場時間') + A('show', 'time', '開演時間') + '</div>' +
+      A('date', 'date', '日期') + A('seat', 'text', '座位／票種', '例如：1F 12 排、一般席') + A('door', 'time', '入場時間') + A('show', 'time', '開演時間') + A('end', 'time', '預計散場') + A('last', 'time', '最晚回程（末班車）') + '</div>' +
       '<div class="shpay"><label>票價（每張）<input type="text" inputmode="decimal" autocomplete="off" data-sh="' + x.id + '" data-k="price" placeholder="例如：12000" value="' + esc(x.price || '') + '"></label>' +
       '<label>幣別<select data-sh="' + x.id + '" data-k="cur">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select></label>' +
       '<label>張數<input type="text" inputmode="numeric" autocomplete="off" data-sh="' + x.id + '" data-k="qty" placeholder="1" value="' + esc(x.qty || '') + '"></label></div>' +
@@ -2971,7 +2989,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="wishadd"><input id="wishin" type="text" autocomplete="off" placeholder="景點名稱或地址" aria-label="新增備選景點"><button class="mini" type="button" data-do="wishadd">＋ 新增</button></div></div></section>';
   }
   function boardHtml(t, edit){
-    var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
+    var head = '<section class="sec" id="sec-board"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
     if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
     if(dayFilter !== 'all' && !t.days.some(function(x){ return String(x.id) === String(dayFilter); })) dayFilter = 'all';
     var dtot = t.days.length + 1, dcols = dtot > 7 ? Math.ceil(dtot / 2) : dtot;      // 8 個以上平分成兩行
@@ -3203,6 +3221,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
     var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1">';
+    var infoH = '';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
@@ -3211,8 +3230,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
         (saleMode(fi) === 'lottery' ? vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') : '') +
         vrow(saleMode(fi) === 'lottery' ? '繳費／取票期限' : '可取票日', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', saleMode(fi) === 'ticket' ? fi.saleStatus === '已購票' : (fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票')) : '') +
         showsView(t) + vrow('同行者', esc(fi.companions || '')) +
+        vrow('場館', esc(fi.venue || '') + (fi.venueAddr ? (fi.venue ? '<br>' : '') + '<span class=\"vmuted\">' + esc(fi.venueAddr) + '</span>' : '') + (function(){ var mu = safeUrl(String(fi.venueMap || '').trim()); var q = mu || (fi.venueAddr || fi.venue ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(fi.venueAddr || fi.venue) : ''); return q ? ' <a class=\"vlink\" href=\"' + esc(q) + '\" target=\"_blank\" rel=\"noopener\">在地圖開啟</a>' : ''; })()) +
+        vrow('入場口', esc(fi.venueGate || '')) + vrow('禁帶物品', esc(fi.venueBan || '')) + vrow('行李寄放', esc(fi.venueLuggage || '')) +
         vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
-      h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div>' +
+      infoH += '<section class="sec" id="sec-info"><div class="sh"><h3>活動資訊</h3></div>' +
         (rows ? '<dl class="kv">' + rows + '</dl>' : '<p class="vempty">還沒填活動資訊，按右上角「編輯」新增。</p>') + '</section>';
     }
     var ckBuild = function(){   // 沒有清單項目時，留在最下面顯示「套用範本」的提示
@@ -3227,7 +3248,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
         }).join('') + '</div></details>';
     }
-    h += '<section class="sec"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
+    h += '<section class="sec" id="sec-bk"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
@@ -3235,7 +3256,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
-    h += '<section class="sec"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
+    h += '<section class="sec" id="sec-st"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
       (t.stays.length ? t.stays.map(function(x){
         var q = (String(x.name || '') + ' ' + String(x.address || '')).trim();
         var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
@@ -3249,8 +3270,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
-    if(fan) h += tcView(t) + spotsView(t) + merchView(t);
-    else h += tcView(t);
+    h += tcView(t);
 
 
     if(!ckItems.length) h += ckBuild();
@@ -3292,10 +3312,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
         return '<div class="xdh"><span>' + g.title + '</span>' + (sub ? '<b>' + money(sub) + ' 元</b>' : '') + '</div>' + g.list.map(xRow).join('');
       }).join('');
     } else xBody = shown.map(xRow).join('');
-    h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '"><section class="sec"><div class="sh"><h3>花費</h3></div>' +
+    var expH = '<section class="sec" id="sec-exp"><div class="sh"><h3>花費</h3></div>' +
       (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' :
       exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
-      '</section>' + (fan ? '' : wishView(t)) + '</div></div>';
+      '</section>';
+    if(fan) h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3">' + infoH + spotsView(t) + merchView(t) + '</div></div><div class="expbot">' + expH + '</div>';
+    else h += '</div><div class="col c2">' + boardHtml(t, false) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '">' + expH + wishView(t) + '</div></div>';
     return h;
   }
   // 編輯模式：原本的輸入框版面
@@ -3317,6 +3339,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
         (smode === 'lottery' ? '' : phasesEdit(t)) + '<div class="full shows"><div class="shd"><span>場次</span><button class="mini" type="button" data-do="addshow">＋ 新增場次</button></div>' +
           (shows.length ? shows.map(function(x, i){ return showEdit(t, x, i); }).join('') + '<div class="dcl">票價與張數預設只做票券紀錄；要算進花費，按場次卡片上的「加入花費」。</div>' : '<div class="empty">每一場的日期、入場／開演時間、座位和票價都可以分開記，巡演也能一次記完。</div>') + '</div>' +
         FI('同行者（選填）', 'text', 'companions', true) +
+        FI('場館名稱（選填）', 'text', 'venue') + FI('入場口（選填）', 'text', 'venueGate') +
+        FI('場館地址（選填）', 'text', 'venueAddr', true) + FI('地圖連結（選填，沒填會用地址搜尋）', 'text', 'venueMap', true) +
+        FI('禁帶物品（選填）', 'text', 'venueBan', true) + FI('行李寄放（選填）', 'text', 'venueLuggage', true) +
         '<label class="full">相關連結（推し手帳的活動、售票頁）<div class="bcode"><input type="text" inputmode="url" autocomplete="off" data-f="1" data-k="link" placeholder="貼上網址" value="' + esc(fi.link || '') + '">' +
         '<button class="mini" type="button" data-do="openlink">開啟</button></div></label>' +
         '</div></section>';
@@ -3385,7 +3410,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
-      '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div></div>';
+      '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div>' + (editMode ? '' : '<nav class="secnav" id="secnav" aria-label="快速跳轉"></nav>') + '</div>';
 
     nxtMark = null;
     h += editMode ? editBody(t, fan) : viewBody(t, fan);
@@ -3398,13 +3423,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
     [].forEach.call(el.querySelectorAll('textarea'), autosize);
     if(viewOnly){      // 唯讀：不能勾、不能改；沒分享花費時整欄拿掉
       [].forEach.call(el.querySelectorAll('input,select,textarea'), function(x){ x.disabled = true; });
-      if(t._noExp){ var c3 = el.querySelector('.col.c3'); if(c3) c3.remove(); var cs = el.querySelector('.cols'); if(cs) cs.classList.add('nox'); }
+      if(t._noExp){ var eb = el.querySelector('.expbot'); if(eb) eb.remove(); else { var c3 = el.querySelector('.col.c3'); if(c3) c3.remove(); var cs = el.querySelector('.cols'); if(cs) cs.classList.add('nox'); } }
     }
     window.scrollTo(0, y);
     if(!editMode) fillWx(t);
     refreshOffline();
     amtScan();
     syncDayTabs();
+    buildSecNav();
+  }
+  // 標題旁的快速跳轉：只列出畫面上真的有的區塊
+  var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通卡／票券'],['spsec','應援打卡點'],['merchsec','周邊／物販'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
+  function buildSecNav(){
+    var nav = document.getElementById('secnav'); if(!nav) return;
+    nav.innerHTML = SEC_NAV.filter(function(x){ return document.getElementById(x[0]); }).map(function(x){
+      return '<button type="button" class="mini" data-do="jump" data-to="' + x[0] + '">' + x[1] + '</button>';
+    }).join('');
   }
   // 日期分頁：量出頂端工作列的高度（手機上工作列會換行），讓分頁剛好貼在它下面
   function syncBarH(){
@@ -3689,9 +3723,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
-    if(viewOnly && ['ckinfo','ckclose','goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
+    if(viewOnly && ['ckinfo','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
+    if(act === 'jump'){
+      var jt = document.getElementById(b.dataset.to);
+      if(jt){
+        var jb = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0;
+        window.scrollTo({ top: Math.max(0, jt.getBoundingClientRect().top + window.scrollY - jb - 12), behavior:'smooth' });
+        jt.classList.add('flash'); setTimeout(function(){ jt.classList.remove('flash'); }, 1600);
+      }
+      return;
+    }
     if(act === 'goto'){
       if(b.dataset.day){ if(dayFilter !== 'all') dayFilter = b.dataset.day; renderDetail(); }
       // 花費明細預設收合（或被類別篩掉）：要跳過去的卡片不在畫面上時，先展開全部
