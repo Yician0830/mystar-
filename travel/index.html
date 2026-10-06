@@ -1408,7 +1408,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 類別是「退款」時，不管輸入正負，一律從總花費扣掉
   function signed(x){ var n = amt(x.amount); return x.cat === REFUND ? -Math.abs(n) : n; }
   // ---- 金額輸入防呆：amt() 會把「,」「-」等符號直接丟掉，遇到容易算錯的寫法就提醒（不擋，也不改動原本的算法）----
-  var AMT_SEL = 'input[data-k="amount"], input[data-k="fare"], input[data-k="price"], input[data-k="paidTwd"], input[data-bud], input[data-r]';
+  var AMT_SEL = 'input[data-k="amount"], input[data-k="fare"], input[data-k="price"], input[data-k="paidTwd"], input[data-tc][data-k="unit"], input[data-tc][data-k="cap"], input[data-bud], input[data-r]';
   function swapSep(str){ return str.replace(/\./g, '#').replace(/,/g, '.').replace(/#/g, ','); }
   function amtIssue(v, kind){
     var str = String(v == null ? '' : v).trim(); if(!str) return null;
@@ -1828,7 +1828,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '路線（搭乘線路、起訖站、或步行幾分鐘）';
   }
   // ---- 預估交通費：行程選了交通工具後，可填預估車資、指定用哪張交通卡；加總後算出各卡大概還要儲值多少 ----
-  function fareOf(x){ if(noCard(x.transport)) return 0; var n = amt(x.fare); return n > 0 ? n : 0; }   // 步行／租車／包車／計程車不預估車資
+  function paxOf(x){ var n = amt(x.pax); return n >= 1 ? Math.round(n) : 1; }
+  function fareOf(x){ if(noCard(x.transport)) return 0; var n = amt(x.fare); return n > 0 ? n * paxOf(x) : 0; }   // 預估車資填「每人」，乘上人數＝這一段總額   // 步行／租車／包車／計程車不預估車資
   function fareHas(x){ return fareOf(x) > 0; }
   // 車資記憶：同交通工具＋同路線（幣別相同）在其他行程填過的預估車資，取最近一趟的
   function lastFare(t0, it){
@@ -1880,16 +1881,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
     c.balance = tcFmt(Math.max(0, amt(c.balance) + old - nw)); x.fareApplied = nw; x.fareCardId = c.id; tcAuto(c);
   }
   // 這張卡預計要儲值多少
-  function fareNeed(t, c, f){
+  // 建議儲值：先算缺口，再進位到卡片的儲值單位；如果有餘額上限，最多只建議到上限（其餘要途中再儲值）
+  function fareNeedInfo(t, c, f){
     var r = (f || fareCalc(t)).cards[String(c.id)];
-    return (r && !tcPass(c)) ? Math.max(0, Math.ceil(r.rem - amt(c.balance) - tcPlanned(t, c))) : 0;
+    if(!r || tcPass(c)) return { need:0, capped:false, room:0 };
+    var plan = tcPlanned(t, c), bal = amt(c.balance), u = amt(c.unit), cap = amt(c.cap);
+    var need = Math.max(0, Math.ceil(r.rem - bal - plan));
+    if(need > 0 && u > 0) need = Math.ceil(need / u) * u;
+    var capped = false, room = 0;
+    if(cap > 0 && need > 0){
+      room = Math.max(0, cap - bal - plan);
+      if(need > room){ capped = true; need = u > 0 ? Math.floor(room / u) * u : room; }
+    }
+    return { need:need, capped:capped, room:room };
+  }
+  function fareNeed(t, c, f){ return fareNeedInfo(t, c, f).need; }
+  // 已搭乘的段數與扣款合計（只算這張卡）
+  function tcRides(t, c){
+    var n = 0, sum = 0;
+    (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){
+      if(x.fareDone && x.lkTc && String(x.lkTc) === String(c.id) && !noCard(x.transport)){ n++; sum += amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x); }
+    }); });
+    return { n:n, sum:sum };
   }
   function fareCardLine(t, c, f){
     var r = (f || fareCalc(t)).cards[String(c.id)]; if(!r) return '';
     var cu = esc(c.cur || tripCur(t));
     if(tcPass(c)) return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段・票券範圍內不用另外儲值）';
-    var need = fareNeed(t, c, f);
-    return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段）・目前餘額 ' + cu + ' ' + money(amt(c.balance)) + '・' + (need > 0 ? '<b class="fneed">建議再儲值 約 ' + cu + ' ' + money(need) + '</b>' : '餘額夠用') + (tcPlanned(t, c) > 0 ? '・已預計儲值 ' + cu + ' ' + money(tcPlanned(t, c)) + '（還沒實際儲值）' : '');
+    var ni = fareNeedInfo(t, c, f), need = ni.need;
+    return '預計交通費 約 ' + cu + ' ' + money(r.n) + '（' + r.cnt + ' 段）・目前餘額 ' + cu + ' ' + money(amt(c.balance)) + '・' + (need > 0 ? '<b class="fneed">建議再儲值 約 ' + cu + ' ' + money(need) + '</b>' : (ni.capped ? '<b class="fneed">已達卡片上限，無法再儲值</b>' : '餘額夠用')) + (ni.capped ? '・⚠ 卡片上限 ' + cu + ' ' + money(amt(c.cap)) + '，一次放不下，其餘要途中再儲值' : '') + (tcPlanned(t, c) > 0 ? '・已預計儲值 ' + cu + ' ' + money(tcPlanned(t, c)) + '（還沒實際儲值）' : '');
   }
   function fareSummary(t){
     var f = fareCalc(t), tot = {}, need = {}, cnt = 0, other = '', has = false;
@@ -1911,14 +1931,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function fareTag(t, x){
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null;
     if(!fareHas(x) && !c) return '';
-    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
+    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) + (paxOf(x) > 1 ? '（' + money(amt(x.fare)) + ' × ' + paxOf(x) + ' 人）' : '') : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
   }
   function fareRow(a, x){
     var t = cur(), cards = t.tcards || [], nch = noCard(x.transport) ? ' hidden' : '', on = !noCard(x.transport) && (!!String(x.transport || '').trim() || !!x.lkTc || fareHas(x));
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null;
     return '<div class="ifare"' + (on ? '' : ' hidden') + '><div class="ie3">' +
       (cards.length ? '<select class="fare-card"' + nch + a + ' data-k="lkTc" aria-label="使用的交通卡"><option value="">使用的交通卡</option>' + cards.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x.lkTc) ? ' selected' : '') + '>' + esc(lkText('lkTc', y)) + '</option>'; }).join('') + '</select>' : '') +
-      '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資" placeholder="預估車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div></div>' +
+      '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div>' +
+      '<div class="fare-in"><input' + a + ' data-k="pax" inputmode="numeric" autocomplete="off" aria-label="人數" placeholder="人數（預設 1）" value="' + esc(x.pax == null ? '' : x.pax) + '"></div></div>' +
       (cards.length ? '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
       (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通卡／票券」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
@@ -2241,6 +2262,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
         x.range ? '<div class="vtext">適用：' + esc(x.range) + '</div>' : '',
         (!pass && !wallet && has(x.deposit)) ? '<div class="vtext">押金 ' + cu + ' ' + esc(x.deposit) + (x.refund ? '（可退）' : '（不退）') + '</div>' : '',
         fareCardLine(t, x, fc) ? '<div class="vtext">' + fareCardLine(t, x, fc) + '</div>' : '',
+        (!pass && tcRides(t, x).n) ? '<div class="vtext">已搭乘 ' + tcRides(t, x).n + ' 段，共扣 ' + cu + ' ' + money(tcRides(t, x).sum) + '</div>' : '',
+        (!pass && x.chk && x.chk.d) ? '<div class="vtext">最近核對 ' + esc(d(x.chk.d)) + '：' + (x.chk.diff > 0 ? '實際比記錄少 ' + cu + ' ' + money(x.chk.diff) + '（可能有其他消費或漏勾已搭乘）' : x.chk.diff < 0 ? '實際比記錄多 ' + cu + ' ' + money(-x.chk.diff) + '（可能有儲值沒記）' : '與記錄相符') + '</div>' : '',
         expIds(x).length ? '<div class="vtext">儲值／花費合計 約 ' + money(tw.n) + ' 元' + (tw.miss ? '（有外幣還沒填匯率）' : '') + '</div>' : '',
         tcTopsHtml(t, x, false),
         x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : ''
@@ -2268,6 +2291,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="sdates tcpass"' + (pass ? '' : ' hidden') + '><label>有效起<input type="date"' + A + ' data-k="from" value="' + esc(x.from || '') + '"></label><label>有效到<input type="date"' + A + ' data-k="to" min="' + esc(x.from || '') + '" value="' + esc(x.to || '') + '"></label></div>' +
       '<div class="bg tccard"' + (pass ? ' hidden' : '') + '><select' + A + ' data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
       (wallet ? '' : inp('deposit', '押金或卡費', '押金／卡費')) + inp('balance', '剩餘餘額', '剩餘餘額') + inp('low', '提醒門檻', '低於多少提醒儲值') + '</div>' +
+      '<div class="bg tccard"' + (pass ? ' hidden' : '') + '>' + inp('unit', '儲值單位', '儲值單位（選填，例如 1000）') + inp('cap', '餘額上限', '餘額上限（選填）') + '</div>' +
       '<label class="ck tccard"' + (pass || wallet ? ' hidden' : '') + '><input type="checkbox"' + A + ' data-k="refund"' + (x.refund ? ' checked' : '') + '><span>押金可退（退卡時記成退款）</span></label>' +
       '<div class="btns"><button class="mini" type="button" data-do="tctop" data-id="' + x.id + '">＋ 預計儲值</button><button class="mini tccard" type="button" data-do="tctopnow" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>＋ 已儲值</button><button class="mini tccard" type="button" data-do="tcbal" data-id="' + x.id + '"' + (pass ? ' hidden' : '') + '>更新餘額</button>' +
       '<button class="mini tccard" type="button" data-do="tcdep" data-id="' + x.id + '"' + (pass || wallet ? ' hidden' : '') + '>押金記成花費</button>' +
@@ -2340,11 +2364,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(tcPass(o)) return;
       v = prompt('目前卡片上的實際餘額（' + cc + '）', String(o.balance == null ? '' : o.balance)); if(v === null || !String(v).trim()) return;
       var ob = amt(o.balance), nb = amt(v), df = Math.round((ob - nb) * 100) / 100;
-      o.balance = tcFmt(nb); tcAuto(o);
+      o.balance = tcFmt(nb); tcAuto(o); o.chk = { d:ymd(new Date()), diff:df };
       alert(df > 0 ? '比記錄少了 ' + df + '（其他消費，或沒勾「已搭乘」的車程）' : df < 0 ? '比記錄多了 ' + (-df) + '（可能有儲值還沒記）' : '和記錄的餘額相同');
       emodal.querySelector('.mbody').innerHTML = tcEdit(o); doPersist(); return;
     }
-    if(act === 'tctop' || act === 'tctopnow'){ var plan = act === 'tctop', nd0 = fareNeed(t, o); v = prompt((plan ? '預計儲值金額（' + cc + '，出國實際儲值後再按「確認已儲值」才會加進餘額）' : '實際儲值金額（' + cc + '）') + (nd0 > 0 ? '　依預計車資，建議約 ' + nd0 : ''), nd0 > 0 ? String(nd0) : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc, tcTop:o.id, tcDate:ymd(now) }; if(plan) e.tcPlan = true; else if(cc !== 'TWD'){ var pt = prompt('實際付出的台幣金額（選填，留空就用匯率換算）', ''); if(pt !== null && amt(pt) > 0) e.paidTwd = String(pt).trim(); } }
+    if(act === 'tctop' || act === 'tctopnow'){ var plan = act === 'tctop', nd0 = fareNeed(t, o); v = prompt((plan ? '預計儲值金額（' + cc + '，出國實際儲值後再按「確認已儲值」才會加進餘額）' : '實際儲值金額（' + cc + '）') + (nd0 > 0 ? '　依預計車資，建議約 ' + nd0 : ''), nd0 > 0 ? String(nd0) : ''); if(v === null || !String(v).trim()) return; if(amt(o.cap) > 0 && (amt(o.balance) + (plan ? tcPlanned(t, o) : 0) + amt(v)) > amt(o.cap) && !confirm('儲值後會超過卡片餘額上限（' + cc + ' ' + money(amt(o.cap)) + '），還是要記錄嗎？')) return; e = { id:uid(), cat:'交通', name:nm + ' 儲值 ' + md, amount:String(v).trim(), cur:cc, tcTop:o.id, tcDate:ymd(now) }; if(plan) e.tcPlan = true; else if(cc !== 'TWD'){ var pt = prompt('實際付出的台幣金額（選填，留空就用匯率換算）', ''); if(pt !== null && amt(pt) > 0) e.paidTwd = String(pt).trim(); } }
     else if(act === 'tcdep'){ if(!String(o.deposit || '').trim()){ alert('先填押金或卡費金額'); return; } e = { id:uid(), cat:'交通', name:nm + ' 押金／卡費', amount:String(o.deposit).trim(), cur:cc }; }
     else { v = prompt('退卡拿回的金額（' + cc + '，含押金與退回餘額）', o.refund ? String(o.deposit || '') : ''); if(v === null || !String(v).trim()) return; e = { id:uid(), cat:REFUND, name:nm + ' 退卡退款 ' + md, amount:String(v).trim(), cur:cc }; o.status = '已退卡'; }
     t.expenses.push(e); o.lkExps = expIds(o).concat([e.id]); delete o.lkExp;
@@ -3186,12 +3210,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
           var lf = lastFare(t, it2), lfi = el.closest('.icard') && el.closest('.icard').querySelector('[data-k="fare"]');
           if(lf && lfi){ it2.fare = String(lf.fare); lfi.value = it2.fare; autoFare = true; }
         }
-        if(ds.k === 'fare' || ds.k === 'lkTc' || ds.k === 'fareAct' || ds.k === 'fareDone' || autoFare){
+        if(ds.k === 'fare' || ds.k === 'pax' || ds.k === 'lkTc' || ds.k === 'fareAct' || ds.k === 'fareDone' || autoFare){
           fareBalSync(t, it2);
           var fic = el.closest('.icard'), fnt = fic && fic.querySelector('.itx-fnote'), fci = fic && fic.querySelector('[data-k="fare"]');
           var fcd = it2.lkTc ? byId(t.tcards, it2.lkTc) : null;
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
-          if(fci) fci.placeholder = '預估車資（' + fareCur(t, it2) + '）';
+          if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
         if(ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'open2' || ds.k === 'close2' || ds.k === 'time' || ds.k === 'end'){
           var hw = el.closest('.icard') && el.closest('.icard').querySelector('.ihw'); if(hw) hw.innerHTML = hoursWarnHtml(pd, it2);
