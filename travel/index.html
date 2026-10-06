@@ -983,6 +983,25 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(mut){ fi.shows = leg; delete fi.showDate; delete fi.door; delete fi.show; return fi.shows; }
     return leg;
   }
+  // 場次的入場／開演／座位，寫成行程備註的樣子
+  function showNoteText(sx){
+    var n = [];
+    if(sx.door) n.push('入場 ' + tm12(sx.door)); if(sx.show) n.push('開演 ' + tm12(sx.show)); if(String(sx.seat || '').trim()) n.push('座位：' + String(sx.seat).trim());
+    return n.join('\n');
+  }
+  // 場次改了入場／開演／座位，從這個場次「加入行程」的那筆行程跟著改（時間沒被手動改過、備註還是自動產生的才改）
+  function syncShowItems(t, sx, oldTime){
+    var changed = false, nt = sx.door || sx.show || '';
+    (t.days || []).forEach(function(day){ (day.items || []).forEach(function(it){
+      if(String(it.lkShow) !== String(sx.id)) return;
+      if(nt && (!it.time || it.time === oldTime) && it.time !== nt){ it.time = nt; changed = true; }
+      var lines = String(it.note || '').split('\n').filter(Boolean);
+      if(!lines.length || lines.every(function(l){ return /^(入場 |開演 |座位：)/.test(l); })){
+        var nn = showNoteText(sx); if(nn !== (it.note || '')){ it.note = nn; changed = true; }
+      }
+    }); });
+    if(changed){ var bs = document.getElementById('sec-board'); if(bs) bs.outerHTML = boardHtml(t, editMode); }
+  }
   function shHas(x){ return !!(x.date || x.door || x.show || x.seat || x.price || x.qty); }
   function showsSorted(t){
     return fanShows(t).filter(shHas).slice().sort(function(a, b){
@@ -1020,13 +1039,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var left = l && l.n >= 0 ? '<span class="shv-left ' + (l.n <= 3 ? 'due' : 'dueok') + '">' + l.txt + '</span>' : (past ? '<span class="shv-left dueok">已結束</span>' : '');
       var top = '<div class="shv-top">' + (n > 1 ? '<span class="shv-no">' + (i + 1) + '</span>' : '') +
         '<span class="shv-date">' + (x.date ? esc(d(x.date)) + '<small>' + esc(wk(x.date)) + '</small>' : '<span class="muted">日期未定</span>') + '</span>' + (n > 1 && x.seat ? '<span class="shv-seatin">' + esc(x.seat) + '</span>' : '') + (x.status ? '<span class="shv-st">' + saleSt(x.status) + '</span>' : '') + left + '</div>';
-      var tm = (x.door ? '<span>入場 <b>' + esc(tm12(x.door)) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(tm12(x.show)) + '</b></span>' : '');
+      var tm = (x.door ? '<span>入場 <b>' + esc(tm12(x.door)) + '</b></span>' : '') + (x.show ? '<span>開演 <b>' + esc(tm12(x.show)) + '</b></span>' : '') + (x.end ? '<span>散場 <b>' + esc(tm12(x.end)) + '</b></span>' : '');
       var back = '';
       if(x.end || x.last){
         var em = toMin(x.end), lm = toMin(x.last), gap = null;
         if(em != null && lm != null){ if(lm < em) lm += 1440; gap = lm - em; }
         var gtxt = gap == null ? '' : gap < 0 ? '' : '<span class="shv-gap ' + (gap < 30 ? 'tight' : 'ok') + '">' + (gap < 30 ? '⚠ 只剩 ' + gap + ' 分鐘，來不及就要提早走或另外搭車' : '散場後有 ' + (gap >= 60 ? Math.floor(gap / 60) + ' 小時' + (gap % 60 ? ' ' + (gap % 60) + ' 分' : '') : gap + ' 分鐘') + '可以回住處') + '</span>';
-        back = '<div class="shv-back">' + (x.end ? '<span>散場 <b>' + esc(tm12(x.end)) + '</b></span>' : '') + (x.last ? '<span>最晚回程 <b>' + esc(tm12(x.last)) + '</b></span>' : '') + gtxt + '</div>';
+        back = (x.last || gtxt) ? '<div class="shv-back">' + (x.last ? '<span>最晚回程 <b>' + esc(tm12(x.last)) + '</b></span>' : '') + gtxt + '</div>' : '';
       }
       var pr = amt(x.price), qy = amt(x.qty), cu = esc(x.cur || 'TWD'), price = '';
       if(pr) price = '<div class="shv-price"><span>票價 ' + cu + ' ' + money(pr) + (qy ? ' × ' + money(qy) + ' 張' : '') + '</span>' + (qy > 1 ? '<b>＝ ' + cu + ' ' + money(pr * qy) + '</b>' : '') + '</div>';
@@ -2247,7 +2266,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function showWarn(day, x){
     var t = cur(), w = [];
     if(!t || t.kind !== 'fan' || !day || !day.date) return w;
-    if(/演唱會|入場|開演|場次|演出|fan\s?meeting|concert/i.test(String(x.title || ''))) return w;
+    if(x.lkShow) return w;      // 從場次「加入行程」的，本身就是演出
+    var ttl = String(x.title || '').trim().toLowerCase(), evn = String(t.event || '').trim().toLowerCase();
+    if(evn && (ttl.indexOf(evn) >= 0 || evn.indexOf(ttl) >= 0) && ttl) return w;      // 行程名稱就是活動名稱
+    if(/演唱會|入場|開演|場次|演出|巡迴|巡演|見面會|fan\s?meet|concert|world\s?tour|\btour\b|\blive\b/i.test(String(x.title || ''))) return w;
     var s0 = toMin(x.time), e0 = toMin(x.end); if(s0 == null) return w;
     fanShows(t).forEach(function(sh){
       if(sh.date !== day.date) return;
@@ -3229,9 +3251,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
         vrow('售票階段', saleMode(fi) === 'ticket' ? phasesView(t) : '') +
         (saleMode(fi) === 'lottery' ? vrow('結果公布', fi.resultDate ? esc(d(fi.resultDate)) + esc(wk(fi.resultDate)) + dueTail(fi, 'resultDate', fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票' && fi.saleStatus !== '已中籤') : '') : '') +
         vrow(saleMode(fi) === 'lottery' ? '繳費／取票期限' : '可取票日', fi.payDate ? esc(d(fi.payDate)) + esc(wk(fi.payDate)) + dueTail(fi, 'payDate', saleMode(fi) === 'ticket' ? fi.saleStatus === '已購票' : (fi.saleStatus !== '已購票' && fi.saleStatus !== '落選' && fi.saleStatus !== '未購票')) : '') +
-        showsView(t) + vrow('同行者', esc(fi.companions || '')) +
         vrow('場館', esc(fi.venue || '') + (fi.venueAddr ? (fi.venue ? '<br>' : '') + '<span class=\"vmuted\">' + esc(fi.venueAddr) + '</span>' : '') + (function(){ var mu = safeUrl(String(fi.venueMap || '').trim()); var q = mu || (fi.venueAddr || fi.venue ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(fi.venueAddr || fi.venue) : ''); return q ? ' <a class=\"vlink\" href=\"' + esc(q) + '\" target=\"_blank\" rel=\"noopener\">在地圖開啟</a>' : ''; })()) +
         vrow('入場口', esc(fi.venueGate || '')) + vrow('禁帶物品', esc(fi.venueBan || '')) + vrow('行李寄放', esc(fi.venueLuggage || '')) +
+        showsView(t) + vrow('同行者', esc(fi.companions || '')) +
         vrow('連結', href ? '<a class="vlink" href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(linkTxt) + '</a>' : esc(linkTxt));
       infoH += '<section class="sec" id="sec-info"><div class="sh"><h3>活動資訊</h3></div>' +
         (rows ? '<dl class="kv">' + rows + '</dl>' : '<p class="vempty">還沒填活動資訊，按右上角「編輯」新增。</p>') + '</section>';
@@ -3644,7 +3666,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.sh){
       var shx = fanShows(t, true).filter(function(x){ return String(x.id) === ds.sh; })[0];
       if(shx){
+        var shOld = shx.door || shx.show || '';
         shx[ds.k] = el.value;
+        if(ds.k === 'door' || ds.k === 'show' || ds.k === 'seat') syncShowItems(t, shx, shOld);
         if(ds.k === 'price' || ds.k === 'qty' || ds.k === 'cur'){
           var shCard = el.closest('.shcard'), shB = shCard && shCard.querySelector('.shbtns');
           if(shB) shB.outerHTML = showBtns(t, shx);
