@@ -3249,8 +3249,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') : '<p class="vempty">還沒有住宿資料，按右上角「編輯」新增。</p>') + '</section>';
 
-    if(fan) h += spotsView(t) + merchView(t);
-    h += tcView(t);
+    if(fan) h += tcView(t) + spotsView(t) + merchView(t);
+    else h += tcView(t);
 
 
     if(!ckItems.length) h += ckBuild();
