@@ -1830,8 +1830,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     for(var i = 0; i < TICONS.length; i++) if(TICONS[i][0].test(m)) return TICONS[i][1];
     return '🚃';
   }
-  // 步行、租車、自駕、包車、計程車不用交通卡：不顯示交通卡相關選項
-  function noCard(m){ return /步行|走路|租車|自駕|開車|包車|計程車|Uber|taxi/i.test(String(m || '')); }
+  // 步行、租車、自駕、包車、計程車、飛機不用交通卡也不預估車資：不顯示交通卡與車資欄位
+  function noCard(m){ return /步行|走路|租車|自駕|開車|包車|計程車|Uber|taxi|飛機|航班/i.test(String(m || '')); }
   function routeHint(m){
     m = String(m || '');
     if(/步行|走路/.test(m)) return '步行幾分鐘（例如：15 分鐘）';
@@ -2153,7 +2153,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="icard' + (isNx ? ' nxt' : '') + '" id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + fwdLinks(t0, x) +
-      (map ? '<div class="place"><a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">' + esc(x.place) + '</a></div>' : '') +
+      
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       (x.cat === '美食' ? dishView(x) : '') +
