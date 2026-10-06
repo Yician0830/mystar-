@@ -2191,8 +2191,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
+      ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
-      ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') + featView(x) +
+      featView(x) +
       (x.cat === '美食' ? dishView(x) : '') +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
   }
