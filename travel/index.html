@@ -807,6 +807,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:800px){ body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);} }
   .tccard[hidden], .tcpass[hidden]{display:none !important;}
   .payrow input{flex:1; min-width:0;}
+  .tcok,.tcno{font-size:12px; line-height:1.5;}
   .tcno{color:var(--warn); font-weight:700;}
   .lk.ckl{margin-top:2px; font-weight:700;} .lk.ckl.ok{color:var(--accent);}
   .lk:hover,.lk:focus-visible,.lk.ckl:hover,.lk.ckl.ok:hover{background:transparent; color:var(--accent); border-color:var(--accent);}   /* 連結按鈕滑過去不要變成實心底，字才不會看不清楚 */
@@ -2103,21 +2104,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // ---- 營業時間與公休日：排到公休日、或預計時間不在營業時間內，就提醒 ----
   var WD = ['日','一','二','三','四','五','六'];
   function hrsOn(x){ return ['景點','美食','購物'].indexOf(x.cat) >= 0; }   // 營業時間／公休日只在景點、美食、購物才出現
+  // 營業型態：fixed 固定時段（一段）／two 兩段式／24h 全天營業；舊資料有填第二段的視為兩段式
+  function hMode(x){ return x.hmode === '24h' || x.hmode === 'two' || x.hmode === 'fixed' ? x.hmode : ((x.open2 || x.close2) ? 'two' : 'fixed'); }
+  // 取出營業時段（分鐘）。打烊比開門早＝跨午夜（例如 18:00–02:00），打烊時間加 24 小時
+  function hSegs(x){
+    var m = hMode(x), ks = m === 'two' ? [['open','close'],['open2','close2']] : [['open','close']], segs = [];
+    if(m === '24h') return segs;
+    ks.forEach(function(k){
+      var o = toMin(x[k[0]]), c = toMin(x[k[1]]);
+      if(o != null && c != null && c !== o) segs.push({ o:o, c:c < o ? c + 1440 : c, wrap:c < o, ro:x[k[0]], rc:x[k[1]] });
+    });
+    segs.sort(function(a, b){ return a.o - b.o; });
+    return segs;
+  }
   function hoursWarn(day, x){
     var w = [], cl = (x.closed || []).map(Number), dt = day && day.date ? toDate(day.date) : null;
     if(dt && cl.indexOf(dt.getDay()) >= 0) w.push('這天（週' + WD[dt.getDay()] + '）公休');
-    var s0 = toMin(x.time), e0 = toMin(x.end), segs = [];
-    [['open','close'],['open2','close2']].forEach(function(k){
-      var o = toMin(x[k[0]]), c = toMin(x[k[1]]);
-      if(o != null && c != null && c > o) segs.push({ o:o, c:c, ro:x[k[0]], rc:x[k[1]] });
-    });
-    segs.sort(function(a, b){ return a.o - b.o; });
+    if(hMode(x) === '24h') return w;      // 24 小時營業：不檢查時間，只提醒公休日
+    var s0 = toMin(x.time), e0 = toMin(x.end), segs = hSegs(x);
     if(segs.length && s0 != null){
-      var hit = segs.filter(function(g){ return s0 >= g.o && s0 < g.c; })[0], last = segs[segs.length - 1];
-      if(hit){ if(e0 != null && e0 > hit.c) w.push(segs.length > 1 && hit !== last ? '離開時間晚於這段營業結束（' + hit.rc + '）' : '離開時間晚於打烊（' + hit.rc + '）'); }
-      else if(s0 < segs[0].o) w.push('預計時間早於開門（' + segs[0].ro + '）');
-      else if(s0 >= last.c) w.push('預計時間已過打烊（' + last.rc + '）');
-      else w.push('預計時間在休息時段（' + segs.filter(function(g){ return g.c <= s0; }).pop().rc + '–' + segs.filter(function(g){ return g.o > s0; })[0].ro + '）');
+      // 凌晨時段（例如 01:00）落在前一晚跨午夜的營業時間內，換算成隔日再比
+      var s = s0; segs.forEach(function(g){ if(g.wrap && s0 < g.o && s0 < g.c - 1440) s = s0 + 1440; });
+      var hit = segs.filter(function(g){ return s >= g.o && s < g.c; })[0], last = segs[segs.length - 1];
+      if(hit){
+        var ee = e0; if(ee != null && hit.wrap && ee < s) ee += 1440;
+        if(ee != null && ee > hit.c) w.push(segs.length > 1 && hit !== last ? '離開時間晚於這段營業結束（' + hit.rc + '）' : '離開時間晚於打烊（' + hit.rc + '）');
+      }
+      else if(s < segs[0].o) w.push('預計時間早於開門（' + segs[0].ro + '）');
+      else if(s >= last.c) w.push('預計時間已過打烊（' + last.rc + '）');
+      else w.push('預計時間在休息時段（' + segs.filter(function(g){ return g.c <= s; }).pop().rc + '–' + segs.filter(function(g){ return g.o > s; })[0].ro + '）');
     }
     return w;
   }
@@ -2137,11 +2152,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return w;
   }
   function hoursWarnHtml(day, x){ return (hrsOn(x) ? hoursWarn(day, x) : []).concat(showWarn(day, x)).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join(''); }
+  function hmApply(ic, x){
+    if(!ic) return;
+    var on = hrsOn(x), m = hMode(x), q = function(c){ return ic.querySelector(c); };
+    if(q('.ihm')) q('.ihm').hidden = !on;
+    if(q('.ihr1')){ q('.ihr1').hidden = !on || m === '24h'; var l1 = q('.ihr1 .dcl'); if(l1) l1.textContent = m === 'two' ? '第一段' : '營業時間'; }
+    if(q('.ihr2')) q('.ihr2').hidden = !on || m !== 'two';
+  }
   function hoursLine(x){
     if(!hrsOn(x)) return '';
     var cl = (x.closed || []).map(Number).sort(), parts = [];
-    var seg1 = x.open && x.close ? esc(x.open) + '–' + esc(x.close) : '', seg2 = x.open2 && x.close2 ? esc(x.open2) + '–' + esc(x.close2) : '';
-    if(seg1 || seg2) parts.push('營業 ' + [seg1, seg2].filter(Boolean).join(' / '));
+    var hm = hMode(x), fmt = function(o, c){ return o && c ? esc(o) + '–' + (toMin(c) != null && toMin(o) != null && toMin(c) < toMin(o) ? '次日 ' : '') + esc(c) : ''; };
+    var seg1 = fmt(x.open, x.close), seg2 = hm === 'two' ? fmt(x.open2, x.close2) : '';
+    if(hm === '24h') parts.push('24 小時營業');
+    else if(seg1 || seg2) parts.push('營業 ' + [seg1, seg2].filter(Boolean).join(' / '));
     if(cl.length) parts.push('公休 週' + cl.map(function(n){ return WD[n]; }).join('、'));
     var cn = String(x.closedNote || '').trim();
     if(cn) parts.push((cl.length ? '另外' : '公休') + '：' + esc(cn));
@@ -2517,7 +2541,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
@@ -2596,8 +2620,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="iet"><input type="time"' + a + ' data-k="end" aria-label="離開時間" value="' + esc(x.end || '') + '">' +
       '<span class="idurt' + (durText(x) ? ' has' : '') + '">' + (durText(x) ? '停留 ' + esc(durText(x)) : '← 離開時間（選填，會自動算停留時長）') + '</span></div>' +
-      '<div class="ihr"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">營業時間</span><input type="time"' + a + ' data-k="open" aria-label="開門時間" value="' + esc(x.open || '') + '"><span>～</span><input type="time"' + a + ' data-k="close" aria-label="打烊時間" value="' + esc(x.close || '') + '"></div>' +
-      '<div class="ihr"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">第二段</span><input type="time"' + a + ' data-k="open2" aria-label="第二段開門時間" value="' + esc(x.open2 || '') + '"><span>～</span><input type="time"' + a + ' data-k="close2" aria-label="第二段打烊時間" value="' + esc(x.close2 || '') + '"></div>' +
+      '<div class="ihr ihm"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">營業型態</span><select' + a + ' data-k="hmode" aria-label="營業型態">' + [['fixed','固定時段'],['two','兩段式（中間休息）'],['24h','24 小時營業']].map(function(m){ return '<option value="' + m[0] + '"' + (m[0] === hMode(x) ? ' selected' : '') + '>' + m[1] + '</option>'; }).join('') + '</select></div>' +
+      '<div class="ihr ihr1"' + (hrsOn(x) && hMode(x) !== '24h' ? '' : ' hidden') + '><span class="dcl">' + (hMode(x) === 'two' ? '第一段' : '營業時間') + '</span><input type="time"' + a + ' data-k="open" aria-label="開門時間" value="' + esc(x.open || '') + '"><span>～</span><input type="time"' + a + ' data-k="close" aria-label="打烊時間" title="打烊時間早於開門時間＝跨午夜營業，例如 18:00～02:00" value="' + esc(x.close || '') + '"></div>' +
+      '<div class="ihr ihr2"' + (hrsOn(x) && hMode(x) === 'two' ? '' : ' hidden') + '><span class="dcl">第二段</span><input type="time"' + a + ' data-k="open2" aria-label="第二段開門時間" value="' + esc(x.open2 || '') + '"><span>～</span><input type="time"' + a + ' data-k="close2" aria-label="第二段打烊時間" value="' + esc(x.close2 || '') + '"></div>' +
       '<div class="ihwd"' + (hrsOn(x) ? '' : ' hidden') + '><span class="dcl">公休日</span>' + WD.map(function(n, i){ return '<label><input type="checkbox"' + a + ' data-k="closedDay" data-wd="' + i + '"' + ((x.closed || []).map(Number).indexOf(i) >= 0 ? ' checked' : '') + '>' + n + '</label>'; }).join('') + '<input class="ihwn"' + a + ' data-k="closedNote" aria-label="不定休或特殊公休" placeholder="不定休／特殊公休，例如：每月第 2、4 個週三、依官網公告" value="' + esc(x.closedNote || '') + '"></div>' +
       '<div class="ihw">' + hoursWarnHtml(day, x) + '</div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
@@ -3307,7 +3332,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
           if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
-        if(ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'open2' || ds.k === 'close2' || ds.k === 'time' || ds.k === 'end'){
+        if(ds.k === 'hmode') hmApply(el.closest('.icard'), it2);
+        if(ds.k === 'hmode' || ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'open2' || ds.k === 'close2' || ds.k === 'time' || ds.k === 'end'){
           var hw = el.closest('.icard') && el.closest('.icard').querySelector('.ihw'); if(hw) hw.innerHTML = hoursWarnHtml(pd, it2);
         }
         if(ds.k === 'lkSpot' && el.value){   // 選了打卡點：行程名稱、地點還空著就帶入
@@ -3323,7 +3349,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(fd0) fd0.hidden = el.value !== '美食';
           var lkw = ic && ic.querySelector('.itx-lksp'); if(lkw) lkw.hidden = !(el.value === '活動' || it2.lkSpot);
           var hOn = hrsOn(it2), hr0 = ic && ic.querySelector('.ihr'), hd0 = ic && ic.querySelector('.ihwd'), hw0 = ic && ic.querySelector('.ihw');
-          if(ic) ic.querySelectorAll('.ihr').forEach(function(r){ r.hidden = !hOn; }); if(hd0) hd0.hidden = !hOn; if(hw0) hw0.innerHTML = hoursWarnHtml(pd, it2);
+          hmApply(ic, it2); if(hd0) hd0.hidden = !hOn; if(hw0) hw0.innerHTML = hoursWarnHtml(pd, it2);
           var lkb0 = ic && ic.querySelector('select[data-k="lkBk"]'), lks0 = ic && ic.querySelector('select[data-k="lkStay"]'), lkt0 = ic && ic.querySelector('select[data-k="lkTc"]'), lkbox = ic && ic.querySelector('.itx-lkbs');
           if(lkb0) lkb0.hidden = !(it2.cat === '交通' || it2.lkBk); if(lks0) lks0.hidden = !(it2.cat === '住宿' || it2.lkStay);
           if(lkbox) lkbox.hidden = !((lkb0 && !lkb0.hidden) || (lks0 && !lks0.hidden));
