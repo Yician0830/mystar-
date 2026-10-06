@@ -808,6 +808,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .tccard[hidden], .tcpass[hidden]{display:none !important;}
   .payrow input{flex:1; min-width:0;}
   .tcno{color:var(--warn); font-weight:700;}
+  .lk.ckl{margin-top:2px; font-weight:700;} .lk.ckl.ok{color:var(--accent);}
+  .ckbox{width:min(420px,100%);} .ckrow{display:flex; justify-content:space-between; gap:16px; padding:8px 0; border-bottom:1px solid var(--line-strong); font-size:15px;} .ckrow span{color:var(--ink-dim); font-weight:700;} .ckrow b{text-align:right;}
+  .ckday{font-weight:700;} .bkck{display:grid; gap:8px; margin:10px 0;} .bkck label{display:grid; gap:4px; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .tcdet{margin-top:0; font-size:13px; color:var(--ink-dim);}
   .tcdet.up{margin-top:-30px;}   /* 「詳細」拉到餘額那一列的右邊，卡片底下不留空白 */
   .tcdet>summary{list-style:none; cursor:pointer; text-align:right; font-weight:700; padding:0; min-height:24px; line-height:24px; width:fit-content; margin-left:auto;}
@@ -1138,7 +1141,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function yearOf(t){ return t.start ? String(t.start).slice(0, 4) : ''; }
   function hay(t){
     var a = [t.title, t.place, t.event, t.note];
-    (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note); });
+    (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note, x.seat, x.term); });
     (t.stays || []).forEach(function(x){ a.push(x.name, x.address, x.note); });
     (t.spots || []).forEach(function(x){ a.push(x.name, x.addr, x.perk, x.note); });
     (t.tcards || []).forEach(function(x){ a.push(x.name, x.range, x.norange, x.note); });
@@ -2055,7 +2058,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var h = ['lkBk', 'lkStay', 'lkTc'].map(function(key){
       var y = x[key] && byId(t[LK[key][0]], x[key]); if(key === 'lkTc' && (t.tcards || []).length <= 1) return '';   // 只有一張交通卡就不用標示
       return y ? btn(key, y) : '';
-    }).join('') + expChips(t, x) +
+    }).join('') +   // 行程項目不顯示花費連結（花費仍可在花費區看到連到哪個行程）
       ((x.lkSpot && byId(t.spots, x.lkSpot)) ? '<button class="lk" type="button" data-do="goto" data-to="lk-sp-' + x.lkSpot + '" title="' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '">📌 ' + esc(lkText('lkSp', byId(t.spots, x.lkSpot))) + '</button>' : '');
     return h ? '<div class="lks">' + h + '</div>' : '';
   }
@@ -2153,7 +2156,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var isNx = nxtMark && String(nxtMark.id) === String(x.id);
     return '<div class="icard' + (isNx ? ' nxt' : '') + '" id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
-      (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + fwdLinks(t0, x) +
+      (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
@@ -2218,6 +2221,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
           '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
           '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
+          (x.type === '航班' ? '<div class="bkck"><div class="bg"><select data-b="' + x.id + '" data-k="ckWay" aria-label="報到方式"><option value="">報到方式</option>' + CK_WAYS.map(function(c){ return '<option' + (c === x.ckWay ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
+            '<select data-b="' + x.id + '" data-k="ckState" aria-label="報到狀態">' + CK_ST.map(function(c){ return '<option' + (c === (x.ckState || '未報到') ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
+            '<div class="bg"><label>線上報到開放<input type="datetime-local" data-b="' + x.id + '" data-k="ckOpen" value="' + esc(x.ckOpen || '') + '"></label>' +
+            '<label>櫃檯截止<input type="datetime-local" data-b="' + x.id + '" data-k="ckDue" value="' + esc(x.ckDue || '') + '"></label></div>' +
+            '<div class="bg"><input data-b="' + x.id + '" data-k="seat" aria-label="座位" placeholder="座位，例如 23A" autocomplete="off" value="' + esc(x.seat || '') + '">' +
+            '<input data-b="' + x.id + '" data-k="bag" aria-label="行李額度" placeholder="行李額度，例如 托運 23kg×1" autocomplete="off" value="' + esc(x.bag || '') + '">' +
+            '<input data-b="' + x.id + '" data-k="term" aria-label="航廈" placeholder="航廈，例如 T1" autocomplete="off" value="' + esc(x.term || '') + '"></div></div>' : '') +
           lkExpHtml(cur(), 'bk', '', x) +
           '<textarea data-b="' + x.id + '" data-k="note" aria-label="預訂備註" placeholder="地址、櫃檯、取票方式、入場時間等">' + esc(x.note || '') + '</textarea></div>';
   }
@@ -2266,6 +2276,66 @@ a.name{display:block; color:inherit; text-decoration:none;}
       sum += tv;
     });
     return { n:Math.round(sum), miss:miss };
+  }
+
+  // ---- 航班報到：狀態、開放時間、櫃檯截止；座位／行李／航廈放進點擊後彈出的視窗 ----
+  var CK_WAYS = ['線上報到','機場櫃檯','自助機'], CK_ST = ['未報到','已線上報到','已劃位','已托運'];
+  function isFlight(x){ return x && x.type === '航班'; }
+  function ckAny(x){ return ['ckWay','ckState','ckOpen','ckDue','seat','bag','term'].some(function(k){ return String(x[k] == null ? '' : x[k]).trim(); }); }
+  function ckDone(x){ return ['已線上報到','已劃位','已托運'].indexOf(x.ckState) >= 0; }
+  function ckDT(v){ var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v || '')); return m ? { date:m[1] + '-' + m[2] + '-' + m[3], md:(+m[2]) + '/' + (+m[3]), hm:m[4] + ':' + m[5], at:new Date(+m[1], +m[2]-1, +m[3], +m[4], +m[5]) } : null; }
+  function ckLine(x){
+    if(ckDone(x)) return '✓ ' + (x.ckState === '已線上報到' ? '已報到' : x.ckState) + (String(x.seat || '').trim() ? '・座位 ' + esc(x.seat) : '');
+    var o = ckDT(x.ckOpen), w = x.ckWay || '';
+    var lb = !w || w === '線上報到' ? '線上報到' : w + '報到';
+    return '✈ ' + lb + (o ? ' ' + o.md + ' ' + o.hm + ' 開放' : '');
+  }
+  function ckBookBtn(x){
+    if(!isFlight(x) || !ckAny(x)) return '';
+    return '<div class="lks"><button class="lk ckl' + (ckDone(x) ? ' ok' : '') + '" type="button" data-do="ckinfo" data-id="' + x.id + '" title="點一下看報到詳細資料">' + ckLine(x) + ' ▸</button></div>';
+  }
+  function ckPopHtml(x){
+    var o = ckDT(x.ckOpen), due = ckDT(x.ckDue);
+    var rows = [
+      ['報到方式', x.ckWay], ['狀態', x.ckState || '未報到'],
+      ['線上報到開放', o ? o.md + ' ' + o.hm : ''], ['櫃檯截止', due ? due.md + ' ' + due.hm : ''],
+      ['座位', x.seat], ['行李額度', x.bag], ['航廈', x.term]
+    ].filter(function(r){ return String(r[1] == null ? '' : r[1]).trim(); });
+    return '<div class="mbox ckbox" role="document"><div class="mhead"><h3>' + esc(x.name || '航班') + ' 報到資訊</h3></div><div class="mbody">' +
+      (rows.length ? rows.map(function(r){ return '<div class="ckrow"><span>' + r[0] + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') : '<p class="vempty">還沒有填報到資料。</p>') +
+      '</div><div class="mfoot"><span></span><button type="button" data-do="ckclose">關閉</button></div></div>';
+  }
+  function ckPopClose(){ var el = document.getElementById('ckpop'); if(el) el.remove(); document.body.style.overflow = ''; }
+  function ckPopOpen(x){
+    ckPopClose();
+    var el = document.createElement('div'); el.id = 'ckpop'; el.className = 'emodal on'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.innerHTML = ckPopHtml(x);
+    el.addEventListener('click', function(e){ if(e.target === el) ckPopClose(); });
+    $('detail').appendChild(el); document.body.style.overflow = 'hidden';
+    var bx = el.querySelector('.mbox'); bx.setAttribute('tabindex', '-1'); bx.focus({ preventScroll:true });
+  }
+  document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && document.getElementById('ckpop')) ckPopClose(); });
+  // 報到開放前一天起，頁面最上方提醒（已報到就不再提醒；有櫃檯截止就提醒到截止，沒有就多留 3 天）
+  function ckAlertHtml(t){
+    var now = new Date(), td = toDate(ymd(now)), items = [];
+    (t.bookings || []).forEach(function(x){
+      if(!isFlight(x) || ckDone(x)) return;
+      var o = ckDT(x.ckOpen); if(!o) return;
+      var due = ckDT(x.ckDue), diff = Math.round((toDate(o.date) - td) / 86400000);
+      if(diff > 1) return;
+      if(due ? now > due.at : diff < -3) return;
+      var lb = !x.ckWay || x.ckWay === '線上報到' ? '線上報到' : '報到';
+      var when = diff === 1 ? '明天 ' + o.hm + ' 開放' + lb : diff === 0 && now < o.at ? '今天 ' + o.hm + ' 開放' + lb : '已開放' + lb;
+      items.push('<b>' + esc(x.name || '航班') + '</b> <span class="warn">' + when + (due ? '（櫃檯 ' + due.md + ' ' + due.hm + ' 截止）' : '') + '</span>');
+    });
+    return items.length ? '<div class="budalert" role="status">✈ 報到提醒　' + items.join('　') + '</div>' : '';
+  }
+  // 櫃檯截止當天：行程第一個項目顯示截止時間
+  function ckDayHtml(t, day, x){
+    if(!day || !day.date || sortedItems(day)[0] !== x) return '';
+    return (t.bookings || []).filter(function(b){ var due = ckDT(b.ckDue); return isFlight(b) && due && due.date === day.date && b.ckState !== '已托運'; }).map(function(b){
+      return '<div class="ihrs ckday">✈ ' + esc(b.name || '航班') + '　櫃檯 ' + ckDT(b.ckDue).hm + ' 截止</div>';
+    }).join('');
   }
   function tcView(t){
     var all = t.tcards || [], fs = fareSummary(t), fc = fareCalc(t); if(!all.length && !fs) return '';
@@ -2447,7 +2517,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
     if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
-    if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
+    if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
     if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.norange) && e(x.balance) && e(x.deposit);
@@ -2979,7 +3049,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
-    var h = nextUpHtml(t, nInfo) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1">';
+    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1">';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
       var rows =
@@ -3008,7 +3078,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
-          (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') +
+          (x.time ? '<div class="btime">' + esc(x.time) + '</div>' : '') + ckBookBtn(x) +
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
@@ -3271,7 +3341,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.b){
       var bk = (t.bookings || []).filter(function(x){ return String(x.id) === ds.b; })[0];
       if(bk && ds.k === 'lkExpAdd') addExpLink(t, el, bk, 'bk', '');
-      else if(bk) bk[ds.k] = el.value;
+      else if(bk){
+        bk[ds.k] = el.value;
+        if(ds.k === 'type' && emodal && emodal.querySelector('.mbody')){      // 航班才有報到欄位，換類型就重畫
+          emodal.querySelector('.mbody').innerHTML = bkEdit(bk);
+          var bsel = emodal.querySelector('select[data-k="type"]'); if(bsel) bsel.focus();
+        }
+      }
     } else if(ds.c){
       var it = (t.checklist || []).filter(function(x){ return String(x.id) === ds.c; })[0];
       if(it){
@@ -3438,7 +3514,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
-    if(viewOnly && ['goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
+    if(viewOnly && ['ckinfo','ckclose','goto','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
     if(act === 'goto'){
@@ -3453,6 +3529,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
       return;
     }
+    if(act === 'ckinfo'){ var ckb = byId(t.bookings, b.dataset.id); if(ckb) ckPopOpen(ckb); return; }
+    if(act === 'ckclose'){ ckPopClose(); return; }
     if(act === 'mclose'){ requestCloseModal(); return; }
     if(act === 'userate'){
       t.rates = t.rates || {}; t.rateDates = t.rateDates || {};
