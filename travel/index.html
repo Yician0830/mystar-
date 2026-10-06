@@ -268,7 +268,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ihrs.warn{color:var(--danger); font-weight:700;}
   .ihrs .hcl{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
   .hclosed{display:inline-block; font-size:13px; font-weight:800; line-height:1.4; color:var(--danger); border:1.5px solid var(--danger); background:rgba(204,32,54,0.08); padding:1px 9px; letter-spacing:0.02em;}
-  .hclosed.note{font-weight:700; border-style:dashed; background:transparent;}
+  .hclosed.note{font-weight:700; border:none; background:transparent; padding-left:0; padding-right:0;}
   html[data-theme="dark"] .hclosed{background:rgba(255,107,125,0.14);}
   .ihr,.ihwd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:13px;}
   .ihr[hidden],.ihwd[hidden]{display:none;}
@@ -564,8 +564,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .nn:empty{display:none;}
   .board{display:flex; flex-direction:column; gap:26px; padding:2px 0 16px;}
   /* 日期分頁固定在頂端工作列下方：往下滑看行程時，不用捲回最上面就能切換每一天。欄數由程式依天數算好（--dcols），最多排成兩行，不用左右滑動 */
-  .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; max-width:calc(var(--dcols,6) * 80px); margin-bottom:12px; padding:8px 0; position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper);}
+  .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; width:100%; max-width:none; margin-bottom:12px; padding:8px 0; box-shadow:0 12px 0 0 var(--paper); position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper);}
   @media (min-width:900px){ .dtabs{grid-template-columns:repeat(var(--dcolsw,6),minmax(0,1fr)); max-width:calc(var(--dcolsw,6) * 80px);} }
+  @media (max-width:899px){ .dtabs .dtab{min-height:40px; padding:6px 0;} }
   .dtabs .dtab{min-width:0; width:100%; justify-self:stretch; padding:6px 2px; font-size:13px; text-align:center; white-space:nowrap;}
   .dtab[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
   .dcol{display:grid; gap:10px; align-content:start; min-width:0; width:100%;}
@@ -2060,7 +2061,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div>' +
       '<div class="fare-in"><input' + a + ' data-k="pax" inputmode="numeric" autocomplete="off" aria-label="人數" placeholder="人數（預設 1）" value="' + esc(x.pax == null ? '' : x.pax) + '"></div></div>' +
       (cards.length ? '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
-      (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通卡／票券」新增卡片，這裡就能選要用哪一張。</div>') +
+      (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
   }
   // ---- 停留時長：開始時間到離開時間；離開時間比開始早，視為隔天離開 ----
@@ -2207,8 +2208,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var rows = l.map(function(y, i){ return { y:y, i:i }; }).sort(function(a, b){ return (a.y.done ? 1 : 0) - (b.y.done ? 1 : 0) || a.i - b.i; }).map(function(o){
       var y = o.y, q = String(y.name).trim() + ' ' + String(x.place || x.title || '').trim();
       return '<div class="shr"><label class="ck v' + (y.done ? ' done' : '') + '"><input type="checkbox" data-p="' + day.id + '" data-i="' + x.id + '" data-sd="' + y.id + '" data-k="done"' + (y.done ? ' checked' : '') + '>' +
-        '<span>' + esc(y.name) + (String(y.note || '').trim() ? ' <em class="shn">' + esc(y.note) + '</em>' : '') + '</span></label>' +
-        '<a class="vlink shmap" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q.trim()) + '" target="_blank" rel="noopener">地圖</a></div>';
+        '<span>' + esc(y.name) + (String(y.note || '').trim() ? ' <em class="shn">' + esc(y.note) + '</em>' : '') + '</span></label></div>';
     }).join('');
     return '<div class="shopsv"><div class="shh">🛍 想逛的店家<small>' + shopsProg(x) + '</small></div>' + rows + '</div>';
   }
@@ -2403,7 +2403,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<textarea data-s="' + x.id + '" data-k="note" aria-label="住宿備註" placeholder="入住時間、櫃檯、早餐、停車等">' + esc(x.note || '') + '</textarea></div>';
   }
 
-  // ---- 交通卡／票券：儲值、押金、退卡都記成「花費」並連結回這張卡 ----
+  // ---- 交通：儲值、押金、退卡都記成「花費」並連結回這張卡 ----
   var TC_TYPES = ['交通卡','一日券','周遊券','其他票券'], TC_WAY = ['實體卡','Apple 錢包','Google 錢包','預購／取票','其他'], TC_ST = ['未使用','使用中','已用完','已退卡'];
   function tcPass(x){ return !!x.type && x.type !== '交通卡'; }
   function tcDays(v){ var dt = toDate(v); if(!dt) return null; var n = new Date(); n = new Date(n.getFullYear(), n.getMonth(), n.getDate()); return Math.round((dt - n) / 864e5); }
@@ -2496,7 +2496,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function tcView(t){
     var all = t.tcards || [], fs = fareSummary(t), fc = fareCalc(t); if(!all.length && !fs) return '';
-    return '<section class="sec" id="tcsec"><div class="sh"><h3>交通卡／票券</h3></div>' + fs + all.map(function(x){
+    return '<section class="sec" id="tcsec"><div class="sh"><h3>交通</h3></div>' + fs + all.map(function(x){
       var pass = tcPass(x), tw = tcTwd(t, x), cu = esc(x.cur || 'TWD'), has = function(v){ return !!String(v == null ? '' : v).trim(); };
       var val = pass && (x.from || x.to) ? '有效 ' + esc(d(x.from) || '?') + ' → ' + esc(d(x.to) || '?') : '';
       // 卡片平常只顯示餘額（票券沒有餘額，改顯示有效期間），其餘資料收進「詳細」
@@ -2520,7 +2520,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }).join('') + '</section>';
   }
   function tcEditSec(t){
-    return '<section class="sec"><div class="sh"><h3>交通卡／票券</h3><div class="btns"><button class="mini" type="button" data-do="addtc">＋ 新增一筆</button></div></div>' + fareSummary(t) +
+    return '<section class="sec"><div class="sh"><h3>交通</h3><div class="btns"><button class="mini" type="button" data-do="addtc">＋ 新增一筆</button></div></div>' + fareSummary(t) +
       ((t.tcards || []).length ? t.tcards.map(function(x){
         return crow('tc', x.id, '', '<span class="btag">' + esc(x.type || '交通卡') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.status, x.range ? '適用：' + x.range : '', x.norange ? '無法使用：' + x.norange : ''].filter(Boolean).map(esc).join(' ・ '), '', 'deltc');
       }).join('') : '<div class="empty">Suica、ICOCA、悠遊卡、一日券、周遊券…可以記在這裡，儲值與押金會自動記進花費。</div>') + '</section>';
@@ -2713,7 +2713,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       emodal.innerHTML = '<div class="mbox"><div class="mhead"><h3 class="mtitle"></h3></div><div class="mbody"></div><div class="mfoot"><button class="mini mdup" type="button" data-do="dupit">複製這個行程</button><button type="button" data-do="mclose">完成</button></div></div>';
       $('detail').appendChild(emodal);
     }
-    var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費', sp:'打卡點', tc:'交通卡／票券' };
+    var names = { it:'行程', bk:'預訂資料', st:'住宿', ex:'花費', sp:'打卡點', tc:'交通' };
     emodal.querySelector('.mtitle').textContent = (isNew ? '新增' : '編輯') + names[kind];
     var mvSel = '';
     if(kind === 'it'){
@@ -3455,7 +3455,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     buildSecNav();
   }
   // 標題旁的快速跳轉：只列出畫面上真的有的區塊
-  var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通卡／票券'],['spsec','應援打卡點'],['merchsec','周邊／物販'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
+  var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通'],['spsec','應援打卡點'],['merchsec','周邊／物販'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
   function buildSecNav(){
     var nav = document.getElementById('secnav'); if(!nav) return;
     nav.innerHTML = SEC_NAV.filter(function(x){ return document.getElementById(x[0]); }).map(function(x){
