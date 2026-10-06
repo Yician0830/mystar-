@@ -807,6 +807,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:800px){ body.viewonly .cols.nox{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);} }
   .tccard[hidden], .tcpass[hidden]{display:none !important;}
   .payrow input{flex:1; min-width:0;}
+  .tcno{color:var(--warn); font-weight:700;}
   .tcdet{margin-top:0; font-size:13px; color:var(--ink-dim);}
   .tcdet.up{margin-top:-30px;}   /* 「詳細」拉到餘額那一列的右邊，卡片底下不留空白 */
   .tcdet>summary{list-style:none; cursor:pointer; text-align:right; font-weight:700; padding:0; min-height:24px; line-height:24px; width:fit-content; margin-left:auto;}
@@ -1140,7 +1141,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note); });
     (t.stays || []).forEach(function(x){ a.push(x.name, x.address, x.note); });
     (t.spots || []).forEach(function(x){ a.push(x.name, x.addr, x.perk, x.note); });
-    (t.tcards || []).forEach(function(x){ a.push(x.name, x.range, x.note); });
+    (t.tcards || []).forEach(function(x){ a.push(x.name, x.range, x.norange, x.note); });
     return a.filter(Boolean).join(' ').toLowerCase();
   }
   function fillSel(el, all, vals, cur){
@@ -2275,7 +2276,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var mny = pass ? val : (has(x.balance) ? '目前餘額 ' + cu + ' ' + esc(x.balance) : ''), wallet = /錢包/.test(String(x.way || ''));
       var det = [
         '<div class="btime">' + [esc(x.status || '未使用'), esc(x.way || '')].filter(Boolean).join(' ・ ') + '</div>',
-        x.range ? '<div class="vtext">適用：' + esc(x.range) + '</div>' : '',
         (!pass && !wallet && has(x.deposit)) ? '<div class="vtext">押金 ' + cu + ' ' + esc(x.deposit) + (x.refund ? '（可退）' : '（不退）') + '</div>' : '',
         fareCardLine(t, x, fc) ? '<div class="vtext">' + fareCardLine(t, x, fc) + '</div>' : '',
         (!pass && tcRides(t, x).n) ? '<div class="vtext">已搭乘 ' + tcRides(t, x).n + ' 段，共扣 ' + cu + ' ' + money(tcRides(t, x).sum) + '</div>' : '',
@@ -2285,6 +2285,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
         x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : ''
       ].filter(Boolean).join('');
       return '<div class="bk v" id="lk-tc-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '交通卡') + '</span><b class="bname">' + (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
+        (x.range ? '<div class="vtext tcok">✓ 適用：' + esc(x.range) + '</div>' : '') +
+        (x.norange ? '<div class="vtext tcno">✕ 無法使用：' + esc(x.norange) + '</div>' : '') +
         (mny ? '<div class="vtext">' + mny + '</div>' : '') +
         '<details class="tcdet' + (mny ? ' up' : '') + '" data-tcd="' + x.id + '"' + (tcOpen[x.id] ? ' open' : '') + '><summary>詳細</summary><div class="tcdb">' + det + '</div></details>' +
         tcAlerts(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('') + '</div>';
@@ -2293,7 +2295,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function tcEditSec(t){
     return '<section class="sec"><div class="sh"><h3>交通卡／票券</h3><div class="btns"><button class="mini" type="button" data-do="addtc">＋ 新增一筆</button></div></div>' + fareSummary(t) +
       ((t.tcards || []).length ? t.tcards.map(function(x){
-        return crow('tc', x.id, '', '<span class="btag">' + esc(x.type || '交通卡') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.status, x.range].filter(Boolean).map(esc).join(' ・ '), '', 'deltc');
+        return crow('tc', x.id, '', '<span class="btag">' + esc(x.type || '交通卡') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [x.status, x.range ? '適用：' + x.range : '', x.norange ? '無法使用：' + x.norange : ''].filter(Boolean).map(esc).join(' ・ '), '', 'deltc');
       }).join('') : '<div class="empty">Suica、ICOCA、悠遊卡、一日券、周遊券…可以記在這裡，儲值與押金會自動記進花費。</div>') + '</section>';
   }
   function tcEdit(x){
@@ -2303,7 +2305,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="bk"><div class="bh">' + sel('type', TC_TYPES, '種類') + inp('name', '名稱', '例如：Suica、東京地鐵 72 小時券') +
       '<button class="del" type="button" data-do="deltc" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="bg">' + sel('way', TC_WAY, '取得方式') + sel('status', TC_ST, '使用狀態') + '</div>' +
-      inp('range', '適用範圍', '適用範圍與限制，例如：關東電車、公車、超商可用；不能搭新幹線') +
+      inp('range', '適用地區', '適用地區／範圍，例如：關東電車、公車、超商') +
+      inp('norange', '無法使用', '無法使用的地區／範圍，例如：登別、洞爺湖、帶廣、釧路、美瑛、富良野、Niseko') +
       '<div class="sdates tcpass"' + (pass ? '' : ' hidden') + '><label>有效起<input type="date"' + A + ' data-k="from" value="' + esc(x.from || '') + '"></label><label>有效到<input type="date"' + A + ' data-k="to" min="' + esc(x.from || '') + '" value="' + esc(x.to || '') + '"></label></div>' +
       '<div class="bg tccard"' + (pass ? ' hidden' : '') + '><select' + A + ' data-k="cur" class="ecur" aria-label="幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === (x.cur || 'TWD') ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
       (wallet ? '' : inp('deposit', '押金或卡費', '押金／卡費')) + inp('balance', '剩餘餘額', '剩餘餘額') + inp('low', '提醒門檻', '低於多少提醒儲值') + '</div>' +
@@ -2447,7 +2450,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time);
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
-    if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.balance) && e(x.deposit);
+    if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.norange) && e(x.balance) && e(x.deposit);
     return e(x.name) && e(x.amount);
   }
   function openModal(kind, id, dayId, isNew){
@@ -3706,7 +3709,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addtc'){
-      t.tcards.push({ id:uid(), type:'交通卡', name:'', way:'實體卡', status:'未使用', range:'', from:'', to:'', cur:tripCur(t), deposit:'', refund:true, balance:'', low:'', note:'' });
+      t.tcards.push({ id:uid(), type:'交通卡', name:'', way:'實體卡', status:'未使用', range:'', norange:'', from:'', to:'', cur:tripCur(t), deposit:'', refund:true, balance:'', low:'', note:'' });
     } else if(act === 'deltc'){
       t.tcards = t.tcards.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addstay'){
