@@ -262,6 +262,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shv .spadd-wrap{margin-top:8px;}
   .ihrs{font-size:12px; color:var(--ink-dim); margin-top:4px;}
   .ihrs.warn{color:var(--danger); font-weight:700;}
+  .ihrs .hcl{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+  .hclosed{display:inline-block; font-size:13px; font-weight:800; line-height:1.4; color:var(--danger); border:1.5px solid var(--danger); background:rgba(204,32,54,0.08); padding:1px 9px; letter-spacing:0.02em;}
+  .hclosed.note{font-weight:700; border-style:dashed; background:transparent;}
+  html[data-theme="dark"] .hclosed{background:rgba(255,107,125,0.14);}
   .ihr,.ihwd{display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; font-size:13px;}
   .ihr[hidden],.ihwd[hidden]{display:none;}
   /* 開門／打烊同一列；手機等小螢幕（520px 以下）維持上下排 */
@@ -370,12 +374,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .vlink{color:var(--accent); text-decoration:underline; text-underline-offset:3px;}
   .btag{font-size:12px; font-weight:900; color:var(--accent); letter-spacing:0.06em; white-space:nowrap;}
   .bk.v{gap:6px;}
-  .bkgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:start;}
-  .bkgrid .bk{margin-bottom:0; padding:12px; min-width:0;}
+  .bkgrid{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; align-items:stretch;}
+  .bkgrid .bk{margin-bottom:0; padding:12px; min-width:0; align-content:start;}
   .bkgrid .bvh{flex-wrap:wrap; gap:2px 8px;}
   .bkgrid .bname{font-size:15px; overflow-wrap:anywhere;}
   .bkgrid .bcv code{font-size:13px;}
-  @container (max-width:330px){ .bkgrid{grid-template-columns:minmax(0,1fr);} }
+  @container (max-width:460px){ .bkgrid{grid-template-columns:minmax(0,1fr);} .bkgrid .btime{white-space:nowrap; overflow-x:auto;} }
   /* ── 應援打卡點卡片：左側依類型上色、名稱靠左、日期／地址／特典分層 ── */
   .spv{--tc:var(--line-strong); border-left:4px solid var(--tc); padding:14px 16px 14px 14px; gap:8px; transition:opacity .2s;}
   .spv[data-t="咖啡廳"]{--tc:#b8741a;} .spv[data-t="廣告"]{--tc:#3f7cc4;} .spv[data-t="快閃店"]{--tc:#d1436b;} .spv[data-t="展覽"]{--tc:#3a9a74;}
@@ -555,7 +559,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .nn{font-size:13px; font-weight:700; color:var(--accent);}
   .nn:empty{display:none;}
   .board{display:flex; flex-direction:column; gap:26px; padding:2px 0 16px;}
-  .dtabs{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:16px;}
+  /* 日期分頁固定在頂端工作列下方：往下滑看行程時，不用捲回最上面就能切換每一天。欄數由程式依天數算好（--dcols），最多排成兩行，不用左右滑動 */
+  .dtabs{display:grid; grid-template-columns:repeat(var(--dcols,6),minmax(0,1fr)); gap:6px; max-width:calc(var(--dcols,6) * 80px); margin-bottom:12px; padding:8px 0; position:sticky; top:calc(env(safe-area-inset-top,0px) + var(--barh,58px)); z-index:4; background:var(--paper); box-shadow:0 1px 0 var(--line);}
+  .dtabs .dtab{min-width:0; padding:6px 2px; font-size:13px; text-align:center; white-space:nowrap;}
   .dtab[aria-pressed="true"]{background:var(--ink); color:var(--paper); border-color:var(--ink);}
   .dcol{display:grid; gap:10px; align-content:start; min-width:0; width:100%;}
   .dchd{display:grid; gap:6px; padding:2px 2px 4px;}
@@ -766,6 +772,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .emodal .mvday{display:grid; gap:4px; margin:0 0 12px; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .emodal .mvday select{width:100%;}
   .emodal .mfoot{display:flex; justify-content:space-between; align-items:center; margin-top:14px; position:sticky; bottom:-18px; padding:10px 0 0; background:var(--paper);}
+  .tcdlg-box{width:min(420px,100%) !important;}
+  .tcdlg-body{display:grid; gap:12px;}
+  .tcdlg-f{display:grid; gap:4px; font-size:13px; font-weight:700; color:var(--ink-dim);}
+  .tcdlg-f input{width:100%; min-width:0; font-size:16px;}   /* 16px：iPhone 點輸入框不會自動放大 */
+  .tcdlg-err{min-height:1.2em; font-size:13px; font-weight:700; color:var(--danger);}
+  .tcdlg-ok{font-weight:900; color:var(--accent); border-color:var(--accent);}
   .xcard.xwarn{border-style:dashed;}
   .xcard .xs.xw{color:var(--danger); font-weight:700;}
   .dsub .dsum{margin-left:10px; font-size:13px; font-weight:700; color:var(--accent);}
@@ -786,6 +798,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dishes .dtotal{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink-faint);}
   .dishes .dtotal b{color:var(--accent); font-size:14px; font-weight:900;}
   .itx .dsum{color:var(--accent); font-weight:900;}
+  .itx .shopr{display:grid; grid-template-columns:auto minmax(0,1.1fr) minmax(0,1fr) auto; gap:8px; align-items:center;}
+  .itx .shopr input[type="text"],.itx .shopr input:not([type]){width:100%; min-width:0;}
+  .itx .shopr input[type="checkbox"]{width:20px; height:20px; padding:0; accent-color:var(--accent);}
+  @container (max-width:420px){ .itx .shopr{grid-template-columns:auto minmax(0,1fr) auto;} .itx .shopr input[data-k="note"]{grid-column:2 / 3; grid-row:2;} }
+  .shopsv{display:grid; gap:0; margin-top:6px;}
+  .shopsv .shh{font-size:12px; font-weight:900; color:var(--accent); letter-spacing:0.06em; margin-bottom:2px;}
+  .shopsv .shh small{margin-left:8px; font-size:12px; font-weight:900;}
+  .shopsv .shr{display:flex; align-items:center; gap:8px; border-bottom:1px dashed var(--line-strong);}
+  .shopsv .shr .ck.v{flex:1; min-width:0; margin-bottom:0; font-size:15px;}
+  .shopsv .shn{font-style:normal; font-size:12px; font-weight:500; color:var(--ink-faint); margin-left:6px;}
+  .shopsv .shmap{flex:0 0 auto; font-size:12px; font-weight:700;}
   .dishes .dchip em{font-style:normal; font-weight:500; color:var(--ink-faint); margin-left:6px; font-size:12px;}
   .bk.v .nights{margin-left:6px; font-size:12px; font-weight:700; color:var(--accent);}
   .bk.v .addrline .vlink{font-size:inherit; margin-left:8px;}
@@ -1343,18 +1366,54 @@ a.name{display:block; color:inherit; text-decoration:none;}
     clearTimeout(undoTimer); undoSnap = null;
     if($('undo')) $('undo').hidden = true;
   }
-  function showUndo(tripId, snap, act){
+  function showUndo(tripId, snap, act, afterSnap){
     clearTimeout(undoTimer);
-    undoSnap = { id:tripId, json:snap };
+    undoSnap = { id:tripId, json:snap, after:afterSnap };
     $('undoMsg').textContent = '已刪除' + (UNDO_LABEL[act] || '');
     $('undo').hidden = false;
     undoTimer = setTimeout(hideUndo, 6000);
+  }
+  // 三方合併：before＝刪除前、after＝刪除剛完成、cur＝現在。把 before→after 的變化倒回去，但只在 cur 還沒被改動的地方才倒回
+  function uSame(a, b){ return JSON.stringify(a) === JSON.stringify(b); }
+  function uIsObj(v){ return v && typeof v === 'object' && !Array.isArray(v); }
+  function uIdList(a){ return Array.isArray(a) && a.length > 0 && a.every(function(x){ return uIsObj(x) && x.id != null; }); }
+  function undoMerge(before, after, cur){
+    if(uSame(before, after)) return cur;
+    if(Array.isArray(before) && Array.isArray(cur) && (uIdList(before) || (before.length === 0 && uIdList(after)) ) && (Array.isArray(after) || after == null)){
+      after = after || [];
+      var res = cur.slice(), pos = function(list, id){ for(var k = 0; k < list.length; k++) if(uIsObj(list[k]) && String(list[k].id) === String(id)) return k; return -1; };
+      before.forEach(function(b, bi){
+        var ai = pos(after, b.id), ci = pos(res, b.id);
+        if(ai < 0){                                    // 被刪掉的項目：放回原本的位置
+          if(ci < 0){
+            var prev = bi > 0 ? pos(res, before[bi - 1].id) : -1;
+            res.splice(prev >= 0 ? prev + 1 : Math.min(bi, res.length), 0, b);
+          }
+        }else if(ci >= 0){ res[ci] = undoMerge(b, after[ai], res[ci]); }
+      });
+      return res;
+    }
+    if(uIsObj(before) && uIsObj(after) && uIsObj(cur)){
+      var keys = {}; Object.keys(before).concat(Object.keys(after)).forEach(function(k){ keys[k] = 1; });
+      Object.keys(keys).forEach(function(k){
+        if(uSame(before[k], after[k])) return;
+        if(before[k] === undefined) return;            // 刪除不會新增欄位
+        if(cur[k] === undefined){ if(after[k] === undefined) cur[k] = before[k]; return; }
+        cur[k] = undoMerge(before[k], after[k], cur[k]);
+      });
+      return cur;
+    }
+    return uSame(cur, after) ? before : cur;           // 純值／一般陣列：現在還等於刪除後的樣子才倒回
   }
   $('undoBtn').addEventListener('click', function(){
     if(!undoSnap) return;
     var i = -1;
     trips.forEach(function(x, k){ if(String(x.id) === String(undoSnap.id)) i = k; });
-    if(i >= 0){ trips[i] = JSON.parse(undoSnap.json); }
+    if(i >= 0){
+      // 只還原「刪除」造成的變化（被刪的項目、被取消的連結、扣回的餘額…），刪除之後又改的其他欄位保持原樣
+      try{ trips[i] = undoMerge(JSON.parse(undoSnap.json), JSON.parse(undoSnap.after), JSON.parse(JSON.stringify(trips[i]))); }
+      catch(err){ console.error(err); trips[i] = JSON.parse(undoSnap.json); }
+    }
     hideUndo();
     if(i >= 0 && currentId) { renderDetail(); doPersist(); }
   });
@@ -1634,7 +1693,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
   // ---- 詳細頁 ----
   var TEMPLATES = {
-    fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','集合時間與交通動線','網路（SIM／eSIM）','匯率與現金','旅平險','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）'],
+    fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','電子票截圖離線保存（演出當天網路常壅塞）','寄物／置物櫃（場館周邊位置與費用）','物販時間與排隊（開賣時間、限量品項）','集合時間與交通動線','演出後末班車與回程交通','網路（SIM／eSIM）','匯率與現金','旅平險','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）'],
     general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
   };
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','未購票','已購票'];
@@ -2101,6 +2160,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var fs = x.cat === '景點' ? featList(x) : []; if(!fs.length) return '';
     return '<div class="dishes featv"><span class="dlabel">✨ 推薦</span>' + fs.map(function(v){ return '<span class="dchip">' + esc(v) + '</span>'; }).join('') + '</div>';
   }
+  // ---- 想逛的店家：商店街、市場這類一個景點裡有很多店，可以逐間記下、逛完打勾 ----
+  function shopsOn(x){ return x.cat === '景點' || x.cat === '購物'; }
+  function shopsOf(x){ return (x.shops || []).filter(function(y){ return String(y.name || '').trim(); }); }
+  function shopsProg(x){ var l = shopsOf(x); return l.length ? l.filter(function(y){ return y.done; }).length + '／' + l.length : ''; }
+  function shopsView(x, day){
+    var l = shopsOf(x); if(!shopsOn(x) || !l.length) return '';
+    var rows = l.map(function(y, i){ return { y:y, i:i }; }).sort(function(a, b){ return (a.y.done ? 1 : 0) - (b.y.done ? 1 : 0) || a.i - b.i; }).map(function(o){
+      var y = o.y, q = String(y.name).trim() + ' ' + String(x.place || x.title || '').trim();
+      return '<div class="shr"><label class="ck v' + (y.done ? ' done' : '') + '"><input type="checkbox" data-p="' + day.id + '" data-i="' + x.id + '" data-sd="' + y.id + '" data-k="done"' + (y.done ? ' checked' : '') + '>' +
+        '<span>' + esc(y.name) + (String(y.note || '').trim() ? ' <em class="shn">' + esc(y.note) + '</em>' : '') + '</span></label>' +
+        '<a class="vlink shmap" href="https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q.trim()) + '" target="_blank" rel="noopener">地圖</a></div>';
+    }).join('');
+    return '<div class="shopsv"><div class="shh">🛍 想逛的店家<small>' + shopsProg(x) + '</small></div>' + rows + '</div>';
+  }
   function dishView(x){
     var ds = (x.dishes || []).filter(function(y){ return String(y.name || '').trim(); });
     if(!ds.length) return '';
@@ -2181,10 +2254,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var seg1 = fmt(x.open, x.close), seg2 = hm === 'two' ? fmt(x.open2, x.close2) : '';
     if(hm === '24h') parts.push('24 小時營業');
     else if(seg1 || seg2) parts.push('營業 ' + [seg1, seg2].filter(Boolean).join(' / '));
-    if(cl.length) parts.push('公休 週' + cl.map(function(n){ return WD[n]; }).join('、'));
+    var chips = [];   // 公休資訊獨立成醒目的標籤，不要埋在營業時間的小字裡
+    if(cl.length) chips.push('<span class="hclosed">🚫 公休 週' + cl.map(function(n){ return WD[n]; }).join('、') + '</span>');
     var cn = String(x.closedNote || '').trim();
-    if(cn) parts.push((cl.length ? '另外' : '公休') + '：' + esc(cn));
-    return parts.length ? '<div class="ihrs">🕒 ' + parts.join('・') + '</div>' : '';
+    if(cn) chips.push('<span class="hclosed note">' + (cl.length ? '另外：' : '🚫 公休：') + esc(cn) + '</span>');
+    if(!parts.length && !chips.length) return '';
+    return '<div class="ihrs">' + (parts.length ? '🕒 ' + parts.join('・') : '') + (chips.length ? '<div class="hcl">' + chips.join('') + '</div>' : '') + '</div>';
   }
   function itemView(x, day){
     var dt = durText(x);
@@ -2201,7 +2276,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
       featView(x) +
-      (x.cat === '美食' ? dishView(x) : '') +
+      (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
   }
   // kind：'it' 行程、'bk' 預訂資料、'st' 住宿 —— 三種都可以連結多筆花費（lkExps）
@@ -2469,13 +2544,37 @@ a.name{display:block; color:inherit; text-decoration:none;}
         (edit ? '<span>' + (e.tcPlan ? '<button class="mini" type="button" data-do="tcconfirm" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '">確認已儲值</button>' : '') + '<button class="del" type="button" data-do="tcdeltop" data-id="' + esc(x.id) + '" data-eid="' + esc(e.id) + '" aria-label="刪除這筆儲值" title="刪除這筆儲值">×</button></span>' : '<span></span>') + '</div>';
     }).join('') + '</div>';
   }
-  function tcConfirm(t, cid, eid){      // 預計儲值 → 實際儲值：填實際金額後才加進餘額
+  function tcConfirm(t, cid, eid){      // 預計儲值 → 實際儲值：一個彈窗同時填「實際儲值金額」與「實付台幣」，按確認才加進餘額
     var o = byId(t.tcards, cid), e = byId(t.expenses, eid); if(!o || !e || !e.tcPlan) return;
-    var v = prompt('實際儲值金額（' + ecur(t, e) + '）', String(e.amount == null ? '' : e.amount)); if(v === null || !String(v).trim()) return;
-    e.amount = String(v).trim(); delete e.tcPlan; e.tcDate = ymd(new Date()); tcBalSync(t, e);
-    if(ecur(t, e) !== 'TWD'){ var pt0 = prompt('實際付出的台幣金額（選填，留空就用匯率換算）', String(e.paidTwd || '')); if(pt0 !== null){ if(amt(pt0) > 0) e.paidTwd = String(pt0).trim(); else delete e.paidTwd; } }
-    if(emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(o);
-    amtScan(); doPersist();
+    var old = document.getElementById('tcdlg'); if(old) old.remove();
+    var c = ecur(t, e), foreign = c !== 'TWD';
+    var el = document.createElement('div'); el.id = 'tcdlg'; el.className = 'emodal on'; el.style.zIndex = '70';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.innerHTML = '<div class="mbox tcdlg-box"><div class="mhead"><h3>確認已儲值</h3></div><div class="mbody tcdlg-body">' +
+      '<label class="tcdlg-f"><span>實際儲值金額（' + esc(c) + '）</span><input id="tcdAmt" inputmode="decimal" autocomplete="off" value="' + esc(e.amount == null ? '' : e.amount) + '"></label>' +
+      (foreign ? '<label class="tcdlg-f"><span>實際付出的台幣金額（選填）</span><input id="tcdPaid" inputmode="decimal" autocomplete="off" placeholder="留空就用匯率換算" value="' + esc(e.paidTwd || '') + '"></label>' : '') +
+      '<div class="tcdlg-err" id="tcdErr" role="alert"></div></div>' +
+      '<div class="mfoot"><button type="button" id="tcdCancel">取消</button><button type="button" id="tcdOk" class="tcdlg-ok">確認儲值</button></div></div>';
+    function close(){ el.remove(); }
+    function submit(){
+      var v = String($('tcdAmt').value || '').trim();
+      if(!(amt(v) > 0)){ $('tcdErr').textContent = '請輸入大於 0 的儲值金額'; $('tcdAmt').focus(); return; }
+      var pEl = $('tcdPaid'), pv = pEl ? String(pEl.value || '').trim() : '';
+      e.amount = v; delete e.tcPlan; e.tcDate = ymd(new Date()); tcBalSync(t, e);
+      if(foreign){ if(amt(pv) > 0) e.paidTwd = pv; else delete e.paidTwd; }
+      close();
+      if(emodal && emodal.querySelector('.mbody')) emodal.querySelector('.mbody').innerHTML = tcEdit(o);
+      amtScan(); doPersist();
+    }
+    el.addEventListener('click', function(ev){ if(ev.target === el) close(); });
+    el.addEventListener('keydown', function(ev){
+      if(ev.key === 'Escape'){ ev.stopPropagation(); close(); }
+      else if(ev.key === 'Enter' && ev.target && ev.target.tagName === 'INPUT'){ ev.preventDefault(); submit(); }
+    });
+    el.querySelector('#tcdCancel').addEventListener('click', close);
+    el.querySelector('#tcdOk').addEventListener('click', submit);
+    document.body.appendChild(el);
+    var ai = $('tcdAmt'); ai.focus(); ai.select();
   }
   function tcDelTop(t, cid, eid){
     var o = byId(t.tcards, cid), e = byId(t.expenses, eid); if(!o || !e) return;
@@ -2557,7 +2656,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.feat) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.feat) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); }) && (x.shops || []).every(function(y){ return e(y.name) && e(y.note) && !y.done; });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
@@ -2657,6 +2756,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
           return '<div class="dish"><input' + da + ' data-k="name" aria-label="必點菜名" placeholder="菜名" value="' + esc(ds.name || '') + '">' +
             '<input' + da + ' data-k="price" aria-label="價格" placeholder="價格（選填）" value="' + esc(ds.price || '') + '">' +
             '<button class="del" type="button" data-do="deldish" data-day="' + day.id + '" data-id="' + x.id + '" data-dd="' + ds.id + '" aria-label="刪除" title="刪除">×</button></div>';
+        }).join('') + '</div>' +
+      '<div class="itx itx-shops"' + (shopsOn(x) ? '' : ' hidden') + '><div class="dhead"><span>想逛的店家<small class="dsum">' + (shopsProg(x) ? '　已逛 ' + shopsProg(x) : '') + '</small></span>' +
+        '<button class="mini" type="button" data-do="addshop" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增店家</button></div>' +
+        (x.shops || []).map(function(sp){
+          var sa = ' data-p="' + day.id + '" data-i="' + x.id + '" data-sd="' + sp.id + '"';
+          return '<div class="shopr"><input type="checkbox"' + sa + ' data-k="done" aria-label="已逛"' + (sp.done ? ' checked' : '') + '>' +
+            '<input' + sa + ' data-k="name" aria-label="店名" placeholder="店名" autocomplete="off" value="' + esc(sp.name || '') + '">' +
+            '<input' + sa + ' data-k="note" aria-label="備註" placeholder="備註（買什麼、營業到幾點）" autocomplete="off" value="' + esc(sp.note || '') + '">' +
+            '<button class="del" type="button" data-do="delshop" data-day="' + day.id + '" data-id="' + x.id + '" data-sd="' + sp.id + '" aria-label="刪除" title="刪除">×</button></div>';
         }).join('') + '</div>' +
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="注意事項、營業時間…">' + esc(x.note || '') + '</textarea></div>';
   }
@@ -2865,7 +2973,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var head = '<section class="sec"><div class="sh"><h3>每日行程</h3>' + (edit ? '<div class="btns"><button class="mini" type="button" data-do="gen">依日期產生</button><button class="mini" type="button" data-do="addday">＋ 新增一天</button></div>' : '') + '</div>';
     if(!t.days.length) return head + (edit ? '<div class="empty">還沒有每日行程。填好出發日和回程日後，按「依日期產生」會一次排好每一天。</div>' : '<p class="vempty">還沒有每日行程，按右上角「編輯」後可依日期產生。</p>') + '</section>';
     if(dayFilter !== 'all' && !t.days.some(function(x){ return String(x.id) === String(dayFilter); })) dayFilter = 'all';
-    var tabs = '<div class="dtabs" role="group" aria-label="選擇要顯示的日期"><button class="mini dtab" type="button" data-do="dayf" data-day="all" aria-pressed="' + (dayFilter === 'all') + '">全部</button>' +
+    var dtot = t.days.length + 1, dcols = dtot > 7 ? Math.ceil(dtot / 2) : dtot;      // 8 個以上平分成兩行
+    var tabs = '<div class="dtabs" style="--dcols:' + dcols + '" role="group" aria-label="選擇要顯示的日期"><button class="mini dtab" type="button" data-do="dayf" data-day="all" aria-pressed="' + (dayFilter === 'all') + '">全部</button>' +
       t.days.map(function(x, j){ return '<button class="mini dtab" type="button" data-do="dayf" data-day="' + x.id + '" aria-pressed="' + (String(x.id) === String(dayFilter)) + '">Day ' + (j+1) + '</button>'; }).join('') + '</div>';
     return head + tabs + '<div class="board">' + t.days.map(function(day, i){
       if(dayFilter !== 'all' && String(day.id) !== String(dayFilter)) return '';
@@ -3294,7 +3403,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!editMode) fillWx(t);
     refreshOffline();
     amtScan();
+    syncDayTabs();
   }
+  // 日期分頁：量出頂端工作列的高度（手機上工作列會換行），讓分頁剛好貼在它下面
+  function syncBarH(){
+    var bar = document.querySelector('#detail .bar');
+    document.documentElement.style.setProperty('--barh', (bar ? bar.offsetHeight : 0) + 'px');
+  }
+  function syncDayTabs(){ syncBarH(); }
+  window.addEventListener('resize', syncBarH);
 
   $('detail').addEventListener('change', function(e){
     var el = e.target, t = cur(), ds = el.dataset;
@@ -3321,6 +3438,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
         dsh[ds.k] = el.value;
         var dsm = el.closest('.itx-food') && el.closest('.itx-food').querySelector('.dsum');
         if(dsm) dsm.textContent = dishTotal(dit) ? '　預估 ' + dishTotal(dit) : '';
+      }
+    } else if(ds.sd){
+      var spd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
+      var sit = spd && (spd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
+      var ssh = sit && (sit.shops || []).filter(function(y){ return String(y.id) === ds.sd; })[0];
+      if(ssh){
+        if(ds.k === 'done'){
+          ssh.done = el.checked;
+          var sv = el.closest('.shopsv'); if(sv) sv.outerHTML = shopsView(sit, spd);      // 檢視頁：已逛的排到後面、更新進度
+          var sdm = el.closest('.itx-shops') && el.closest('.itx-shops').querySelector('.dsum'); if(sdm) sdm.textContent = shopsProg(sit) ? '　已逛 ' + shopsProg(sit) : '';
+        }else ssh[ds.k] = el.value;
+        if(ds.k === 'name'){ var sdm2 = el.closest('.itx-shops') && el.closest('.itx-shops').querySelector('.dsum'); if(sdm2) sdm2.textContent = shopsProg(sit) ? '　已逛 ' + shopsProg(sit) : ''; }
       }
     } else if(ds.i){
       var pd = (t.days || []).filter(function(x){ return String(x.id) === ds.p; })[0];
@@ -3364,6 +3493,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           var ic = el.closest('.icard'), sp0 = ic && ic.querySelector('.itx-spot'), fd0 = ic && ic.querySelector('.itx-food');
           if(sp0) sp0.hidden = el.value !== '景點';
           if(fd0) fd0.hidden = el.value !== '美食';
+          var shw0 = ic && ic.querySelector('.itx-shops'); if(shw0) shw0.hidden = !(el.value === '景點' || el.value === '購物');
           var lkw = ic && ic.querySelector('.itx-lksp'); if(lkw) lkw.hidden = !(el.value === '活動' || it2.lkSpot);
           var hOn = hrsOn(it2), hr0 = ic && ic.querySelector('.ihr'), hd0 = ic && ic.querySelector('.ihwd'), hw0 = ic && ic.querySelector('.ihw');
           hmApply(ic, it2); if(hd0) hd0.hidden = !hOn; if(hw0) hw0.innerHTML = hoursWarnHtml(pd, it2);
@@ -3615,6 +3745,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
       return;
     }
+    if(act === 'addshop' || act === 'delshop'){
+      var sae = document.activeElement; if(sae && sae.blur) sae.blur();      // 先讓正在輸入的欄位存進去
+      var sday = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
+      var sitm = sday && (sday.items || []).filter(function(x){ return String(x.id) === b.dataset.id; })[0];
+      if(!sitm) return;
+      sitm.shops = sitm.shops || [];
+      if(act === 'addshop') sitm.shops.push({ id:uid(), name:'', note:'', done:false });
+      else sitm.shops = sitm.shops.filter(function(y){ return String(y.id) !== b.dataset.sd; });
+      var swasNew = !!(modalCtx && modalCtx.isNew), smbx = emodal && emodal.querySelector('.mbox'), sstp = smbx ? smbx.scrollTop : 0;
+      renderDetail(); doPersist();
+      openModal('it', sitm.id, sday.id, swasNew);
+      smbx = emodal && emodal.querySelector('.mbox'); if(smbx) smbx.scrollTop = sstp;
+      if(act === 'addshop'){ var sn = emodal.querySelectorAll('.shopr input[data-k="name"]'); if(sn.length) sn[sn.length - 1].focus({ preventScroll:false }); }
+      return;
+    }
     if(act === 'adddish' || act === 'deldish'){
       var dae = document.activeElement; if(dae && dae.blur) dae.blur();      // 先讓正在輸入的欄位存進去
       var dday = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
@@ -3727,7 +3872,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'xopen'){ xOpen = true; renderDetail(); xFocus(); return; }
     if(act === 'xclose'){ xOpen = false; catFilter = 'all'; renderDetail(); return; }
     if(act === 'xgrp'){ xGroup = b.dataset.g === 'day' ? 'day' : 'all'; renderDetail(); return; }
-    if(act === 'dayf'){ dayFilter = b.dataset.day; renderDetail(); return; }
+    if(act === 'dayf'){
+      dayFilter = b.dataset.day; renderDetail();
+      var dsec = document.querySelector('#detail .dtabs'); dsec = dsec && dsec.closest('section');
+      if(dsec){ var dtp = dsec.getBoundingClientRect().top - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0); if(dtp < 0) window.scrollBy(0, dtp); }   // 已經往下滑的話，換天後回到那天的開頭
+      return;
+    }
     if(act === 'addday' || act === 'gen') dayFilter = 'all';   // 新增／產生後要看得到新的那天
     if(act === 'save'){
       // 先讓正在輸入的欄位送出變更（手機上按按鈕不一定會讓欄位失焦）
@@ -3859,7 +4009,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       t.expenses = t.expenses.filter(function(x){ return String(x.id) !== b.dataset.id; });
     }
     renderDetail(); doPersist();
-    if(snapJson) showUndo(t.id, snapJson, act);
+    if(snapJson) showUndo(t.id, snapJson, act, JSON.stringify(t));
     if(act === 'addbk'){ openModal('bk', t.bookings[t.bookings.length - 1].id, '', true); }
     if(newItemId){ openModal('it', newItemId, b.dataset.day, true); }
     if(act === 'addsp'){ openModal('sp', t.spots[t.spots.length - 1].id, '', true); }
@@ -3975,6 +4125,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
   });
   document.addEventListener('keydown', function(e){ if(e.key === 'Escape' && !shModal.hidden) shClose(); });
   // 朋友打開的唯讀頁面
+  // 分享內容來自別人寫進雲端的 JSON：id 與連結欄位（id、lk 開頭）會被直接接進 HTML 屬性，先過濾成只剩英數字、底線與連字號，避免被塞入惡意程式；同一規則套在所有 id，互相連結的關係不會斷
+  function cleanId(v){ return typeof v === 'string' ? v.replace(/[^\w-]/g, '') : (typeof v === 'number' ? v : ''); }
+  function cleanShared(o){
+    if(Array.isArray(o)){ o.forEach(cleanShared); return o; }
+    if(o && typeof o === 'object'){
+      Object.keys(o).forEach(function(k){
+        var v = o[k];
+        if(k === 'id' || /^lk/.test(k)){
+          if(Array.isArray(v)) o[k] = v.map(cleanId);
+          else if(v && typeof v === 'object') cleanShared(v);
+          else o[k] = cleanId(v);
+        }else if(v && typeof v === 'object') cleanShared(v);
+      });
+    }
+    return o;
+  }
   function openShared(id){
     viewOnly = true; shownShare = id; sharedTrip = null; currentId = null; editMode = false;
     document.body.classList.add('viewonly', 'wide');
@@ -3984,7 +4150,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     db.collection('shared').doc(id).get().then(function(doc){
       if(shownShare !== id) return;
       if(!doc.exists){ fail('這個分享連結已經失效，或分享已被關閉。'); return; }
-      try{ sharedTrip = JSON.parse(doc.data().data); }catch(x){ fail('讀取分享內容失敗。'); return; }
+      try{ sharedTrip = cleanShared(JSON.parse(doc.data().data)); }catch(x){ fail('讀取分享內容失敗。'); return; }
       currentId = String(sharedTrip.id); dayInitFor = null; loaded = true;
       document.title = (sharedTrip.title || '旅遊紀錄') + ' — 分享';
       renderDetail();
