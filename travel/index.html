@@ -2094,6 +2094,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var p = sym.split('|');
     return p[0] + money(sum) + (p[1] ? ' ' + p[1] : '');
   }
+  // 景點的推薦參觀特色：用頓號／逗號／換行分隔，顯示成小標籤
+  function featList(x){ return String(x.feat || '').split(/[\n、,，;；]+/).map(function(v){ return v.trim(); }).filter(Boolean); }
+  function featView(x){
+    var fs = x.cat === '景點' ? featList(x) : []; if(!fs.length) return '';
+    return '<div class="dishes featv"><span class="dlabel">✨ 推薦</span>' + fs.map(function(v){ return '<span class="dchip">' + esc(v) + '</span>'; }).join('') + '</div>';
+  }
   function dishView(x){
     var ds = (x.dishes || []).filter(function(y){ return String(y.name || '').trim(); });
     if(!ds.length) return '';
@@ -2105,6 +2111,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var WD = ['日','一','二','三','四','五','六'];
   function hrsOn(x){ return ['景點','美食','購物'].indexOf(x.cat) >= 0; }   // 營業時間／公休日只在景點、美食、購物才出現
   // 營業型態：fixed 固定時段（一段）／two 兩段式／24h 全天營業；舊資料有填第二段的視為兩段式
+  // 營業時間顯示成 12 小時制加上午／下午（11:00 → 上午 11:00，15:00 → 下午 3:00），跟編輯時時間欄的樣子一致
+  function tm12(v){ var m = toMin(v); if(m == null) return String(v || ''); var h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return (h < 12 ? '上午 ' : '下午 ') + (h % 12 === 0 ? 12 : h % 12) + ':' + mm; }
   function hMode(x){ return x.hmode === '24h' || x.hmode === 'two' || x.hmode === 'fixed' ? x.hmode : ((x.open2 || x.close2) ? 'two' : 'fixed'); }
   // 取出營業時段（分鐘）。打烊比開門早＝跨午夜（例如 18:00–02:00），打烊時間加 24 小時
   function hSegs(x){
@@ -2128,11 +2136,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var hit = segs.filter(function(g){ return s >= g.o && s < g.c; })[0], last = segs[segs.length - 1];
       if(hit){
         var ee = e0; if(ee != null && hit.wrap && ee < s) ee += 1440;
-        if(ee != null && ee > hit.c) w.push(segs.length > 1 && hit !== last ? '離開時間晚於這段營業結束（' + hit.rc + '）' : '離開時間晚於打烊（' + hit.rc + '）');
+        if(ee != null && ee > hit.c) w.push(segs.length > 1 && hit !== last ? '離開時間晚於這段營業結束（' + tm12(hit.rc) + '）' : '離開時間晚於打烊（' + tm12(hit.rc) + '）');
       }
-      else if(s < segs[0].o) w.push('預計時間早於開門（' + segs[0].ro + '）');
-      else if(s >= last.c) w.push('預計時間已過打烊（' + last.rc + '）');
-      else w.push('預計時間在休息時段（' + segs.filter(function(g){ return g.c <= s; }).pop().rc + '–' + segs.filter(function(g){ return g.o > s; })[0].ro + '）');
+      else if(s < segs[0].o) w.push('預計時間早於開門（' + tm12(segs[0].ro) + '）');
+      else if(s >= last.c) w.push('預計時間已過打烊（' + tm12(last.rc) + '）');
+      else w.push('預計時間在休息時段（' + tm12(segs.filter(function(g){ return g.c <= s; }).pop().rc) + '–' + tm12(segs.filter(function(g){ return g.o > s; })[0].ro) + '）');
     }
     return w;
   }
@@ -2162,7 +2170,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function hoursLine(x){
     if(!hrsOn(x)) return '';
     var cl = (x.closed || []).map(Number).sort(), parts = [];
-    var hm = hMode(x), fmt = function(o, c){ return o && c ? esc(o) + '–' + (toMin(c) != null && toMin(o) != null && toMin(c) < toMin(o) ? '次日 ' : '') + esc(c) : ''; };
+    var hm = hMode(x), fmt = function(o, c){ return o && c ? esc(tm12(o)) + '–' + (toMin(c) != null && toMin(o) != null && toMin(c) < toMin(o) ? '次日 ' : '') + esc(tm12(c)) : ''; };
     var seg1 = fmt(x.open, x.close), seg2 = hm === 'two' ? fmt(x.open2, x.close2) : '';
     if(hm === '24h') parts.push('24 小時營業');
     else if(seg1 || seg2) parts.push('營業 ' + [seg1, seg2].filter(Boolean).join(' / '));
@@ -2184,7 +2192,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (pills ? '<div class="pills">' + pills + '</div>' : '') + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
-      ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
+      ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') + featView(x) +
       (x.cat === '美食' ? dishView(x) : '') +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
   }
@@ -2541,7 +2549,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.feat) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
@@ -2632,7 +2640,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
       fareRow(a, x) +
-      '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea></div>' +
+      '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea>' +
+        '<input' + a + ' data-k="feat" aria-label="推薦參觀特色" placeholder="✨ 推薦參觀特色，用「、」分隔，例如：噴氣口、鬼像、足湯" autocomplete="off" value="' + esc(x.feat || '') + '"></div>' +
       '<div class="itx itx-food"' + (x.cat === '美食' ? '' : ' hidden') + '><div class="dhead"><span>必點推薦<small class="dsum">' + (dishTotal(x) ? '　預估 ' + esc(dishTotal(x)) : '') + '</small></span>' +
         '<button class="mini" type="button" data-do="adddish" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增必點</button></div>' +
         (x.dishes || []).map(function(ds){
