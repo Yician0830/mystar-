@@ -3693,6 +3693,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     inp.dispatchEvent(new Event('change', { bubbles:true }));
   });
   function xFocus(){      // 展開後，若花費欄的頂端已捲出畫面，就捲回來
+    if(document.querySelector('#detail .expbot')) return;      // 追星旅程的花費在最下方，原地展開就好，不要捲動
     var c = document.querySelector('#detail .col.c3'); if(!c) return;
     var r = c.getBoundingClientRect(); if(r.top < 0) window.scrollBy({ top: r.top - 76 });
   }
