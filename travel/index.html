@@ -2057,7 +2057,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function lkRow(t, x, key){ var h = (expIds(x).length ? expChips(t, x) : '') + revLinksInner(t, key, x.id); return h ? '<div class="lks">' + h + '</div>' : ''; }
   function fwdLinks(t, x){
     var btn = function(key, y){ return '<button class="lk" type="button" data-do="goto" data-to="lk-' + LK[key][2] + '-' + y.id + '" title="' + esc(lkText(key, y)) + '">' + LK[key][1] + ' ' + esc(lkText(key, y)) + '</button>'; };
-    var h = ['lkBk', 'lkStay', 'lkTc'].map(function(key){
+    var h = ['lkBk', 'lkStay'].map(function(key){   // 行程項目不顯示花費、交通卡的連結標籤
+      
       var y = x[key] && byId(t[LK[key][0]], x[key]); if(key === 'lkTc' && (t.tcards || []).length <= 1) return '';   // 只有一張交通卡就不用標示
       return y ? btn(key, y) : '';
     }).join('') +   // 行程項目不顯示花費連結（花費仍可在花費區看到連到哪個行程）
