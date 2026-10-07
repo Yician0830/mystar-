@@ -588,7 +588,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .tclr b{font-weight:900; color:var(--accent);}
   .tclr .del{padding:0 6px;}
   .ie3[hidden]{display:none;}
+  .ie3 [hidden]{display:none;}
+  .ie3.cashhide{display:none;}
   .ie3{display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:8px;}
+  .ifare > .ie3:first-child{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);}
   .expv{display:grid; grid-template-columns:auto minmax(0,1fr) auto; gap:10px; align-items:baseline; padding:7px 0;}
   .expv b{font-variant-numeric:tabular-nums;}
   .sname{display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:center;}
@@ -876,6 +879,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .itx .legr input[data-k="ltrain"]{flex:1 1 100%;}
   .itx .legr input[data-k="ldep"], .itx .legr input[data-k="larr"], .itx .legr input[data-k="lfare"]{flex:1 1 90px;}
   .itx .legr .del{flex:0 0 auto;}
+  .itx .legr select{flex:1 1 100%; min-width:0; width:auto;}
   .irem{margin:2px 0; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .irem.due{color:#b3261e;}
   .fpass{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
@@ -2069,6 +2073,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function paxOf(x){ var n = amt(x.pax); return n >= 1 ? Math.round(n) : 1; }
   function fareOf(x){ if(noCard(x.transport)) return 0; var n = amt(x.fare); return n > 0 ? n * paxOf(x) : 0; }   // 預估車資填「每人」，乘上人數＝這一段總額   // 步行／租車／包車／計程車不預估車資
   function fareHas(x){ return fareOf(x) > 0; }
+  // 轉乘路段可以各自選「現金／購票」：那幾段不算進交通卡要儲值的金額，也不會從卡片餘額扣掉
+  function legCashPer(x){ var n = 0; if(noCard(x.transport)) return 0; (x.legs || []).forEach(function(l){ if(l.pay === TC_CASH) n += amt(l.fare); }); return n; }
+  function legCashCnt(x){ var n = 0; (x.legs || []).forEach(function(l){ if(l.pay === TC_CASH && amt(l.fare) > 0) n++; }); return n; }
+  function legCashOf(x){ var n = legCashPer(x); return n > 0 ? n * paxOf(x) : 0; }
+  function fareCardOf(x){ return Math.max(0, fareOf(x) - legCashOf(x)); }
   // 車資記憶：同交通工具＋同路線（幣別相同）在其他行程填過的預估車資，取最近一趟的
   function lastFare(t0, it){
     var tr = String(it.transport || '').trim(), ro = String(it.route || '').trim(); if(!tr || !ro) return null;
@@ -2104,8 +2113,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(!fareHas(x)) return;
       var c = x.lkTc && !noCard(x.transport) ? byId(t.tcards, x.lkTc) : null, cu = fareCur(t, x);
       if(x.lkTc === TC_CASH && !noCard(x.transport)){ cash[cu] = cash[cu] || { n:0, cnt:0 }; cash[cu].n += fareOf(x); cash[cu].cnt++; return; }
-      if(c){ var k = String(c.id); cards[k] = cards[k] || { n:0, cnt:0, rem:0 }; cards[k].n += (x.fareDone && amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x)); if(!x.fareDone) cards[k].rem += fareOf(x); cards[k].cnt++; }
-      else { other[cu] = other[cu] || { n:0, cnt:0 }; other[cu].n += fareOf(x); other[cu].cnt++; }
+      var lc = legCashOf(x);
+      if(lc > 0){ cash[cu] = cash[cu] || { n:0, cnt:0 }; cash[cu].n += lc; cash[cu].cnt += legCashCnt(x); if(fareCardOf(x) <= 0) return; }
+      if(c){ var k = String(c.id); cards[k] = cards[k] || { n:0, cnt:0, rem:0 }; cards[k].n += (x.fareDone && amt(x.fareAct) > 0 ? amt(x.fareAct) : fareCardOf(x)); if(!x.fareDone) cards[k].rem += fareCardOf(x); cards[k].cnt++; }
+      else { other[cu] = other[cu] || { n:0, cnt:0 }; other[cu].n += fareCardOf(x); other[cu].cnt++; }
     }); });
     return { cards:cards, other:other, cash:cash };
   }
@@ -2116,7 +2127,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var oc = x.fareCardId != null ? byId(t.tcards, x.fareCardId) : null, old = amt(x.fareApplied);
     if(oc && old > 0 && (!x.fareDone || !x.lkTc || String(x.lkTc) !== String(oc.id))){ oc.balance = tcFmt(amt(oc.balance) + old); x.fareApplied = 0; old = 0; delete x.fareCardId; tcAuto(oc); }
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null; if(!c || tcPass(c)) return;
-    var nw = (x.fareDone && String(c.balance == null ? '' : c.balance).trim()) ? (amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x)) : 0;
+    var nw = (x.fareDone && String(c.balance == null ? '' : c.balance).trim()) ? (amt(x.fareAct) > 0 ? amt(x.fareAct) : fareCardOf(x)) : 0;
     if(nw === old) return;
     c.balance = tcFmt(Math.max(0, amt(c.balance) + old - nw)); x.fareApplied = nw; x.fareCardId = c.id; tcAuto(c);
   }
@@ -2140,7 +2151,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function tcRides(t, c){
     var n = 0, sum = 0;
     (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){
-      if(x.fareDone && x.lkTc && String(x.lkTc) === String(c.id) && !noCard(x.transport)){ n++; sum += amt(x.fareAct) > 0 ? amt(x.fareAct) : fareOf(x); }
+      if(x.fareDone && x.lkTc && String(x.lkTc) === String(c.id) && !noCard(x.transport)){ n++; sum += amt(x.fareAct) > 0 ? amt(x.fareAct) : fareCardOf(x); }
     }); });
     return { n:n, sum:sum };
   }
@@ -2174,12 +2185,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 訂位提醒：未預訂的行程，出發前 N 天提醒 ----
   function remindInfo(x, day){
-    var n = Math.floor(amt(x.remind));
-    if(x.status !== '未預訂' || !(n > 0) || !day || !day.date) return null;
+    var rs = String(x.remind == null ? '' : x.remind).trim(), n = 0, mo = 0, m;
+    var cn = { '一':1, '二':2, '兩':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9, '十':10, '十一':11, '十二':12 };
+    if(/^\d+(\.\d+)?$/.test(rs)) n = Math.floor(+rs);                                  // 純數字＝幾天前
+    else if((m = rs.match(/(\d+|十二|十一|[一二兩三四五六七八九十])\s*個?\s*月/))) mo = cn[m[1]] || +m[1];   // 「一個月前」「2個月」
+    else if((m = rs.match(/(\d+)\s*[天日]/))) n = +m[1];                                  // 「14天前」
+    if(x.status !== '未預訂' || !(n > 0 || mo > 0) || !day || !day.date) return null;
     var dep = toDate(day.date); if(!dep) return null;
     var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if(dep < now) return null;
-    var due = new Date(dep.getFullYear(), dep.getMonth(), dep.getDate() - n);
+    var due = new Date(dep.getFullYear(), dep.getMonth() - mo, dep.getDate() - n);
     return { due:due, diff:Math.round((due - now) / 86400000) };
   }
   function remindHtml(x, day){
@@ -2222,15 +2237,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
       html += '<div class="tlr"><span class="tln">' + (i + 1) + '</span><div class="tlb">' + (String(y.train || '').trim() ? '<b>' + esc(y.train) + '</b>　' : '') +
         esc(y.from || '') + (y.dep ? ' ' + esc(y.dep) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(y.arr) : '') + '</div>' +
-        (amt(y.fare) > 0 ? '<span class="tlf">' + cu + ' ' + money(amt(y.fare)) + '</span>' : '') + '</div>';
+        (amt(y.fare) > 0 ? '<span class="tlf">' + (y.pay === TC_CASH ? '💴 現金 ' : '') + cu + ' ' + money(amt(y.fare)) + '</span>' : '') + '</div>';
     });
     return '<div class="tlegs"><div class="tlh">🚆 轉乘 ' + (chain.length ? esc(chain.join(' → ')) : '') + '</div>' + html +
-      (sum > 0 ? '<div class="tlt">車資合計 約 ' + cu + ' ' + money(sum) + '（每人）</div>' : '') + '</div>';
+      (sum > 0 ? '<div class="tlt">車資合計 約 ' + cu + ' ' + money(sum) + '（每人）' + (legCashPer(x) > 0 ? '・其中現金 ' + cu + ' ' + money(legCashPer(x)) : '') + '</div>' : '') + '</div>';
   }
   function legsEdit(day, x){
     var legs = x.legs || [];
     return '<details class="itx itx-legs"' + (legs.length ? ' open' : '') + '><summary>🚆 轉乘路段（每段填起訖、時間、車資）</summary>' +
-      '<div class="dhead"><span class="muted" style="font-size:12px">車資填每人金額，有填就會自動加總成預估車資</span>' +
+      '<div class="dhead"><span class="muted" style="font-size:12px">車資填每人金額，有填就會自動加總成預估車資；某一段要用現金／購票，可在該段選付款方式</span>' +
       '<button class="mini" type="button" data-do="addleg" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增路段</button></div>' +
       legs.map(function(lg){
         var ta = ' data-p="' + day.id + '" data-i="' + x.id + '" data-lg="' + lg.id + '"';
@@ -2242,15 +2257,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input' + ta + ' data-k="ldep" aria-label="出發時間" placeholder="出發 14:20" autocomplete="off" value="' + esc(lg.dep || '') + '">' +
           '<input' + ta + ' data-k="larr" aria-label="抵達時間" placeholder="抵達 14:35" autocomplete="off" value="' + esc(lg.arr || '') + '">' +
           '<input' + ta + ' data-k="lfare" inputmode="decimal" aria-label="車資（每人）" placeholder="車資" autocomplete="off" value="' + esc(lg.fare || '') + '">' +
+          '<select' + ta + ' data-k="lpay" aria-label="這一段的付款方式"><option value="">付款：同上方設定（交通卡）</option><option value="' + TC_CASH + '"' + (lg.pay === TC_CASH ? ' selected' : '') + '>付款：現金／購票（不用交通卡）</option></select>' +
           '</div>';
       }).join('') + '</details>';
   }
   // ---- 座位資訊：車次、車廂、座位 ----
   function seatView(x){
-    var p = [];
+    var p = [], free = x.seatType === '自由席';
     if(String(x.trainNo || '').trim()) p.push(esc(x.trainNo));
-    if(String(x.carNo || '').trim()) p.push('車廂 ' + esc(x.carNo));
-    if(String(x.seatNo || '').trim()) p.push('座位 ' + esc(x.seatNo));
+    if(x.seatType) p.push(esc(x.seatType));
+    if(!free && String(x.carNo || '').trim()) p.push('車廂 ' + esc(x.carNo));
+    if(!free && String(x.seatNo || '').trim()) p.push('座位 ' + esc(x.seatNo));
     return p.length ? '<div class="iseat">🪑 ' + p.join('・') + '</div>' : '';
   }
   function fareSummary(t){
@@ -2276,18 +2293,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function fareTag(t, x){
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null, isCash = x.lkTc === TC_CASH && !noCard(x.transport);
     if(!fareHas(x) && !c && !isCash) return '';
-    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) + (paxOf(x) > 1 ? '（' + money(amt(x.fare)) + ' × ' + paxOf(x) + ' 人）' : '') : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (isCash ? (fareHas(x) ? '・' : '') + '💴 現金／購票' : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
+    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) + (paxOf(x) > 1 ? '（' + money(amt(x.fare)) + ' × ' + paxOf(x) + ' 人）' : '') : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (isCash ? (fareHas(x) ? '・' : '') + '💴 現金／購票' : '') + (legCashOf(x) > 0 && !isCash ? (fareHas(x) || c ? '・' : '') + '💴 其中現金 ' + money(legCashOf(x)) : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
   }
   function fareRow(a, x){
     var t = cur(), cards = t.tcards || [], nch = noCard(x.transport) ? ' hidden' : '', on = !noCard(x.transport) && (!!String(x.transport || '').trim() || !!x.lkTc || fareHas(x));
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null;
     return '<div class="ifare"' + (on ? '' : ' hidden') + '><div class="ie3">' +
       (cards.length ? '<select class="fare-card"' + nch + a + ' data-k="lkTc" aria-label="使用的交通卡"><option value="">使用的交通卡</option><option value="' + TC_CASH + '"' + (x.lkTc === TC_CASH ? ' selected' : '') + '>現金／購票（不用交通卡）</option>' + cards.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x.lkTc) ? ' selected' : '') + '>' + esc(lkText('lkTc', y)) + '</option>'; }).join('') + '</select>' : '') +
-      '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div>' +
-      '<div class="fare-in"><input' + a + ' data-k="pax" inputmode="numeric" autocomplete="off" aria-label="人數" placeholder="人數（預設 1）" value="' + esc(x.pax == null ? '' : x.pax) + '"></div></div>' +
-      (cards.length ? '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
+      '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div></div>' +
+      (cards.length ? '<div class="ie3 fare-card fare-done' + (x.lkTc === TC_CASH ? ' cashhide' : '') + '"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
       '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="passOk"' + (x.passOk ? ' checked' : '') + '><span>周遊券可搭（比較周遊券時算進去）</span></label></div>' +
-      '<div class="ie3 fare-card"' + nch + '><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
+      '<div class="ie3 fare-card"' + nch + '><select' + a + ' data-k="seatType" aria-label="座席類型"><option value="">座席類型</option><option value="指定席"' + (x.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (x.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
       (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
   }
@@ -3020,7 +3036,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ihw">' + hoursWarnHtml(day, x) + '</div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
-      '<div class="ie3 itx-remind"' + ((x.status === '未預訂' || String(x.remind || '').trim()) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前幾天提醒訂位（選填，例如 14）" value="' + esc(x.remind || '') + '"></div>' +
+      '<div class="ie3 itx-remind"' + ((x.status === '未預訂' || String(x.remind || '').trim()) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
@@ -4070,6 +4086,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           lit.fare = String(legSum(lit));
           var lhost = el.closest('.icard') || document, lfi = lhost.querySelector('input[data-k="fare"]');
           if(lfi){ lfi.value = lit.fare; lfi.dispatchEvent(new Event('change', { bubbles:true })); }
+        } else if(ds.k === 'lpay'){      // 換付款方式：重算要儲值的金額與卡片餘額
+          var lh2 = el.closest('.icard') || document, lf2 = lh2.querySelector('input[data-k="fare"]');
+          if(lf2) lf2.dispatchEvent(new Event('change', { bubbles:true }));
         }
       }
     } else if(ds.ts){
@@ -4104,6 +4123,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
           it2.fareDone = false; fareBalSync(t, it2); it2.lkTc = ''; it2.fareAct = ''; autoFare = true;
           var nic = el.closest('.icard'), nsl = nic && nic.querySelector('select[data-k="lkTc"]'), nck = nic && nic.querySelector('input[data-k="fareDone"]'), nac = nic && nic.querySelector('input[data-k="fareAct"]');
           if(nsl) nsl.value = ''; if(nck) nck.checked = false; if(nac) nac.value = '';
+        }
+        if(ds.k === 'lkTc'){      // 選「現金／購票」：不用卡，所以不需要「已搭乘（扣餘額）」與實際車資
+          var cic = el.closest('.icard'), cdr = cic && cic.querySelector('.fare-done'), isC = it2.lkTc === TC_CASH;
+          if(cdr) cdr.classList.toggle('cashhide', isC);
+          if(isC && (it2.fareDone || String(it2.fareAct || '').trim() || amt(it2.fareApplied) > 0)){
+            it2.fareDone = false; it2.fareAct = ''; autoFare = true;
+            var cck = cic && cic.querySelector('input[data-k="fareDone"]'), cac = cic && cic.querySelector('input[data-k="fareAct"]');
+            if(cck) cck.checked = false; if(cac) cac.value = '';
+          }
         }
         if((ds.k === 'route' || ds.k === 'transport' || ds.k === 'lkTc') && !fareHas(it2)){
           var lf = lastFare(t, it2), lfi = el.closest('.icard') && el.closest('.icard').querySelector('[data-k="fare"]');
@@ -4311,6 +4339,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('detail').addEventListener('input', function(e){
     if(e.target.tagName === 'TEXTAREA') autosize(e.target);
     if(e.target.matches && e.target.matches(AMT_SEL)) amtWarnUpdate(e.target);
+    if(e.target.dataset && e.target.dataset.k === 'seatType'){
+      [].forEach.call(e.target.parentNode.querySelectorAll('[data-k="carNo"],[data-k="seatNo"]'), function(n){ n.hidden = e.target.value === '自由席'; });
+    }
     if(e.target.dataset && e.target.dataset.k === 'transport' && e.target.dataset.i){
       var rIn = e.target.parentNode.querySelector('input[data-k="route"]');
       if(rIn) rIn.placeholder = routeHint(e.target.value);
