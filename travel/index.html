@@ -2065,14 +2065,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function noCard(m){ return /步行|走路|租車|自駕|開車|包車|計程車|Uber|taxi|飛機|航班/i.test(String(m || '')); }
   function routeHint(m){
     m = String(m || '');
-    if(/步行|走路/.test(m)) return '步行幾分鐘（例如：15 分鐘）';
-    if(/地鐵|捷運|地下鐵/.test(m)) return '幾號線、哪站到哪站（例如：2 號線 A站→B站）';
-    if(/JR|電車|火車|新幹線|高鐵/.test(m)) return '搭乘路線與區間（例如：函館本線 札幌→小樽）';
-    if(/巴士|公車/.test(m)) return '路線號碼與上下車站（例如：88 號 A站→B站）';
-    if(/計程車|包車|租車|Uber/i.test(m)) return '上車地點→目的地、預估時間';
-    if(/飛機|航班/.test(m)) return '航班與航段（例如：JX318 台北→札幌）';
-    if(/渡輪|船/.test(m)) return '航線與搭乘時間';
-    return '路線（搭乘線路、起訖站、或步行幾分鐘）';
+    if(/步行|走路/.test(m)) return '路線備註（選填，例如：沿河邊步道）';
+    if(/地鐵|捷運|地下鐵/.test(m)) return '地鐵線（例如：東西線、2 號線）';
+    if(/JR|電車|火車|新幹線|高鐵|列車/.test(m)) return '列車車次／名稱（例如：特急北斗 5 號）';
+    if(/巴士|公車/.test(m)) return '公車路線號碼（例如：88 號）';
+    if(/計程車|包車|租車|Uber/i.test(m)) return '備註（選填，例如：車行、集合地點）';
+    if(/飛機|航班/.test(m)) return '航班（例如：JX318）';
+    if(/渡輪|船/.test(m)) return '航線（選填）';
+    return '線路／車次（選填）';
   }
   // ---- 預估交通費：行程選了交通工具後，可填預估車資、指定用哪張交通卡；加總後算出各卡大概還要儲值多少 ----
   function paxOf(x){ var n = amt(x.pax); return n >= 1 ? Math.round(n) : 1; }
@@ -2237,8 +2237,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 沒有轉乘的單段行程：直接填起站／到站（有轉乘路段時改由各段自己的起訖顯示）
   function stView(x){
     if((x.legs || []).length) return '';
-    var f = String(x.stFrom || '').trim(), g = String(x.stTo || '').trim();
-    return (f || g) ? '　<span class="ist">' + esc(f) + ' → ' + esc(g) + '</span>' : '';
+    var f = String(x.stFrom || '').trim(), g = String(x.stTo || '').trim(), d = String(x.dur || '').trim();
+    if(/^\d+$/.test(d)) d = '約 ' + d + ' 分鐘';
+    return (f || g || d) ? '　<span class="ist">' + ((f || g) ? esc(f) + ' → ' + esc(g) : '') + (d ? ((f || g) ? '・' : '') + esc(d) : '') + '</span>' : '';
   }
   function legSum(x){ var n = 0; (x.legs || []).forEach(function(l){ n += amt(l.fare); }); return n; }
   function tmin(v){ var m = /^\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*$/.exec(String(v || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; }
@@ -3070,7 +3071,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
-      '<div class="ie3 itx-st"' + ((String(x.transport || '').trim() && !(x.legs || []).length) ? '' : ' hidden') + '><input' + a + ' data-k="stFrom" autocomplete="off" aria-label="起站" placeholder="從哪裡搭（起站／起點）" value="' + esc(x.stFrom || '') + '"><input' + a + ' data-k="stTo" autocomplete="off" aria-label="到站" placeholder="搭到哪裡（到站／終點）" value="' + esc(x.stTo || '') + '"></div>' +
+      '<div class="ie3 itx-st"' + ((String(x.transport || '').trim() && !(x.legs || []).length) ? '' : ' hidden') + '><input' + a + ' data-k="stFrom" autocomplete="off" aria-label="起站" placeholder="從哪裡搭（起站／起點）" value="' + esc(x.stFrom || '') + '"><input' + a + ' data-k="stTo" autocomplete="off" aria-label="到站" placeholder="搭到哪裡（到站／終點）" value="' + esc(x.stTo || '') + '"><input' + a + ' data-k="dur" inputmode="text" autocomplete="off" aria-label="預估交通時間" placeholder="預估交通時間（例如：40 分鐘）" value="' + esc(x.dur || '') + '"></div>' +
       fareRow(a, x) +
       legsEdit(day, x) +
       '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea>' +
