@@ -2228,6 +2228,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 只有鐵路類（JR、列車、特急、新幹線、高鐵、台鐵…）才會有座席；地鐵、公車、步行、計程車等不用
   function seatOk(tr){ return /JR|列車|火車|新幹線|特急|高鐵|台鐵|臺鐵|鐵路|train|rail/i.test(String(tr || '')); }
+  function fmtMin(m){ m = Math.round(m); return m < 60 ? m + ' 分' : Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : ''); }
+  // 由各段出發／抵達時間算出每段車程、轉乘等待與全程時間（跨午夜自動算成隔天）
+  function legTimes(l){
+    var rides = [], prev = null, first = null, last = null, rideSum = 0, waitSum = 0;
+    l.forEach(function(y, i){
+      var d = tmin(normTime(y.dep)), a = tmin(normTime(y.arr)), dA = null, aA = null;
+      if(d != null){ dA = d; if(prev != null) while(prev - dA > 720) dA += 1440; }
+      if(a != null){ var ref = dA != null ? dA : prev; aA = a; if(ref != null) while(ref - aA > 720) aA += 1440; }
+      if(dA != null && prev != null && dA >= prev) waitSum += dA - prev;
+      if(dA != null && aA != null && aA > dA){ rides[i] = aA - dA; rideSum += aA - dA; }
+      if(first == null && dA != null) first = dA;
+      if(aA != null){ last = aA; prev = aA; }
+    });
+    return { rides:rides, total:(first != null && last != null && last > first) ? last - first : 0, rideSum:rideSum, waitSum:waitSum };
+  }
   function legSeatHtml(y){
     var p = [];
     if(y.seatType) p.push(esc(y.seatType));
@@ -2252,7 +2267,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(f && chain[chain.length - 1] !== f) chain.push(f);
       if(tt) chain.push(tt);
     });
-    var cu = esc(fareCur(t, x)), sum = legSum(x), html = '';
+    var cu = esc(fareCur(t, x)), sum = legSum(x), html = '', lt = legTimes(l);
     l.forEach(function(y, i){
       if(i > 0){
         var a = tmin(normTime(l[i - 1].arr)), b = tmin(normTime(y.dep));
@@ -2262,10 +2277,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
         }
       }
       html += '<div class="tlr"><span class="tln">' + (i + 1) + '</span><div class="tlb">' + (String(y.train || '').trim() ? '<b>' + esc(y.train) + '</b>　' : '') +
-        esc(y.from || '') + (y.dep ? ' ' + esc(normTime(y.dep)) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(normTime(y.arr)) : '') + legSeatHtml(y) + '</div>' +
+        esc(y.from || '') + (y.dep ? ' ' + esc(normTime(y.dep)) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(normTime(y.arr)) : '') + (lt.rides[i] ? '（' + fmtMin(lt.rides[i]) + '）' : '') + legSeatHtml(y) + '</div>' +
         (amt(y.fare) > 0 ? '<span class="tlf">' + (y.pay === TC_CASH ? '💴 現金 ' : '') + cu + ' ' + money(amt(y.fare)) + '</span>' : '') + '</div>';
     });
     return '<div class="tlegs"><div class="tlh">🚆 轉乘 ' + (chain.length ? esc(chain.join(' → ')) : '') + '</div>' + html +
+      (lt.total > 0 ? '<div class="tlt">⏱ 全程約 ' + fmtMin(lt.total) + ((lt.rideSum > 0 && lt.waitSum > 0) ? '（乘車 ' + fmtMin(lt.rideSum) + '、轉乘等待 ' + fmtMin(lt.waitSum) + '）' : '') + '</div>' : '') +
       (sum > 0 ? '<div class="tlt">車資合計 約 ' + cu + ' ' + money(sum) + '（每人）' + (legCashPer(x) > 0 ? '・其中現金 ' + cu + ' ' + money(legCashPer(x)) : '') + '</div>' : '') + '</div>';
   }
   function legsEdit(day, x){
