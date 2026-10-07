@@ -2195,7 +2195,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(/^\d+(\.\d+)?$/.test(rs)) n = Math.floor(+rs);                                  // 純數字＝幾天前
     else if((m = rs.match(/(\d+|十二|十一|[一二兩三四五六七八九十])\s*個?\s*月/))) mo = cn[m[1]] || +m[1];   // 「一個月前」「2個月」
     else if((m = rs.match(/(\d+)\s*[天日]/))) n = +m[1];                                  // 「14天前」
-    if(x.status !== '未預訂' || !(n > 0 || mo > 0) || !day || !day.date) return null;
+    if(x.status !== '未預訂' || !seatOk(x.transport) || !(n > 0 || mo > 0) || !day || !day.date) return null;
     var dep = toDate(day.date); if(!dep) return null;
     var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if(dep < now) return null;
@@ -3082,7 +3082,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ihw">' + hoursWarnHtml(day, x) + '</div>' +
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
-      '<div class="ie3 itx-remind"' + ((x.status === '未預訂' || String(x.remind || '').trim()) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
+      '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
@@ -4192,7 +4192,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
           if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
-        if(ds.k === 'status'){ var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !(it2.status === '未預訂' || String(it2.remind || '').trim()); }
+        if(ds.k === 'status'){ var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && seatOk(it2.transport)); }
         if(ds.k === 'passOk'){ var pcb = $('passcmp'); if(pcb) pcb.innerHTML = passCmpInner(t); }
         if(ds.k === 'hmode') hmApply(el.closest('.icard'), it2);
         if(ds.k === 'hmode' || ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'open2' || ds.k === 'close2' || ds.k === 'time' || ds.k === 'end'){
@@ -4396,6 +4396,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(e.target.dataset && e.target.dataset.k === 'transport' && e.target.dataset.i){
       var stIc = e.target.closest('.icard') || e.target.closest('.mbox') || document, stBox = stIc.querySelector('.itx-st');
       var sOk = seatOk(e.target.value), sRow = stIc.querySelector('.itx-seat');
+      var rmBox = stIc.querySelector('.itx-remind'), stSel = stIc.querySelector('[data-k="status"]'), rmInp = stIc.querySelector('[data-k="remind"]');
+      if(rmBox) rmBox.hidden = !(sOk && ((stSel && stSel.value === '未預訂') || (rmInp && String(rmInp.value).trim())));
       if(sRow) sRow.classList.toggle('seathide', !sOk || !!stIc.querySelector('.legr'));
       [].forEach.call(stIc.querySelectorAll('.legr'), function(lr){
         var ls = lr.querySelector('[data-k="lseatType"]'); if(ls) ls.hidden = !sOk;
