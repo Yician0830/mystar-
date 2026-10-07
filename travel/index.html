@@ -643,7 +643,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:1200px){
     .cols{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}
     .col.c3{grid-column:auto;}
-    .col.stk{position:sticky; top:calc(env(safe-area-inset-top,0px) + 76px); align-self:start; max-height:calc(100vh - 96px); overflow-y:auto; scrollbar-width:thin;}
+  }
+  /* 左欄、花費欄下滑時固定：只給有滑鼠的電腦（平板、手機維持原本一欄一欄往下排）。欄位比視窗高時在欄內捲動，捲軸平常隱形、滑鼠移上去才淡淡出現 */
+  @media (min-width:1200px) and (pointer:fine){
+    .col.stk{position:sticky; top:calc(env(safe-area-inset-top,0px) + 76px); align-self:start; max-height:calc(100vh - 96px); overflow-y:auto;}
+    .col.stk::-webkit-scrollbar{width:6px;}
+    .col.stk::-webkit-scrollbar-track{background:transparent;}
+    .col.stk::-webkit-scrollbar-thumb{background:transparent; border-radius:99px;}
+    .col.stk:hover::-webkit-scrollbar-thumb{background:var(--line-strong);}
+    @supports (-moz-appearance:none){ .col.stk{scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent;} }
     @media (max-height:760px){ .col.stk{position:static; max-height:none; overflow:visible;} }
   }
   /* 搜尋與篩選列 */
