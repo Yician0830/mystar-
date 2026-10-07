@@ -840,6 +840,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .midtabs{margin:0 0 14px; gap:8px;}
   .midtabs .mini{padding:7px 18px; font-size:14px;}
   .mgrow{flex-wrap:wrap;}
+  .mgact .mglk{width:3.6em; padding:2px 4px; font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong);}
+  .mgdone>summary,.mgaddd>summary{list-style:none; cursor:pointer; padding:8px 2px; font-size:14px; font-weight:900; color:var(--ink-dim);}
+  .mgdone>summary::-webkit-details-marker,.mgaddd>summary::-webkit-details-marker{display:none;}
+  .mgdone>summary::after{content:' ▸'; color:var(--ink-faint);} .mgdone[open]>summary::after{content:' ▾';}
+  .mgaddd>summary{margin-top:8px; color:var(--accent);}
+  .mgdone>summary:focus-visible,.mgaddd>summary:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .mgtag2{font-style:normal; font-size:11px; font-weight:700; color:var(--accent); border:1px solid var(--accent); padding:0 4px;}
+  .mgtgs{display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px;}
+  .mgtgs .ck{margin:0;}
+  .recgrid{display:flex; flex-wrap:wrap; gap:8px;}
+  .recchip{padding:4px 12px; font-size:13px; font-weight:700; letter-spacing:0; color:var(--accent); background:transparent; border:1px solid var(--accent); border-radius:99px;}
+  .recchip.on,.recchip.on:hover{color:var(--ink-faint); background:transparent; border-color:var(--line-strong); cursor:default;}
   .mgl{flex:0 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:0 0 6px 30px;}
   .mgl .mglc{display:inline-flex; align-items:center; gap:2px; max-width:100%;}
   .mgl .mglc .del{padding:0 6px; font-size:16px;}
@@ -3212,8 +3224,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     { name:'北海道・札幌', keys:['札幌','北海道','小樽','函館','旭川','sapporo','hokkaido'], items:[
       { n:'白色戀人', note:'石屋製菓的夾心餅乾，機場與札幌都買得到' },
       { n:'六花亭 奶油葡萄夾心餅乾', note:'北海道代表性伴手禮，保存期限短' },
-      { n:'北菓樓 夕張哈密瓜泡芙', note:'冷藏點心，要帶回台灣得確認保存' },
-      { n:'Royce\' 生巧克力', note:'要冷藏，天氣暖時留意保冷' },
+      { n:'北菓樓 夕張哈密瓜泡芙', note:'冷藏點心，要帶回台灣得確認保存', tags:['需冷藏'] },
+      { n:'Royce\' 生巧克力', note:'要冷藏，天氣暖時留意保冷', tags:['需冷藏'] },
       { n:'Calbee+ 薯條三兄弟', note:'熱門限量品，常有購買數量限制' },
       { n:'LeTao 夾心餅乾', note:'小樽發跡的甜點店，機場也買得到' },
       { n:'柳月 三方六年輪蛋糕', note:'' },
@@ -3222,7 +3234,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     { name:'關西・大阪・京都', keys:['大阪','京都','神戶','奈良','關西','osaka','kyoto','kansai'], items:[
       { n:'蓬萊551 豚饅', note:'大阪名物肉包，當天吃最好' },
       { n:'呼吸巧克力', note:'關西機場常見的推薦伴手禮' },
-      { n:'Pablo 起司塔', note:'' },
+      { n:'Pablo 起司塔', note:'', tags:['需冷藏'] },
       { n:'生八橋', note:'京都經典和菓子' },
       { n:'阿闍梨餅', note:'京都和菓子，保存期限短' },
       { n:'伊藤久右衛門 抹茶甜點', note:'宇治抹茶系列' },
@@ -3247,16 +3259,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var all = REC_SETS.map(function(s, i){ return { s:s, i:i, hit:s.keys.some(function(k){ return h0.indexOf(k) >= 0; }) }; });
     var hit = all.filter(function(o){ return o.hit; }), rest = all.filter(function(o){ return !o.hit; });
     var box = function(o){
-      return '<div class="rech">' + esc(o.s.name) + '</div>' + o.s.items.map(function(it, j){
+      return '<div class="rech">' + esc(o.s.name) + '</div><div class="recgrid">' + o.s.items.map(function(it, j){
         var on = have[it.n.toLowerCase()];
-        return '<div class="recrow"><div class="recmain"><b>' + esc(it.n) + '</b>' + (it.note ? '<span class="recn">' + esc(it.note) + '</span>' : '') + '</div>' +
-          (on ? '<span class="dcl">✓ 已在清單</span>' : '<button class="mini" type="button" data-do="recadd" data-rs="' + o.i + '" data-ri="' + j + '">＋ 加入清單</button>') + '</div>';
-      }).join('');
+        return '<button class="recchip' + (on ? ' on' : '') + '" type="button"' + (on ? ' aria-disabled="true"' : ' data-do="recadd" data-rs="' + o.i + '" data-ri="' + j + '"') + (it.note ? ' title="' + esc(it.note) + '"' : '') + '>' + (on ? '✓ ' : '＋ ') + esc(it.n) + '</button>';
+      }).join('') + '</div>';
     };
     return '<section class="sec" id="recsec"><div class="sh"><h3>推薦必買</h3></div>' +
       (hit.length ? hit.map(box).join('') : '<p class="vempty">這趟旅程的地點還沒有對應的推薦，可以看下面其他地區。</p>') +
       (rest.length ? '<details class="recmore" id="recmore"' + (recMoreOpen ? ' open' : '') + '><summary>其他地區推薦</summary>' + rest.map(box).join('') + '</details>' : '') +
-      '<p class="hint">推薦是依常見熱門伴手禮整理的，不是即時網路資料，品項與店家請出發前再確認。</p></section>';
+      '<p class="hint">點一下就加入購物清單，滑鼠停在品項上可看說明。推薦是依常見熱門伴手禮整理的，不是即時網路資料，品項與店家請出發前再確認。</p></section>';
   }
   // 中間欄：每日行程／購物・必買 分頁（分享給朋友的唯讀頁面沒有購物分頁）
   var midTab = 'plan';
@@ -3274,22 +3285,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return out;
   }
   function stopLabel(s){ return 'Day ' + (s.di + 1) + (s.it.time ? ' ' + tm12(s.it.time) : '') + ' ' + s.it.title; }
-  function mgLinks(t, x, stops){
-    if(!stops.length) return '';
-    var ids = (x.lkIts || []).map(String), chips = '', used = {}, opts = '', cd = -1;
+  // 品項右邊的小選單：「📍＋」一點就列出所有行程，選一個就連結（沒有可選的行程就不顯示）
+  function mgPick(t, x, stops){
+    var ids = (x.lkIts || []).map(String), opts = '', cd = -1;
     stops.forEach(function(s){
-      if(ids.indexOf(String(s.it.id)) < 0) return;
-      used[String(s.it.id)] = 1;
-      chips += '<span class="mglc"><button class="lk" type="button" data-do="goto" data-day="' + s.day.id + '" data-to="lk-it-' + s.it.id + '" title="跳到這個行程">📍 ' + esc(stopLabel(s)) + '</button>' +
-        '<button class="del" type="button" data-do="mglkdel" data-id="' + x.id + '" data-it="' + s.it.id + '" aria-label="移除連結" title="移除連結">×</button></span>';
-    });
-    stops.forEach(function(s){
-      if(used[String(s.it.id)]) return;
+      if(ids.indexOf(String(s.it.id)) >= 0) return;
       if(s.di !== cd){ if(cd !== -1) opts += '</optgroup>'; opts += '<optgroup label="Day ' + (s.di + 1) + (s.day.date ? '　' + esc(d(s.day.date)) : '') + '">'; cd = s.di; }
       opts += '<option value="' + s.it.id + '">' + esc(stopLabel(s)) + '</option>';
     });
     if(cd !== -1) opts += '</optgroup>';
-    return '<div class="mgl">' + chips + (opts ? '<select class="mglk" data-mg="' + x.id + '" data-k="lkIt" aria-label="這個品項在哪個行程買"><option value="">＋ 連結行程（在哪裡買）</option>' + opts + '</select>' : '') + '</div>';
+    return opts ? '<select class="mglk" data-mg="' + x.id + '" data-k="lkIt" aria-label="連結行程（在哪裡買）" title="連結行程：這個品項在哪裡買">' +
+      '<option value="">📍＋</option>' + opts + '</select>' : '';
+  }
+  // 已連結的行程：只有連結過才多一行小標籤
+  function mgChips(t, x, stops){
+    var ids = (x.lkIts || []).map(String), chips = '';
+    stops.forEach(function(s){
+      if(ids.indexOf(String(s.it.id)) < 0) return;
+      chips += '<span class="mglc"><button class="lk" type="button" data-do="goto" data-day="' + s.day.id + '" data-to="lk-it-' + s.it.id + '" title="跳到這個行程">📍 ' + esc(stopLabel(s)) + '</button>' +
+        '<button class="del" type="button" data-do="mglkdel" data-id="' + x.id + '" data-it="' + s.it.id + '" aria-label="移除連結" title="移除連結">×</button></span>';
+    });
+    return chips ? '<div class="mgl">' + chips + '</div>' : '';
   }
   // 行程卡片上的提醒：這個行程連結了哪些還沒買的品項（買好的會變淡）
   function buyHint(t, x){
@@ -3301,26 +3317,46 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<button class="bhc' + (m.bought ? ' done' : '') + '" type="button" data-do="gomg" data-id="' + m.id + '" title="到購物清單查看">' + (m.bought ? '✓ ' : '') + esc(m.name || '') + '</button>';
     }).join('') + '</div>';
   }
+  // 打包標記：需冷藏、易碎、液體。已買的品項帶有標記時，回程當天與前一天在頁面頂端提醒
+  var MG_TAGS = ['需冷藏','易碎','液體'];
+  function mgTagPick(x){
+    var has = x.tags || [];
+    return '<select class="mglk mgtg" data-mg="' + x.id + '" data-k="tag" aria-label="標記：需冷藏、易碎、液體" title="標記：需冷藏、易碎、液體（再選一次就取消）"><option value="">🏷＋</option>' +
+      MG_TAGS.map(function(g){ return '<option value="' + g + '">' + (has.indexOf(g) >= 0 ? '✓ ' : '') + g + '</option>'; }).join('') + '</select>';
+  }
+  function packAlertHtml(t){
+    if(viewOnly) return '';
+    var n = tcDays(t.end); if(n === null || n < 0 || n > 1) return '';
+    var by = {};
+    (t.merch || []).forEach(function(x){ if(!x.bought) return; (x.tags || []).forEach(function(g){ (by[g] = by[g] || []).push(x.name || ''); }); });
+    var tips = { '需冷藏':'用保冷袋，或先放飯店冰箱、出發前再取出', '易碎':'包好放手提，避免托運擠壓', '液體':'超過手提限制的要放托運' };
+    var parts = MG_TAGS.filter(function(g){ return by[g]; }).map(function(g){ return '<b>' + g + '</b> ' + by[g].map(esc).join('、') + '<span class="muted">（' + tips[g] + '）</span>'; });
+    return parts.length ? '<div class="budalert" role="status">🧳 回程打包提醒　' + parts.join('　') + '</div>' : '';
+  }
+  var mgAddOpen = false, mgDoneOpen = false;      // 新增表單、已買品項：展開狀態（重畫頁面時維持原狀）
+  function merchRow(t, x, stops){
+    var tot = mgTotal(x), ex = x.expId && byId(t.expenses, x.expId);
+    var price = tot ? '<span class="mgp">' + esc(x.cur || 'TWD') + ' ' + money(tot) + (amt(x.qty) > 1 ? '（' + money(amt(x.price)) + ' × ' + money(amt(x.qty)) + '）' : '') + '</span>' : '';
+    return '<div class="mgrow" id="lk-mg-' + x.id + '"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') + (x.tags || []).map(function(g){ return ' <em class="mgtag2">' + esc(g) + '</em>'; }).join('') + (String(x.where || '').trim() ? ' <em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + ' ' + price + '</span></label>' +
+      '<span class="mgact">' + mgTagPick(x) + mgPick(t, x, stops) + (ex ? '<small class="dueok">已記入花費</small>' : (x.bought && tot ? '<button class="mini" type="button" data-do="merchexp" data-id="' + x.id + '">記入花費</button>' : '')) +
+      '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span>' + mgChips(t, x, stops) + '</div>';
+  }
   function merchView(t){
     if(viewOnly) return '';
-    var m = t.merch || [], bn = m.filter(function(x){ return x.bought; }).length, left = mgSum(t, false), got = mgSum(t, true);
-    var stops = allStops(t);
-    var rows = m.slice().sort(function(a, b){ return (a.bought ? 1 : 0) - (b.bought ? 1 : 0); }).map(function(x){
-      var tot = mgTotal(x), ex = x.expId && byId(t.expenses, x.expId);
-      var price = tot ? '<span class="mgp">' + esc(x.cur || 'TWD') + ' ' + money(tot) + (amt(x.qty) > 1 ? '（' + money(amt(x.price)) + ' × ' + money(amt(x.qty)) + '）' : '') + '</span>' : '';
-      return '<div class="mgrow" id="lk-mg-' + x.id + '"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') + (String(x.where || '').trim() ? ' <em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + ' ' + price + '</span></label>' +
-        '<span class="mgact">' + (ex ? '<small class="dueok">已記入花費</small>' : (x.bought && tot ? '<button class="mini" type="button" data-do="merchexp" data-id="' + x.id + '">記入花費</button>' : '')) +
-        '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span>' + mgLinks(t, x, stops) + '</div>';
-    }).join('');
+    var m = t.merch || [], bn = m.filter(function(x){ return x.bought; }).length, left = mgSum(t, false), got = mgSum(t, true), stops = allStops(t);
+    var todo = m.filter(function(x){ return !x.bought; }), done = m.filter(function(x){ return x.bought; });
+    var row = function(x){ return merchRow(t, x, stops); };
     return '<section class="sec" id="merchsec"><div class="sh"><h3>購物清單' + (m.length ? '<small>' + bn + '／' + m.length + '</small>' : '') + '</h3></div>' +
-      (rows || '<p class="vempty">想買的東西先記在這裡，買到就勾起來，還沒買的一目了然。也可以從下面的推薦必買一鍵加入。</p>') +
+      (todo.length ? todo.map(row).join('') : (m.length ? '<p class="vempty">全部都買齊了 🎉</p>' : '<p class="vempty">想買的東西先記在這裡，買到就勾起來，還沒買的一目了然。也可以從下面的推薦必買一鍵加入。</p>')) +
+      (done.length ? '<details class="mgdone" id="mgdone"' + (mgDoneOpen ? ' open' : '') + '><summary>已買（' + done.length + '）</summary>' + done.map(row).join('') + '</details>' : '') +
       ((left || got) ? '<div class="dcl mgsum">' + (left ? '還沒買預估 <b>' + left + '</b>' : '') + (left && got ? '　' : '') + (got ? '已買 <b>' + got + '</b>' : '') + '</div>' : '') +
-      '<div class="mgadd"><input id="mgname" type="text" autocomplete="off" placeholder="品項名稱" aria-label="購物品項">' +
+      '<details class="mgaddd" id="mgaddd"' + (mgAddOpen ? ' open' : '') + '><summary>＋ 新增品項</summary><div class="mgadd"><input id="mgname" type="text" autocomplete="off" placeholder="品項名稱" aria-label="購物品項">' +
       '<input id="mgwhere" type="text" autocomplete="off" placeholder="想去哪買（選填，例如：機場、藥妝店）" aria-label="想去哪買">' +
       '<div class="mgadd2"><input id="mgprice" type="text" inputmode="decimal" autocomplete="off" placeholder="單價（選填）" aria-label="單價"><select id="mgcur" aria-label="幣別">' +
         CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === tripCur(t) ? ' selected' : '') + '>' + c[0] + '</option>'; }).join('') + '</select>' +
       '<input id="mgqty" type="text" inputmode="numeric" autocomplete="off" placeholder="數量" aria-label="數量"></div>' +
-      '<div class="mgadd3"><label class="ck"><input id="mglim" type="checkbox"><span>限量</span></label><button class="mini" type="button" data-do="merchadd">＋ 新增</button></div></div></section>';
+      '<div class="mgadd3"><div class="mgtgs"><label class="ck"><input id="mglim" type="checkbox"><span>限量</span></label>' +
+        MG_TAGS.map(function(g){ return '<label class="ck"><input class="mgtgi" type="checkbox" value="' + g + '"><span>' + g + '</span></label>'; }).join('') + '</div><button class="mini" type="button" data-do="merchadd">＋ 新增</button></div></div></details></section>';
   }
   function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
   var spOpen = {}, spOnly = false, spType = '', spDoneOpen = false;      // 打卡點：哪幾張展開、是否只看未打卡
@@ -3396,7 +3432,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -3843,6 +3879,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.mg){
       var mgx = byId(t.merch, ds.mg);
       if(mgx && ds.k === 'bought'){ mgx.bought = el.checked; var mgs = $('merchsec'); if(mgs) mgs.outerHTML = merchView(t); }
+      else if(mgx && ds.k === 'tag'){
+        if(!el.value) return;
+        var mtg = (mgx.tags || []).slice(), mti = mtg.indexOf(el.value);
+        if(mti >= 0) mtg.splice(mti, 1); else mtg.push(el.value);
+        mgx.tags = mtg;
+        var mgs5 = $('merchsec'); if(mgs5) mgs5.outerHTML = merchView(t);
+      }
       else if(mgx && ds.k === 'lkIt'){
         if(!el.value) return;
         var mla = (mgx.lkIts || []).slice(); if(mla.indexOf(el.value) < 0) mla.push(el.value); mgx.lkIts = mla;
@@ -4053,7 +4096,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'merchadd'){
       var mn = $('mgname'), mv = mn ? mn.value.trim() : '';
       if(!mv){ if(mn) mn.focus(); return; }
-      t.merch.push({ id:uid(), name:mv, price:($('mgprice') || {}).value || '', cur:($('mgcur') || {}).value || 'TWD', qty:($('mgqty') || {}).value || '', limited:!!($('mglim') && $('mglim').checked), bought:false, where:(($('mgwhere') || {}).value || '').trim() });
+      t.merch.push({ id:uid(), name:mv, price:($('mgprice') || {}).value || '', cur:($('mgcur') || {}).value || 'TWD', qty:($('mgqty') || {}).value || '', limited:!!($('mglim') && $('mglim').checked), bought:false, where:(($('mgwhere') || {}).value || '').trim(), tags:[].filter.call(document.querySelectorAll('.mgtgi'), function(c){ return c.checked; }).map(function(c){ return c.value; }) });
       renderDetail(); doPersist();
       var mn2 = $('mgname'); if(mn2) mn2.focus();
       return;
@@ -4061,7 +4104,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'recadd'){
       var rset = REC_SETS[+b.dataset.rs], rit = rset && rset.items[+b.dataset.ri]; if(!rit) return;
       if(t.merch.some(function(x){ return String(x.name || '').trim().toLowerCase() === rit.n.toLowerCase(); })) return;
-      t.merch.push({ id:uid(), name:rit.n, price:'', cur:tripCur(t), qty:'', limited:false, bought:false, where:'' });
+      t.merch.push({ id:uid(), name:rit.n, price:'', cur:tripCur(t), qty:'', limited:false, bought:false, where:'', tags:(rit.tags || []).slice() });
       renderDetail(); doPersist(); return;
     }
     if(act === 'mglkdel'){
