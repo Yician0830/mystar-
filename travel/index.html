@@ -873,8 +873,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .itx .legr{display:flex; flex-wrap:wrap; gap:6px; padding:8px 0; border-bottom:1px dashed var(--line); align-items:center;}
   .itx .legr input{flex:1 1 90px; min-width:0; width:auto;}
   .itx .legr input[data-k="lfrom"], .itx .legr input[data-k="lto"]{flex:1 1 120px;}
-  .itx .legr input[data-k="ldep"], .itx .legr input[data-k="larr"]{flex:0 1 84px;}
-  .itx .legr input[data-k="lfare"]{flex:0 1 100px;}
+  .itx .legr input[data-k="ltrain"]{flex:1 1 100%;}
+  .itx .legr input[data-k="ldep"], .itx .legr input[data-k="larr"], .itx .legr input[data-k="lfare"]{flex:1 1 90px;}
   .itx .legr .del{flex:0 0 auto;}
   .irem{margin:2px 0; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .irem.due{color:#b3261e;}
@@ -884,6 +884,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .fpass .fpc{margin-top:6px; font-size:13px; line-height:1.5;}
   .frem{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line); font-size:13px; line-height:1.6;}
   .frem .due{color:#b3261e; font-weight:700;}
+  .ifare .ck{flex-direction:row; align-items:center; gap:8px; margin:0; font-size:13px; font-weight:500; color:var(--ink); text-align:left;}
+  .ifare .ck span{flex:0 1 auto;}
   .tsteps{margin-top:2px; padding:10px 14px 8px; background:var(--paper); border:1px solid var(--line); border-radius:6px;}
   .tsteps .tsh{display:flex; align-items:center; gap:8px; margin-bottom:6px; font-size:14px; font-weight:900; letter-spacing:0.04em; color:var(--danger);}
   .tsteps .tsr{position:relative; display:flex; align-items:baseline; flex-wrap:wrap; gap:2px 12px; padding:6px 0 6px 24px;}
@@ -2540,7 +2542,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
-      legsView(t0, x) + stepsView(x) +
+      legsView(t0, x) +
       featView(x) +
       (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) + buyHint(t0, x) +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
@@ -3015,15 +3017,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
       fareRow(a, x) +
       legsEdit(day, x) +
-      '<div class="itx itx-steps"><div class="dhead"><span>交通移動步驟</span>' +
-        '<button class="mini" type="button" data-do="addstep" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增步驟</button></div>' +
-        (x.steps || []).map(function(sp){
-          var ta = ' data-p="' + day.id + '" data-i="' + x.id + '" data-ts="' + sp.id + '"';
-          return '<div class="stepr"><input' + ta + ' data-k="label" aria-label="步驟標籤" placeholder="標籤（入境、空橋…）" autocomplete="off" value="' + esc(sp.label || '') + '">' +
-            '<input' + ta + ' data-k="text" aria-label="步驟說明" placeholder="說明（大廳搭手扶梯上 2F）" autocomplete="off" value="' + esc(sp.text || '') + '">' +
-            '<label class="ck"><input type="checkbox"' + ta + ' data-k="hl"' + (sp.hl ? ' checked' : '') + '><span>重點</span></label>' +
-            '<button class="del" type="button" data-do="delstep" data-day="' + day.id + '" data-id="' + x.id + '" data-ts="' + sp.id + '" aria-label="刪除" title="刪除">×</button></div>';
-        }).join('') + '</div>' +
       '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea>' +
         '<input' + a + ' data-k="feat" aria-label="推薦參觀特色" placeholder="✨ 推薦參觀特色，用「、」分隔，例如：噴氣口、鬼像、足湯" autocomplete="off" value="' + esc(x.feat || '') + '"></div>' +
       '<div class="itx itx-food"' + (x.cat === '美食' ? '' : ' hidden') + '><div class="dhead"><span>必點推薦<small class="dsum">' + (dishTotal(x) ? '　預估 ' + esc(dishTotal(x)) : '') + '</small></span>' +
