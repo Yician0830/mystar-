@@ -879,7 +879,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .itx .legr input[data-k="ltrain"]{flex:1 1 100%;}
   .itx .legr input[data-k="ldep"], .itx .legr input[data-k="larr"], .itx .legr input[data-k="lfare"]{flex:1 1 90px;}
   .itx .legr .del{flex:0 0 auto;}
+  .itx .legr select[data-k="lseatType"]{flex:1 1 110px;}
+  .itx .legr input[data-k="lcar"], .itx .legr input[data-k="lseatNo"]{flex:1 1 90px;}
+  .tlr .tls{font-size:12px; color:var(--ink-dim); margin-top:2px;}
   .itx .legr select{flex:1 1 100%; min-width:0; width:auto;}
+  .itx-legs .dhead .mini[data-do="addleg"]{white-space:nowrap; flex:0 0 auto;}
   .irem{margin:2px 0; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .irem.due{color:#b3261e;}
   .fpass{margin-top:8px; padding-top:8px; border-top:1px dashed var(--line);}
@@ -2215,6 +2219,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }).join('') + (l.length > 5 ? '<div class="muted">還有 ' + (l.length - 5) + ' 筆…</div>' : '') + '</div>';
   }
   // ---- 轉乘路段：legs = [{id, from, to, train, dep, arr, fare}]，車資（每人）有填就自動加總成這個行程的預估車資 ----
+  // 時間欄位輸入「1600」「930」會自動補成 16:00、09:30，不然看起來像車次號碼
+  function normTime(v){
+    var s = String(v == null ? '' : v).trim().replace(/：/g, ':'), m = /^(\d{1,2})[:.](\d{2})$/.exec(s) || /^(\d{1,2})(\d{2})$/.exec(s);
+    if(!m || +m[1] > 23 || +m[2] > 59) return s;
+    return (+m[1] < 10 ? '0' : '') + (+m[1]) + ':' + m[2];
+  }
+  function legSeatHtml(y){
+    var p = [];
+    if(y.seatType) p.push(esc(y.seatType));
+    if(y.seatType === '指定席'){ if(String(y.car || '').trim()) p.push('車廂 ' + esc(y.car)); if(String(y.seatNo || '').trim()) p.push('座位 ' + esc(y.seatNo)); }
+    return p.length ? '<div class="tls">🪑 ' + p.join('・') + '</div>' : '';
+  }
   function legSum(x){ var n = 0; (x.legs || []).forEach(function(l){ n += amt(l.fare); }); return n; }
   function tmin(v){ var m = /^\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*$/.exec(String(v || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; }
   function legsView(t, x){
@@ -2229,14 +2245,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var cu = esc(fareCur(t, x)), sum = legSum(x), html = '';
     l.forEach(function(y, i){
       if(i > 0){
-        var a = tmin(l[i - 1].arr), b = tmin(y.dep);
+        var a = tmin(normTime(l[i - 1].arr)), b = tmin(normTime(y.dep));
         if(a != null && b != null && b >= a){
           var w = b - a;
           html += '<div class="tlw' + (w < 5 ? ' warn' : '') + '">⏳ 轉乘等待 ' + w + ' 分' + (w < 5 ? '（很趕，確認月台和下一班）' : '') + '</div>';
         }
       }
       html += '<div class="tlr"><span class="tln">' + (i + 1) + '</span><div class="tlb">' + (String(y.train || '').trim() ? '<b>' + esc(y.train) + '</b>　' : '') +
-        esc(y.from || '') + (y.dep ? ' ' + esc(y.dep) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(y.arr) : '') + '</div>' +
+        esc(y.from || '') + (y.dep ? ' ' + esc(normTime(y.dep)) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(normTime(y.arr)) : '') + legSeatHtml(y) + '</div>' +
         (amt(y.fare) > 0 ? '<span class="tlf">' + (y.pay === TC_CASH ? '💴 現金 ' : '') + cu + ' ' + money(amt(y.fare)) + '</span>' : '') + '</div>';
     });
     return '<div class="tlegs"><div class="tlh">🚆 轉乘 ' + (chain.length ? esc(chain.join(' → ')) : '') + '</div>' + html +
@@ -2258,6 +2274,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<input' + ta + ' data-k="larr" aria-label="抵達時間" placeholder="抵達 14:35" autocomplete="off" value="' + esc(lg.arr || '') + '">' +
           '<input' + ta + ' data-k="lfare" inputmode="decimal" aria-label="車資（每人）" placeholder="車資" autocomplete="off" value="' + esc(lg.fare || '') + '">' +
           '<select' + ta + ' data-k="lpay" aria-label="這一段的付款方式"><option value="">付款：同上方設定（交通卡）</option><option value="' + TC_CASH + '"' + (lg.pay === TC_CASH ? ' selected' : '') + '>付款：現金／購票（不用交通卡）</option></select>' +
+          '<select' + ta + ' data-k="lseatType" aria-label="這一段的座席類型"><option value="">座席類型</option><option value="指定席"' + (lg.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (lg.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select>' +
+          '<input' + (lg.seatType === '指定席' ? '' : ' hidden') + ta + ' data-k="lcar" aria-label="車廂" placeholder="車廂" autocomplete="off" value="' + esc(lg.car || '') + '">' +
+          '<input' + (lg.seatType === '指定席' ? '' : ' hidden') + ta + ' data-k="lseatNo" aria-label="座位" placeholder="座位（12A）" autocomplete="off" value="' + esc(lg.seatNo || '') + '">' +
           '</div>';
       }).join('') + '</details>';
   }
@@ -4081,6 +4100,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var lit = lpd && (lpd.items || []).filter(function(x){ return String(x.id) === ds.i; })[0];
       var llg = lit && (lit.legs || []).filter(function(y){ return String(y.id) === ds.lg; })[0];
       if(llg){
+        if(ds.k === 'ldep' || ds.k === 'larr'){ var ntv = normTime(el.value); if(ntv !== el.value) el.value = ntv; }
         llg[String(ds.k).slice(1)] = el.value;
         if(ds.k === 'lfare' && legSum(lit) > 0){
           lit.fare = String(legSum(lit));
@@ -4339,6 +4359,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('detail').addEventListener('input', function(e){
     if(e.target.tagName === 'TEXTAREA') autosize(e.target);
     if(e.target.matches && e.target.matches(AMT_SEL)) amtWarnUpdate(e.target);
+    if(e.target.dataset && e.target.dataset.k === 'lseatType'){
+      [].forEach.call(e.target.parentNode.querySelectorAll('[data-k="lcar"],[data-k="lseatNo"]'), function(n){ n.hidden = e.target.value !== '指定席'; });
+    }
     if(e.target.dataset && e.target.dataset.k === 'seatType'){
       [].forEach.call(e.target.parentNode.querySelectorAll('[data-k="carNo"],[data-k="seatNo"]'), function(n){ n.hidden = e.target.value === '自由席'; });
     }
