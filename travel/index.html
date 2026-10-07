@@ -923,14 +923,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mgrow .ck.v>span{line-height:1.5;}
   .mgdesc{display:block; margin-top:3px;}
   .mgdesc>em{display:block; margin:1px 0; line-height:1.55;}
-  .mgact .mgib{display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; margin:0; letter-spacing:0; color:var(--ink-dim); background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:color .15s, border-color .15s, background .15s;}
-  .mgact .mgib:hover,.mgact .mgib:focus-visible{color:var(--accent); background:var(--fill); border-color:var(--accent);}
+  .mgact .mgib{display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; min-width:36px; min-height:36px; flex:0 0 36px; box-sizing:border-box; padding:0; margin:0; letter-spacing:0; color:var(--ink-dim); background:var(--fill); border:1px solid var(--line-strong); border-radius:10px; cursor:pointer; transition:color .15s, border-color .15s, background .15s;}
+  .mgact .mgib:hover,.mgact .mgib:focus-visible{color:var(--accent); background:var(--paper); border-color:var(--accent);}
   .mgact .mgib[aria-expanded="true"]{color:var(--paper); background:var(--accent); border-color:var(--accent);}
   .mgact .mgib-del:hover,.mgact .mgib-del:focus-visible{color:var(--danger); background:var(--fill); border-color:var(--danger);}
   .mgact .mgib:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
-  .mgact .mini{border-radius:99px; min-height:32px;}
+  .mgact .mini{border-radius:99px; min-height:36px;}
+  .mgact .mgib svg{width:18px; height:18px; flex:0 0 18px;}
   .mgact{gap:8px;}
-  @media (pointer:coarse){ .mgact .mgib{width:40px; height:40px;} }
+  @media (pointer:coarse){ .mgact .mgib{width:40px; height:40px; min-width:40px; min-height:40px; flex-basis:40px;} }
   .recchip:not(.on):hover,.recchip:not(.on):focus-visible{color:var(--paper); background:var(--accent); border-color:var(--accent);}
   .mgrow:hover{background:var(--fill);}
   .mgedit .mglk{font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong);}
