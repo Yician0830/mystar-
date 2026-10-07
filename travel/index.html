@@ -934,6 +934,40 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (pointer:coarse){ .mgact .mgib{width:40px; height:40px; min-width:40px; min-height:40px; flex-basis:40px;} }
   .recchip:not(.on):hover,.recchip:not(.on):focus-visible{color:var(--paper); background:var(--accent); border-color:var(--accent);}
   .mgrow:hover{background:var(--fill);}
+  /* ── 列印／存成 PDF：窄版單欄（約手機寬度），白底黑字、全部展開、拿掉所有按鈕 ── */
+  @page{ size:110mm 200mm; margin:7mm; }
+  @media print{
+    :root,html[data-theme="dark"]{ --paper:#fff; --ink:#15130f; --ink-dim:#453f30; --ink-faint:#6b6552; --line:rgba(21,19,15,0.18); --line-strong:rgba(21,19,15,0.45); --accent:#9a5808; --danger:#cc2036; --fill:rgba(21,19,15,0.05); --warn:#c2410c; color-scheme:light; }
+    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    html,body{ background:#fff !important; color:#15130f; }
+    body{ font-size:10.5pt; min-height:0; padding:0; }
+    body.wide .wrap,.wrap{ max-width:none; padding:0; }
+    /* 只在螢幕上有用的東西 */
+    #detail .bar,.secnav,.dtabs,.midtabs,.totop,#totop,.undo,#undo,.emodal,.shmodal,#wishsec,.mgact,.mgaddd,.recmore,#recsec,.nextup,#nextUp,.sptypes,.xtog,.spadd-wrap,.spadd-none,.offl,.rtl,.mgtf .mgtfs,.mgtfx,.mgwhere-dl,.fpass,.sprsv{ display:none !important; }
+    #detail button:not(.bhc):not(.ckl){ display:none !important; }
+    #detail input[type="checkbox"]{ width:14px; height:14px; }
+    /* 預設不印花費；選「包含」時才印 */
+    body:not(.print-exp) #sec-exp,body:not(.print-exp) .expbot,body:not(.print-exp) .budalert,body:not(.print-exp) .shv-price,body:not(.print-exp) .split{ display:none !important; }
+    /* 單欄、不固定、不捲動 */
+    .cols{ display:block !important; }
+    .col,.col.stk{ position:static !important; max-height:none !important; overflow:visible !important; }
+    .col.c3:empty{ display:none; }
+    .bkgrid,.cgrid,.xgrid{ grid-template-columns:minmax(0,1fr) !important; }
+    .board{ gap:14px; }
+    .sec{ padding:12px 0 4px; }
+    .dhead{ padding:0 0 10px; }
+    h2#dtitle{ font-size:18pt; }
+    /* 不要把一張卡片切成兩頁；標題不要落單 */
+    .icard,.bk,.shv,.mgrow,.tsteps,.tlegs,.crow,.xcard,.sgrp,.phv,.nextup{ break-inside:avoid; page-break-inside:avoid; }
+    .sh,.dchd,.dtop,h3{ break-after:avoid; page-break-after:avoid; }
+    .dcol{ break-inside:auto; }
+    .sec{ break-inside:auto; }
+    .icard{ background:rgba(21,19,15,0.04); }
+    .ckbar{ border-color:#999; }
+    .flash{ outline:0; }
+    a.vlink{ color:inherit; text-decoration:underline; }
+    .wishbody{ max-height:none; overflow:visible; }
+  }
   .mgedit .mglk{font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong);}
   .mgact .mglk{width:6.4em; padding:2px 2px; font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong);}
   .mgdone>summary,.mgaddd>summary{list-style:none; cursor:pointer; padding:8px 2px; font-size:14px; font-weight:900; color:var(--ink-dim);}
@@ -3530,7 +3564,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var tabs = '<div class="sptypes midtabs" role="group" aria-label="切換中間欄內容">' + [['plan', '每日行程'], ['shop', '購物・必買']].map(function(x){
       return '<button class="mini" type="button" data-do="midtab" data-tab="' + x[0] + '" aria-pressed="' + (midTab === x[0]) + '">' + x[1] + '</button>';
     }).join('') + '</div>';
-    return tabs + (midTab === 'shop' ? recView(t) + merchView(t) : boardHtml(t, false));
+    return tabs + (midTab === 'all' ? boardHtml(t, false) + merchView(t) : midTab === 'shop' ? recView(t) + merchView(t) : boardHtml(t, false));
   }
   // ---- 購物品項 ⇄ 行程連結：品項記在哪個行程（地點）可以買，該行程卡片就會顯示提醒 ----
   function allStops(t){
@@ -3889,7 +3923,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el || window.__printing) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -4081,7 +4115,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var fan = t.kind === 'fan';
     var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
-      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
+      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="print" title="存成 PDF（手機閱讀用的窄版）">存成 PDF</button><button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div>' + (editMode ? '' : '<nav class="secnav" id="secnav" aria-label="快速跳轉"></nav>') + '</div>';
@@ -4761,6 +4795,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
       doPersist(); return;
     }
     if(act === 'share'){ openShare(t); return; }
+    if(act === 'print'){
+      var ae4 = document.activeElement; if(ae4 && ae4 !== b && $('detail').contains(ae4) && ae4.blur) ae4.blur();
+      var incExp = confirm('要把花費與預算也印進 PDF 嗎？\n\n按「確定」＝包含，按「取消」＝不包含（手機被別人看到時比較安心）。\n\n接著請在列印視窗的「目的地」選「另存為 PDF」。');
+      preparePrint(incExp); setTimeout(function(){ window.print(); }, 150); return;
+    }
     if(act === 'edit'){ editMode = true; renderDetail(); return; }
     if(act === 'done'){
       // 先讓正在輸入的欄位送出變更，再切回檢視
@@ -5031,6 +5070,29 @@ a.name{display:block; color:inherit; text-decoration:none;}
       renderDetail();
     }, function(e){ console.error(e); fail('讀取失敗，請檢查網路，或請對方確認分享仍然有效。'); });
   }
+
+  // ---- 存成 PDF（手機閱讀用的窄版）：列印前把「每日行程」與「購物清單」一起展開、全部天數、所有收合區塊打開；列印後還原 ----
+  var printing = false, prePrint = null;
+  function preparePrint(incExp){
+    if(printing || viewOnly || !currentId) return;
+    printing = true; window.__printing = true;
+    prePrint = { mid:midTab, day:dayFilter, edit:editMode };
+    editMode = false; midTab = 'all'; dayFilter = 'all';
+    document.body.classList.add('printing');
+    document.body.classList.toggle('print-exp', !!incExp);
+    renderDetail();
+    [].forEach.call($('detail').querySelectorAll('details'), function(x){ if(!x.classList.contains('mgaddd') && !x.classList.contains('recmore')) x.open = true; });
+  }
+  function restorePrint(){
+    if(!printing) return;
+    printing = false;
+    midTab = prePrint.mid; dayFilter = prePrint.day; editMode = prePrint.edit;
+    document.body.classList.remove('printing', 'print-exp');
+    if(currentId) renderDetail();
+    setTimeout(function(){ window.__printing = false; }, 400);
+  }
+  window.addEventListener('beforeprint', function(){ preparePrint(false); });   // 直接按 Ctrl+P 也一樣：預設不含花費
+  window.addEventListener('afterprint', restorePrint);
 
   // ---- 簡易路由：#/t/旅程id 顯示詳細頁，其餘顯示列表 ----
   function route(){
