@@ -2292,7 +2292,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 座位資訊：車次、車廂、座位 ----
   function seatView(x){
-    if(!seatOk(x.transport)) return '';
+    if(!seatOk(x.transport) || (x.legs || []).length) return '';
     var p = [], free = x.seatType === '自由席';
     if(String(x.trainNo || '').trim()) p.push(esc(x.trainNo));
     if(x.seatType) p.push(esc(x.seatType));
@@ -2333,7 +2333,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div></div>' +
       (cards.length ? '<div class="ie3 fare-card fare-done' + (x.lkTc === TC_CASH ? ' cashhide' : '') + '"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
       '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="passOk"' + (x.passOk ? ' checked' : '') + '><span>周遊券可搭（比較周遊券時算進去）</span></label></div>' +
-      '<div class="ie3 fare-card itx-seat' + (seatOk(x.transport) ? '' : ' seathide') + '"' + nch + '><select' + a + ' data-k="seatType" aria-label="座席類型"><option value="">座席類型</option><option value="指定席"' + (x.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (x.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
+      '<div class="ie3 fare-card itx-seat' + ((seatOk(x.transport) && !(x.legs || []).length) ? '' : ' seathide') + '"' + nch + '><select' + a + ' data-k="seatType" aria-label="座席類型"><option value="">座席類型</option><option value="指定席"' + (x.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (x.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
       (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
   }
@@ -4380,7 +4380,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(e.target.dataset && e.target.dataset.k === 'transport' && e.target.dataset.i){
       var stIc = e.target.closest('.icard') || e.target.closest('.mbox') || document, stBox = stIc.querySelector('.itx-st');
       var sOk = seatOk(e.target.value), sRow = stIc.querySelector('.itx-seat');
-      if(sRow) sRow.classList.toggle('seathide', !sOk);
+      if(sRow) sRow.classList.toggle('seathide', !sOk || !!stIc.querySelector('.legr'));
       [].forEach.call(stIc.querySelectorAll('.legr'), function(lr){
         var ls = lr.querySelector('[data-k="lseatType"]'); if(ls) ls.hidden = !sOk;
         [].forEach.call(lr.querySelectorAll('[data-k="lcar"],[data-k="lseatNo"]'), function(n){ n.hidden = !sOk || !ls || ls.value !== '指定席'; });
