@@ -919,6 +919,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mgtfc{font-style:normal; font-size:11px; font-weight:700; padding:0 4px; border:1px solid var(--warn); color:var(--warn);}
   .mgtfc.ok{border-color:#2e8b57; color:#2e8b57;}
   .buyhint .bhtf{flex:0 0 100%; font-size:12px; font-weight:700; color:var(--warn);} .buyhint .bhtf.ok{color:#2e8b57;}
+  /* 購物清單：說明文字各自一行；編輯／刪除改成圓角圖示鈕；推薦 chip hover 不再吃字 */
+  .mgrow .ck.v>span{line-height:1.5;}
+  .mgdesc{display:block; margin-top:3px;}
+  .mgdesc>em{display:block; margin:1px 0; line-height:1.55;}
+  .mgact .mgib{display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; padding:0; margin:0; letter-spacing:0; color:var(--ink-dim); background:transparent; border:1px solid var(--line); border-radius:8px; cursor:pointer; transition:color .15s, border-color .15s, background .15s;}
+  .mgact .mgib:hover,.mgact .mgib:focus-visible{color:var(--accent); background:var(--fill); border-color:var(--accent);}
+  .mgact .mgib[aria-expanded="true"]{color:var(--paper); background:var(--accent); border-color:var(--accent);}
+  .mgact .mgib-del:hover,.mgact .mgib-del:focus-visible{color:var(--danger); background:var(--fill); border-color:var(--danger);}
+  .mgact .mgib:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+  .mgact .mini{border-radius:99px; min-height:32px;}
+  .mgact{gap:8px;}
+  @media (pointer:coarse){ .mgact .mgib{width:40px; height:40px;} }
+  .recchip:not(.on):hover,.recchip:not(.on):focus-visible{color:var(--paper); background:var(--accent); border-color:var(--accent);}
+  .mgrow:hover{background:var(--fill);}
   .mgedit .mglk{font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong);}
   .mgact .mglk{width:6.4em; padding:2px 2px; font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong);}
   .mgdone>summary,.mgaddd>summary{list-style:none; cursor:pointer; padding:8px 2px; font-size:14px; font-weight:900; color:var(--ink-dim);}
@@ -3772,10 +3786,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
     return '<div class="mgrow" id="lk-mg-' + x.id + '"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') +
       (mgPri(x) === 0 ? ' <em class="mgpri must">必買</em>' : (mgPri(x) === 2 ? ' <em class="mgpri low">看到再說</em>' : '')) + (mgCap(x) ? ' <em class="mgtag">限購 ' + mgCap(x) + '' + '</em>' : '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') +
       (x.tags || []).map(function(g){ return ' <em class="mgtag2">' + esc(g) + '</em>'; }).join('') +
-      (String(x.feat || '').trim() ? ' <em class="mgfeat">✨ ' + esc(x.feat) + '</em>' : '') + (String(x.where || '').trim() ? ' <em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + (String(x.sale || '').trim() ? ' <em class="mgwhere">🕒 ' + esc(x.sale) + '</em>' : '') + (String(x.note || '').trim() ? ' <em class="mgnote">📝 ' + esc(x.note) + '</em>' : '') + ' ' + price + '</span></label>' +
+      ' ' + price +
+      (function(){
+        var ds = (String(x.feat || '').trim() ? '<em class="mgfeat">✨ ' + esc(x.feat) + '</em>' : '') + (String(x.where || '').trim() ? '<em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + (String(x.sale || '').trim() ? '<em class="mgwhere">🕒 ' + esc(x.sale) + '</em>' : '') + (String(x.note || '').trim() ? '<em class="mgnote">📝 ' + esc(x.note) + '</em>' : '');
+        return ds ? '<span class="mgdesc">' + ds + '</span>' : '';
+      })() + '</span></label>' +
       '<span class="mgact">' + mgExpBtn(t, x) +
-      '<button class="mini" type="button" data-do="mgedit" data-id="' + x.id + '" aria-expanded="' + !!mgOpen[x.id] + '" aria-label="編輯品項" title="編輯：名稱、單價、數量、幣別、地點、備註">✎</button>' +
-      '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span>' + (mgOpen[x.id] ? mgChips(t, x, stops) + mgEditPanel(t, x) : '') + '</div>';
+      '<button class="mgib" type="button" data-do="mgedit" data-id="' + x.id + '" aria-expanded="' + !!mgOpen[x.id] + '" aria-label="編輯品項" title="編輯：名稱、單價、幣別、地點、備註"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>' +
+      '<button class="mgib mgib-del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button></span>' + (mgOpen[x.id] ? mgChips(t, x, stops) + mgEditPanel(t, x) : '') + '</div>';
   }
   function merchView(t){
     if(viewOnly) return '';
