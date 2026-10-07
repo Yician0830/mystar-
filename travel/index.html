@@ -643,8 +643,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (min-width:1200px){
     .cols{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}
     .col.c3{grid-column:auto;}
-    .col.c3.stk{position:sticky; top:calc(env(safe-area-inset-top,0px) + 76px); align-self:start; max-height:calc(100vh - 96px); overflow-y:auto; scrollbar-width:thin;}
-    @media (max-height:760px){ .col.c3.stk{position:static; max-height:none; overflow:visible;} }
+    .col.stk{position:sticky; top:calc(env(safe-area-inset-top,0px) + 76px); align-self:start; max-height:calc(100vh - 96px); overflow-y:auto; scrollbar-width:thin;}
+    @media (max-height:760px){ .col.stk{position:static; max-height:none; overflow:visible;} }
   }
   /* 搜尋與篩選列 */
   .fbar{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:flex-end; padding:0 0 16px;}
@@ -831,6 +831,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
   /* 中間欄分頁、推薦必買 */
   .midtabs{margin:0 0 14px; gap:8px;}
   .midtabs .mini{padding:7px 18px; font-size:14px;}
+  .mgrow{flex-wrap:wrap;}
+  .mgl{flex:0 0 100%; display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:0 0 6px 30px;}
+  .mgl .mglc{display:inline-flex; align-items:center; gap:2px; max-width:100%;}
+  .mgl .mglc .del{padding:0 6px; font-size:16px;}
+  .mgl select{width:auto; max-width:100%; min-width:0; padding:3px 6px; font-size:13px; font-weight:700; color:var(--ink-dim); background:var(--paper);}
+  .buyhint{display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px 10px; background:rgba(234,165,64,0.14); border-left:3px solid var(--accent);}
+  .buyhint .bhl{font-size:12px; font-weight:900; letter-spacing:0.06em; color:var(--accent);}
+  .buyhint .bhc{padding:1px 10px; font-size:13px; font-weight:700; letter-spacing:0; color:var(--ink); background:var(--paper); border:1px solid var(--accent); border-radius:99px;}
+  .buyhint .bhc:hover,.buyhint .bhc:focus-visible{background:var(--accent); color:var(--paper);}
+  .buyhint .bhc.done{text-decoration:line-through; color:var(--ink-faint); border-color:var(--line-strong);}
   .mgwhere{font-style:normal; font-size:12px; font-weight:500; color:var(--ink-faint);}
   .rech{margin:16px 0 6px; font-size:13px; font-weight:900; letter-spacing:0.06em; color:var(--ink-dim);}
   .recrow{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 12px; margin-bottom:6px; background:var(--fill); border-left:3px solid var(--accent);}
@@ -2352,7 +2362,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + fareTag(t0, x) + '</div>' : '') +
       stepsView(x) +
       featView(x) +
-      (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) +
+      (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) + buyHint(t0, x) +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
   }
   // kind：'it' 行程、'bk' 預訂資料、'st' 住宿 —— 三種都可以連結多筆花費（lkExps）
@@ -3249,15 +3259,50 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }).join('') + '</div>';
     return tabs + (midTab === 'shop' ? merchView(t) + recView(t) : boardHtml(t, false));
   }
+  // ---- 購物品項 ⇄ 行程連結：品項記在哪個行程（地點）可以買，該行程卡片就會顯示提醒 ----
+  function allStops(t){
+    var out = [];
+    (t.days || []).forEach(function(day, di){ sortedItems(day).forEach(function(it){ if(String(it.title || '').trim()) out.push({ day:day, di:di, it:it }); }); });
+    return out;
+  }
+  function stopLabel(s){ return 'Day ' + (s.di + 1) + (s.it.time ? ' ' + tm12(s.it.time) : '') + ' ' + s.it.title; }
+  function mgLinks(t, x, stops){
+    if(!stops.length) return '';
+    var ids = (x.lkIts || []).map(String), chips = '', used = {}, opts = '', cd = -1;
+    stops.forEach(function(s){
+      if(ids.indexOf(String(s.it.id)) < 0) return;
+      used[String(s.it.id)] = 1;
+      chips += '<span class="mglc"><button class="lk" type="button" data-do="goto" data-day="' + s.day.id + '" data-to="lk-it-' + s.it.id + '" title="跳到這個行程">📍 ' + esc(stopLabel(s)) + '</button>' +
+        '<button class="del" type="button" data-do="mglkdel" data-id="' + x.id + '" data-it="' + s.it.id + '" aria-label="移除連結" title="移除連結">×</button></span>';
+    });
+    stops.forEach(function(s){
+      if(used[String(s.it.id)]) return;
+      if(s.di !== cd){ if(cd !== -1) opts += '</optgroup>'; opts += '<optgroup label="Day ' + (s.di + 1) + (s.day.date ? '　' + esc(d(s.day.date)) : '') + '">'; cd = s.di; }
+      opts += '<option value="' + s.it.id + '">' + esc(stopLabel(s)) + '</option>';
+    });
+    if(cd !== -1) opts += '</optgroup>';
+    return '<div class="mgl">' + chips + (opts ? '<select class="mglk" data-mg="' + x.id + '" data-k="lkIt" aria-label="這個品項在哪個行程買"><option value="">＋ 連結行程（在哪裡買）</option>' + opts + '</select>' : '') + '</div>';
+  }
+  // 行程卡片上的提醒：這個行程連結了哪些還沒買的品項（買好的會變淡）
+  function buyHint(t, x){
+    if(viewOnly) return '';
+    var l = (t.merch || []).filter(function(m){ return (m.lkIts || []).some(function(id){ return String(id) === String(x.id); }); });
+    if(!l.length) return '';
+    l = l.slice().sort(function(a, b){ return (a.bought ? 1 : 0) - (b.bought ? 1 : 0); });
+    return '<div class="buyhint"><span class="bhl">🛍 這裡可以買</span>' + l.map(function(m){
+      return '<button class="bhc' + (m.bought ? ' done' : '') + '" type="button" data-do="gomg" data-id="' + m.id + '" title="到購物清單查看">' + (m.bought ? '✓ ' : '') + esc(m.name || '') + '</button>';
+    }).join('') + '</div>';
+  }
   function merchView(t){
     if(viewOnly) return '';
     var m = t.merch || [], bn = m.filter(function(x){ return x.bought; }).length, left = mgSum(t, false), got = mgSum(t, true);
+    var stops = allStops(t);
     var rows = m.slice().sort(function(a, b){ return (a.bought ? 1 : 0) - (b.bought ? 1 : 0); }).map(function(x){
       var tot = mgTotal(x), ex = x.expId && byId(t.expenses, x.expId);
       var price = tot ? '<span class="mgp">' + esc(x.cur || 'TWD') + ' ' + money(tot) + (amt(x.qty) > 1 ? '（' + money(amt(x.price)) + ' × ' + money(amt(x.qty)) + '）' : '') + '</span>' : '';
-      return '<div class="mgrow"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') + (String(x.where || '').trim() ? ' <em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + ' ' + price + '</span></label>' +
+      return '<div class="mgrow" id="lk-mg-' + x.id + '"><label class="ck v' + (x.bought ? ' done' : '') + '"><input type="checkbox" data-mg="' + x.id + '" data-k="bought"' + (x.bought ? ' checked' : '') + '><span>' + esc(x.name || '') + (x.limited ? ' <em class="mgtag">限量</em>' : '') + (String(x.where || '').trim() ? ' <em class="mgwhere">📍 ' + esc(x.where) + '</em>' : '') + ' ' + price + '</span></label>' +
         '<span class="mgact">' + (ex ? '<small class="dueok">已記入花費</small>' : (x.bought && tot ? '<button class="mini" type="button" data-do="merchexp" data-id="' + x.id + '">記入花費</button>' : '')) +
-        '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span></div>';
+        '<button class="del" type="button" data-do="merchdel" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></span>' + mgLinks(t, x, stops) + '</div>';
     }).join('');
     return '<section class="sec" id="merchsec"><div class="sh"><h3>購物清單' + (m.length ? '<small>' + bn + '／' + m.length + '</small>' : '') + '</h3></div>' +
       (rows || '<p class="vempty">想買的東西先記在這裡，買到就勾起來，還沒買的一目了然。也可以從下面的推薦必買一鍵加入。</p>') +
@@ -3348,7 +3393,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
-    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1">';
+    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1 stk">';
     var infoH = '';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
@@ -3790,6 +3835,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.mg){
       var mgx = byId(t.merch, ds.mg);
       if(mgx && ds.k === 'bought'){ mgx.bought = el.checked; var mgs = $('merchsec'); if(mgs) mgs.outerHTML = merchView(t); }
+      else if(mgx && ds.k === 'lkIt'){
+        if(!el.value) return;
+        var mla = (mgx.lkIts || []).slice(); if(mla.indexOf(el.value) < 0) mla.push(el.value); mgx.lkIts = mla;
+        var mgs3 = $('merchsec'); if(mgs3) mgs3.outerHTML = merchView(t);
+      }
     } else if(ds.ph){
       var phx = ((t.fanInfo || {}).phases || []).filter(function(x){ return String(x.id) === ds.ph; })[0];
       if(phx) phx[ds.k] = el.value;
@@ -4005,6 +4055,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(t.merch.some(function(x){ return String(x.name || '').trim().toLowerCase() === rit.n.toLowerCase(); })) return;
       t.merch.push({ id:uid(), name:rit.n, price:'', cur:tripCur(t), qty:'', limited:false, bought:false, where:'' });
       renderDetail(); doPersist(); return;
+    }
+    if(act === 'mglkdel'){
+      var mgl = byId(t.merch, b.dataset.id); if(!mgl) return;
+      mgl.lkIts = (mgl.lkIts || []).filter(function(v){ return String(v) !== b.dataset.it; });
+      var mgs4 = $('merchsec'); if(mgs4) mgs4.outerHTML = merchView(t);
+      doPersist(); return;
+    }
+    if(act === 'gomg'){
+      midTab = 'shop'; renderDetail();
+      var gm = document.getElementById('lk-mg-' + b.dataset.id);
+      if(gm){ gm.scrollIntoView({ behavior:'smooth', block:'center' }); gm.classList.add('flash'); setTimeout(function(){ gm.classList.remove('flash'); }, 1600); }
+      return;
     }
     if(act === 'midtab'){ midTab = b.dataset.tab === 'shop' ? 'shop' : 'plan'; renderDetail(); return; }
     if(act === 'merchdel'){ t.merch = t.merch.filter(function(x){ return String(x.id) !== b.dataset.id; }); renderDetail(); doPersist(); return; }
