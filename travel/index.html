@@ -928,6 +928,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mts .mtag{font-size:11px; font-weight:800; color:var(--accent); border:1px solid var(--accent); border-radius:99px; padding:0 7px;}
   .mts .mtit{flex:0 0 100%; display:flex; flex-wrap:wrap; gap:4px 6px;}
   .mhint{font-size:12px; color:var(--ink-dim); margin:-2px 0 6px;}
+  .nstrow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:-2px 0 6px;}
+  .nstsug{display:flex; flex-wrap:wrap; gap:6px; font-size:12px; color:var(--ink-dim);}
+  .nstsug .nstchip{white-space:normal; text-align:left; line-height:1.4;}
+  .nstsug .nstchip small{color:var(--ink-dim); font-size:11px; font-weight:500;}
   .mhint:empty{display:none;}
   .mnst{font-size:13px;}
   .midtabs{margin:0 0 14px; gap:8px;}
@@ -3167,7 +3171,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
-      (metroCity(cur()) ? '<input' + a + ' data-k="nst" list="metrost" autocomplete="off" aria-label="最近車站" placeholder="🚉 最近車站（選填，會標在路線圖上）" value="' + esc(x.nst || '') + '">' : '') +
+      (metroCity(cur()) ? '<input' + a + ' data-k="nst" list="metrost" autocomplete="off" aria-label="最近車站" placeholder="🚉 最近車站（選填，會標在路線圖上）" value="' + esc(x.nst || '') + '">' +
+        '<div class="nstrow"><button class="mini" type="button" data-do="nstsug" title="依上面的「地點」找附近、而且在路線圖資料裡的車站">🔎 建議車站</button><span class="nstsug"></span></div>' : '') +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
       '<div class="ie3 itx-st"' + ((String(x.transport || '').trim() && !(x.legs || []).length) ? '' : ' hidden') + '><input' + a + ' data-k="stFrom" list="metrost" autocomplete="off" aria-label="起站" placeholder="從哪裡搭（起站／起點）" value="' + esc(x.stFrom || '') + '"><input' + a + ' data-k="stTo" list="metrost" autocomplete="off" aria-label="到站" placeholder="搭到哪裡（到站／終點）" value="' + esc(x.stTo || '') + '"><input' + a + ' data-k="dur" inputmode="text" autocomplete="off" aria-label="預估交通時間" placeholder="預估交通時間（例如：40 分鐘）" value="' + esc(x.dur || '') + '"></div><div class="mhint">' + metroHintHtml(x) + '</div>' +
@@ -3697,6 +3702,67 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var C = metroCity(cur()), hit = C ? metroFind(C, v) : [], ls = [];
     hit.forEach(function(h){ if(ls.indexOf(C.lines[h.l].name) < 0) ls.push(C.lines[h.l].name); });
     return '<div class="vtext mnst">🚉 最近車站 <b>' + esc(v) + '</b>' + (ls.length ? '（' + esc(ls.join('／')) + '）' : '') + '</div>';
+  }
+  // ---- 最近車站建議：用「地點」查座標（Nominatim）→ 找附近車站（Overpass）→ 只留路線圖資料裡有的站，依直線距離排序 ----
+  var nstBusy = false;
+  function nstGeocode(q){
+    return fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(q))
+      .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(function(a){ return (a && a[0]) ? { lat:+a[0].lat, lon:+a[0].lon } : null; });
+  }
+  function nstOverpass(lat, lon, i){
+    i = i || 0; if(i >= METRO_EPS.length) return Promise.reject('車站資料暫時連不上，請稍後再試');
+    var q = '[out:json][timeout:25];(node(around:1500,' + lat + ',' + lon + ')["railway"~"^(station|halt|tram_stop)$"];node(around:1500,' + lat + ',' + lon + ')["station"="subway"];);out body;';
+    var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null, tm = ctl ? setTimeout(function(){ ctl.abort(); }, 30000) : 0;
+    return fetch(METRO_EPS[i], { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body:'data=' + encodeURIComponent(q), signal: ctl ? ctl.signal : undefined })
+      .then(function(r){ clearTimeout(tm); if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .catch(function(){ clearTimeout(tm); return nstOverpass(lat, lon, i + 1); });
+  }
+  function nstDist(a, b, c, d){
+    var R = 6371000, r = Math.PI / 180, dl = (c - a) * r, dn = (d - b) * r;
+    var h = Math.sin(dl / 2) * Math.sin(dl / 2) + Math.cos(a * r) * Math.cos(c * r) * Math.sin(dn / 2) * Math.sin(dn / 2);
+    return 2 * R * Math.asin(Math.sqrt(h));
+  }
+  function nstPick(C, js, pos){
+    var best = {};
+    ((js && js.elements) || []).forEach(function(e){
+      if(e.type !== 'node' || !e.tags) return;
+      var tg = e.tags, names = [tg.name, tg['name:ja'], tg['name:ja-Hira'], tg['name:zh-Hant'], tg['name:zh'], tg['name:en']], hit = null;
+      names.forEach(function(n){ if(!hit && n){ var h = metroFind(C, n); if(h.length) hit = h; } });
+      if(!hit) return;
+      var nm = C.lines[hit[0].l].st[hit[0].i], dist = nstDist(pos.lat, pos.lon, e.lat, e.lon);
+      if(!best[nm] || best[nm].d > dist){
+        var ls = []; hit.forEach(function(h){ var ln = C.lines[h.l].name; if(ls.indexOf(ln) < 0) ls.push(ln); });
+        best[nm] = { n:nm, d:dist, ls:ls };
+      }
+    });
+    return Object.keys(best).map(function(k){ return best[k]; }).sort(function(a, b){ return a.d - b.d; }).slice(0, 3);
+  }
+  function nstSuggest(t, b){
+    var C = metroCity(t), card = b.closest('.icard') || emodal; if(!C || !card) return;
+    var box = card.querySelector('.nstsug'), pin = card.querySelector('input[data-k="place"]'); if(!box) return;
+    var place = pin ? String(pin.value || '').trim() : '';
+    if(!place){ box.textContent = '請先填上面的「地點」'; return; }
+    if(nstBusy) return;
+    nstBusy = true; box.textContent = '查詢中…';
+    var say = function(h, isHtml){ nstBusy = false; if(box.isConnected){ if(isHtml) box.innerHTML = h; else box.textContent = h; } };
+    var city = String(wxCands(t)[0] || '').trim(), q1 = (city && place.indexOf(city) < 0) ? place + ' ' + city : place;
+    nstGeocode(q1).then(function(p){ return (!p && q1 !== place) ? nstGeocode(place) : p; }).then(function(pos){
+      if(!pos){ say('查不到這個地點的位置（試試把地點寫得更完整，例如加上城市）'); return; }
+      return nstOverpass(pos.lat, pos.lon).then(function(js){
+        var l = nstPick(C, js, pos);
+        if(!l.length){ say('附近 1.5 公里內沒有路線圖資料裡的車站'); return; }
+        say(l.map(function(o){
+          return '<button class="mini nstchip" type="button" data-do="nstpick" data-name="' + esc(o.n) + '">' + esc((C.zh && C.zh[o.n] ? C.zh[o.n] + '・' : '') + o.n) + ' <small>' + esc(o.ls.join('／')) + '・直線約 ' + (o.d < 100 ? Math.round(o.d) : Math.round(o.d / 10) * 10) + ' 公尺</small></button>';
+        }).join(''), true);
+      });
+    }).catch(function(err){ say(typeof err === 'string' ? err : '查詢失敗（網路被擋或服務暫時連不上），稍後再試'); });
+  }
+  function nstApply(b){
+    var card = b.closest('.icard') || emodal, inp = card && card.querySelector('input[data-k="nst"]'); if(!inp) return;
+    inp.value = b.dataset.name || '';
+    inp.dispatchEvent(new Event('change', { bubbles:true }));      // 走原本的存檔流程
+    var box = card.querySelector('.nstsug'); if(box) box.textContent = '已帶入「' + inp.value + '」';
   }
   // ---- 從網路抓取路線（OpenStreetMap Overpass）：只給沒有內建資料的地區用，抓回來存進旅程 ----
   var METRO_EPS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
@@ -4957,6 +5023,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     if(act === 'midtab'){ midTab = b.dataset.tab === 'shop' ? 'shop' : b.dataset.tab === 'metro' ? 'metro' : 'plan'; renderDetail(); return; }
     if(act === 'metrofetch'){ metroFetch(t); return; }
+    if(act === 'nstsug'){ nstSuggest(t, b); return; }
+    if(act === 'nstpick'){ nstApply(b); return; }
     if(act === 'metroclear'){ delete t.metroAuto; delete t.metroExtra; t.metroNone = { name:String(wxCands(t)[0] || ''), date:ymd(new Date()) }; metroMsg = ''; renderDetail(); doPersist(); return; }
     if(act === 'mgview'){ mgView = b.dataset.v === 'pri' ? 'pri' : 'store'; var mgs7 = $('merchsec'); if(mgs7) mgs7.outerHTML = merchView(t); return; }
     if(act === 'mgedit'){
