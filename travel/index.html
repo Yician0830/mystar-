@@ -239,6 +239,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dx .wx{font-size:13px; font-weight:700; color:var(--ink-dim); font-variant-numeric:tabular-nums;}
   .dx .wx:empty{display:none;}
   .dx .wx small{margin-left:6px; font-size:11px; font-weight:500; color:var(--ink-faint);}
+  .dx .wx .wxrain{display:inline-block; margin-left:8px; padding:1px 8px; font-size:12px; font-weight:700; color:var(--warn); border:1px solid var(--warn); background:var(--fill);}
   .dx .rtl{font-size:12px; font-weight:700; color:var(--accent); text-decoration:none; border:1px solid var(--accent); padding:1px 8px; white-space:nowrap;}
   .dx .rtl:hover,.dx .rtl:focus-visible{background:var(--accent); color:var(--paper);}
   #wxnote:empty{display:none;}
@@ -909,6 +910,26 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .itx .stepr .ck{margin:0; white-space:nowrap;}
   @container (max-width:420px){ .itx .stepr{grid-template-columns:minmax(0,1fr) auto auto;} .itx .stepr input[data-k="text"]{grid-column:1 / -1; grid-row:2;} .itx .stepr .ck{grid-column:2; grid-row:1;} .itx .stepr .del{grid-column:3; grid-row:1;} }
   /* 中間欄分頁、推薦必買 */
+  /* 路線圖（地鐵站序）與行程卡站數 */
+  .mtbox{margin:0 0 12px; padding:10px 14px; border:1px solid var(--accent); border-radius:12px; font-size:14px; line-height:1.6;}
+  .mtbox small{display:block; color:var(--ink-dim); font-size:12px;}
+  .mtline{margin:0 0 12px; border:1px solid var(--line-strong); border-radius:12px; background:var(--fill);}
+  .mtline>summary{list-style:none; cursor:pointer; display:flex; align-items:center; gap:8px; padding:12px 14px; font-weight:800; font-size:15px;}
+  .mtline>summary::-webkit-details-marker{display:none;}
+  .mtline>summary .mtc{margin-left:auto; font-size:12px; font-weight:600; color:var(--ink-dim);}
+  .mtdot{flex:0 0 auto; width:12px; height:12px; border-radius:50%; background:var(--lc,#888);}
+  .mtst{list-style:none; margin:0; padding:2px 14px 12px 20px; border-left:3px solid var(--lc,#888); margin-left:20px; margin-bottom:12px;}
+  .mts{position:relative; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 8px; padding:6px 0 6px 18px; font-size:14px;}
+  .mts::before{content:''; position:absolute; left:-9px; top:12px; width:11px; height:11px; border-radius:50%; background:var(--bg,#fff); border:2px solid var(--lc,#888);}
+  .mts.on::before{background:var(--lc,#888);}
+  .mts.on .mtn{font-weight:800;}
+  .mts .mtz{font-size:12px; color:var(--ink-dim);}
+  .mts .mtx{font-size:12px; color:var(--ink-dim);}
+  .mts .mtag{font-size:11px; font-weight:800; color:var(--accent); border:1px solid var(--accent); border-radius:99px; padding:0 7px;}
+  .mts .mtit{flex:0 0 100%; display:flex; flex-wrap:wrap; gap:4px 6px;}
+  .mhint{font-size:12px; color:var(--ink-dim); margin:-2px 0 6px;}
+  .mhint:empty{display:none;}
+  .mnst{font-size:13px;}
   .midtabs{margin:0 0 14px; gap:8px;}
   .midtabs .mini{padding:7px 18px; font-size:14px;}
   .mgrow{flex-wrap:wrap;}
@@ -1097,6 +1118,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   <div id="detail" hidden></div>
 </div>
 
+<datalist id="metrost"></datalist>
 <datalist id="tmodes"><option value="步行"><option value="JR"><option value="地鐵"><option value="電車"><option value="巴士"><option value="計程車"><option value="包車"><option value="租車"><option value="高鐵"><option value="飛機"><option value="渡輪"><option value="新幹線"><option value="纜車"><option value="單車"></datalist>
 <div id="undo" class="undo" role="status" aria-live="polite" hidden><span id="undoMsg"></span><button type="button" id="undoBtn">復原</button></div>
 <button type="button" id="totop" class="totop" aria-label="回到最上方" title="回到最上方" hidden>↑</button>
@@ -2311,7 +2333,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if((x.legs || []).length) return '';
     var f = String(x.stFrom || '').trim(), g = String(x.stTo || '').trim(), d = String(x.dur || '').trim();
     if(/^\d+$/.test(d)) d = '約 ' + d + ' 分鐘';
-    return (f || g || d) ? '　<span class="ist">' + ((f || g) ? esc(f) + ' → ' + esc(g) : '') + (d ? ((f || g) ? '・' : '') + esc(d) : '') + '</span>' : '';
+    var mr = metroRide(cur(), x), ms = '';
+    if(mr){ ms = '約 ' + mr.n + ' 站'; if(!d) d = '約 ' + mr.min + ' 分鐘（依站數估算）'; }
+    return (f || g || d || ms) ? '　<span class="ist">' + ((f || g) ? esc(f) + ' → ' + esc(g) : '') + (ms ? ((f || g) ? '・' : '') + ms : '') + (d ? ((f || g || ms) ? '・' : '') + esc(d) : '') + '</span>' : '';
   }
   function legSum(x){ var n = 0; (x.legs || []).forEach(function(l){ n += amt(l.fare); }); return n; }
   function tmin(v){ var m = /^\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*$/.exec(String(v || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; }
@@ -2671,7 +2695,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '') +
-      seatView(x) + legsView(t0, x) +
+      metroNstView(x) + seatView(x) + legsView(t0, x) +
       featView(x) +
       (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) + buyHint(t0, x) +
       (x.note ? '<div class="vtext inote"><span class="inic" aria-hidden="true">📝</span><span class="intx">' + esc(x.note) + '</span></div>' : '') + '</div>';
@@ -3053,7 +3077,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function entryBlank(c, x){
     var e = function(v){ return !String(v == null ? '' : v).trim(); };
-    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.feat) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); }) && (x.shops || []).every(function(y){ return e(y.name) && e(y.note) && !y.done; }) && (x.steps || []).every(function(y){ return e(y.label) && e(y.text); });
+    if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.time) && e(x.intro) && e(x.feat) && e(x.nst) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); }) && (x.shops || []).every(function(y){ return e(y.name) && e(y.note) && !y.done; }) && (x.steps || []).every(function(y){ return e(y.label) && e(y.text); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
     if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
@@ -3125,6 +3149,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     else if(!e.shiftKey && (act === last || !inside)){ e.preventDefault(); first.focus(); }
   });
   function itemEdit(day, x){
+    metroSyncList();
     var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
     var opts = function(list, cur, ph){ return '<option value="">' + ph + '</option>' + list.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join(''); };
     return '<div class="icard"><div class="ie1"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
@@ -3142,9 +3167,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
+      (metroCity(cur()) ? '<input' + a + ' data-k="nst" list="metrost" autocomplete="off" aria-label="最近車站" placeholder="🚉 最近車站（選填，會標在路線圖上）" value="' + esc(x.nst || '') + '">' : '') +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
       '<input' + a + ' data-k="route" aria-label="路線" placeholder="' + esc(routeHint(x.transport)) + '" value="' + esc(x.route || '') + '"></div>' +
-      '<div class="ie3 itx-st"' + ((String(x.transport || '').trim() && !(x.legs || []).length) ? '' : ' hidden') + '><input' + a + ' data-k="stFrom" autocomplete="off" aria-label="起站" placeholder="從哪裡搭（起站／起點）" value="' + esc(x.stFrom || '') + '"><input' + a + ' data-k="stTo" autocomplete="off" aria-label="到站" placeholder="搭到哪裡（到站／終點）" value="' + esc(x.stTo || '') + '"><input' + a + ' data-k="dur" inputmode="text" autocomplete="off" aria-label="預估交通時間" placeholder="預估交通時間（例如：40 分鐘）" value="' + esc(x.dur || '') + '"></div>' +
+      '<div class="ie3 itx-st"' + ((String(x.transport || '').trim() && !(x.legs || []).length) ? '' : ' hidden') + '><input' + a + ' data-k="stFrom" list="metrost" autocomplete="off" aria-label="起站" placeholder="從哪裡搭（起站／起點）" value="' + esc(x.stFrom || '') + '"><input' + a + ' data-k="stTo" list="metrost" autocomplete="off" aria-label="到站" placeholder="搭到哪裡（到站／終點）" value="' + esc(x.stTo || '') + '"><input' + a + ' data-k="dur" inputmode="text" autocomplete="off" aria-label="預估交通時間" placeholder="預估交通時間（例如：40 分鐘）" value="' + esc(x.dur || '') + '"></div><div class="mhint">' + metroHintHtml(x) + '</div>' +
       fareRow(a, x) +
       legsEdit(day, x) +
       '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea>' +
@@ -3243,7 +3269,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function wxHtml(w){
     var c = wxCode(w.code), rain = w.pop != null ? '降雨 ' + w.pop + '%' : (w.rain >= 0.5 ? '雨量 ' + Math.round(w.rain) + 'mm' : '');
-    return c[1] + ' ' + w.min + '°～' + w.max + '°　' + c[2] + (rain ? '　' + rain : '') + (w.src === 'last' ? '<small>去年同期</small>' : w.src === 'ar' ? '<small>實際</small>' : '');
+    return c[1] + ' ' + w.min + '°～' + w.max + '°　' + c[2] + (rain ? '　' + rain : '') + (w.src === 'last' ? '<small>去年同期</small>' : w.src === 'ar' ? '<small>實際</small>' : '') +
+      (w.pop != null && w.pop > 50 ? '<span class="wxrain">☂️ 降雨機率偏高，記得帶雨具</span>' : '');
   }
   var wxErr = '';
   function wxReq(url){
@@ -3557,14 +3584,115 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (rest.length ? '<details class="recmore" id="recmore"' + (recMoreOpen ? ' open' : '') + '><summary>其他地區推薦</summary>' + rest.map(box).join('') + '</details>' : '') +
       '<p class="hint">點一下就加入購物清單，滑鼠停在品項上可看說明。推薦是依常見熱門伴手禮整理的，不是即時網路資料，品項與店家請出發前再確認。</p></section>';
   }
+  // ---- 路線圖：依旅程地點偵測城市，只顯示那個地區的地鐵路線；行程可標「最近車站」，地鐵行程自動算站數 ----
+  // 站名資料是內建的（日文站名），不是即時資料：出發前請抽查實際會搭的站；新增城市只要照格式加一筆
+  var METRO = [
+    { name:'札幌', keys:['札幌','sapporo'], weak:['北海道','hokkaido'], notWeak:['函館','旭川','小樽','釧路','帶廣','網走','稚內'], ic:'Kitaca／Suica', min:2,
+      zh:{ 'すすきの':'薄野', 'さっぽろ':'札幌', '新さっぽろ':'新札幌', '豊水すすき':'豐水薄野', 'ひばりが丘':'雲雀丘', 'バスセンター前':'巴士中心前' },
+      lines:[
+        { name:'南北線', color:'#1a9e4b', st:['麻生','北34条','北24条','北18条','北12条','さっぽろ','大通','すすきの','中島公園','幌平橋','中の島','平岸','南平岸','澄川','自衛隊前','真駒内'] },
+        { name:'東西線', color:'#f08a1c', st:['宮の沢','発寒南','琴似','二十四軒','西28丁目','円山公園','西18丁目','西11丁目','大通','バスセンター前','菊水','東札幌','白石','南郷7丁目','南郷13丁目','南郷18丁目','大谷地','ひばりが丘','新さっぽろ'] },
+        { name:'東豊線', color:'#1e9ad6', st:['栄町','新道東','元町','環状通東','東区役所前','北13条東','さっぽろ','大通','豊水すすき','学園前','豊平公園','美園','月寒中央','福住'] }
+      ] }
+  ];
+  var M_ALIAS_RAW = [['薄野','すすきの'], ['札幌','さっぽろ'], ['新札幌','新さっぽろ'], ['大通公園','大通'], ['豐水薄野','豊水すすき'], ['豊水薄野','豊水すすき'], ['雲雀丘','ひばりが丘'], ['巴士中心前','バスセンター前'], ['巴士總站前','バスセンター前']];
+  var M_VAR = { '區':'区', '條':'条', '澤':'沢', '鄉':'郷', '豐':'豊', '發':'発', '榮':'栄', '學':'学', '圓':'円', '內':'内', '狀':'状', '驛':'駅', '總':'総', '之':'の' };
+  function mNorm(v){
+    var n = String(v == null ? '' : v).toLowerCase().replace(/[\s\u3000・･\-－\.]/g, '').replace(/[（(][^）)]*[）)]/g, '');
+    n = n.replace(/[０-９]/g, function(c){ return String.fromCharCode(c.charCodeAt(0) - 65248); });
+    n = n.replace(/[區條澤鄉豐發榮學圓內狀驛總之]/g, function(c){ return M_VAR[c] || c; });
+    n = n.replace(/[東西南北]口$/, '').replace(/\d*[號号]?出口$/, '').replace(/(車站|駅|站)$/, '');
+    return n;
+  }
+  var M_ALIAS = null;
+  function mStd(v){
+    if(!M_ALIAS){ M_ALIAS = {}; M_ALIAS_RAW.forEach(function(a){ M_ALIAS[mNorm(a[0])] = mNorm(a[1]); }); }
+    var n = mNorm(v); return M_ALIAS[n] || n;
+  }
+  function metroCity(t){
+    if(!t) return null;
+    var h = [t.place, t.title, t.event, wxCands(t).join(' ')].join(' ').toLowerCase();
+    for(var i = 0; i < METRO.length; i++){
+      var C = METRO[i];
+      if(C.keys.some(function(k){ return h.indexOf(k) >= 0; })) return C;
+      if((C.weak || []).some(function(k){ return h.indexOf(k) >= 0; }) && !(C.notWeak || []).some(function(k){ return h.indexOf(k) >= 0; })) return C;
+    }
+    return null;
+  }
+  function metroIdx(C){
+    if(C._idx) return C._idx;
+    var idx = {};
+    C.lines.forEach(function(L, li){ L.st.forEach(function(nm, si){ var k = mNorm(nm); (idx[k] = idx[k] || []).push({ l:li, i:si }); }); });
+    return (C._idx = idx);
+  }
+  function metroFind(C, v){ var k = mStd(v); return k ? (metroIdx(C)[k] || []) : []; }
+  // 這個行程項目如果是搭地鐵、起訖站都對得到站名，就回傳站數與估算時間；對不到就回傳 null（不亂猜）
+  function metroRide(t, x){
+    var C = metroCity(t); if(!C || !x) return null;
+    if(!/地鐵|地下鐵|地铁|metro|subway/i.test(String(x.transport || ''))) return null;
+    var f = metroFind(C, x.stFrom), g = metroFind(C, x.stTo); if(!f.length || !g.length) return null;
+    var rt = String(x.route || ''), ln = -1;
+    C.lines.forEach(function(L, i){ if(ln < 0 && rt.indexOf(L.name) >= 0) ln = i; });
+    var pairs = [];
+    f.forEach(function(a){ g.forEach(function(b){ if(a.l === b.l && (ln < 0 || a.l === ln)) pairs.push({ l:a.l, n:Math.abs(a.i - b.i) }); }); });
+    if(!pairs.length) return null;
+    var n = pairs[0].n; if(!n || pairs.some(function(p){ return p.n !== n; })) return null;
+    return { n:n, line:pairs.length === 1 ? C.lines[pairs[0].l].name : '', min:Math.max(2, n * (C.min || 2)) };
+  }
+  function metroHintHtml(x){
+    var r = metroRide(cur(), x); if(!r) return '';
+    return '🚇 ' + (r.line ? esc(r.line) + ' ' : '') + '約 ' + r.n + ' 站' + (String(x.dur || '').trim() ? '' : '（預估時間空白，檢視時會顯示約 ' + r.min + ' 分鐘）');
+  }
+  function metroSyncList(){
+    var dl = document.getElementById('metrost'); if(!dl) return;
+    var C = metroCity(cur()); if(!C){ dl.innerHTML = ''; return; }
+    var seen = {}, order = [];
+    C.lines.forEach(function(L){ L.st.forEach(function(nm){ if(!seen[nm]){ seen[nm] = []; order.push(nm); } seen[nm].push(L.name); }); });
+    dl.innerHTML = order.map(function(nm){ return '<option value="' + esc(nm) + '" label="' + esc((C.zh && C.zh[nm] ? C.zh[nm] + '・' : '') + seen[nm].join('／')) + '"></option>'; }).join('');
+  }
+  function metroNstView(x){
+    var v = String(x.nst || '').trim(); if(!v) return '';
+    var C = metroCity(cur()), hit = C ? metroFind(C, v) : [], ls = [];
+    hit.forEach(function(h){ if(ls.indexOf(C.lines[h.l].name) < 0) ls.push(C.lines[h.l].name); });
+    return '<div class="vtext mnst">🚉 最近車站 <b>' + esc(v) + '</b>' + (ls.length ? '（' + esc(ls.join('／')) + '）' : '') + '</div>';
+  }
+  var MT_SEEN = {};
+  function metroView(t){
+    var C = metroCity(t); if(!C) return '';
+    var stops = allStops(t);
+    function itemsAt(nm){
+      var k = mNorm(nm);
+      return stops.filter(function(o){
+        var ns = mStd(o.it.nst);
+        return (ns && ns === k) || (k.length >= 3 && mNorm(o.it.title).indexOf(k) >= 0);
+      });
+    }
+    var cache = {}, any = false;
+    C.lines.forEach(function(L){ L.st.forEach(function(nm){ if(!(nm in cache)){ cache[nm] = itemsAt(nm); if(cache[nm].length) any = true; } }); });
+    var lines = C.lines.map(function(L, li){
+      var hits = L.st.filter(function(nm){ return cache[nm].length; }).length;
+      var rows = L.st.map(function(nm){
+        var its = cache[nm], z = C.zh && C.zh[nm], other = [];
+        C.lines.forEach(function(L2, l2){ if(l2 !== li && L2.st.indexOf(nm) >= 0) other.push(L2.name); });
+        return '<li class="mts' + (its.length ? ' on' : '') + '" style="--lc:' + L.color + '"><span class="mtn">' + esc(nm) + '</span>' + (z ? '<span class="mtz">' + esc(z) + '</span>' : '') +
+          (its.length ? '<span class="mtag">行程</span>' : '') + (other.length ? '<span class="mtx">轉乘 ' + esc(other.join('、')) + '</span>' : '') +
+          (its.length ? '<span class="mtit">' + its.map(function(o){ return '<button class="lk" type="button" data-do="goto" data-day="' + o.day.id + '" data-to="lk-it-' + o.it.id + '">Day ' + (o.di + 1) + ' ' + esc(o.it.title) + '</button>'; }).join('') + '</span>' : '') + '</li>';
+      }).join('');
+      var open = hits > 0 || (!any && li === 0);
+      return '<details class="mtline" style="--lc:' + L.color + '"' + (open ? ' open' : '') + '><summary><i class="mtdot"></i>' + esc(L.name) + '<span class="mtc">' + L.st.length + ' 站' + (hits ? '・' + hits + ' 個行程站' : '') + '</span></summary><ol class="mtst" style="--lc:' + L.color + '">' + rows + '</ol></details>';
+    }).join('');
+    return '<section class="sec" id="metrosec"><div class="sh"><h3>🚇 路線圖・' + esc(C.name) + '</h3></div>' +
+      '<div class="mtbox">依行程偵測：<b>' + esc(C.name) + '</b>' + (C.ic ? '　建議 IC 卡：' + esc(C.ic) : '') + '<small>行程站：在行程項目填「最近車站」，或行程名稱剛好含站名（至少 3 個字）就會標出來。</small></div>' +
+      lines + '<p class="hint">站名與站序是內建資料，不是即時資料，出發前請抽查實際會搭的站；新增或改名的車站要自己更新。</p></section>';
+  }
   // 中間欄：每日行程／購物・必買 分頁（分享給朋友的唯讀頁面沒有購物分頁）
   var midTab = 'plan';
   function midHtml(t){
     if(viewOnly) return boardHtml(t, false);
-    var tabs = '<div class="sptypes midtabs" role="group" aria-label="切換中間欄內容">' + [['plan', '每日行程'], ['shop', '購物・必買']].map(function(x){
+    var tabs = '<div class="sptypes midtabs" role="group" aria-label="切換中間欄內容">' + [['plan', '每日行程'], ['shop', '購物・必買']].concat(metroCity(t) ? [['metro', '路線圖']] : []).map(function(x){
       return '<button class="mini" type="button" data-do="midtab" data-tab="' + x[0] + '" aria-pressed="' + (midTab === x[0]) + '">' + x[1] + '</button>';
     }).join('') + '</div>';
-    return tabs + (midTab === 'all' ? boardHtml(t, false) + merchView(t) : midTab === 'shop' ? recView(t) + merchView(t) : boardHtml(t, false));
+    return tabs + (midTab === 'metro' && metroCity(t) ? metroView(t) : midTab === 'all' ? boardHtml(t, false) + merchView(t) : midTab === 'shop' ? recView(t) + merchView(t) : boardHtml(t, false));
   }
   // ---- 購物品項 ⇄ 行程連結：品項記在哪個行程（地點）可以買，該行程卡片就會顯示提醒 ----
   function allStops(t){
@@ -4255,6 +4383,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         }
         if(ds.k === 'status'){ var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && seatOk(it2.transport)); }
         if(ds.k === 'passOk'){ var pcb = $('passcmp'); if(pcb) pcb.innerHTML = passCmpInner(t); }
+        if(ds.k === 'stFrom' || ds.k === 'stTo' || ds.k === 'route' || ds.k === 'transport' || ds.k === 'dur'){ var mhE = el.closest('.icard') && el.closest('.icard').querySelector('.mhint'); if(mhE) mhE.innerHTML = metroHintHtml(it2); }
         if(ds.k === 'hmode') hmApply(el.closest('.icard'), it2);
         if(ds.k === 'hmode' || ds.k === 'closedDay' || ds.k === 'open' || ds.k === 'close' || ds.k === 'open2' || ds.k === 'close2' || ds.k === 'time' || ds.k === 'end'){
           var hw = el.closest('.icard') && el.closest('.icard').querySelector('.ihw'); if(hw) hw.innerHTML = hoursWarnHtml(pd, it2);
@@ -4685,7 +4814,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(gm){ gm.scrollIntoView({ behavior:'smooth', block:'center' }); gm.classList.add('flash'); setTimeout(function(){ gm.classList.remove('flash'); }, 1600); }
       return;
     }
-    if(act === 'midtab'){ midTab = b.dataset.tab === 'shop' ? 'shop' : 'plan'; renderDetail(); return; }
+    if(act === 'midtab'){ midTab = b.dataset.tab === 'shop' ? 'shop' : b.dataset.tab === 'metro' ? 'metro' : 'plan'; renderDetail(); return; }
     if(act === 'mgview'){ mgView = b.dataset.v === 'pri' ? 'pri' : 'store'; var mgs7 = $('merchsec'); if(mgs7) mgs7.outerHTML = merchView(t); return; }
     if(act === 'mgedit'){
       var mgid = b.dataset.id, mgt = byId(t.merch, mgid); if(!mgt) return;
