@@ -3196,12 +3196,29 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // 每日行程看板：一天一欄，一個行程一張卡片（左右滑動看其他天）
   // ---- 整天路線：把當天有填地點的行程，依時間串成 Google 地圖路線（一次最多 10 站，超過會分段）----
-  function routeLinks(day){
+  // 住宿當起訖點：起點＝前一晚住的（入住 < 這天 ≤ 退房）、終點＝這天晚上住的（入住 ≤ 這天 < 退房）；沒填地址的住宿略過
+  function routeStays(t, day){
+    var r = { from:'', to:'' };
+    if(!t || !day || !day.date) return r;
+    var prev = ymd(new Date(toDate(day.date).getTime() - 864e5)), today = day.date;
+    (t.stays || []).forEach(function(s){
+      var a = String(s.address || '').trim(), ci = s.checkin || '', co = s.checkout || '';
+      if(!a || !ci) return;
+      if(!r.from && ci <= prev && (!co || prev < co)) r.from = a;
+      if(!r.to && ci <= today && (!co || today < co)) r.to = a;
+    });
+    return r;
+  }
+  function routeLinks(day, t){
     var pl = [];
     sortedItems(day).forEach(function(x){
       var v = String(x.place || '').trim();
       if(v && pl[pl.length - 1] !== v) pl.push(v);
     });
+    if(!pl.length) return '';
+    var hs = routeStays(t || cur(), day), withHotel = false;
+    if(hs.from && pl[0] !== hs.from){ pl.unshift(hs.from); withHotel = true; }
+    if(hs.to && pl[pl.length - 1] !== hs.to){ pl.push(hs.to); withHotel = true; }
     if(pl.length < 2) return '';
     var out = [], i = 0, e = encodeURIComponent;
     while(i < pl.length - 1){
@@ -3211,7 +3228,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       i += seg.length - 1;
     }
     return out.map(function(o){
-      return '<a class="rtl" href="' + esc(o.url) + '" target="_blank" rel="noopener" title="在 Google 地圖依序開啟這一天的路線">🗺 ' + (out.length === 1 ? '整天路線（' + pl.length + ' 站）' : '路線 ' + (out.indexOf(o) + 1) + '（第 ' + o.from + '–' + o.to + ' 站）') + '</a>';
+      return '<a class="rtl" href="' + esc(o.url) + '" target="_blank" rel="noopener" title="在 Google 地圖依序開啟這一天的路線">🗺 ' + (out.length === 1 ? '整天路線（' + pl.length + ' 站' + (withHotel ? '・含住宿' : '') + '）' : '路線 ' + (out.indexOf(o) + 1) + '（第 ' + o.from + '–' + o.to + ' 站）') + '</a>';
     }).join('');
   }
   // ---- 天氣與時差：用 Open-Meteo（免金鑰）。16 天內用預報；更遠的用「去年同期」的實際天氣當參考；已過的日期用實際紀錄。抓不到就靜默不顯示 ----
@@ -3373,7 +3390,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     });
   }
   function dayExtra(t, day){
-    var rl = routeLinks(day), hasWx = !!day.date && !!wxCity(t);
+    var rl = routeLinks(day, t), hasWx = !!day.date && !!wxCity(t);
     if(!rl && !hasWx) return '';
     return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rl + '</div>';
   }
