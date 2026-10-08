@@ -930,6 +930,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mhint{font-size:12px; color:var(--ink-dim); margin:-2px 0 6px;}
   .busrow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:-2px 0 6px;}
   .busrow[hidden]{display:none;}
+  .llrow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:6px 0;}
+  .llrow .legline-in{flex:1 1 200px; min-width:0;}
+  .llrow .bussug{font-size:12px; color:var(--ink-dim);}
   .busrow .bussug{font-size:12px; color:var(--ink-dim);}
   .busman{flex:0 0 100%; display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
   .busman textarea{width:100%; box-sizing:border-box; font:inherit; font-size:13px; padding:8px; border:1px solid var(--line, #ccc); border-radius:6px; background:transparent; color:inherit; resize:vertical;}
@@ -2378,13 +2381,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function legsEdit(day, x){
     var legs = x.legs || [];
     return '<details class="itx itx-legs"' + (legs.length ? ' open' : '') + '><summary>🚆 轉乘路段（每段填起訖、時間、車資）</summary>' +
+      '<div class="llrow"><input class="legline-in" autocomplete="off" aria-label="線名" placeholder="加入站名選單：填線名（例：千歲線、函館本線）">' +
+      '<button class="mini" type="button" data-do="legline" data-day="' + day.id + '" data-id="' + x.id + '">🚆 查這條線</button><span class="bussug">' + legStSummary(cur()) + '</span>' +
+      '<datalist id="legst">' + legStOptions(cur()) + '</datalist></div>' +
       '<div class="dhead"><span class="muted" style="font-size:12px">車資填每人金額，有填就會自動加總成預估車資；某一段要用現金／購票，可在該段選付款方式</span>' +
       '<button class="mini" type="button" data-do="addleg" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增路段</button></div>' +
       legs.map(function(lg){
         var ta = ' data-p="' + day.id + '" data-i="' + x.id + '" data-lg="' + lg.id + '"';
         return '<div class="legr">' +
-          '<input' + ta + ' data-k="lfrom" aria-label="起站" placeholder="起站" autocomplete="off" value="' + esc(lg.from || '') + '">' +
-          '<input' + ta + ' data-k="lto" aria-label="到站" placeholder="到站" autocomplete="off" value="' + esc(lg.to || '') + '">' +
+          '<input' + ta + ' data-k="lfrom" list="legst" aria-label="起站" placeholder="起站" autocomplete="off" value="' + esc(lg.from || '') + '">' +
+          '<input' + ta + ' data-k="lto" list="legst" aria-label="到站" placeholder="到站" autocomplete="off" value="' + esc(lg.to || '') + '">' +
           '<button class="del" type="button" data-do="delleg" data-day="' + day.id + '" data-id="' + x.id + '" data-lg="' + lg.id + '" aria-label="刪除" title="刪除">×</button>' +
           '<input' + ta + ' data-k="ltrain" aria-label="車種或路線" placeholder="車種／路線" autocomplete="off" value="' + esc(lg.train || '') + '">' +
           '<input' + ta + ' data-k="ldep" aria-label="出發時間" placeholder="出發 14:20" autocomplete="off" value="' + esc(lg.dep || '') + '">' +
@@ -3690,15 +3696,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var pairs = [];
     f.forEach(function(a){ g.forEach(function(b){ if(a.l === b.l && (ln < 0 || a.l === ln)) pairs.push({ l:a.l, n:Math.abs(a.i - b.i) }); }); });
     if(!pairs.length) return null;
-    var n = pairs[0].n;
-    if(pairs.some(function(p){ return p.n !== n; })){
-      // 環狀線（例：札幌市電 内回り／外回り）兩個方向站數不一樣：同一個系統就取較少的那個；不同路線之間仍不亂猜
-      var grp = function(p){ return String(C.lines[p.l].name).split(/[\s\u3000]+/)[0]; };
-      if(pairs.some(function(p){ return grp(p) !== grp(pairs[0]); })) return null;
-      n = Math.min.apply(null, pairs.map(function(p){ return p.n; }));
-      return n ? { n:n, line:grp(pairs[0]), min:Math.max(2, n * (C.min || 2)) } : null;
-    }
-    if(!n) return null;
+    var n = pairs[0].n; if(!n || pairs.some(function(p){ return p.n !== n; })) return null;
     return { n:n, line:pairs.length === 1 ? C.lines[pairs[0].l].name : '', min:Math.max(2, n * (C.min || 2)) };
   }
   function metroHintHtml(x){
@@ -3782,8 +3780,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 查這條巴士：行程選「巴士」、路線欄填路線號 → 從 OpenStreetMap 抓這一條路線的站序，存進旅程；起站／到站可下拉選，並算「約 N 站」 ----
   var busBusy = false;
-  function busOn(x){ return /巴士|公車|公交|bus/i.test(String((x && x.transport) || '')); }
-  function busLead(x){ var m = /^\s*(\d{1,3}[A-Za-z]?)(?=[^\dA-Za-z]|$)/.exec(String((x && x.route) || '')); return m ? m[1] : ''; }   // 「31石狩線」→ 路線號 31，欄位照樣顯示完整名稱
+  function busIsBus(x){ return /巴士|公車|公交|bus/i.test(String((x && x.transport) || '')); }
+  function busIsRail(x){ return !busIsBus(x) && seatOk(x && x.transport); }      // JR／列車：同一套「查路線抓站名」功能
+  function busOn(x){ return busIsBus(x) || busIsRail(x); }
+  function busLead(x){ if(busIsRail(x)) return ''; var m = /^\s*(\d{1,3}[A-Za-z]?)(?=[^\dA-Za-z]|$)/.exec(String((x && x.route) || '')); return m ? m[1] : ''; }   // 「31石狩線」→ 路線號 31，欄位照樣顯示完整名稱
   function busRef(x){
     var ld = busLead(x); if(ld) return ld;
     var r = String((x && x.route) || '').trim().split(/[\s\u3000、,，;；\/／]+/)[0] || '';
@@ -3807,7 +3807,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function busShow(x){ return !!(busOn(x) && busKey(x) && !(x.legs || []).length); }
   function busRowHtml(t, x, day){
     var d = busData(t, x);
-    return '<div class="busrow"' + (busShow(x) ? '' : ' hidden') + '><button class="mini" type="button" data-do="busfetch" data-day="' + day.id + '" data-id="' + x.id + '" title="從網路抓這條路線的站名與站序">🚌 查這條巴士</button><button class="mini" type="button" data-do="busmanual" data-day="' + day.id + '" data-id="' + x.id + '" title="連不上網路時，自己貼上站名（例如從 Google 地圖複製）">✏️ 手動貼站名</button><span class="bussug">' + busStatus(t, x) + '</span>' +
+    return '<div class="busrow"' + (busShow(x) ? '' : ' hidden') + '><button class="mini" type="button" data-do="busfetch" data-day="' + day.id + '" data-id="' + x.id + '" title="從網路抓這條路線的站名與站序">' + (busIsRail(x) ? '🚆 查這條路線' : '🚌 查這條巴士') + '</button><button class="mini" type="button" data-do="busmanual" data-day="' + day.id + '" data-id="' + x.id + '" title="連不上網路時，自己貼上站名（例如從 Google 地圖複製）">✏️ 手動貼站名</button><span class="bussug">' + busStatus(t, x) + '</span>' +
       '<datalist id="bus-' + x.id + '">' + (d ? busList(d).map(function(n){ return '<option value="' + esc(n) + '"></option>'; }).join('') : '') + '</datalist></div>';
   }
   function stList(t, x){ return (busOn(x) && busData(t, x)) ? 'bus-' + x.id : 'metrost'; }
@@ -3830,9 +3830,49 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var d = busData(t, x), sg = row.querySelector('.bussug'), dl = row.querySelector('datalist');
     if(sg) sg.innerHTML = busStatus(t, x);
     if(dl) dl.innerHTML = d ? busList(d).map(function(n){ return '<option value="' + esc(n) + '"></option>'; }).join('') : '';
+    var fb = row.querySelector('[data-do="busfetch"]'); if(fb) fb.textContent = busIsRail(x) ? '🚆 查這條路線' : '🚌 查這條巴士';
     var use = stList(t, x);
     [].forEach.call(card.querySelectorAll('.itx-st input[data-k="stFrom"],.itx-st input[data-k="stTo"]'), function(n){ n.setAttribute('list', use); });
     var mh = card.querySelector('.mhint'); if(mh) mh.innerHTML = metroHintHtml(x);
+  }
+  // ---- 轉乘路段的站名選單：旅程裡查過的所有路線（JR／巴士）＋路線圖的地鐵站，共用一份 ----
+  function legStOptions(t){
+    var seen = {}, out = [];
+    function add(n, lb){ if(!n || seen[n]) return; seen[n] = 1; out.push('<option value="' + esc(n) + '" label="' + esc(lb) + '"></option>'); }
+    Object.keys((t && t.busRoutes) || {}).forEach(function(k){ var r = t.busRoutes[k]; (r.vars || []).forEach(function(v){ v.st.forEach(function(n){ add(n, r.ref || k); }); }); });
+    var C = metroCity(t); if(C) C.lines.forEach(function(L){ L.st.forEach(function(n){ add(n, L.name); }); });
+    return out.join('');
+  }
+  function legStSummary(t){
+    var ks = Object.keys((t && t.busRoutes) || {}); if(!ks.length) return '';
+    return '已加入：' + ks.map(function(k){ return esc(t.busRoutes[k].ref || k); }).join('、');
+  }
+  function legLineFetch(t, b){
+    var row = b.closest('.llrow'), inp = row && row.querySelector('.legline-in'), sg = row && row.querySelector('.bussug');
+    var text = inp ? inp.value.trim() : '';
+    if(!text){ if(sg) sg.textContent = '請先填線名（例：千歲線）'; return; }
+    var fx = { route:text, transport:'JR' }, ref = busRef(fx), words = busWords(fx);
+    if(!ref || !words.length){ if(sg) sg.textContent = '線名看不懂，請換個寫法'; return; }
+    var cands = wxCands(t); if(!cands.length){ if(sg) sg.textContent = '請先填旅程的「地點」'; return; }
+    if(busBusy) return;
+    busBusy = true; if(sg) sg.textContent = '查詢中…（最多約 45 秒）';
+    var say = function(m){ busBusy = false; if(sg && sg.isConnected) sg.textContent = m; };
+    wxGeo(cands, 0).then(function(loc){
+      if(!loc) throw '查不到「' + cands[0] + '」的位置，請確認旅程的「地點」';
+      return busOverpass(busQuery(loc.latitude, loc.longitude, ref, words, true)).then(function(js){
+        if(words.length > 1 && !busParse(js).length) return busOverpass(busQuery(loc.latitude, loc.longitude, ref, words.slice(-1), true));
+        return js;
+      });
+    }).then(function(js){
+      var vars = busParse(js);
+      if(!vars.length){ say('找不到「' + text + '」（OpenStreetMap 上的線名可能不同，可以換短一點的寫法）'); return; }
+      t.busRoutes = t.busRoutes || {};
+      t.busRoutes[ref.toLowerCase()] = { ref:ref, city:String(cands[0]), fetched:ymd(new Date()), stamp:Date.now(), src:'OpenStreetMap', vars:vars };
+      busBusy = false; doPersist();
+      [].forEach.call(document.querySelectorAll('datalist#legst'), function(dl){ dl.innerHTML = legStOptions(t); });
+      if(sg && sg.isConnected) sg.textContent = legStSummary(t);
+      if(inp) inp.value = '';
+    }).catch(function(e){ say(typeof e === 'string' ? e : '抓取失敗：' + (e && e.message ? e.message : '未知錯誤')); });
   }
   // ---- 手動貼站名：連不上網路時的替代方式（例如從 Google 地圖的路線詳情複製站名）----
   function busManualFind(t, b){
@@ -3874,17 +3914,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // Google 地圖寫的是路線「名稱」（例：札幌～小樽：北大経由），OSM 的「路線號」是另一回事；
   // 所以：短的號碼（20、東63）用 ref 比對；較長的名稱拆成關鍵字，用 name 比對
   function busWords(x){
-    return String((x && x.route) || '').replace(/(\d)([^\d\s\u3000A-Za-z])/g, '$1 $2').split(/[\s\u3000、,，;；\/／～〜~:：\-－]+/).map(function(w){ return w.trim(); })
-      .filter(function(w){ return w && !/^(巴士|公車|公交|bus)$/i.test(w); });
+    return String((x && x.route) || '').replace(/(\d)([^\d\s\u3000A-Za-z])/g, '$1 $2').split(/[\s\u3000、,，;；\/／～〜~:：\-－]+/).map(function(w){ return w.trim().replace(/^JR(?=[^A-Za-z])/i, ''); })
+      .filter(function(w){ return w && !/^(巴士|公車|公交|bus|JR)$/i.test(w); });
   }
-  function busIsRef(x){ if(busLead(x)) return true; var r = busRef(x); return !!r && r.length <= 6 && busWords(x).length <= 1; }
+  function busIsRef(x){ if(busIsRail(x)) return false; if(busLead(x)) return true; var r = busRef(x); return !!r && r.length <= 6 && busWords(x).length <= 1; }
   function busEsc(w){ return String(w).replace(/[\\"\.\^\$\*\+\?\(\)\[\]\{\}\|]/g, '\\$&'); }
-  function busQuery(lat, lon, ref, words){
+  function busQuery(lat, lon, ref, words, rail){
     var flt = words
       ? words.map(function(w){ return '["name"~"' + busEsc(w) + '"]'; }).join('')
       : '["ref"~"^' + ref + '$",i]';
-    var rad = words ? 20000 : 30000;
-    return '[out:json][timeout:40];rel(around:' + rad + ',' + lat + ',' + lon + ')["type"="route"]["route"~"^(bus|trolleybus)$"]' + flt + '->.r;' +
+    var rad = rail ? 30000 : (words ? 20000 : 30000), rt = rail ? 'train' : '(bus|trolleybus)';
+    return '[out:json][timeout:40];rel(around:' + rad + ',' + lat + ',' + lon + ')["type"="route"]["route"~"^' + rt + '$"]' + flt + '->.r;' +
       '(node(r.r:"stop");node(r.r:"stop_entry_only");node(r.r:"stop_exit_only");node(r.r:"platform");node(r.r:"platform_entry_only");node(r.r:"platform_exit_only");)->.s;.s out body;.r out body;';
   }
   var busLastErr = '';
@@ -3922,7 +3962,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var x = day && (day.items || []).filter(function(y){ return String(y.id) === b.dataset.id; })[0]; if(!x) return;
     var card = b.closest('.icard') || emodal, sg = card && card.querySelector('.bussug');
     var ref = busRef(x);
-    if(!ref){ if(sg) sg.textContent = '請先在「路線」欄填路線號（例如 東63）'; return; }
+    if(!ref){ if(sg) sg.textContent = '請先在「路線」欄填' + (busIsRail(x) ? '線名（例如 函館本線）' : '路線號（例如 東63）') + ''; return; }
     var cands = wxCands(t); if(!cands.length){ if(sg) sg.textContent = '請先填旅程的「地點」'; return; }
     if(busBusy) return;
     busBusy = true; if(sg) sg.textContent = '查詢中…（最多約 45 秒）';
@@ -3930,13 +3970,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     wxGeo(cands, 0).then(function(loc){
       if(!loc) throw '查不到「' + cands[0] + '」的位置，請確認旅程的「地點」';
       var ws = busIsRef(x) ? null : busWords(x);
-      return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws)).then(function(js){
+      return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws, busIsRail(x))).then(function(js){
         var rest = busLead(x) ? busWords(x).filter(function(w){ return w !== ref; }) : [];
         if(!ws && rest.length && !busParse(js).length){          // 用路線號找不到時，改用名稱（例：石狩線）再找一次
-          return busOverpass(busQuery(loc.latitude, loc.longitude, ref, rest));
+          return busOverpass(busQuery(loc.latitude, loc.longitude, ref, rest, busIsRail(x)));
         }
         if(ws && ws.length > 1 && !busParse(js).length){          // 全部關鍵字都要符合找不到時，只用最後一個關鍵字（例：北大経由）再找一次
-          return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws.slice(-1)));
+          return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws.slice(-1), busIsRail(x)));
         }
         return js;
       });
@@ -5233,6 +5273,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'midtab'){ midTab = b.dataset.tab === 'shop' ? 'shop' : b.dataset.tab === 'metro' ? 'metro' : 'plan'; renderDetail(); return; }
     if(act === 'metrofetch'){ metroFetch(t); return; }
     if(act === 'busfetch'){ busFetch(t, b); return; }
+    if(act === 'legline'){ legLineFetch(t, b); return; }
     if(act === 'busmanual'){ busManual(t, b); return; }
     if(act === 'busmanualsave'){ busManualSave(t, b); return; }
     if(act === 'nstsug'){ nstSuggest(t, b); return; }
