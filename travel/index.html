@@ -3821,16 +3821,29 @@ a.name{display:block; color:inherit; text-decoration:none;}
     [].forEach.call(card.querySelectorAll('.itx-st input[data-k="stFrom"],.itx-st input[data-k="stTo"]'), function(n){ n.setAttribute('list', use); });
     var mh = card.querySelector('.mhint'); if(mh) mh.innerHTML = metroHintHtml(x);
   }
-  function busQuery(lat, lon, ref){
-    return '[out:json][timeout:40];rel(around:30000,' + lat + ',' + lon + ')["type"="route"]["route"~"^(bus|trolleybus)$"]["ref"~"^' + ref + '$",i]->.r;' +
+  // Google 地圖寫的是路線「名稱」（例：札幌～小樽：北大経由），OSM 的「路線號」是另一回事；
+  // 所以：短的號碼（20、東63）用 ref 比對；較長的名稱拆成關鍵字，用 name 比對
+  function busWords(x){
+    return String((x && x.route) || '').split(/[\s\u3000、,，;；\/／～〜~:：\-－]+/).map(function(w){ return w.trim(); })
+      .filter(function(w){ return w && !/^(巴士|公車|公交|bus)$/i.test(w); });
+  }
+  function busIsRef(x){ var r = busRef(x); return !!r && r.length <= 6 && busWords(x).length <= 1; }
+  function busEsc(w){ return String(w).replace(/[\\"\.\^\$\*\+\?\(\)\[\]\{\}\|]/g, '\\$&'); }
+  function busQuery(lat, lon, ref, words){
+    var flt = words
+      ? words.map(function(w){ return '["name"~"' + busEsc(w) + '"]'; }).join('')
+      : '["ref"~"^' + ref + '$",i]';
+    var rad = words ? 20000 : 30000;
+    return '[out:json][timeout:40];rel(around:' + rad + ',' + lat + ',' + lon + ')["type"="route"]["route"~"^(bus|trolleybus)$"]' + flt + '->.r;' +
       '(node(r.r:"stop");node(r.r:"stop_entry_only");node(r.r:"stop_exit_only");node(r.r:"platform");node(r.r:"platform_entry_only");node(r.r:"platform_exit_only");)->.s;.s out body;.r out body;';
   }
+  var busLastErr = '';
   function busOverpass(q, i){
-    i = i || 0; if(i >= METRO_EPS.length) return Promise.reject('網路請求被擋或失敗（Overpass 服務暫時連不上，請稍後再試）');
+    i = i || 0; if(i >= METRO_EPS.length) return Promise.reject('地圖資料服務暫時連不上（' + (busLastErr || '網路失敗') + '），請稍後再試');
     var ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null, tm = ctl ? setTimeout(function(){ ctl.abort(); }, 45000) : 0;
     return fetch(METRO_EPS[i], { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded' }, body:'data=' + encodeURIComponent(q), signal: ctl ? ctl.signal : undefined })
       .then(function(r){ clearTimeout(tm); if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .catch(function(){ clearTimeout(tm); return busOverpass(q, i + 1); });
+      .catch(function(e){ clearTimeout(tm); busLastErr = (e && e.name === 'AbortError') ? '逾時' : String((e && e.message) || e); return busOverpass(q, i + 1); });
   }
   // 整理成最多 6 個「方向／班次」，每個是依序的站名；只用 stop，沒有 stop 才退而用 platform
   function busParse(js){
@@ -3866,10 +3879,16 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var say = function(m){ busBusy = false; if(sg && sg.isConnected) sg.textContent = m; };
     wxGeo(cands, 0).then(function(loc){
       if(!loc) throw '查不到「' + cands[0] + '」的位置，請確認旅程的「地點」';
-      return busOverpass(busQuery(loc.latitude, loc.longitude, ref));
+      var ws = busIsRef(x) ? null : busWords(x);
+      return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws)).then(function(js){
+        if(ws && ws.length > 1 && !busParse(js).length){          // 全部關鍵字都要符合找不到時，只用最後一個關鍵字（例：北大経由）再找一次
+          return busOverpass(busQuery(loc.latitude, loc.longitude, ref, ws.slice(-1)));
+        }
+        return js;
+      });
     }).then(function(js){
       var vars = busParse(js);
-      if(!vars.length){ say('找不到路線「' + ref + '」（路線號要和地圖上的一致，或這條路線在地圖資料裡沒有登記）'); return; }
+      if(!vars.length){ say('找不到路線「' + String(x.route || ref).trim() + '」（OpenStreetMap 上的名稱或路線號可能和 Google 不同，或這條路線沒有登記；可以直接手動填起站／到站）'); return; }
       t.busRoutes = t.busRoutes || {};
       t.busRoutes[ref.toLowerCase()] = { ref:ref, city:String(cands[0]), fetched:ymd(new Date()), stamp:Date.now(), src:'OpenStreetMap', vars:vars };
       busBusy = false; doPersist();
@@ -3877,7 +3896,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }).catch(function(e){ say(typeof e === 'string' ? e : '抓取失敗：' + (e && e.message ? e.message : '未知錯誤')); });
   }
   // ---- 從網路抓取路線（OpenStreetMap Overpass）：只給沒有內建資料的地區用，抓回來存進旅程 ----
-  var METRO_EPS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'];
+  var METRO_EPS = ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'];
   var metroBusy = false, metroMsg = '';
   var M_TYPES_ALL = 'subway|light_rail|tram', M_TYPES_EXTRA = 'light_rail|tram', M_TYPE_ICON = { tram:'🚊', light_rail:'🚈' };
   function metroNoMono(lines){ return (lines || []).filter(function(L){ return L.type !== 'monorail'; }); }      // 舊版抓過的單軌不顯示
