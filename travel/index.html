@@ -3879,7 +3879,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           (its.length ? '<span class="mtag">行程</span>' : '') + (other.length ? '<span class="mtx">轉乘 ' + esc(other.join('、')) + '</span>' : '') +
           (its.length ? '<span class="mtit">' + its.map(function(o){ return '<button class="lk" type="button" data-do="goto" data-day="' + o.day.id + '" data-to="lk-it-' + o.it.id + '">Day ' + (o.di + 1) + ' ' + esc(o.it.title) + '</button>'; }).join('') + '</span>' : '') + '</li>';
       }).join('');
-      var open = hits > 0 || (!any && li === 0);
+      var open = false;      // 路線一律預設收合；有行程站的線，標題右側會顯示「N 個行程站」
       return '<details class="mtline" style="--lc:' + L.color + '"' + (open ? ' open' : '') + '><summary><i class="mtdot"></i>' + (L.type && M_TYPE_ICON[L.type] ? M_TYPE_ICON[L.type] + ' ' : '') + esc(L.name) + '<span class="mtc">' + L.st.length + ' 站' + (hits ? '・' + hits + ' 個行程站' : '') + '</span></summary><ol class="mtst" style="--lc:' + L.color + '">' + rows + '</ol></details>';
     }).join('');
     return '<section class="sec" id="metrosec"><div class="sh"><h3>🚇 路線圖・' + esc(C.name) + '</h3></div>' +
