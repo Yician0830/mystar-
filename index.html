@@ -1199,6 +1199,11 @@
     <span class="storage-warn-close" id="arrivalReminderClose">✕</span>
   </div>
 
+  <div class="storage-warn" id="renewReminderBanner" style="cursor:pointer;">
+    <span id="renewReminderText"></span>
+    <span class="storage-warn-close" id="renewReminderClose">✕</span>
+  </div>
+
   <header class="top" id="petalHost">
     <div class="top-row">
       <div class="brand">
@@ -1529,6 +1534,8 @@ function attachCloudListener(){
       const data = change.doc.data();
       if(!data || data.value === undefined) return;
       state[stateKey] = data.value;
+      if(stateKey === 'arrivals') normalizeArrivalStatuses(state.arrivals);
+      if(stateKey === 'expense') normalizeExpenseStatuses(state.expense);
       changed = true;
       if(stateKey === 'theme'){
         state.theme = Object.assign({}, DEFAULT_THEME, state.theme || {});
@@ -1826,7 +1833,110 @@ const EXPENSE_CATEGORY_ICON = {
   '應援物/飯製商品':'📣', '周邊商品':'🛍️', '娃娃':'🧸', '會員費':'💳',
   '聯名商品':'🤝', '其他追星支出':'💸'
 };
-const EXPENSE_STATUS = ['未到貨','已到貨','已取消','退換中'];
+const EXPENSE_STATUS = ['未出貨','待運回','已出貨','待領貨','已到貨','退換中'];
+/* 舊版記帳到貨狀態轉新版：未到貨→未出貨、已取消→退換中 */
+const EXPENSE_LEGACY_STATUS_MAP = { '未到貨':'未出貨', '已取消':'退換中' };
+/* 特定分類使用專屬的到貨狀態選項：門票＝未取票／已取票，交通/住宿＝未搭乘／已搭乘／未入住／已入住 */
+const TICKET_EXPENSE_CATEGORY = '演唱會/見面會門票';
+const TRAVEL_EXPENSE_CATEGORY = '交通/住宿';
+const EXPENSE_CATEGORY_STATUS = {
+  '演唱會/見面會門票': { options:['未取票','已取票'], todo:'未取票', done:'已取票' },
+  '交通/住宿': { options:['未搭乘','已搭乘','未入住','已入住'], todo:'未搭乘', done:'已搭乘' }
+};
+/* ================= 會員費續費提醒 =================
+   會員費可以在記帳表單選「是否續費」＋續費週期（每月／每年）＋提前幾天提醒。
+   下次續費日 = 這筆的消費日期 + 週期。續費後「複製這筆」並改成新的日期，提醒就會自動接到最新那一筆
+   （同名稱、同藝人的會員費只有日期最新的那筆會提醒，舊的不會重複吵你）。 */
+const MEMBERSHIP_EXPENSE_CATEGORY = '會員費';
+function addRenewPeriod(dateStr, period){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const target = new Date(y, (m-1) + (period==='year' ? 12 : 1), 1);
+  const lastDay = new Date(target.getFullYear(), target.getMonth()+1, 0).getDate();
+  target.setDate(Math.min(d, lastDay));
+  return toLocalDateStr(target);
+}
+function expenseIsLatestInRenewChain(e){
+  return !state.expense.some(x=> x!==e && x.category===MEMBERSHIP_EXPENSE_CATEGORY && x.name===e.name && (x.artist||'')===(e.artist||'') && (x.date||'')>(e.date||''));
+}
+function expenseRenewalInfo(e){
+  if(!(e.category===MEMBERSHIP_EXPENSE_CATEGORY && e.renewEnabled && e.date)) return null;
+  if(!expenseIsLatestInRenewChain(e)) return null;
+  const due = addRenewPeriod(e.date, e.renewPeriod||'month');
+  const days = daysUntilDate(due);
+  if(days===null) return null;
+  let remind = parseInt(e.renewRemindDays,10);
+  if(isNaN(remind)) remind = 7;
+  return { due, days, remind };
+}
+function expenseRenewalDueList(){
+  const list = [];
+  state.expense.forEach(e=>{
+    const info = expenseRenewalInfo(e);
+    if(info && info.days<=info.remind) list.push({ item:e, info });
+  });
+  return list.sort((a,b)=> a.info.days-b.info.days);
+}
+function renewalTagHtml(e){
+  const info = expenseRenewalInfo(e);
+  if(!info) return '';
+  const near = info.days<=info.remind;
+  const label = info.days<0 ? `🔁 已逾期 ${-info.days} 天，該續費了`
+    : info.days===0 ? '🔁 今天要續費'
+    : `🔁 ${fmtDate(info.due)} 續費（還有 ${info.days} 天）`;
+  const style = near ? 'background:#FBE3EA;color:#B2465F;' : '';
+  return `<span class="tag ${near?'':'gold'}" style="${style}">${label}</span>`;
+}
+function updateRenewReminderBanner(){
+  const el = document.getElementById('renewReminderBanner');
+  if(!el) return;
+  if(renewReminderDismissed){ el.style.display='none'; return; }
+  const due = expenseRenewalDueList();
+  if(due.length===0){ el.style.display='none'; return; }
+  const overdue = due.filter(x=>x.info.days<0).length;
+  const first = due[0];
+  let text;
+  if(due.length===1){
+    const i = first.info;
+    text = i.days<0 ? `🔁 「${first.item.name}」已逾期 ${-i.days} 天，該續費了，點此查看`
+      : i.days===0 ? `🔁 「${first.item.name}」今天要續費，點此查看`
+      : `🔁 「${first.item.name}」${i.days} 天後要續費（${fmtDate(i.due)}），點此查看`;
+  } else {
+    text = `🔁 有 ${due.length} 項會員費即將到期${overdue>0?`（其中 ${overdue} 項已逾期）`:''}，點此查看`;
+  }
+  document.getElementById('renewReminderText').textContent = text;
+  el.style.display='block';
+}
+
+/* 這些分類不需要到貨狀態：表單會自動隱藏欄位，也不會存狀態 */
+const EXPENSE_NO_STATUS_CATEGORIES = ['餐飲','會員費'];
+const EXPENSE_CATEGORY_DONE_STATUSES = ['已取票','已搭乘','已入住'];
+const EXPENSE_CATEGORY_TODO_STATUSES = ['未取票','未搭乘','未入住'];
+function expenseStatusOptions(category){
+  return EXPENSE_CATEGORY_STATUS[category] ? EXPENSE_CATEGORY_STATUS[category].options : EXPENSE_STATUS;
+}
+/* 切換分類時，把目前選的狀態換成另一組選項裡對應的值 */
+function convertExpenseStatusForCategory(status, category){
+  if(!status) return '';
+  const cfg = EXPENSE_CATEGORY_STATUS[category];
+  if(cfg){
+    if(cfg.options.includes(status)) return status;
+    if(status==='已到貨' || EXPENSE_CATEGORY_DONE_STATUSES.includes(status)) return cfg.done;
+    return cfg.todo;
+  }
+  if(EXPENSE_CATEGORY_DONE_STATUSES.includes(status)) return '已到貨';
+  if(EXPENSE_CATEGORY_TODO_STATUSES.includes(status)) return '未出貨';
+  return status;
+}
+function normalizeExpenseStatuses(list){
+  (list||[]).forEach(e=>{
+    if(EXPENSE_NO_STATUS_CATEGORIES.includes(e.category)){ e.deliveryStatus = ''; return; }
+    if(EXPENSE_LEGACY_STATUS_MAP[e.deliveryStatus]) e.deliveryStatus = EXPENSE_LEGACY_STATUS_MAP[e.deliveryStatus];
+    if(EXPENSE_CATEGORY_STATUS[e.category] && e.deliveryStatus && e.deliveryStatus!=='退換中'){
+      e.deliveryStatus = convertExpenseStatusForCategory(e.deliveryStatus, e.category);
+    }
+  });
+  return list;
+}
 const EXPENSE_PAYMENT = ['貨到付款','信用卡','LINE Pay','轉帳','現金','其他'];
 function expenseAmount(item){
   const unit = parseFloat(item.unitPrice)||0;
@@ -2088,7 +2198,7 @@ function arrivalForLinkedExpense(expenseItem){
   return state.arrivals.find(a=>String(a.id)===String(expenseItem.arrivalLinkedId)) || null;
 }
 function arrivalStatusTagHtml(arrival){
-  const st = ARRIVAL_STATUS_META[arrival.status] || ARRIVAL_STATUS_META.ordered;
+  const st = ARRIVAL_STATUS_META[arrival.status] || ARRIVAL_STATUS_META.unshipped;
   const overdue = arrivalIsOverdue(arrival);
   const label = overdue ? `⚠️ 已逾期 ${arrivalOverdueDays(arrival)} 天` : `${st.icon} ${st.label}`;
   const style = overdue ? 'background:#FBE3EA;color:#B2465F;cursor:pointer;' : 'cursor:pointer;';
@@ -2240,7 +2350,7 @@ async function loadAllData(){
     loadKey('oshi-endorsement-categories-disabled', []),
     loadKey('oshi-arrivals', [])
   ]);
-  state.schedule = sc; state.expense = ex; state.photocards = pc;
+  state.schedule = sc; state.expense = normalizeExpenseStatuses(ex); state.photocards = pc;
   state.support = mv; state.fanlog = fl; state.artists = ar; state.profile = pf;
   state.customPcCategories = cc;
   state.pcSeriesCovers = pcc || {};
@@ -2269,7 +2379,7 @@ async function loadAllData(){
   state.merchCategoryDisabled = mcd || [];
   state.fanlogCategoryDisabled = fld || [];
   state.endorsementCategoryDisabled = endd || [];
-  state.arrivals = arv || [];
+  state.arrivals = normalizeArrivalStatuses(arv || []);
   state.playlist = await loadKey('oshi-playlist', []);
 }
 
@@ -2578,6 +2688,19 @@ function bindNav(){
     arrivalReminderDismissed = true;
     document.getElementById('arrivalReminderBanner').style.display = 'none';
   });
+  document.getElementById('renewReminderBanner').addEventListener('click', (e)=>{
+    if(e.target.id==='renewReminderClose') return;
+    state.tab = 'expense';
+    uiFilters.expense.view = 'category';
+    uiFilters.expense.category = MEMBERSHIP_EXPENSE_CATEGORY;
+    expSearchQuery = '';
+    render();
+  });
+  document.getElementById('renewReminderClose').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    renewReminderDismissed = true;
+    document.getElementById('renewReminderBanner').style.display = 'none';
+  });
   document.getElementById('overlay').addEventListener('click', (e)=>{
     if(e.target.id!=='overlay') return;
     if(modalDirty && !confirm('目前輸入的內容還沒儲存，確定要放棄嗎？')) return;
@@ -2673,6 +2796,7 @@ function render(){
   persistCurrentTab();
   persistUiFilters();
   updateNavActive();
+  updateRenewReminderBanner();
   const main = document.getElementById('mainContent');
   if(state.tab==='home'){ main.innerHTML = renderHome(); bindHomeLinks(); return; }
   if(state.tab==='schedule'){ main.innerHTML = renderScheduleTab(); bindListActions('schedule'); bindCalendarActions(); return; }
@@ -3899,6 +4023,14 @@ function computeTodayReminderItems(){
     }
   });
 
+  state.expense.forEach(e=>{
+    const info = expenseRenewalInfo(e);
+    if(!info) return;
+    if(info.days<0) items.push({ icon:'🔁', when:'today', text:`「${e.name}」已逾期 ${-info.days} 天，該續費了`, tab:'expense' });
+    else if(info.days===0) items.push({ icon:'🔁', when:'today', text:`「${e.name}」今天要續費`, tab:'expense' });
+    else if(info.days===1) items.push({ icon:'🔁', when:'tomorrow', text:`「${e.name}」明天要續費`, tab:'expense' });
+  });
+
   // 今天的事優先排在前面
   items.sort((a,b)=> (a.when==='today'?0:1) - (b.when==='today'?0:1));
   return items;
@@ -4672,10 +4804,18 @@ function duplicateExpense(id){
 
 function expenseStatusColor(status){
   const map = {
-    '未到貨': {bg:'#FADBD8', fg:'#C0392B'},
+    '未出貨': {bg:'#F6E9CE', fg:'#8C6B22'},
+    '待運回': {bg:'#DCEBEF', fg:'#2F5A73'},
+    '已出貨': {bg:'#F0ECF8', fg:'#5A4A82'},
+    '待領貨': {bg:'#FBE7D3', fg:'#9C5A17'},
     '已到貨': {bg:'#D8F3DC', fg:'#2F6B3F'},
-    '已取消': {bg:'#E6E6E6', fg:'#555555'},
-    '退換中': {bg:'#FFE3C2', fg:'#9C5A17'}
+    '退換中': {bg:'#F7E1EC', fg:'#8C4468'},
+    '未取票': {bg:'#F6E9CE', fg:'#8C6B22'},
+    '已取票': {bg:'#D8F3DC', fg:'#2F6B3F'},
+    '未搭乘': {bg:'#F6E9CE', fg:'#8C6B22'},
+    '已搭乘': {bg:'#D8F3DC', fg:'#2F6B3F'},
+    '未入住': {bg:'#FBE7D3', fg:'#9C5A17'},
+    '已入住': {bg:'#DCEBEF', fg:'#2F5A73'}
   };
   return map[status] || {bg:'#E6EEFA', fg:'#5F4E7A'};
 }
@@ -4719,6 +4859,7 @@ function renderExpenseCard(item){
       <div class="exp-info">
         <div class="exp-badges">
           ${item.category ? `<span class="tag" style="background:${catColor.bg};color:${catColor.fg};">${catIcon} ${esc(item.category)}</span>` : ''}
+          ${renewalTagHtml(item)}
           ${linkedArrival ? arrivalStatusTagHtml(linkedArrival) : (item.deliveryStatus ? `<span class="tag" style="background:${statusColor.bg};color:${statusColor.fg};">${esc(item.deliveryStatus)}</span>` : '')}
         </div>
         <div class="card-title exp-name">${esc(item.name||'（未命名）')}</div>
@@ -4853,8 +4994,7 @@ function openExpenseForm(id, prefill){
   const linkedArrivalForForm = src ? arrivalForLinkedExpense(src) : null;
   let deliveryStatusFieldHtml;
   if(linkedArrivalForForm){
-    const mapStatusToExpense = { ordered:'未到貨', shipped:'未到貨', arrived:'已到貨', cancelled:'已取消' };
-    const mappedVal = mapStatusToExpense[linkedArrivalForForm.status] || '';
+    const mappedVal = (ARRIVAL_STATUS_META[linkedArrivalForForm.status] || {}).label || '';
     deliveryStatusFieldHtml = `
     <div class="field"><label>到貨狀態</label>
       <select id="expDeliveryStatus" disabled style="opacity:0.6;">
@@ -4866,11 +5006,15 @@ function openExpenseForm(id, prefill){
       </div>
     </div>`;
   } else {
+    const statusOpts = expenseStatusOptions(src ? src.category : '');
+    const curStatusVal = src ? (src.deliveryStatus||'') : '';
+    const statusList = (curStatusVal && !statusOpts.includes(curStatusVal)) ? [...statusOpts, curStatusVal] : statusOpts;
+    const hideStatus = src && EXPENSE_NO_STATUS_CATEGORIES.includes(src.category);
     deliveryStatusFieldHtml = `
-    <div class="field"><label>到貨狀態</label>
+    <div class="field" id="expDeliveryStatusField" style="${hideStatus?'display:none;':''}"><label>到貨狀態</label>
       <select id="expDeliveryStatus">
         <option value="">請選擇</option>
-        ${EXPENSE_STATUS.map(s=>`<option value="${esc(s)}" ${src&&src.deliveryStatus===s?'selected':''}>${esc(s)}</option>`).join('')}
+        ${statusList.map(s=>`<option value="${esc(s)}" ${curStatusVal===s?'selected':''}>${esc(s)}</option>`).join('')}
       </select>
     </div>`;
   }
@@ -4910,6 +5054,30 @@ function openExpenseForm(id, prefill){
   currentExpLinkOpts = expLinkOpts;
   expLinks = expLinkCurrentItems(src, expLinkOpts);
 
+  const renewOn = !!(src && src.renewEnabled && src.category===MEMBERSHIP_EXPENSE_CATEGORY);
+  const renewPeriodVal = (src && src.renewPeriod) || 'month';
+  const renewRemindVal = (src && src.renewRemindDays!==undefined && src.renewRemindDays!=='') ? src.renewRemindDays : 7;
+  const renewFieldHtml = `
+    <div class="field" id="expRenewField" style="display:${src && src.category===MEMBERSHIP_EXPENSE_CATEGORY ? 'block' : 'none'};">
+      <label>是否續費</label>
+      <select id="expRenewEnabled">
+        <option value="no">否</option>
+        <option value="yes" ${renewOn?'selected':''}>是，到期前提醒我續費</option>
+      </select>
+      <div id="expRenewDetail" style="display:${renewOn?'block':'none'};margin-top:8px;">
+        <select id="expRenewPeriod">
+          <option value="month" ${renewPeriodVal==='month'?'selected':''}>每月續費</option>
+          <option value="year" ${renewPeriodVal==='year'?'selected':''}>每年續費</option>
+        </select>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--ink-soft);">
+          <span>提前</span>
+          <input type="number" id="expRenewRemindDays" min="0" max="60" value="${esc(renewRemindVal)}" style="width:90px;">
+          <span>天開始提醒</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">下次續費日 = 上面的消費日期 + 週期。續費後，用卡片上的 📋 複製這筆並改成新的日期，提醒就會自動接到最新那一筆。</div>
+      </div>
+    </div>`;
+
   const modal = document.getElementById('modal');
   modal.innerHTML = `
     <h3 class="maru">${existing? '編輯' : (prefill? '複製' : '新增')} · 記帳</h3>
@@ -4945,6 +5113,7 @@ function openExpenseForm(id, prefill){
       <datalist id="expPlatformList">${platforms.map(p=>`<option value="${esc(p)}">`).join('')}</datalist>
     </div>
     ${deliveryStatusFieldHtml}
+    ${renewFieldHtml}
     <div class="field"><label>付款方式</label>
       <select id="expPaymentMethod">
         <option value="">請選擇</option>
@@ -4998,6 +5167,21 @@ function openExpenseForm(id, prefill){
   const newCategoryInput = document.getElementById('expNewCategory');
   categorySelect.addEventListener('change', ()=>{
     newCategoryInput.style.display = categorySelect.value==='__other__' ? 'block' : 'none';
+    const renewField = document.getElementById('expRenewField');
+    if(renewField) renewField.style.display = categorySelect.value===MEMBERSHIP_EXPENSE_CATEGORY ? 'block' : 'none';
+    const statusSel = document.getElementById('expDeliveryStatus');
+    const statusField = document.getElementById('expDeliveryStatusField');
+    if(statusField){
+      const noStatus = EXPENSE_NO_STATUS_CATEGORIES.includes(categorySelect.value);
+      statusField.style.display = noStatus ? 'none' : '';
+      if(noStatus && statusSel) statusSel.value = '';
+    }
+    if(statusSel && !statusSel.disabled){
+      const converted = convertExpenseStatusForCategory(statusSel.value, categorySelect.value);
+      const opts = expenseStatusOptions(categorySelect.value);
+      statusSel.innerHTML = `<option value="">請選擇</option>` +
+        opts.map(st=>`<option value="${esc(st)}" ${converted===st?'selected':''}>${esc(st)}</option>`).join('');
+    }
   });
 
   const artistSelect = document.getElementById('expArtistSelect');
@@ -5008,6 +5192,12 @@ function openExpenseForm(id, prefill){
 
   renderExpTagChips();
   document.getElementById('expTagText') && bindExpTagInput();
+  const renewEnabledSel = document.getElementById('expRenewEnabled');
+  if(renewEnabledSel){
+    renewEnabledSel.addEventListener('change', ()=>{
+      document.getElementById('expRenewDetail').style.display = renewEnabledSel.value==='yes' ? 'block' : 'none';
+    });
+  }
   renderExpLinkChips();
   renderExpImgList();
   document.getElementById('expImgAddBtn').addEventListener('click', addExpImgUrl);
@@ -5148,11 +5338,14 @@ async function saveExpenseForm(existing){
     mediaType: '',
     mediaLinkedId: '',
     platform: document.getElementById('expPlatform').value.trim(),
-    deliveryStatus: document.getElementById('expDeliveryStatus').value,
+    deliveryStatus: EXPENSE_NO_STATUS_CATEGORIES.includes(category) ? '' : document.getElementById('expDeliveryStatus').value,
     paymentMethod: document.getElementById('expPaymentMethod').value,
     tags: [...expTags],
     note: document.getElementById('expNote').value.trim(),
-    imageUrls: [...expImgUrls]
+    imageUrls: [...expImgUrls],
+    renewEnabled: category===MEMBERSHIP_EXPENSE_CATEGORY && document.getElementById('expRenewEnabled').value==='yes',
+    renewPeriod: document.getElementById('expRenewPeriod').value,
+    renewRemindDays: (()=>{ const v = parseInt(document.getElementById('expRenewRemindDays').value,10); return isNaN(v) ? 7 : Math.max(0, v); })()
   };
 
   if(existing){
@@ -5912,32 +6105,53 @@ function renderPhotocards(){ return renderCollectionTab('photocards'); }
 
 /* ================= 周邊/專輯圖鑑 (Merch) ================= */
 let arrivalReminderDismissed = false;
+let renewReminderDismissed = false;
 let arrivalSelectedIds = new Set(); // 到貨管理清單的批次選取（存字串 id）
 let arrivalExpandedTimelineIds = new Set(); // 目前展開「時間軸」小視圖的到貨項目 id
 
 /* ================= 到貨管理 (Arrivals) ================= */
 const ARRIVAL_STATUS_META = {
-  ordered:   { label:'已下單', icon:'📝', tagClass:'gold' },
-  shipped:   { label:'出貨中', icon:'🚚', tagClass:'wisteria' },
-  arrived:   { label:'已到貨', icon:'✅', tagClass:'matcha' },
-  cancelled: { label:'已取消', icon:'🚫', tagClass:'' }
+  unshipped:   { label:'未出貨', icon:'📝', tagClass:'gold' },
+  awaitReturn: { label:'待運回', icon:'🛫', tagClass:'sky' },
+  shipped:     { label:'已出貨', icon:'🚚', tagClass:'wisteria' },
+  awaitPickup: { label:'待領貨', icon:'🏪', tagClass:'peach' },
+  arrived:     { label:'已到貨', icon:'✅', tagClass:'matcha' },
+  exchange:    { label:'退換中', icon:'🔄', tagClass:'coral' }
 };
-const ARRIVAL_STATUS_ORDER = ['ordered','shipped','arrived','cancelled'];
+const ARRIVAL_STATUS_ORDER = ['unshipped','awaitReturn','shipped','awaitPickup','arrived','exchange'];
+/* 還沒到手的狀態（會算進「待到貨」、逾期/提前提醒）；已到貨與退換中不算 */
+const ARRIVAL_PENDING_STATUSES = ['unshipped','awaitReturn','shipped','awaitPickup'];
+/* 「推進狀態」按鈕的下一步順序：未出貨 → 待運回 → 已出貨 → 待領貨 → 已到貨（要跳過某一步可在編輯表單直接改狀態） */
+const ARRIVAL_NEXT_STATUS = { unshipped:'awaitReturn', awaitReturn:'shipped', shipped:'awaitPickup', awaitPickup:'arrived' };
+/* 需要填預計到貨日／物流公司／單號的狀態 */
+const ARRIVAL_SHIPPING_STATUSES = ['shipped','awaitPickup','arrived'];
+function arrivalIsPending(a){ return ARRIVAL_PENDING_STATUSES.includes(a.status); }
+/* 舊版狀態（已下單／出貨中／已取消）轉成新版：ordered→未出貨、cancelled→退換中；時間軸紀錄也一併轉換 */
+const ARRIVAL_LEGACY_STATUS_MAP = { ordered:'unshipped', cancelled:'exchange' };
+function normalizeArrivalStatuses(list){
+  (list||[]).forEach(a=>{
+    if(ARRIVAL_LEGACY_STATUS_MAP[a.status]) a.status = ARRIVAL_LEGACY_STATUS_MAP[a.status];
+    if(Array.isArray(a.statusHistory)){
+      a.statusHistory.forEach(h=>{ if(ARRIVAL_LEGACY_STATUS_MAP[h.status]) h.status = ARRIVAL_LEGACY_STATUS_MAP[h.status]; });
+    }
+  });
+  return list;
+}
 /* 物流公司清單：黑貓宅急便有官方單號查詢網址可以直接組出連結；
    其他公司單號格式各家不同、直接猜網址容易查錯，所以統一導去 17TRACK（支援大量兩岸/國際物流商，會自動辨識） */
 const ARRIVAL_CARRIER_OPTIONS = ['黑貓宅急便','新竹物流','中華郵政','7-11 賣貨便','7-11店到店','蝦皮店到店','全家店到店','萊爾富店到店','OK mart店到店','FedEx','DHL','UPS','順豐速運','其他'];
 function arrivalIsOverdue(a){
-  return (a.status==='ordered' || a.status==='shipped') && a.expectedAt && a.expectedAt < todayStr();
+  return arrivalIsPending(a) && a.expectedAt && a.expectedAt < todayStr();
 }
 function arrivalOverdueDays(a){
   if(!arrivalIsOverdue(a)) return 0;
   const diff = Math.floor((new Date(todayStr()) - new Date(a.expectedAt)) / 86400000);
   return diff>0 ? diff : 0;
 }
-/* 是否在「提前提醒」範圍內：狀態還在下單/出貨中、有填預計到貨日、還沒逾期，
+/* 是否在「提前提醒」範圍內：狀態還沒到貨、有填預計到貨日、還沒逾期，
    且距離預計到貨日不超過使用者設定的提醒天數 */
 function arrivalIsUpcoming(a){
-  if(!(a.status==='ordered' || a.status==='shipped')) return false;
+  if(!arrivalIsPending(a)) return false;
   if(!a.expectedAt) return false;
   const days = arrivalReminderDaysSetting();
   if(days<=0) return false;
@@ -5952,7 +6166,7 @@ function arrivalReminderDaysSetting(){
 }
 /* itemType 不帶入時＝不分類型，回傳全部（提醒橫幅要合併小卡＋周邊時會用到） */
 function arrivalPendingList(itemType){
-  return state.arrivals.filter(a=> (a.status==='ordered' || a.status==='shipped') && (!itemType || (a.itemType||'merch')===itemType));
+  return state.arrivals.filter(a=> arrivalIsPending(a) && (!itemType || (a.itemType||'merch')===itemType));
 }
 function arrivalOverdueList(itemType){
   return state.arrivals.filter(a=> arrivalIsOverdue(a) && (!itemType || (a.itemType||'merch')===itemType));
@@ -5997,9 +6211,9 @@ function arrivalRecordStatusHistory(item, status){
 function arrivalTimelineEntries(a){
   if(a.statusHistory && a.statusHistory.length>0) return a.statusHistory;
   const fallback = [];
-  if(a.orderedAt) fallback.push({ status:'ordered', at:a.orderedAt });
+  if(a.orderedAt) fallback.push({ status:'unshipped', at:a.orderedAt });
   if(a.status==='arrived' && a.arrivedAt) fallback.push({ status:'arrived', at:a.arrivedAt });
-  else if(a.status!=='ordered') fallback.push({ status:a.status, at:'' });
+  else if(a.status!=='unshipped') fallback.push({ status:a.status, at:'' });
   return fallback;
 }
 function fmtDateTime(iso){
@@ -6130,7 +6344,7 @@ function renderArrivalsBody(itemType){
 
   let items = state.arrivals.filter(a=> (a.itemType||'merch')===itemType);
   const totalOfType = items.length;
-  if(uiFilters.arrivals.status==='__pending__') items = items.filter(a=> a.status==='ordered' || a.status==='shipped');
+  if(uiFilters.arrivals.status==='__pending__') items = items.filter(a=> arrivalIsPending(a));
   else if(uiFilters.arrivals.status!=='__all__') items = items.filter(a=> a.status===uiFilters.arrivals.status);
   if(uiFilters.arrivals.channel!=='__all__') items = items.filter(a=> a.channel===uiFilters.arrivals.channel);
 
@@ -6311,7 +6525,7 @@ function bindArrivalBatchControls(){
 /* compact：在「同包裹」群組裡巢狀顯示時傳 true —— 省略單號那行（已經顯示在包裹外層標頭），
    卡片本身也少一點陰影/邊距，視覺上跟外層包裹卡有區隔 */
 function renderArrivalCard(a, compact){
-  const st = ARRIVAL_STATUS_META[a.status] || ARRIVAL_STATUS_META.ordered;
+  const st = ARRIVAL_STATUS_META[a.status] || ARRIVAL_STATUS_META.unshipped;
   const overdue = arrivalIsOverdue(a);
   const overdueDays = arrivalOverdueDays(a);
   const upcoming = arrivalIsUpcoming(a);
@@ -6327,7 +6541,7 @@ function renderArrivalCard(a, compact){
   } else if(a.orderedAt){
     dateLine = `📝 ${esc(a.orderedAt)} 下單`;
   }
-  const nextStatus = a.status==='ordered' ? 'shipped' : (a.status==='shipped' ? 'arrived' : null);
+  const nextStatus = ARRIVAL_NEXT_STATUS[a.status] || null;
   const linkedExpense = a.expenseLinkedId ? state.expense.find(e=>String(e.id)===String(a.expenseLinkedId)) : null;
   const trackUrl = arrivalTrackingUrl(a);
   const trackingLine = (!compact && a.trackingNo)
@@ -6382,12 +6596,15 @@ function renderArrivalPackageGroup(group){
   const trackUrl = arrivalTrackingUrl(first);
   const totalAmount = group.reduce((sum,a)=> sum + arrivalSingleAmount(a), 0);
   const anyOverdue = group.some(a=>arrivalIsOverdue(a));
-  const advanceable = group.filter(a=> a.status==='ordered' || a.status==='shipped');
+  const advanceable = group.filter(a=> arrivalIsPending(a));
   /* 包裹整批推進：以裡面最落後的狀態決定下一步——還有任何一筆停在「已下單」，就整批推進到「出貨中」；
      全部都已出貨中了，才整批推進到「已到貨」；已到貨/已取消的品項不受批次操作影響 */
   let groupNextStatus = null;
-  if(advanceable.some(a=>a.status==='ordered')) groupNextStatus = 'shipped';
-  else if(advanceable.some(a=>a.status==='shipped')) groupNextStatus = 'arrived';
+  /* 以包裹內最落後的狀態決定下一步 */
+  if(advanceable.length>0){
+    const slowest = advanceable.reduce((m,a)=> ARRIVAL_STATUS_ORDER.indexOf(a.status) < ARRIVAL_STATUS_ORDER.indexOf(m.status) ? a : m);
+    groupNextStatus = ARRIVAL_NEXT_STATUS[slowest.status] || null;
+  }
   return `
   <div class="card arrival-package-card" style="border:1.5px dashed var(--rose);">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
@@ -6413,7 +6630,7 @@ async function arrivalPackageAdvance(ids, newStatus){
   let changed = false;
   for(const id of ids){
     const item = state.arrivals.find(a=>String(a.id)===String(id));
-    if(item && (item.status==='ordered' || item.status==='shipped') && item.status!==newStatus){
+    if(item && arrivalIsPending(item) && item.status!==newStatus){
       item.status = newStatus;
       if(newStatus==='arrived') item.arrivedAt = todayStr();
       arrivalRecordStatusHistory(item, newStatus);
@@ -6430,20 +6647,16 @@ async function arrivalPackageAdvance(ids, newStatus){
 async function advanceArrivalStatus(id){
   const item = state.arrivals.find(a=>String(a.id)===String(id));
   if(!item) return;
-  if(item.status==='ordered'){
-    item.status = 'shipped';
-    arrivalRecordStatusHistory(item, 'shipped');
-  }
-  else if(item.status==='shipped'){
-    item.status = 'arrived';
-    item.arrivedAt = todayStr();
-    arrivalRecordStatusHistory(item, 'arrived');
-    await applyArrivalArrivedSideEffect(item);
-  }
+  const next = ARRIVAL_NEXT_STATUS[item.status];
+  if(!next) return;
+  item.status = next;
+  if(next==='arrived') item.arrivedAt = todayStr();
+  arrivalRecordStatusHistory(item, next);
+  if(next==='arrived') await applyArrivalArrivedSideEffect(item);
   await saveKey('oshi-arrivals', state.arrivals);
   render();
   updateArrivalReminderBanner();
-  showToast(item.status==='arrived' ? '已標記到貨' : '已標記出貨中');
+  showToast(`已標記為${ARRIVAL_STATUS_META[item.status].label}`);
 }
 
 /* 到貨後如果有勾選「加入圖鑑」：第一次到貨會自動在對應圖鑑（小卡或周邊，依 itemType 決定）新增一筆品項（已擁有），
@@ -6565,8 +6778,8 @@ function openArrivalForm(id, itemType, prefill){
     <input type="text" id="avNewCategory" placeholder="輸入新的${typeLabel}類別" style="margin-top:8px; display:${isCustomCategory?'block':'none'};" value="${isCustomCategory?esc(curCategory):''}">`;
 
   /* 預計到貨日／物流公司／追蹤單號這幾個欄位，狀態還在「已下單」時先不顯示，選到「出貨中」或「已到貨」才出現 */
-  const initialStatus = existing ? existing.status : 'ordered';
-  const initialShowShipping = initialStatus==='shipped' || initialStatus==='arrived';
+  const initialStatus = existing ? existing.status : 'unshipped';
+  const initialShowShipping = ARRIVAL_SHIPPING_STATUSES.includes(initialStatus);
 
   const modal = document.getElementById('modal');
   modal.innerHTML = `
@@ -6604,9 +6817,9 @@ function openArrivalForm(id, itemType, prefill){
     <div class="field"><label>下單日期</label><input type="date" id="avOrderedAt" value="${existing?esc(existing.orderedAt||''):todayStr()}"></div>
     <div class="field"><label>狀態</label>
       <select id="avStatus">
-        ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='ordered'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
+        ${ARRIVAL_STATUS_ORDER.map(s=>`<option value="${s}" ${existing&&existing.status===s?'selected':(!existing&&s==='unshipped'?'selected':'')}>${ARRIVAL_STATUS_META[s].icon} ${ARRIVAL_STATUS_META[s].label}</option>`).join('')}
       </select>
-      <p id="avShippingHint" style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;display:${initialShowShipping?'none':'block'};">狀態選「🚚 出貨中」或「✅ 已到貨」後，才會出現預計到貨日／物流公司／追蹤單號欄位</p>
+      <p id="avShippingHint" style="font-size:12px;color:var(--ink-soft);margin:4px 2px 0;display:${initialShowShipping?'none':'block'};">狀態選「🚚 已出貨」「🏪 待領貨」或「✅ 已到貨」後，才會出現預計到貨日／物流公司／追蹤單號欄位</p>
     </div>
     <div id="avShippingFieldsWrap" style="display:${initialShowShipping?'block':'none'};">
       <div class="field"><label>預計到貨日</label><input type="date" id="avExpectedAt" value="${existing?esc(existing.expectedAt||''):''}"></div>
@@ -6674,7 +6887,7 @@ function openArrivalForm(id, itemType, prefill){
   const shippingFieldsWrap = document.getElementById('avShippingFieldsWrap');
   const shippingHint = document.getElementById('avShippingHint');
   statusSelect.addEventListener('change', ()=>{
-    const show = statusSelect.value==='shipped' || statusSelect.value==='arrived';
+    const show = ARRIVAL_SHIPPING_STATUSES.includes(statusSelect.value);
     shippingFieldsWrap.style.display = show ? 'block' : 'none';
     if(shippingHint) shippingHint.style.display = show ? 'none' : 'block';
   });
@@ -9965,7 +10178,7 @@ function openProfileForm(){
     <div class="field">
       <label>到貨提前提醒</label>
       <input type="number" id="profArrivalReminderDays" min="0" max="30" value="${arrivalReminderDaysSetting()}">
-      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">到貨管理裡「已下單／出貨中」的品項，距離預計到貨日還剩幾天內就開始提醒（填 0 代表關閉提前提醒，只保留逾期提醒）。</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">到貨管理裡「未出貨／待運回／已出貨／待領貨」的品項，距離預計到貨日還剩幾天內就開始提醒（填 0 代表關閉提前提醒，只保留逾期提醒）。</div>
     </div>
     <div class="field">
       <label>手機推播通知</label>
