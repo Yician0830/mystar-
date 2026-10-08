@@ -3942,26 +3942,47 @@ a.name{display:block; color:inherit; text-decoration:none;}
         if(tt.metroAuto && tt.metroAuto.name !== String(cands[0])) delete tt.metroAuto;      // 地點改了、新地點沒有地鐵：舊城市的路線不能留著
         if(tt.metroExtra && tt.metroExtra.name !== String(cands[0])) delete tt.metroExtra;
         tt.metroNone = { name:String(cands[0]), date:ymd(new Date()) };
-        done('「' + (o.loc._q || cands[0]) + '」附近找不到' + what + '路線資料（可能沒有，或地圖資料還沒建）'); doPersist(); return;
+        done('「' + (o.loc._q || cands[0]) + '」附近找不到' + what + '路線資料（可能沒有，或地圖資料還沒建）'); doPersist(); metroRetry(tid, auto); return;
       }
       delete tt.metroNone;
       tt[extra ? 'metroExtra' : 'metroAuto'] = { name:String(cands[0]), place:String(o.loc._q || cands[0]), fetched:ymd(new Date()), stamp:Date.now(), src:'OpenStreetMap', lines:o.res.lines, alt:o.res.alt, zh:o.res.zh };
       metroBusy = false; metroMsg = '';
       if(currentId === tid) renderDetail();
       doPersist();
-    }).catch(function(e){ done(typeof e === 'string' ? e : '抓取失敗：' + (e && e.message ? e.message : '未知錯誤')); });
+    }).catch(function(e){ done(typeof e === 'string' ? e : '抓取失敗：' + (e && e.message ? e.message : '未知錯誤')); metroRetry(tid, auto); });
   }
-  // 自動抓取：打開旅程時，如果這個地區沒有內建資料、旅程也還沒存過這個地點的路線，就自動去抓（每個地點每次開啟頁面最多一次）
-  var M_TRIED = {};
+  // 自動抓取：打開旅程時，如果這個地區沒有可用的路線資料，就自動去抓。
+  // 不會再「靜靜地跳過」：別的抓取還在跑 → 等它跑完再抓；沒有網路 → 顯示提示，連線後自動抓；失敗 → 15 秒後自動再試一次，並顯示訊息。
+  // 只有「查過、確定附近沒有」會暫停 1 天（避免每次開頁都重查），按畫面上的按鈕隨時可手動重抓。
+  var M_TRIED = {}, M_RETRY = {}, M_PEND = false, metroNote = '';
+  function metroUsable(t){
+    var a = metroBuiltin(t) ? t.metroExtra : t.metroAuto;
+    return !!(a && a.lines && metroNoMono(a.lines).length);
+  }
   function metroAutoKick(t){
-    if(viewOnly || !t || metroBusy) return;
-    if(typeof navigator !== 'undefined' && navigator.onLine === false) return;
-    var c = wxCands(t)[0]; if(!c) return;
-    var a = metroBuiltin(t) ? t.metroExtra : t.metroAuto; if(a && a.lines && a.lines.length && a.name === c) return;
-    var no = t.metroNone; if(no && no.name === c && no.date && (Date.now() - new Date(no.date).getTime()) < 30 * 864e5) return;      // 查過沒有地鐵：30 天內不再自動查
+    if(viewOnly || !t) return;
+    if(metroBusy){      // 別的抓取還在跑：等它結束再看要不要抓，不要直接放棄
+      if(!M_PEND){ M_PEND = true; setTimeout(function(){ M_PEND = false; var t2 = cur(); if(t2 && t2.id === t.id) metroAutoKick(t2); }, 4000); }
+      return;
+    }
+    var c = wxCands(t)[0]; if(!c){ metroNote = ''; return; }
+    var a = metroBuiltin(t) ? t.metroExtra : t.metroAuto;
+    if(metroUsable(t) && a.name === c){ metroNote = ''; return; }
+    var no = t.metroNone; if(no && no.name === c && no.date && (Date.now() - new Date(no.date).getTime()) < 864e5){ metroNote = ''; return; }
+    if(typeof navigator !== 'undefined' && navigator.onLine === false){ metroNote = '目前沒有網路，連線後會自動抓取路線。'; return; }
+    metroNote = '';
     var k = t.id + '|' + c; if(M_TRIED[k]) return; M_TRIED[k] = 1;
-    setTimeout(function(){ if(currentId === t.id && !metroBusy) metroFetch(t, true); }, 400);
+    setTimeout(function(){
+      if(currentId !== t.id) { delete M_TRIED[k]; return; }
+      if(metroBusy){ delete M_TRIED[k]; metroAutoKick(t); return; }
+      metroFetch(t, true);
+    }, 400);
   }
+  function metroRetry(tid, auto){      // 自動抓取失敗或沒找到：15 秒後再自動試一次（每趟旅程每次開頁最多一次）
+    if(!auto || M_RETRY[tid]) return; M_RETRY[tid] = 1;
+    setTimeout(function(){ var t2 = cur(); if(t2 && t2.id === tid && currentId === tid && !metroBusy) metroFetch(t2, true); }, 15000);
+  }
+  if(typeof window !== 'undefined') window.addEventListener('online', function(){ var t3 = cur(); if(t3 && !viewOnly) metroAutoKick(t3); });
   var MT_SEEN = {};
   function metroView(t){
     var C = metroCity(t);
@@ -3970,7 +3991,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<section class="sec" id="metrosec"><div class="sh"><h3>🚇 路線圖</h3></div>' +
         '<div class="mtbox">這個地區沒有內建路線資料。<small>打開旅程時會自動從網路（OpenStreetMap）抓取「' + esc(cn) + '」附近的地鐵路線，抓回來會存進這趟旅程，離線也能看。資料品質依地區而異，請抽查實際會搭的站。（按鈕可手動重抓）</small></div>' +
         '<div class="btns"><button class="mini" type="button" data-do="metrofetch"' + (metroBusy ? ' disabled' : '') + '>' + (metroBusy ? '抓取中…（最多約 1 分鐘）' : '從網路抓取路線') + '</button></div>' +
-        (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : (t.metroNone && !metroBusy ? '<p class="hint">自動查詢過「' + esc(t.metroNone.name) + '」（' + esc(t.metroNone.date) + '）：附近找不到地鐵路線資料。</p>' : '')) + '</section>';
+        (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : (t.metroNone && !metroBusy ? '<p class="hint">自動查詢過「' + esc(t.metroNone.name) + '」（' + esc(t.metroNone.date) + '）：附近找不到地鐵路線資料。</p>' : '')) + (metroNote && !metroMsg ? '<p class="hint">' + esc(metroNote) + '</p>' : '') + '</section>';
     }
     var stops = allStops(t);
     function itemsAt(nm){
@@ -4002,7 +4023,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         '<p class="hint">地鐵的站名與站序是內建資料，不是即時資料，出發前請抽查實際會搭的站；新增或改名的車站要自己更新。</p>' +
         (C.extraFrom ? '<p class="hint">⚠ 市電／輕軌是 ' + esc(C.extraFrom) + ' 從網路（OpenStreetMap）自動抓取的，可能缺站或站序有誤，請抽查。</p><div class="btns"><button class="mini" type="button" data-do="metrofetch"' + (metroBusy ? ' disabled' : '') + '>' + (metroBusy ? '抓取中…' : '重新抓取市電等') + '</button><button class="mini" type="button" data-do="metroclear">清除抓取的路線</button></div>' : (viewOnly ? '' :
           '<p class="hint">🚊 市電／輕軌：目前還沒有資料（內建的只有地鐵；市電要從網路抓，上次可能沒抓成功）。</p><div class="btns"><button class="mini" type="button" data-do="metrofetch"' + (metroBusy ? ' disabled' : '') + '>' + (metroBusy ? '抓取中…（最多約 1 分鐘）' : '抓取市電／輕軌') + '</button></div>')) +
-        (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '')) + '</section>';
+        (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '')) + (metroNote && !metroMsg ? '<p class="hint">' + esc(metroNote) + '</p>' : '') + '</section>';
   }
   // 中間欄：每日行程／購物・必買 分頁（分享給朋友的唯讀頁面沒有購物分頁）
   var midTab = 'plan';
