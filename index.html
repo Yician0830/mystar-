@@ -1861,7 +1861,8 @@ function expenseIsLatestInRenewChain(e){
 function expenseRenewalInfo(e){
   if(!(e.category===MEMBERSHIP_EXPENSE_CATEGORY && e.renewEnabled && e.date)) return null;
   if(!expenseIsLatestInRenewChain(e)) return null;
-  const due = addRenewPeriod(e.date, e.renewPeriod||'month');
+  /* 有填「實際到期日」就以它為準（例如官方標示的會籍有效期限），沒填才用消費日期 + 週期推算 */
+  const due = e.renewExpireDate || addRenewPeriod(e.date, e.renewPeriod||'month');
   const days = daysUntilDate(due);
   if(days===null) return null;
   let remind = parseInt(e.renewRemindDays,10);
@@ -1882,7 +1883,7 @@ function renewalTagHtml(e){
   const near = info.days<=info.remind;
   const label = info.days<0 ? `🔁 已逾期 ${-info.days} 天，該續費了`
     : info.days===0 ? '🔁 今天要續費'
-    : `🔁 ${fmtDate(info.due)} 續費（還有 ${info.days} 天）`;
+    : `🔁 ${fmtDate(info.due)} 到期（還有 ${info.days} 天）`;
   const style = near ? 'background:#FBE3EA;color:#B2465F;' : '';
   return `<span class="tag ${near?'':'gold'}" style="${style}">${label}</span>`;
 }
@@ -1899,7 +1900,7 @@ function updateRenewReminderBanner(){
     const i = first.info;
     text = i.days<0 ? `🔁 「${first.item.name}」已逾期 ${-i.days} 天，該續費了，點此查看`
       : i.days===0 ? `🔁 「${first.item.name}」今天要續費，點此查看`
-      : `🔁 「${first.item.name}」${i.days} 天後要續費（${fmtDate(i.due)}），點此查看`;
+      : `🔁 「${first.item.name}」${i.days} 天後到期（${fmtDate(i.due)}），點此查看`;
   } else {
     text = `🔁 有 ${due.length} 項會員費即將到期${overdue>0?`（其中 ${overdue} 項已逾期）`:''}，點此查看`;
   }
@@ -5069,12 +5070,14 @@ function openExpenseForm(id, prefill){
           <option value="month" ${renewPeriodVal==='month'?'selected':''}>每月續費</option>
           <option value="year" ${renewPeriodVal==='year'?'selected':''}>每年續費</option>
         </select>
+        <div style="font-size:12px;color:var(--ink-soft);margin:10px 0 4px;">實際到期日（選填）</div>
+        <input type="date" id="expRenewExpireDate" value="${esc((src && src.renewExpireDate) || '')}">
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--ink-soft);">
           <span>提前</span>
           <input type="number" id="expRenewRemindDays" min="0" max="60" value="${esc(renewRemindVal)}" style="width:90px;">
           <span>天開始提醒</span>
         </div>
-        <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">下次續費日 = 上面的消費日期 + 週期。續費後，用卡片上的 📋 複製這筆並改成新的日期，提醒就會自動接到最新那一筆。</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:6px;">有填實際到期日（例如官方標示的會籍有效期限）就以它為準，沒填才用消費日期 + 週期推算。續費後，用卡片上的 📋 複製這筆並改成新的日期，提醒就會自動接到最新那一筆。</div>
       </div>
     </div>`;
 
@@ -5345,6 +5348,7 @@ async function saveExpenseForm(existing){
     imageUrls: [...expImgUrls],
     renewEnabled: category===MEMBERSHIP_EXPENSE_CATEGORY && document.getElementById('expRenewEnabled').value==='yes',
     renewPeriod: document.getElementById('expRenewPeriod').value,
+    renewExpireDate: category===MEMBERSHIP_EXPENSE_CATEGORY ? document.getElementById('expRenewExpireDate').value : '',
     renewRemindDays: (()=>{ const v = parseInt(document.getElementById('expRenewRemindDays').value,10); return isNaN(v) ? 7 : Math.max(0, v); })()
   };
 
