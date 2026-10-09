@@ -632,6 +632,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dsub{padding:0 2px 2px; font-size:13px; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
   .dsub b{margin-left:10px; font-size:14px; color:var(--ink);}
   .icard{background:var(--fill); padding:12px; display:grid; gap:8px;}
+  .gapc{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; margin:0 0 0 18px; padding:6px 10px; border-left:2px dashed var(--line-strong); font-size:13px; color:var(--ink-dim);}
+  .gapc b{font-weight:900; color:var(--ink);}
+  .gapc .gbuf{color:var(--ink-faint);}
+  .gapc .gwarn{color:var(--danger); font-weight:700;}
+  .gapc .gnav{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink); text-decoration:none; border:1px solid var(--ink); padding:2px 8px;}
+  .gapc .gnav:hover,.gapc .gnav:focus-visible{background:var(--ink); color:var(--paper);}
+  .ie3.igap{display:flex; gap:6px;}
+  .ie3.igap input{min-width:0; flex:1;}
   .itop{display:flex; gap:10px; align-items:baseline;}
   .itime{flex:0 0 auto; font-size:13px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
   .ititle{font-size:16px; font-weight:900; line-height:1.4; overflow-wrap:anywhere;}
@@ -2803,6 +2811,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
         (String(y.text || '').trim() ? '<span class="tst' + (y.hl ? ' hl' : '') + '">' + esc(y.text) + '</span>' : '') + '</div>';
     }).join('') + '</div>';
   }
+  // ---- 交通間隔小卡：兩個行程之間，顯示「預計移動 N 分鐘（方式）」、和前後時間的緩衝，以及開 Google 地圖導航的按鈕 ----
+  // 資料存在「後一個行程」：gapMin（分鐘）、gapMode（方式）；導航用前後兩個行程的「地點」欄
+  function fmtMin(n){ n = Math.round(n); return n >= 60 ? Math.floor(n / 60) + ' 小時' + (n % 60 ? ' ' + (n % 60) + ' 分' : '') : n + ' 分鐘'; }
+  function gapTravelMode(m){
+    m = String(m || '');
+    if(/步行|走/.test(m)) return 'walking';
+    if(/開車|租車|計程車|包車|自駕|Uber|uber|Taxi|taxi/.test(m)) return 'driving';
+    if(/腳踏車|單車|自行車|騎/.test(m)) return 'bicycling';
+    return 'transit';
+  }
+  function gapHtml(prev, x){
+    if(!prev || !x) return '';
+    var min = amt(x.gapMin), mode = String(x.gapMode || '').trim();
+    var from = String(prev.place || '').trim(), to = String(x.place || '').trim();
+    var nav = from && to && from !== to ? 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(from) + '&destination=' + encodeURIComponent(to) + '&travelmode=' + gapTravelMode(mode) : '';
+    var t0 = toMin(prev.end || prev.time), t1 = toMin(x.time), diff = (t0 != null && t1 != null) ? t1 - t0 : null;
+    if(!(min > 0) && !nav && !(diff != null && diff > 0)) return '';
+    var h = '<div class="gapc" aria-label="兩個行程之間的移動">';
+    if(min > 0){
+      h += '<span>' + tIcon(mode) + ' 預計移動 <b>' + esc(fmtMin(min)) + '</b>' + (mode ? '（' + esc(mode) + '）' : '') + '</span>';
+      if(diff != null) h += diff >= min ? '<span class="gbuf">緩衝 ' + esc(fmtMin(diff - min)) + '</span>' : '<span class="gwarn">⚠ 時間不夠，差 ' + esc(fmtMin(min - diff)) + '</span>';
+    } else if(diff != null && diff > 0){
+      h += '<span class="gbuf">⏳ 中間空檔 ' + esc(fmtMin(diff)) + '（還沒填移動時間）</span>';
+    } else if(nav){
+      h += '<span class="gbuf">' + tIcon(mode) + ' 前往下一站</span>';
+    }
+    if(nav) h += '<a class="gnav" href="' + esc(nav) + '" target="_blank" rel="noopener" title="在 Google 地圖看從「' + esc(from) + '」到「' + esc(to) + '」的路線與即時時間">🧭 導航</a>';
+    return h + '</div>';
+  }
   function itemView(x, day){
     var dt = durText(x);
     // 分類與需要注意的狀態（未預訂、現場候位、臨時）用色塊；「已預訂」「停留」改成安靜的小字，「不用訂」不顯示
@@ -3291,6 +3328,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
+      '<div class="ie3 igap"><input' + a + ' data-k="gapMin" inputmode="numeric" autocomplete="off" aria-label="從上一站移動幾分鐘" placeholder="從上一站移動（分鐘）" value="' + esc(x.gapMin || '') + '"><input' + a + ' data-k="gapMode" list="tmodes" autocomplete="off" aria-label="移動方式" placeholder="方式（地鐵、步行…）" value="' + esc(x.gapMode || '') + '"></div>' +
       (metroCity(cur()) ? '<input' + a + ' data-k="nst" list="metrost" autocomplete="off" aria-label="最近車站" placeholder="🚉 最近車站（選填，會標在路線圖上）" value="' + esc(x.nst || '') + '">' +
         '<div class="nstrow"><button class="mini" type="button" data-do="nstsug" title="依上面的「地點」找附近、而且在路線圖資料裡的車站">🔎 建議車站</button><span class="nstsug"></span></div>' : '') +
       '<div class="ie4"><input' + a + ' data-k="transport" list="tmodes" aria-label="交通工具" placeholder="交通工具（JR、地鐵…）" value="' + esc(x.transport || '') + '">' +
@@ -3564,7 +3602,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
         '<div class="dsub">' + esc(d(day.date || '')) + (day.title ? '<b>' + esc(day.title) + '</b>' : '') + (dayExpTotal(t, day) ? '<span class="dsum">當日花費 ' + money(dayExpTotal(t, day)) + ' 元</span>' : '') + '</div>' + dayExtra(t, day) + '</div>' +
-        (n ? sortedItems(day).map(function(x){ return itemView(x, day); }).join('') : '<p class="vempty">尚未安排</p>') + '</div>';
+        (n ? (function(si){ return si.map(function(x, i){ return (i ? gapHtml(si[i - 1], x) : '') + itemView(x, day); }).join(''); })(sortedItems(day)) : '<p class="vempty">尚未安排</p>') + '</div>';
     }).join('') + '</div></section>';
   }
   function isBlank(t){
