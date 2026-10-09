@@ -16,6 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 <script>
   // 深淺色主題：跟著系統設定，系統切換時即時更新
   (function(){
@@ -539,6 +540,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ckbar>summary:focus-visible{outline:2px solid var(--accent); outline-offset:-2px;}
   .ckbar .ckbody{padding:0 16px 12px; border-top:1px solid var(--line);}
   .ckbar .ckbody .ck.v{padding:6px 0;}
+  .pkg{margin-top:12px;}
+  .pkh{display:flex; align-items:center; gap:8px; font-size:14px; font-weight:900; padding:4px 0; border-bottom:1px solid var(--line);}
+  .pkh small{font-size:12px; font-weight:700; color:var(--accent);}
+  .pkh .mini{margin-left:auto;}
+  .pkchips{display:flex; flex-wrap:wrap; gap:6px; margin:8px 0 2px; align-items:center;}
+  .pkchips .dcl{margin-right:2px;}
+  .pkempty{padding:10px 0 4px; font-size:14px; color:var(--ink-dim);}
   .approx{margin-top:4px; font-size:13px; font-weight:500; color:var(--ink-faint);}
   .approx b{color:var(--ink-dim); font-variant-numeric:tabular-nums;}
   .ssub{margin:22px 0 10px; font-size:13px; font-weight:900; letter-spacing:0.08em; color:var(--ink-dim);}
@@ -547,6 +555,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ccard,.xcard{background:var(--fill); border:1px solid var(--line); padding:12px 14px; min-width:0; display:grid; gap:4px; align-content:start;}
   .xcard .xc{font-size:13px; font-weight:700; color:var(--ink-dim);}
   .clist{display:grid; gap:4px; margin-top:14px;}
+  .piebox{margin-top:14px; border:1px solid var(--line); padding:10px 8px 6px;}
+  .piebox .pt{font-size:12px; color:var(--ink-faint); letter-spacing:0.08em; padding:0 4px 6px;}
+  .piebox .pc{position:relative; height:230px;}
   .cidle .clist{margin-top:6px;}
   .ccard{display:grid; grid-template-columns:5.6em minmax(40px,1fr) 7.4em 6.6em; align-items:center; column-gap:10px; padding:7px 12px; background:var(--fill); border:1px solid var(--line); min-width:0;}
   .ccard .cn{font-size:13px; font-weight:700; color:var(--ink-dim); white-space:nowrap;}
@@ -970,40 +981,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @media (pointer:coarse){ .mgact .mgib{width:40px; height:40px; min-width:40px; min-height:40px; flex-basis:40px;} }
   .recchip:not(.on):hover,.recchip:not(.on):focus-visible{color:var(--paper); background:var(--accent); border-color:var(--accent);}
   .mgrow:hover{background:var(--fill);}
-  /* ── 列印／存成 PDF：窄版單欄（約手機寬度），白底黑字、全部展開、拿掉所有按鈕 ── */
-  @page{ size:110mm 200mm; margin:7mm; }
-  @media print{
-    :root,html[data-theme="dark"]{ --paper:#fff; --ink:#15130f; --ink-dim:#453f30; --ink-faint:#6b6552; --line:rgba(21,19,15,0.18); --line-strong:rgba(21,19,15,0.45); --accent:#9a5808; --danger:#cc2036; --fill:rgba(21,19,15,0.05); --warn:#c2410c; color-scheme:light; }
-    *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
-    html,body{ background:#fff !important; color:#15130f; }
-    body{ font-size:10.5pt; min-height:0; padding:0; }
-    body.wide .wrap,.wrap{ max-width:none; padding:0; }
-    /* 只在螢幕上有用的東西 */
-    #detail .bar,.secnav,.dtabs,.midtabs,.totop,#totop,.undo,#undo,.emodal,.shmodal,#wishsec,.mgact,.mgaddd,.recmore,#recsec,.nextup,#nextUp,.sptypes,.xtog,.spadd-wrap,.spadd-none,.offl,.rtl,.mgtf .mgtfs,.mgtfx,.mgwhere-dl,.fpass,.sprsv{ display:none !important; }
-    #detail button:not(.bhc):not(.ckl){ display:none !important; }
-    #detail input[type="checkbox"]{ width:14px; height:14px; }
-    /* 預設不印花費；選「包含」時才印 */
-    body:not(.print-exp) #sec-exp,body:not(.print-exp) .expbot,body:not(.print-exp) .budalert,body:not(.print-exp) .shv-price,body:not(.print-exp) .split{ display:none !important; }
-    /* 單欄、不固定、不捲動 */
-    .cols{ display:block !important; }
-    .col,.col.stk{ position:static !important; max-height:none !important; overflow:visible !important; }
-    .col.c3:empty{ display:none; }
-    .bkgrid,.cgrid,.xgrid{ grid-template-columns:minmax(0,1fr) !important; }
-    .board{ gap:14px; }
-    .sec{ padding:12px 0 4px; }
-    .dhead{ padding:0 0 10px; }
-    h2#dtitle{ font-size:18pt; }
-    /* 不要把一張卡片切成兩頁；標題不要落單 */
-    .icard,.bk,.shv,.mgrow,.tsteps,.tlegs,.crow,.xcard,.sgrp,.phv,.nextup{ break-inside:avoid; page-break-inside:avoid; }
-    .sh,.dchd,.dtop,h3{ break-after:avoid; page-break-after:avoid; }
-    .dcol{ break-inside:auto; }
-    .sec{ break-inside:auto; }
-    .icard{ background:rgba(21,19,15,0.04); }
-    .ckbar{ border-color:#999; }
-    .flash{ outline:0; }
-    a.vlink{ color:inherit; text-decoration:underline; }
-    .wishbody{ max-height:none; overflow:visible; }
-  }
   .mgedit .mglk{font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong);}
   .mgact .mglk{width:6.4em; padding:2px 2px; font-size:13px; color:var(--ink-dim); background:var(--paper); border:1px solid var(--line-strong); border-bottom:1px solid var(--line-strong);}
   .mgdone>summary,.mgaddd>summary{list-style:none; cursor:pointer; padding:8px 2px; font-size:14px; font-weight:900; color:var(--ink-dim);}
@@ -1452,7 +1429,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var n = signed(x); if(!n) return;
       has = true;
       var c = x.cur || (legacy ? (t.currency || 'TWD') : 'TWD');
-      var r = c === 'TWD' ? 1 : (amt((t.rates || {})[c]) || (legacy && c === (t.currency || 'TWD') ? amt(t.rate) : 0));
+      var r = c === 'TWD' ? 1 : ((amt(x.rate) > 0 && x.rateCur === c) ? amt(x.rate) : (amt((t.rates || {})[c]) || (legacy && c === (t.currency || 'TWD') ? amt(t.rate) : 0)));
       var pt = amt(x.paidTwd);
       if(pt > 0 && c !== 'TWD'){ total += n < 0 ? -pt : pt; return; }
       if(!(r > 0)){ miss = true; return; }
@@ -1621,7 +1598,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 刪除後可復原：刪除前先拍下整趟旅程的快照，6 秒內按「復原」就還原 ----
   var undoSnap = null, undoTimer = null;
-  var UNDO_LABEL = { delday:'這一天', delit:'行程', delbk:'預訂', deltc:'交通卡', delshow:'場次', delsp:'打卡點', delstay:'住宿', delck:'清單項目', delexp:'花費', unmg:'關聯的花費', delmg:'品項', delmgx:'品項與關聯的花費' };
+  var UNDO_LABEL = { delday:'這一天', delit:'行程', delbk:'預訂', deltc:'交通卡', delshow:'場次', delsp:'打卡點', delstay:'住宿', delck:'清單項目', delpack:'打包項目', delexp:'花費', unmg:'關聯的花費', delmg:'品項', delmgx:'品項與關聯的花費' };
   function hideUndo(){
     clearTimeout(undoTimer); undoSnap = null;
     if($('undo')) $('undo').hidden = true;
@@ -1785,8 +1762,12 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function payOf(x){ return (x && x.pay) || (x && x.card ? '信用卡' : ''); }   // 舊資料只勾了「刷卡」的視為信用卡
   var FEE_PCT = 1.5;   // 海外刷卡手續費固定 1.5%
   function feeK(t, x){ return (x && x.card && ecur(t, x) !== 'TWD') ? 1 + FEE_PCT / 100 : 1; }   // 外幣刷卡加收的海外手續費
-  function fxFetch(c){      // 取得 1 外幣 = 幾新台幣（市場中間價）；第一個來源失敗就換第二個
+  function fxFetch(c, date){      // 取得 1 外幣 = 幾新台幣（市場中間價）；第一個來源失敗就換第二個。有指定過去日期就查該日歷史匯率
     var lc = c.toLowerCase();
+    if(date && date < ymd(new Date())){
+      return fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@' + date + '/v1/currencies/' + lc + '.json').then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(j){ return j && j[lc] && j[lc].twd > 0 ? j[lc].twd : null; }).catch(function(){ return null; });
+    }
     return fetch('https://open.er-api.com/v6/latest/' + c).then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){ return j && j.rates && j.rates.TWD > 0 ? j.rates.TWD : null; }).catch(function(){ return null; })
       .then(function(v){
@@ -1797,11 +1778,55 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function rateOf(t, c){ if(c === 'TWD') return 1; var r = amt((t.rates || {})[c]); return r > 0 ? r : 0; }
   // 一筆花費換算成新台幣：有填「實際付出台幣」就用它（外幣才適用），否則用匯率（含刷卡手續費）；沒匯率也沒實付金額回傳 null
+  // 每筆花費自己的匯率：記錄當天（或指定消費日）自動抓取並存在該筆；幣別改了就失效，沒有就退回整趟旅程的匯率
+  function xRate(t, x){
+    var c = ecur(t, x); if(c === 'TWD') return 1;
+    var r = amt(x.rate);
+    return (r > 0 && x.rateCur === c) ? r : rateOf(t, c);
+  }
+  function fxDay(t, x){      // 查匯率的日期：自己選的消費日期 > 這筆花費所在行程日的日期（未來日期不算）> 空（=今天）
+    if(x.fxDate) return x.fxDate;
+    var found = '';
+    (t.days || []).forEach(function(dy){ if(found || !dy.date) return; (dy.items || []).forEach(function(it){ if(!found && expIds(it).some(function(v){ return String(v) === String(x.id); })) found = dy.date; }); });
+    return found && found <= ymd(new Date()) ? found : '';
+  }
+  var fxBusy = {}, fxFail = {};
+  function fxLabel(t, x){
+    var c = ecur(t, x); if(c === 'TWD') return '';
+    if(amt(x.paidTwd) > 0) return '已填實際付出台幣，不使用匯率';
+    var key = x.id + '|' + c + '|' + fxDay(t, x);
+    if(amt(x.rate) > 0 && x.rateCur === c) return '匯率 1 ' + c + ' = ' + x.rate + ' 新台幣（' + (x.fxDate || x.rateDate || '') + '）';
+    if(fxBusy[key]) return '正在取得匯率…';
+    if(fxFail[key]) return '查不到這天的匯率，暫用整趟旅程的匯率';
+    return '';
+  }
+  function fxPaint(t, x){
+    [].forEach.call(document.querySelectorAll('[data-xr="' + x.id + '"]'), function(el){ el.textContent = fxLabel(t, x); });
+  }
+  function fillRate(t, x, force){      // 外幣花費自動鎖定匯率（當日或指定日）
+    var c = ecur(t, x); if(c === 'TWD') return;
+    if(!force && amt(x.rate) > 0 && x.rateCur === c) return;
+    var day = fxDay(t, x) || ymd(new Date()), key = x.id + '|' + c + '|' + fxDay(t, x);
+    if(fxBusy[key]) return;
+    delete fxFail[key]; fxBusy[key] = 1; fxPaint(t, x);
+    var tid = t.id;
+    fxFetch(c, day).then(function(v){
+      delete fxBusy[key];
+      var t2 = cur(); if(!t2 || t2.id !== tid) return;
+      var x2 = (t2.expenses || []).filter(function(e){ return e.id === x.id; })[0]; if(!x2) return;
+      if(ecur(t2, x2) !== c || (x2.fxDate || '') !== (x.fxDate || '')) return;     // 等待期間幣別或日期又改了
+      if(v){ x2.rate = String(Number(v.toPrecision(5))); x2.rateCur = c; x2.rateDate = day; delete fxFail[key]; doPersist(); }
+      else fxFail[key] = 1;
+      if($('sum')) $('sum').innerHTML = sumHtml(t2);
+      fxPaint(t2, x2);
+    });
+  }
+  function fillRates(t){ (t.expenses || []).forEach(function(x){ if(ecur(t, x) !== 'TWD' && String(x.amount == null ? '' : x.amount).trim()) fillRate(t, x); }); }
   function twdOf(t, x){
     var n = signed(x); if(!n) return null;
     var p = amt(x.paidTwd);
     if(p > 0 && ecur(t, x) !== 'TWD') return n < 0 ? -p : p;
-    var r = rateOf(t, ecur(t, x));
+    var r = xRate(t, x);
     return r ? n * r * feeK(t, x) : null;
   }
   // 舊資料（整趟共用一個幣別＋一個匯率）一次轉成新格式：每筆記下幣別、匯率改存各幣別、預算換成新台幣
@@ -1956,6 +1981,56 @@ a.name{display:block; color:inherit; text-decoration:none;}
     fan: ['活動／演唱會門票（確認場次與座位）','實名證件與購票憑證','護照與簽證（出國）','機票或車票','住宿訂房確認','應援物、手燈與周邊','行動電源與充電線','現場禁帶物品確認','電子票截圖離線保存（演出當天網路常壅塞）','寄物／置物櫃（場館周邊位置與費用）','物販時間與排隊（開賣時間、限量品項）','集合時間與交通動線','演出後末班車與回程交通','網路（SIM／eSIM）','匯率與現金','旅平險','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）'],
     general: ['護照與簽證（出國）','機票或車票','住宿訂房確認','網路（SIM／eSIM）','換匯與信用卡','確認交通卡／儲值方式（含手機綁定）','備用現金（交通卡不能用時）','旅平險','行動電源與充電線','藥品與盥洗用品','天氣與衣物','行李重量確認']
   };
+  // ---- 行李打包清單：分類 + 勾選；t.packing = [{id, grp, text, done}]，分類順序依第一次出現的順序 ----
+  var PACK_TPL = [
+    ['證件', '🪪', ['護照（效期至少 6 個月）','簽證／電子入境許可','身分證／健保卡','駕照（國際駕照）','機票／訂房憑證（截圖離線保存）','護照影本與備用大頭照','信用卡／金融卡','外幣現金與台幣零錢','旅平險保單']],
+    ['電子產品', '🔌', ['手機與充電線','行動電源（隨身，不可托運）','萬用轉接頭','耳機','相機與記憶卡','備用電池','網路（SIM／eSIM）與取卡針','電子票／交通卡 App 確認']],
+    ['藥品', '💊', ['個人常備藥與處方藥（附英文藥單）','止痛退燒藥','腸胃藥','感冒藥','過敏藥','OK 繃與簡易急救用品','暈車藥','防蚊液／防曬乳']],
+    ['追星應援物', '🎤', ['手燈／應援棒（確認電池）','應援扇／手幅／標語','應援服與周邊','小卡與收納夾','粉絲俱樂部會員證','購票憑證與實名證件','物販用現金','防水袋與保護套']]
+  ];
+  function packIcon(g){ for(var i = 0; i < PACK_TPL.length; i++) if(PACK_TPL[i][0] === g) return PACK_TPL[i][1]; return '🧳'; }
+  function packItems(t){ return (t.packing || []).filter(function(x){ return String(x.text || '').trim(); }); }
+  function packProg(t){ var a = packItems(t); return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
+  function packGroups(t){
+    var order = [], by = {};
+    (t.packing || []).forEach(function(x){ var g = x.grp || '其他'; if(!by[g]){ by[g] = []; order.push(g); } by[g].push(x); });
+    return order.map(function(g){ return { g:g, list:by[g] }; });
+  }
+  function packGrpProg(list){ var a = list.filter(function(x){ return String(x.text || '').trim(); }); return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
+  function packPaint(t){
+    [].forEach.call(document.querySelectorAll('.pkprog'), function(n){ n.textContent = packProg(t); });
+    packGroups(t).forEach(function(gr){ [].forEach.call(document.querySelectorAll('[data-pg]'), function(n){ if(n.dataset.pg === gr.g) n.textContent = packGrpProg(gr.list); }); });
+  }
+  function packViewHtml(t){      // 瀏覽模式：可收合的清單，只列有填的項目
+    var items = packItems(t);
+    if(!items.length) return viewOnly ? '' : '<details id="packbar" class="ckbar"><summary>行李打包清單<small class="pkprog">0／0</small></summary><div class="ckbody"><p class="pkempty">還沒有清單。</p><button class="mini" type="button" data-do="packtpl" data-g="all">套用打包範本（證件、電子產品、藥品、追星應援物）</button></div></details>';
+    var all = items.every(function(x){ return x.done; });
+    return '<details id="packbar" class="ckbar' + (all ? ' alldone' : '') + '"' + (packBarOpen ? ' open' : '') + '><summary>行李打包清單<small class="pkprog">' + packProg(t) + '</small></summary><div class="ckbody">' +
+      packGroups(t).filter(function(gr){ return packGrpProg(gr.list) !== '0／0'; }).map(function(gr){
+        return '<div class="pkg"><div class="pkh"><span>' + packIcon(gr.g) + ' ' + esc(gr.g) + '</span><small data-pg="' + esc(gr.g) + '">' + packGrpProg(gr.list) + '</small></div>' +
+          gr.list.filter(function(x){ return String(x.text || '').trim(); }).map(function(x){
+            return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-pk="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
+          }).join('') + '</div>';
+      }).join('') + '</div></details>';
+  }
+  function packEditHtml(t){      // 編輯模式：新增／刪除／套用範本
+    var chips = PACK_TPL.map(function(g){ return '<button class="mini" type="button" data-do="packtpl" data-g="' + esc(g[0]) + '">' + g[1] + ' ' + esc(g[0]) + '</button>'; }).join('');
+    return '<section class="sec"><div class="sh"><h3>行李打包清單' + ((t.packing || []).length ? '<small class="pkprog">' + packProg(t) + '</small>' : '') + '</h3><div class="btns">' +
+      '<button class="mini" type="button" data-do="packtpl" data-g="all">套用全部範本</button>' +
+      '<button class="mini" type="button" data-do="packgrp">＋ 新增分類</button></div></div>' +
+      '<div class="pkchips"><span class="dcl">套用單一範本</span>' + chips + '</div>' +
+      ((t.packing || []).length ? packGroups(t).map(function(gr){
+        return '<div class="pkg"><div class="pkh"><span>' + packIcon(gr.g) + ' ' + esc(gr.g) + '</span><small data-pg="' + esc(gr.g) + '">' + packGrpProg(gr.list) + '</small><button class="mini" type="button" data-do="addpack" data-g="' + esc(gr.g) + '">＋ 新增一項</button></div>' +
+          gr.list.map(function(x){
+            return '<div class="ck pk' + (x.done ? ' done' : '') + '"><input type="checkbox" data-pk="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打包">' +
+              '<input data-pk="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="打包項目" placeholder="要帶的東西">' +
+              '<button class="del" type="button" data-do="delpack" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+          }).join('') + '</div>';
+      }).join('') : '<div class="empty">還沒有打包清單。按「套用全部範本」會帶入證件、電子產品、藥品、追星應援物，再自己增減。</div>') +
+      '</section>';
+  }
+  var packBarOpen = false;
+  document.addEventListener('toggle', function(e){ if(e.target && e.target.id === 'packbar') packBarOpen = e.target.open; }, true);
   var BKTYPES = ['航班','住宿','門票','交通','其他'], SALE_ST = ['待開賣','待抽選','已中籤','落選','未購票','已購票'];
   // 活動資訊的購票方式：售票／抽選二選一，狀態選項與欄位會跟著切換
   var SHOW_ST = ['待取票','已取票'];   // 場次的票務狀態：能記進場次就代表已購票成功，只需追蹤取票
@@ -2078,7 +2153,33 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     return items.length ? '<div class="budalert' + (anyOver ? ' over' : '') + '" role="status">💰 預算提醒　' + items.join('　') + '</div>' : '';
   }
-  function sumHtml(t){ return sumHtml0(t) + splitHtml(t); }
+  // ---- 類別比例餅圖（Chart.js）：sum 區塊每次重畫後，再把圖補畫上去 ----
+  var pieData = null, pieChart = null;
+  var PIE_COLORS = ['#e07a5f','#3d85c6','#f2b134','#6aa84f','#8e63b8','#17a2a2','#d65a8a','#9c8a5a','#5d6d9a','#c96f2b'];
+  function drawPie(){
+    var cv = document.getElementById('catPie');
+    if(pieChart){ try{ pieChart.destroy(); }catch(e){} pieChart = null; }
+    if(!cv) return;
+    var box = cv.closest('.piebox');
+    if(!window.Chart || !pieData){ if(box) box.hidden = true; return; }      // 離線沒載到 Chart.js：不顯示圖，下面的長條清單照常
+    var cs = getComputedStyle(document.documentElement), ink = cs.getPropertyValue('--ink').trim() || '#15130f', paper = cs.getPropertyValue('--paper').trim() || '#fff';
+    var tot = pieData.reduce(function(a, d0){ return a + d0.v; }, 0), pd = pieData;
+    pieChart = new Chart(cv, {
+      type:'pie',
+      data:{ labels:pd.map(function(d0){ return d0.c; }), datasets:[{ data:pd.map(function(d0){ return Math.round(d0.v * 100) / 100; }), backgroundColor:pd.map(function(d0, i){ return PIE_COLORS[i % PIE_COLORS.length]; }), borderColor:paper, borderWidth:2 }] },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{ position:'right', labels:{ color:ink, boxWidth:12, font:{ size:12 }, generateLabels:function(ch){
+            return ch.data.labels.map(function(l, i){ return { text:(CAT_ICON[l] || '') + ' ' + l + ' ' + Math.round(pd[i].v / tot * 100) + '%', fillStyle:ch.data.datasets[0].backgroundColor[i], strokeStyle:ch.data.datasets[0].backgroundColor[i], fontColor:ink, index:i }; }); } } },
+          tooltip:{ callbacks:{ label:function(c){ return ' ' + c.label + '　NT$ ' + money(c.parsed) + '（' + Math.round(c.parsed / tot * 100) + '%）'; } } }
+        },
+        onClick:function(e, els){ if(!editMode && els.length) toggleCat(pd[els[0].index].c); }
+      }
+    });
+  }
+  function sumHtml(t){ var h = sumHtml0(t) + splitHtml(t); setTimeout(drawPie, 0); return h; }
+  window.addEventListener('load', function(){ drawPie(); });
   function sumHtml0(t){
     var total = 0, by = {}, bud = t.budgets || {}, byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
@@ -2099,6 +2200,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var ms = Object.keys(miss);
     if(ms.length) h += '<div class="approx warn">尚未填匯率：' + ms.map(esc).join('、') + '（這些金額還沒算進總花費）</div>';
     if(by[REFUND]) h += '<div class="approx">已扣除退款 <b>' + money(Math.abs(by[REFUND])) + '</b></div>';
+    pieData = null;
     var cats = CATS.filter(function(c){ return c !== REFUND && (by[c] > 0 || amt(bud[c]) > 0); })
       .sort(function(a, b){ return (by[b] || 0) - (by[a] || 0); });
     if(!cats.length) return h;
@@ -2114,7 +2216,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
         '<span class="ca"><small>TWD</small>' + money(v) + '</span>' + left + '</div>';
     }
     var spent = cats.filter(function(c){ return by[c] > 0; }), idle = cats.filter(function(c){ return !(by[c] > 0); });
-    var out = h + '<div class="clist">' + spent.map(row).join('') + '</div>';
+    pieData = spent.map(function(c){ return { c:c, v:by[c] }; });
+    var out = h + (spent.length ? '<div class="piebox"><div class="pt">類別消費比例（新台幣）</div><div class="pc"><canvas id="catPie" role="img" aria-label="各類別消費比例餅圖"></canvas></div></div>' : '') + '<div class="clist">' + spent.map(row).join('') + '</div>';
     if(idle.length) out += '<details class="cidle"' + (idle.indexOf(catFilter) >= 0 ? ' open' : '') + '><summary>尚未花費（' + idle.length + '）：' + idle.map(esc).join('、') + '</summary><div class="clist">' + idle.map(row).join('') + '</div></details>';
     return out;
   }
@@ -3053,6 +3156,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="del" type="button" data-do="delexp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
           '<label class="ck"><input type="checkbox" data-e="' + x.id + '" data-k="pre"' + (expPre(t, x) ? ' checked' : '') + '><span>提前買好（不算進行程裡的「當日花費」，總花費照算）</span></label>' +
           '<label class="payrow cardfee"' + (ecur(t, x) !== 'TWD' ? '' : ' hidden') + '>實際付出台幣（選填）<input data-e="' + x.id + '" data-k="paidTwd" inputmode="decimal" autocomplete="off" aria-label="實際付出台幣" placeholder="例如 1305，留空用匯率換算" value="' + esc(x.paidTwd == null ? '' : x.paidTwd) + '"></label>' +
+          '<label class="payrow cardfee"' + (ecur(t, x) !== 'TWD' ? '' : ' hidden') + '>消費日期（選填，留空＝所在行程日或今天）<input type="date" data-e="' + x.id + '" data-k="fxDate" aria-label="消費日期" value="' + esc(x.fxDate || '') + '"></label>' +
+          '<div class="rmeta cardfee" data-xr="' + x.id + '"' + (ecur(t, x) !== 'TWD' ? '' : ' hidden') + '>' + esc(fxLabel(t, x)) + '</div>' +
           '<label class="payrow">付款方式<select data-e="' + x.id + '" data-k="pay" aria-label="付款方式"><option value="">未選擇</option>' + PAYS.map(function(p){ return '<option value="' + p + '"' + (payOf(x) === p ? ' selected' : '') + '>' + p + (p === '信用卡' ? '（外幣會加計海外手續費）' : '') + '</option>'; }).join('') + '</select></label>' + splitEdit(t, x);
   }
   function splitEdit(t, x){
@@ -3465,7 +3570,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function isBlank(t){
     if(!t) return false;
     var fi = t.fanInfo || {};
-    return !((t.bookings || []).length || (t.stays || []).length || (t.tcards || []).length || (t.checklist || []).length || (t.expenses || []).length ||
+    return !((t.bookings || []).length || (t.stays || []).length || (t.tcards || []).length || (t.checklist || []).length || (t.packing || []).length || (t.expenses || []).length ||
       (t.days || []).some(function(x){ return String(x.title || '').trim() || (x.items || []).length || String(x.text || '').trim(); }) ||
       Object.keys(fi).some(function(k){ return k !== 'shows' && String(fi[k] || '').trim(); }) || fanShows(t).some(shHas));
   }
@@ -4574,7 +4679,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el || window.__printing) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -4633,7 +4738,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
 
     if(!ckItems.length) h += ckBuild();
-    h = h.replace('<!--CKTOP-->', ckTop);
+    h = h.replace('<!--CKTOP-->', ckTop + packViewHtml(t));
 
     var xOpenNow = xOpen || catFilter !== 'all';
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
@@ -4737,6 +4842,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
+    h += packEditHtml(t);
 
     h += '</div><div class="col c2">' + boardHtml(t, true) + '</div><div class="col c3">';
     var cur0 = t.currency || 'TWD';
@@ -4756,7 +4862,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function renderDetail(){
     var t = cur(), el = $('detail');
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
@@ -4766,7 +4872,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var fan = t.kind === 'fan';
     var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
-      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="print" title="存成 PDF（手機閱讀用的窄版）">存成 PDF</button><button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
+      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div>' + (editMode ? '' : '<nav class="secnav" id="secnav" aria-label="快速跳轉"></nav>') + '</div>';
@@ -4953,6 +5059,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
           var bsel = emodal.querySelector('select[data-k="type"]'); if(bsel) bsel.focus();
         }
       }
+    } else if(ds.pk){
+      var pit = (t.packing || []).filter(function(x){ return String(x.id) === ds.pk; })[0];
+      if(pit){
+        if(el.type === 'checkbox'){ pit.done = el.checked; var pr = el.closest('.ck'); if(pr) pr.classList.toggle('done', el.checked); }
+        else pit.text = el.value;
+        packPaint(t);
+        var pb = $('packbar'); if(pb) pb.classList.toggle('alldone', packItems(t).length > 0 && packItems(t).every(function(x){ return x.done; }));
+      }
     } else if(ds.c){
       var it = (t.checklist || []).filter(function(x){ return String(x.id) === ds.c; })[0];
       if(it){
@@ -4980,11 +5094,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
         else if(ds.k === 'pay'){ ex.pay = el.value; ex.card = el.value === '信用卡'; }
         else if(ds.k === 'card') ex.card = el.checked;
         else ex[ds.k] = el.value;
+        if(ds.k === 'cur'){ delete ex.rate; delete ex.rateCur; delete ex.rateDate; }
+        if(ds.k === 'fxDate'){ delete ex.rate; delete ex.rateCur; delete ex.rateDate; }
+        if(ds.k === 'amount' || ds.k === 'cur' || ds.k === 'fxDate') fillRate(t, ex);
+        if(ds.k === 'cur' || ds.k === 'fxDate') fxPaint(t, ex);
         if(ex.tcTop != null && (ds.k === 'amount' || ds.k === 'cur')){ tcBalSync(t, ex); var tcs0 = $('tcsec'); if(tcs0) tcs0.outerHTML = tcView(t); }   // 儲值改金額／幣別：餘額補差額
         if(ds.k === 'payer'){ var shb = el.closest('.xsplit') && el.closest('.xsplit').querySelector('.sharers'); if(shb) shb.hidden = !el.value; }
         if(ds.k === 'amount' || ds.k === 'cat' || ds.k === 'cur' || ds.k === 'payer' || ds.k === 'sharer' || ds.k === 'card' || ds.k === 'pay' || ds.k === 'paidTwd') $('sum').innerHTML = sumHtml(t);
         if(ds.k === 'cur' && $('rateRow')) $('rateRow').innerHTML = rateRowsHtml(t);
-        if(ds.k === 'cur' && emodal){ var cfb = emodal.querySelector('.cardfee'); if(cfb) cfb.hidden = el.value === 'TWD'; }
+        if(ds.k === 'cur' && emodal){ var cfb = emodal.querySelector('.cardfee'); if(cfb) cfb.hidden = el.value === 'TWD'; [].forEach.call(emodal.querySelectorAll('.cardfee'), function(n){ n.hidden = el.value === 'TWD'; }); }
       }
     } else if(ds.settle){
       t.settled = t.settled || {};
@@ -5163,7 +5281,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(ro && !e.target.closest('button')){ openModal(ro.dataset.open, ro.dataset.id, ro.dataset.day, false); return; }
     var b = e.target.closest('button[data-do]'); if(!b) return;
     var t = cur(); if(!t) return;
-    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
+    t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
     if(viewOnly && ['ckinfo','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
@@ -5380,7 +5498,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(mge){ mge.amount = String(mgAct(mgi)); mge.cur = mgi.cur || 'TWD'; }
       else { mge = { id:uid(), cat:(t.kind === 'fan' ? '周邊' : '伴手禮'), name:mgi.name || '購物', amount:String(mgAct(mgi)), cur:mgi.cur || 'TWD' }; t.expenses.push(mge); mgi.expId = mge.id; }
       if(mgi.pay){ mge.pay = mgi.pay; mge.card = mgi.pay === '信用卡'; }      // 付款方式帶進花費，刷卡手續費才會計算
-      renderDetail(); doPersist(); return;
+      fillRates(t); renderDetail(); doPersist(); return;
     }
     if(act === 'showgo'){
       var sw = b.closest('.spadd-wrap'), sd2 = sw && sw.querySelector('.spadd-day'), st2 = sw && sw.querySelector('.spadd-time');
@@ -5459,11 +5577,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
       doPersist(); return;
     }
     if(act === 'share'){ openShare(t); return; }
-    if(act === 'print'){
-      var ae4 = document.activeElement; if(ae4 && ae4 !== b && $('detail').contains(ae4) && ae4.blur) ae4.blur();
-      var incExp = confirm('要把花費與預算也印進 PDF 嗎？\n\n按「確定」＝包含，按「取消」＝不包含（手機被別人看到時比較安心）。\n\n接著請在列印視窗的「目的地」選「另存為 PDF」。');
-      preparePrint(incExp); setTimeout(function(){ window.print(); }, 150); return;
-    }
     if(act === 'edit'){ editMode = true; renderDetail(); return; }
     if(act === 'done'){
       // 先讓正在輸入的欄位送出變更，再切回檢視
@@ -5579,6 +5692,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
       TEMPLATES[t.kind === 'fan' ? 'fan' : 'general'].forEach(function(tx){
         if(!have2[tx]) t.checklist.push({ id:uid(), text:tx, done:false });
       });
+    } else if(act === 'addpack'){
+      t.packing.push({ id:uid(), grp:b.dataset.g || '其他', text:'', done:false });
+    } else if(act === 'delpack'){
+      t.packing = t.packing.filter(function(x){ return String(x.id) !== b.dataset.id; });
+    } else if(act === 'packgrp'){
+      var gn = prompt('分類名稱（例如：盥洗用品、衣物）'); gn = gn && gn.trim(); if(!gn) return;
+      t.packing.push({ id:uid(), grp:gn, text:'', done:false });
+    } else if(act === 'packtpl'){
+      var want = b.dataset.g || 'all', havePk = {};
+      t.packing.forEach(function(x){ havePk[(x.grp || '') + '|' + x.text] = 1; });
+      PACK_TPL.forEach(function(g){ if(want !== 'all' && want !== g[0]) return; g[2].forEach(function(tx){ if(!havePk[g[0] + '|' + tx]) t.packing.push({ id:uid(), grp:g[0], text:tx, done:false }); }); });
     } else if(act === 'addexp'){
       t.expenses.push({ id:uid(), cat:'其他', name:'', amount:'', cur:(t.currency || 'TWD') });
     } else if(act === 'delexp'){
@@ -5594,6 +5718,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(act === 'addtc'){ openModal('tc', t.tcards[t.tcards.length - 1].id, '', true); }
     if(act === 'addstay'){ openModal('st', t.stays[t.stays.length - 1].id, '', true); }
     if(act === 'addexp'){ openModal('ex', t.expenses[t.expenses.length - 1].id, '', true); }
+    if(act === 'addpack' || act === 'packgrp'){
+      var lastPk = t.packing[t.packing.length - 1];
+      var pinp = lastPk && $('detail').querySelector('input[data-pk="' + lastPk.id + '"][data-k="text"]');
+      if(pinp) pinp.focus();
+    }
     if(act === 'addck'){
       var lastCk = t.checklist[t.checklist.length - 1];
       var inp = $('detail').querySelector('input[data-c="' + lastCk.id + '"][data-k="text"]');
@@ -5606,6 +5735,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!e.target.matches('.ck input[data-k="text"]')) return;
     e.preventDefault();
     e.target.dispatchEvent(new Event('change', {bubbles:true}));
+    if(e.target.dataset.pk){
+      var pg = e.target.closest('.pkg'), padd = pg && pg.querySelector('button[data-do="addpack"]');
+      if(padd) padd.click();
+      return;
+    }
     var add = $('detail').querySelector('button[data-do="addck"]');
     if(add) add.click();
   });
@@ -5735,28 +5869,6 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }, function(e){ console.error(e); fail('讀取失敗，請檢查網路，或請對方確認分享仍然有效。'); });
   }
 
-  // ---- 存成 PDF（手機閱讀用的窄版）：列印前把「每日行程」與「購物清單」一起展開、全部天數、所有收合區塊打開；列印後還原 ----
-  var printing = false, prePrint = null;
-  function preparePrint(incExp){
-    if(printing || viewOnly || !currentId) return;
-    printing = true; window.__printing = true;
-    prePrint = { mid:midTab, day:dayFilter, edit:editMode };
-    editMode = false; midTab = 'all'; dayFilter = 'all';
-    document.body.classList.add('printing');
-    document.body.classList.toggle('print-exp', !!incExp);
-    renderDetail();
-    [].forEach.call($('detail').querySelectorAll('details'), function(x){ if(!x.classList.contains('mgaddd') && !x.classList.contains('recmore')) x.open = true; });
-  }
-  function restorePrint(){
-    if(!printing) return;
-    printing = false;
-    midTab = prePrint.mid; dayFilter = prePrint.day; editMode = prePrint.edit;
-    document.body.classList.remove('printing', 'print-exp');
-    if(currentId) renderDetail();
-    setTimeout(function(){ window.__printing = false; }, 400);
-  }
-  window.addEventListener('beforeprint', function(){ preparePrint(false); });   // 直接按 Ctrl+P 也一樣：預設不含花費
-  window.addEventListener('afterprint', restorePrint);
 
   // ---- 簡易路由：#/t/旅程id 顯示詳細頁，其餘顯示列表 ----
   function route(){
