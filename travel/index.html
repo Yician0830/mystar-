@@ -357,6 +357,51 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .split .sgr + .sgr{border-top:1px solid var(--line); margin-top:6px;}
   .split .sgr.paid b{text-decoration:line-through; font-weight:700;}
   .split .sgr .sgw{flex:0 0 100%; font-size:12px; color:var(--danger);}
+  /* ── 分攤總覽與頭像卡片 ── */
+  .pinbox{max-width:320px; margin:12vh auto 0; padding:24px 20px; border:1px solid var(--line-strong); background:var(--fill); text-align:center; display:grid; gap:12px;}
+  .pinbox h3{font-size:18px; font-weight:900;}
+  .pinbox p{font-size:13px; color:var(--ink-dim);}
+  .pinbox input{font:inherit; font-size:28px; font-weight:900; letter-spacing:0.6em; text-align:center; padding:8px 0 8px 0.6em; width:100%; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
+  .pinbox .pinerr{color:var(--danger); font-weight:700; min-height:1.2em;}
+  .shpin{display:grid; gap:6px; margin:10px 0;}
+  .shpin label{font-size:13px; font-weight:700;}
+  .shpin input{font:inherit; font-size:18px; font-weight:900; letter-spacing:0.4em; width:9em; padding:6px 8px; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
+  .shpin small{font-size:12px; color:var(--ink-faint); font-weight:500;}
+  .ov{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 14px;}
+  .ovc{border:1px solid var(--line-strong); background:var(--fill); padding:12px 12px 10px; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .ovk{font-size:12px; font-weight:700; letter-spacing:0.08em; color:var(--ink-faint);}
+  .ovn{font-size:clamp(22px,7vw,30px); font-weight:900; line-height:1.15; font-variant-numeric:tabular-nums; overflow-wrap:anywhere;}
+  .ovn.pos{color:#2e8b57;} .ovn.neg{color:var(--danger);} .ovn.zero{color:var(--ink-dim);}
+  html[data-theme="dark"] .ovn.pos{color:#5fd49a;}
+  .ovs{display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12px; color:var(--ink-faint);}
+  .ovs button,.ovpick button{background:none; border:0; padding:0; font:inherit; color:var(--accent); text-decoration:underline; cursor:pointer; letter-spacing:0;}
+  .ovpick{display:flex; flex-wrap:wrap; gap:6px; margin-top:4px;}
+  .ovpick button{display:inline-flex; align-items:center; gap:5px; text-decoration:none; color:var(--ink); border:1px solid var(--line-strong); padding:3px 8px 3px 4px; font-size:13px; font-weight:700; border-radius:99px;}
+  .av{display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; width:34px; height:34px; border-radius:50%; color:#fff; font-size:15px; font-weight:900; line-height:1; letter-spacing:0; font-style:normal;}
+  .av.sm{width:20px; height:20px; font-size:11px; vertical-align:middle;}
+  .xfl{display:grid; gap:0;}
+  .xrow{display:grid; grid-template-columns:64px minmax(0,1fr) 64px 28px; align-items:center; gap:6px; padding:9px 0; cursor:pointer;}
+  .xrow + .xrow{border-top:1px solid var(--line);}
+  .xrow .xp{display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0;}
+  .xrow .xp em{font-style:normal; font-size:12px; font-weight:700; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .xarr{display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--ink-dim); min-width:0;}
+  .xarr b{font-size:15px; font-weight:900; color:var(--ink); font-variant-numeric:tabular-nums;}
+  .xarr .xln{position:relative; display:block; width:100%; height:2px; background:currentColor; margin:3px 0;}
+  .xarr .xln::after{content:''; position:absolute; right:0; top:-4px; width:8px; height:8px; border-top:2px solid currentColor; border-right:2px solid currentColor; transform:rotate(45deg); transform-origin:center;}
+  .xarr small{font-size:11px; font-weight:700; color:var(--ink-faint);}
+  .xrow.paid{opacity:.55;} .xrow.paid .xarr b{text-decoration:line-through;} .xrow.paid .xarr small{color:#2e8b57;}
+  .xrow .xck input{width:22px; height:22px; accent-color:var(--accent); cursor:pointer; margin:0;}
+  .xrow .sgw{grid-column:1 / -1; font-size:12px; color:var(--danger);}
+  .pcards{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-top:6px;}
+  .pcard{display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-areas:"a n" "a d" "a g"; gap:0 10px; align-items:center; text-align:left; padding:10px; background:var(--fill); border:1px solid var(--line); color:var(--ink); font:inherit; cursor:pointer; letter-spacing:0;}
+  .pcard.me{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent);}
+  .pcard .av{grid-area:a;}
+  .pcard b{grid-area:n; font-size:14px; font-weight:900; overflow-wrap:anywhere;}
+  .pcard b small{margin-left:6px; font-size:10px; font-weight:700; color:var(--accent); border:1px solid var(--accent); padding:0 4px;}
+  .pcard .pcd{grid-area:d; font-size:11px; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .pcard .pcn{grid-area:g; font-size:13px; font-weight:900; color:var(--ink-dim); font-variant-numeric:tabular-nums;}
+  .pcard .pcn.get{color:#2e8b57;} .pcard .pcn.owe{color:var(--danger);}
+  html[data-theme="dark"] .pcard .pcn.get{color:#5fd49a;}
   .split .sgcopy{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
   .split .spdet{font-size:13px; color:var(--ink-dim);}
   .split .spdet summary{cursor:pointer; font-weight:700; padding:4px 0;}
@@ -381,6 +426,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .undo span{min-width:0; overflow-wrap:anywhere;}
   .undo button{flex:0 0 auto; background:transparent; color:var(--paper); border:1px solid currentColor; padding:4px 14px; font-size:14px; letter-spacing:0.04em;}
   .undo button:hover,.undo button:focus-visible{background:var(--paper); color:var(--ink);}
+  /* ── 手機底部導航欄：只在旅程詳細頁、窄螢幕出現；拇指一按就跳到行程／購物／花費／清單 ── */
+  .bnav{display:none;}
+  @media (max-width:799px){
+    body.wide .bnav{display:flex; position:fixed; left:0; right:0; bottom:0; z-index:12; background:var(--paper); border-top:1px solid var(--line-strong); padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);}
+    body.wide.kbd .bnav{display:none;}
+    body.wide{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));}
+    body.wide .totop{bottom:calc(76px + env(safe-area-inset-bottom,0px));}
+    body.wide .undo{bottom:calc(76px + env(safe-area-inset-bottom,0px));}
+  }
+  .bnav .bn{flex:1 1 0; min-width:0; min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:6px 2px; background:none; border:0; color:var(--ink-dim); font:inherit; font-size:11px; font-weight:700; letter-spacing:0.02em; text-decoration:none; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .bnav .bn i{font-style:normal; font-size:20px; line-height:1;}
+  .bnav .bn[aria-current="true"]{color:var(--accent); box-shadow:inset 0 2px 0 var(--accent);}
+  .bnav .bn.main{color:var(--ink);}
+  .bnav .bn:focus-visible{outline:2px solid var(--accent); outline-offset:-3px;}
   .totop{position:fixed; right:max(16px,env(safe-area-inset-right,0px)); bottom:calc(16px + env(safe-area-inset-bottom,0px)); z-index:10; width:44px; height:44px; padding:0; font-size:20px; line-height:1; letter-spacing:0; box-shadow:0 2px 8px rgba(0,0,0,0.25);}
 
   .del[data-do^="del"]{font-size:22px; line-height:1; padding:4px 10px;}
@@ -2095,7 +2154,27 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function payTag(t, x){
     if(!x.payer) return '';
     var P = peopleOf(t), sh = (x.sharers || []).filter(function(n){ return P.indexOf(n) >= 0; });
-    return '<div class="xs xpay">💳 ' + esc(x.payer) + ' 付・' + (sh.length && sh.length < P.length ? '分攤：' + sh.map(esc).join('、') : '全員分攤') + '</div>';
+    return '<div class="xs xpay">' + avHtml(P, x.payer, 1) + ' ' + esc(x.payer) + ' 付・' + (sh.length && sh.length < P.length ? '分攤：' + sh.map(esc).join('、') : '全員分攤') + '</div>';
+  }
+  // ---- 頭像與總覽：每位成員固定一個顏色，頭像放名字第一個字 ----
+  var AV_COLORS = ['#c2410c','#1d6fa5','#2e8b57','#8e44ad','#a07407','#c0392b','#0e7c86','#5b4bd6'];
+  function avInit(n){ var ch = Array.from(String(n || '').trim())[0] || '?'; return /[a-z]/i.test(ch) ? ch.toUpperCase() : ch; }
+  function avHtml(P, name, sm){ var i = P.indexOf(name); return '<span class="av' + (sm ? ' sm' : '') + '" style="background:' + AV_COLORS[(i < 0 ? 0 : i) % AV_COLORS.length] + '" aria-hidden="true">' + esc(avInit(name)) + '</span>'; }
+  function xfPaid(t, f){ var sv = (t.settled || {})[f.from + '→' + f.to]; return sv != null && Math.abs(Number(sv) - Math.round(f.v)) <= 1; }
+  function overviewHtml(t, c){
+    var P = c.P, tot = 0, me = P.indexOf(t.me) >= 0 ? t.me : '';
+    (t.expenses || []).forEach(function(x){ var v = twdOf(t, x); if(v != null) tot += v; });
+    var left = '<div class="ovc"><div class="ovk">總支出</div><div class="ovn">NT$ ' + money(tot) + '</div><div class="ovs">每人平均 NT$ ' + money(tot / P.length) + '・' + P.length + ' 人</div></div>', right;
+    if(me){
+      var pay = 0, recv = 0, anyX = c.xf.length > 0;
+      c.xf.forEach(function(f){ if(xfPaid(t, f)) return; if(f.from === me) pay += f.v; if(f.to === me) recv += f.v; });
+      var net = recv - pay, k = net > 0.5 ? '你應收' : net < -0.5 ? '你應付' : (anyX ? '你的帳' : '你的帳'), cls = net > 0.5 ? 'pos' : net < -0.5 ? 'neg' : 'zero';
+      var big = net > 0.5 || net < -0.5 ? 'NT$ ' + money(Math.abs(net)) : (anyX ? '已結清 ✓' : '已打平');
+      right = '<div class="ovc"><div class="ovk">' + k + '</div><div class="ovn ' + cls + '">' + big + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + '<button type="button" data-do="setme" data-name="">換人</button></div></div>';
+    } else {
+      right = '<div class="ovc"><div class="ovk">你是哪一位？</div><div class="ovpick">' + P.map(function(p){ return '<button type="button" data-do="setme" data-name="' + esc(p) + '">' + avHtml(P, p, 1) + esc(p) + '</button>'; }).join('') + '</div><div class="ovs">選了才會算出你要付／收多少</div></div>';
+    }
+    return '<div class="ov">' + left + right + '</div>';
   }
   function splitHtml(t){
     var c = splitCalc(t); if(!c) return '';
@@ -2119,21 +2198,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
         ? '<span>已給 <b>' + money(totPaid) + '</b> 元</span><span class="sgleft">還沒給 <b>' + money(left) + '</b> 元</span>'
         : '<span>✓ 全部結清（共 <b>' + money(totAll) + '</b> 元）</span>') + '</div>' +
         '<div class="spbar' + (nUn ? '' : ' full') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="結清進度"><i style="width:' + pct + '%"></i></div>';
-      h += groups.map(function(g){
-        var rest = g.sum - g.got;
-        return '<div class="sgrp"><div class="sgh"><span>轉給 <b>' + esc(g.to) + '</b></span><span class="sgt">' + (rest < 0.5 ? '✓ 已收齊 ' + money(g.sum) + ' 元' : (g.got > 0.5 ? '待收 ' + money(rest) + '／共 ' : '共 ') + (rest < 0.5 ? '' : money(g.sum) + ' 元')) + '</span></div>' +
-          g.list.map(function(f){
-            return '<label class="sgr' + (f.paid ? ' paid' : '') + '"><span class="sgn"><input type="checkbox" data-settle="' + esc(f.key) + '" data-amt="' + f.amtN + '"' + (f.paid ? ' checked' : '') + ' aria-label="' + esc(f.from) + ' 已給"> ' + esc(f.from) + (f.paid ? '<small>已給</small>' : '') + '</span><b>' + money(f.v) + '</b>' +
-              (f.changed ? '<span class="sgw">⚠ 金額有變動（之前標記的是 ' + money(stl[f.key]) + '），請重新確認</span>' : '') + '</label>';
-          }).join('') + '</div>';
-      }).join('');
+      h += '<div class="xfl">' + c.xf.map(function(f){
+        return '<label class="xrow' + (f.paid ? ' paid' : '') + '"><span class="xp">' + avHtml(c.P, f.from) + '<em>' + esc(f.from) + '</em></span>' +
+          '<span class="xarr"><b>$' + money(f.v) + '</b><i class="xln"></i><small>' + (f.paid ? '✓ 已給' : '應給') + '</small></span>' +
+          '<span class="xp">' + avHtml(c.P, f.to) + '<em>' + esc(f.to) + '</em></span>' +
+          '<span class="xck"><input type="checkbox" data-settle="' + esc(f.key) + '" data-amt="' + f.amtN + '"' + (f.paid ? ' checked' : '') + ' aria-label="' + esc(f.from) + ' 已給 ' + esc(f.to) + '"></span>' +
+          (f.changed ? '<span class="sgw">⚠ 金額有變動（之前標記的是 ' + money(stl[f.key]) + '），請重新確認</span>' : '') + '</label>';
+      }).join('') + '</div>';
       h += '<div class="sgcopy"><button class="mini" type="button" data-do="copy" data-code="' + esc(nUn ? lines.join('\n') : '分攤已全部結清') + '">複製</button><span class="dcl">' + (nUn ? '複製還沒給的轉帳清單，可直接貼到群組' : '已全部結清') + '</span></div>';
     } else if(c.used) h += '<div class="shint">大家都打平了，不用互相轉帳。</div>';
-    h += '<details class="spdet"><summary>每個人的明細</summary>' + c.P.map(function(p){
-      var net = c.paid[p] - c.owe[p];
-      var txt = net > 0.5 ? '<span class="spn get">應收 ' + money(net) + '</span>' : net < -0.5 ? '<span class="spn">應付 ' + money(-net) + '</span>' : '<span class="spn">已打平</span>';
-      return '<div class="spr"><b>' + esc(p) + '</b><span class="spd">已付 ' + money(c.paid[p]) + '　應分攤 ' + money(c.owe[p]) + '</span>' + txt + '</div>';
-    }).join('') + '</details>';
+    h += '<div class="pcards">' + c.P.map(function(p){
+      var net = c.paid[p] - c.owe[p], me = p === t.me;
+      return '<button type="button" class="pcard' + (me ? ' me' : '') + '" data-do="setme" data-name="' + esc(p) + '" title="點一下設為「你」">' + avHtml(c.P, p) + '<b>' + esc(p) + (me ? '<small>你</small>' : '') + '</b>' +
+        '<span class="pcd">已付 ' + money(c.paid[p]) + '・分攤 ' + money(c.owe[p]) + '</span>' +
+        '<span class="pcn ' + (net > 0.5 ? 'get' : net < -0.5 ? 'owe' : '') + '">' + (net > 0.5 ? '應收 ' + money(net) : net < -0.5 ? '應付 ' + money(-net) : '已打平') + '</span></button>';
+    }).join('') + '</div>';
     if(c.noRate) h += '<div class="swarn">有 ' + c.noRate + ' 筆外幣花費還沒填匯率，沒算進分攤。</div>';
     if(c.badPayer) h += '<div class="swarn">有 ' + c.badPayer + ' 筆花費的付款人不在成員名單裡，沒算進分攤。</div>';
     return h + '</div>';
@@ -2186,9 +2265,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     });
   }
-  function sumHtml(t){ var h = sumHtml0(t) + splitHtml(t); setTimeout(drawPie, 0); return h; }
+  function sumHtml(t){ var c = splitCalc(t), ov = (c && c.any) ? overviewHtml(t, c) : '', h = ov + sumHtml0(t, !!ov) + splitHtml(t); setTimeout(drawPie, 0); return h; }
   window.addEventListener('load', function(){ drawPie(); });
-  function sumHtml0(t){
+  function sumHtml0(t, noTotal){
     var total = 0, by = {}, bud = t.budgets || {}, byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
       var n = signed(x); if(!n) return;
@@ -2199,7 +2278,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(tv == null){ miss[c] = 1; return; }
       total += tv; by[x.cat] = (by[x.cat] || 0) + tv;
     });
-    var h = '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>';
+    var h = noTotal ? '' : '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>';
     var bsum = 0, bspent = 0, free = 0;
     CATS.forEach(function(c){ if(c === REFUND) return; var b = amt(bud[c]); if(b > 0){ bsum += b; bspent += by[c] || 0; } else free += by[c] || 0; });
     if(bsum > 0) h += '<div class="approx">預算合計 <b>' + money(bsum) + '</b>　' + (bsum - bspent >= 0 ? '<span class="left ' + (bspent / bsum >= BUD_WARN ? 'warn' : 'ok') + '">' + (bspent / bsum >= BUD_WARN ? '⚠ ' : '') + '還能花 ' + money(bsum - bspent) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>' : '<span class="left over">已超支 ' + money(bspent - bsum) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>') + (free > 0 ? '<br>未設預算的類別另花 <b>' + money(free) + '</b> 元' : '') + '</div>';
@@ -4871,7 +4950,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         }).join('') : '<div class="empty">生日咖啡廳、地鐵廣告、快閃店、展覽…都可以記在這裡，可填展出期間與特典，去過就打勾。</div>') + '</section>';
 
 
-    h += '<section class="sec"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
+    h += '<section class="sec" id="sec-ck"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="tpl">套用' + (fan ? '追星' : '旅遊') + '範本</button>' +
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
       (t.checklist.length ? t.checklist.map(function(x){
@@ -4884,7 +4963,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
     h += '</div><div class="col c2">' + boardHtml(t, true) + '</div><div class="col c3">';
     var cur0 = t.currency || 'TWD';
-    h += '<section class="sec"><div class="sh"><h3>花費</h3><div class="btns">' +
+    h += '<section class="sec" id="sec-exp"><div class="sh"><h3>花費</h3><div class="btns">' +
       '<span class="dcl">新增預設幣別</span><select data-t="1" data-k="currency" aria-label="新增花費的預設幣別">' + CURRENCIES.map(function(c){ return '<option value="' + c[0] + '"' + (c[0] === cur0 ? ' selected' : '') + '>' + c[0] + '　' + c[1] + '</option>'; }).join('') + '</select>' +
       '<button class="mini" type="button" data-do="addexp">＋ 新增一筆</button></div></div>' +
       (peopleOf(t).length >= 2 ? '<p class="hint">分攤成員：' + peopleOf(t).map(esc).join('、') + '（要修改請到旅程列表按「編輯」）</p>' : '<p class="hint">想分攤花費：到旅程列表按「編輯」，在「分攤成員」填兩位以上（記得包含自己），這裡每筆花費就能選誰付的、誰分攤。</p>') +
@@ -4935,7 +5014,42 @@ a.name{display:block; color:inherit; text-decoration:none;}
     amtScan();
     syncDayTabs();
     buildSecNav();
+    buildBnav();
   }
+  // 手機底部導航欄：按鈕依畫面上真的有的區塊決定；瀏覽模式有「編輯」、編輯模式有「完成」
+  var BN_SPY = [];
+  function buildBnav(){
+    var el = $('detail'), old = $('bnav'); if(old) old.remove();
+    if(!el || el.hidden) return;
+    var has = function(id){ return !!document.getElementById(id); }, tabbed = !viewOnly;
+    var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
+    var list = [];
+    if(!viewOnly) list.push(['link', '', '列表', '←']);
+    if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
+    if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
+    if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
+    if(ck) list.push(['jump', ck, '清單', '✅']);
+    if(!viewOnly) list.push([editMode ? 'done' : 'edit', '', editMode ? '完成' : '編輯', editMode ? '✔️' : '✏️']);
+    BN_SPY = list.filter(function(x){ return x[0] === 'jump'; }).map(function(x){ return x[1]; });
+    el.insertAdjacentHTML('beforeend', '<nav id="bnav" class="bnav" aria-label="底部導航">' + list.map(function(x){
+      if(x[0] === 'link') return '<a class="bn" href="#"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</a>';
+      if(x[0] === 'jump') return '<button type="button" class="bn" data-do="jump" data-to="' + x[1] + '"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</button>';
+      return '<button type="button" class="bn main" data-do="' + x[0] + '"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</button>';
+    }).join('') + '</nav>');
+    bnavSpy();
+  }
+  function bnavSpy(){      // 依捲動位置標示目前在哪一區
+    var nav = $('bnav'); if(!nav) return;
+    var barh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0, line = barh + window.innerHeight * 0.35, cur0 = '';
+    BN_SPY.forEach(function(id){ var n = document.getElementById(id); if(n && n.getBoundingClientRect().top <= line) cur0 = id; });
+    [].forEach.call(nav.querySelectorAll('[data-to]'), function(b){ if(b.dataset.to === cur0) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
+  }
+  (function(){
+    var tk = 0;
+    window.addEventListener('scroll', function(){ if(tk) return; tk = requestAnimationFrame(function(){ tk = 0; bnavSpy(); }); }, { passive:true });
+    document.addEventListener('focusin', function(e){ if(e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) && e.target.type !== 'checkbox') document.body.classList.add('kbd'); });   // 鍵盤跳出來時收起導航欄，免得遮住輸入框
+    document.addEventListener('focusout', function(){ setTimeout(function(){ var a = document.activeElement; if(!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('kbd'); }, 50); });
+  })();
   // 標題旁的快速跳轉：只列出畫面上真的有的區塊
   var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通'],['spsec','應援打卡點'],['recsec','推薦必買'],['merchsec','購物清單'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
   function buildSecNav(){
@@ -5332,6 +5446,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(jt){
         var jb = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0;
         window.scrollTo({ top: Math.max(0, jt.getBoundingClientRect().top + window.scrollY - jb - 12), behavior:'smooth' });
+        if(jt.tagName === 'DETAILS') jt.open = true;
         jt.classList.add('flash'); setTimeout(function(){ jt.classList.remove('flash'); }, 1600);
       }
       return;
@@ -5730,6 +5845,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       TEMPLATES[t.kind === 'fan' ? 'fan' : 'general'].forEach(function(tx){
         if(!have2[tx]) t.checklist.push({ id:uid(), text:tx, done:false });
       });
+    } else if(act === 'setme'){
+      t.me = (b.dataset.name && b.dataset.name !== t.me) ? b.dataset.name : '';
     } else if(act === 'addpack'){
       t.packing.push({ id:uid(), grp:b.dataset.g || '其他', text:'', done:false });
     } else if(act === 'delpack'){
@@ -5792,7 +5909,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   // 分享出去的內容：預設不含訂位代號／座位，也不含花費、預算與分攤
   function shareSnap(t){
     var c = JSON.parse(JSON.stringify(t)), sh = t.share || {};
-    delete c.share;
+    delete c.share; delete c.me;
     var shows = (c.fanInfo && c.fanInfo.shows) || [];
     if(!sh.codes){
       (c.bookings || []).forEach(function(x){ x.code = ''; });
@@ -5806,13 +5923,34 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     return c;
   }
+  // ---- 查看密碼（4 位數字）：內容用密碼衍生的金鑰（PBKDF2 + AES-GCM）加密後才寫進雲端，雲端上看不到明文；朋友輸入一次後，金鑰記在他那台裝置上 ----
+  function b64e(buf){ var a = new Uint8Array(buf), r = ''; for(var i = 0; i < a.length; i++) r += String.fromCharCode(a[i]); return btoa(r); }
+  function b64d(str){ var r = atob(str), a = new Uint8Array(r.length); for(var i = 0; i < r.length; i++) a[i] = r.charCodeAt(i); return a; }
+  function pinKey(pin, saltB64){
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits'])
+      .then(function(k){ return crypto.subtle.deriveBits({ name:'PBKDF2', salt:b64d(saltB64), iterations:150000, hash:'SHA-256' }, k, 256); }).then(b64e);
+  }
+  function aesKey(keyB64){ return crypto.subtle.importKey('raw', b64d(keyB64), 'AES-GCM', false, ['encrypt', 'decrypt']); }
+  function encJson(json, keyB64, salt){
+    var iv = crypto.getRandomValues(new Uint8Array(12));
+    return aesKey(keyB64).then(function(k){ return crypto.subtle.encrypt({ name:'AES-GCM', iv:iv }, k, new TextEncoder().encode(json)); })
+      .then(function(ct){ return JSON.stringify({ _enc:1, salt:salt, iv:b64e(iv), ct:b64e(ct) }); });
+  }
+  function decJson(env, keyB64){
+    return aesKey(keyB64).then(function(k){ return crypto.subtle.decrypt({ name:'AES-GCM', iv:b64d(env.iv) }, k, b64d(env.ct)); }).then(function(b){ return new TextDecoder().decode(b); });
+  }
+  var pinKeyCache = {};
+  function ownerKey(sh){ var ck = sh.pin + '|' + sh.salt; return pinKeyCache[ck] ? Promise.resolve(pinKeyCache[ck]) : pinKey(sh.pin, sh.salt).then(function(k){ return (pinKeyCache[ck] = k); }); }
+  function newSalt(){ return b64e(crypto.getRandomValues(new Uint8Array(16))); }
   function syncShare(t){
     var u = auth.currentUser;
     if(!u || !t.share || !t.share.id) return Promise.resolve(true);
-    var json = JSON.stringify(shareSnap(t));
-    if(shareCache[t.share.id] === json) return Promise.resolve(true);
-    return db.collection('shared').doc(t.share.id).set({ owner: u.uid, title: t.title || '', data: json, updated: firebase.firestore.FieldValue.serverTimestamp() })
-      .then(function(){ shareCache[t.share.id] = json; return true; }, function(e){ console.error(e); return false; });
+    var sh = t.share, json = JSON.stringify(shareSnap(t)), sig = json + '|' + (sh.pin || '') + '|' + (sh.salt || '');
+    if(shareCache[sh.id] === sig) return Promise.resolve(true);
+    var body = sh.pin && sh.salt ? ownerKey(sh).then(function(k){ return encJson(json, k, sh.salt); }).then(function(d){ return { title:'', data:d }; }) : Promise.resolve({ title:t.title || '', data:json });
+    return body.then(function(b){
+      return db.collection('shared').doc(sh.id).set({ owner: u.uid, title: b.title, data: b.data, updated: firebase.firestore.FieldValue.serverTimestamp() });
+    }).then(function(){ shareCache[sh.id] = sig; return true; }, function(e){ console.error(e); return false; });
   }
   function scheduleShareSync(){
     clearTimeout(shareTimer);
@@ -5826,12 +5964,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var sh = t.share, on = !!(sh && sh.id);
     var opts = '<div class="shopts"><label><input type="checkbox" data-sh="codes"' + (on && sh.codes ? ' checked' : '') + '><span>也分享訂位代號、座位<br><small>預設不分享，這些是別人拿去可能會冒用的資料</small></span></label>' +
       '<label><input type="checkbox" data-sh="exp"' + (on && sh.exp ? ' checked' : '') + '><span>也分享花費、預算與分攤<br><small>預設不分享</small></span></label></div>';
+    var pinRow = '<div class="shpin"><label for="shpin">查看密碼（4 位數字' + (on ? '' : '，選填') + '）</label><input id="shpin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0000" value="' + esc((on && sh.pin) || '') + '">' +
+      (on ? '<div><button class="mini" type="button" data-shdo="setpin">' + (sh.pin ? '更新密碼' : '設定密碼') + '</button></div>' : '') +
+      '<small>' + (on && sh.pin ? '🔒 已加密。朋友第一次打開要輸入密碼，同一個裝置只需輸入一次。清空後按更新＝取消密碼。' : '設定後，朋友要輸入這組密碼才看得到內容，同一個裝置只需輸入一次。') + '</small></div>';
     shModal.innerHTML = '<div class="shbox" role="dialog" aria-modal="true" aria-label="分享旅程"><h3>分享「' + esc(t.title || '這趟旅程') + '」</h3>' +
       (on
         ? '<p>拿到連結的人可以看這一趟的內容，但不能修改，也不用登入。你之後修改旅程，對方重新整理就會看到最新的。</p>' +
-          '<div class="shurl"><input id="shurl" readonly value="' + esc(shareUrl(sh.id)) + '" aria-label="分享連結"><button class="mini" type="button" data-shdo="copy">複製</button></div>' + opts +
-          '<p>連結沒有加密，知道網址的人都能打開，請只傳給信任的人。</p>'
-        : '<p>會產生一個只讀的連結，傳給朋友就能看這一趟的行程、住宿與打卡點。你只分享這一趟，其他旅程不會被看到。</p>' + opts) +
+          '<div class="shurl"><input id="shurl" readonly value="' + esc(shareUrl(sh.id)) + '" aria-label="分享連結"><button class="mini" type="button" data-shdo="copy">複製</button></div>' + pinRow + opts +
+          (sh.pin ? '<p>4 位數密碼只能擋一般人，不是銀行等級的保護，請只把連結傳給信任的人。</p>' : '<p>沒有設定密碼：知道網址的人都能打開，請只傳給信任的人。</p>')
+        : '<p>會產生一個只讀的連結，傳給朋友就能看這一趟的行程、住宿與打卡點。你只分享這一趟，其他旅程不會被看到。</p>' + pinRow + opts) +
       (shMsg ? '<p class="shwarn">' + esc(shMsg) + '</p>' : '') +
       '<div class="shbtns">' + (on ? '<button class="mini" type="button" data-shdo="stop">停止分享</button>' : '<button class="save" type="button" data-shdo="make">產生分享連結</button>') + '<button class="mini" type="button" data-shdo="close">關閉</button></div></div>';
   }
@@ -5851,12 +5992,23 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return;
     }
     if(act === 'make'){
+      var pv = ($('shpin') ? $('shpin').value : '').trim();
+      if(pv && !/^\d{4}$/.test(pv)){ shMsg = '密碼要剛好 4 位數字，或留空不設密碼。'; shRender(); return; }
       t.share = { id:newShareId(), codes: !!shModal.querySelector('[data-sh="codes"]').checked, exp: !!shModal.querySelector('[data-sh="exp"]').checked };
+      if(pv){ t.share.pin = pv; t.share.salt = newSalt(); }
       b.disabled = true; b.textContent = '產生中…'; shMsg = '';
       syncShare(t).then(function(ok){
         if(!ok){ delete t.share; shMsg = '分享失敗：請確認 Firebase 規則已加入 shared 的設定（見說明），或檢查網路。'; shRender(); return; }
         doPersist(); shRender();
       });
+      return;
+    }
+    if(act === 'setpin'){
+      var nv = ($('shpin') ? $('shpin').value : '').trim();
+      if(nv && !/^\d{4}$/.test(nv)){ shMsg = '密碼要剛好 4 位數字，清空則是取消密碼。'; shRender(); return; }
+      if(nv){ t.share.pin = nv; t.share.salt = newSalt(); } else { delete t.share.pin; delete t.share.salt; }
+      delete shareCache[t.share.id]; shMsg = '';
+      syncShare(t).then(function(ok){ shMsg = ok ? '' : '更新失敗，請檢查網路後再試一次。'; doPersist(); shRender(); });
       return;
     }
     if(act === 'stop'){
@@ -5900,10 +6052,38 @@ a.name{display:block; color:inherit; text-decoration:none;}
     db.collection('shared').doc(id).get().then(function(doc){
       if(shownShare !== id) return;
       if(!doc.exists){ fail('這個分享連結已經失效，或分享已被關閉。'); return; }
-      try{ sharedTrip = cleanShared(JSON.parse(doc.data().data)); }catch(x){ fail('讀取分享內容失敗。'); return; }
-      currentId = String(sharedTrip.id); dayInitFor = null; loaded = true;
-      document.title = (sharedTrip.title || '旅遊紀錄') + ' — 分享';
-      renderDetail();
+      var raw = doc.data().data, env = null;
+      try{ var eo = JSON.parse(raw); if(eo && eo._enc) env = eo; }catch(x){}
+      var show = function(json){
+        if(shownShare !== id) return;
+        try{ sharedTrip = cleanShared(JSON.parse(json)); }catch(x){ fail('讀取分享內容失敗。'); return; }
+        currentId = String(sharedTrip.id); dayInitFor = null; loaded = true;
+        document.title = (sharedTrip.title || '旅遊紀錄') + ' — 分享';
+        renderDetail();
+      };
+      if(!env){ show(raw); return; }
+      if(!(window.crypto && crypto.subtle)){ fail('這個瀏覽器不支援解密，請改用較新的瀏覽器，並用 https 網址開啟。'); return; }
+      var askPin = function(msg){
+        if(shownShare !== id) return;
+        $('detail').innerHTML = '<form class="pinbox" id="pinform" autocomplete="off"><h3>🔒 這個行程有密碼</h3><p>請輸入分享者給你的 4 位數密碼。同一個裝置只需要輸入一次。</p>' +
+          '<input id="pininp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" aria-label="4 位數密碼" autocomplete="off"><div class="pinerr" id="pinerr" role="alert">' + esc(msg || '') + '</div><button class="save" type="submit">查看</button></form>';
+        var f = $('pinform'), inp = $('pininp'), busy = false;
+        var go = function(){
+          var v = inp.value.trim(); if(busy || !/^\d{4}$/.test(v)) return; busy = true;
+          pinKey(v, env.salt).then(function(key){
+            return decJson(env, key).then(function(json){
+              try{ localStorage.setItem('shk:' + id, JSON.stringify({ salt:env.salt, key:key })); }catch(x){}
+              show(json);
+            }, function(){ busy = false; askPin('密碼不對，請再試一次。'); });
+          }, function(){ busy = false; askPin('無法驗證密碼，請重試。'); });
+        };
+        f.addEventListener('submit', function(e){ e.preventDefault(); go(); });
+        inp.addEventListener('input', function(){ inp.value = inp.value.replace(/\D/g, ''); if(inp.value.length === 4) go(); });
+        inp.focus();
+      };
+      var saved = null; try{ saved = JSON.parse(localStorage.getItem('shk:' + id)); }catch(x){}
+      if(saved && saved.salt === env.salt && saved.key) decJson(env, saved.key).then(show, function(){ askPin(''); });
+      else askPin('');
     }, function(e){ console.error(e); fail('讀取失敗，請檢查網路，或請對方確認分享仍然有效。'); });
   }
 
