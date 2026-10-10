@@ -2916,7 +2916,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   // ---- 交通間隔小卡：兩個行程之間，顯示「預計移動 N 分鐘（方式）」、和前後時間的緩衝，以及開 Google 地圖導航的按鈕 ----
   // 資料存在「後一個行程」：gapMin（分鐘）、gapMode（方式）；導航用前後兩個行程的「地點」欄
-  function fmtMin(n){ n = Math.round(n); return n >= 60 ? Math.floor(n / 60) + ' 小時' + (n % 60 ? ' ' + (n % 60) + ' 分' : '') : n + ' 分鐘'; }
+  function gapFmt(n){ n = Math.round(n); return n >= 60 ? Math.floor(n / 60) + ' 小時' + (n % 60 ? ' ' + (n % 60) + ' 分' : '') : n + ' 分鐘'; }
   function gapTravelMode(m){
     m = String(m || '');
     if(/步行|走/.test(m)) return 'walking';
@@ -2930,19 +2930,26 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!m || (!m[1] && !m[2])) return 0;
     return (m[1] ? parseFloat(m[1]) * 60 : 0) + (m[2] ? +m[2] : 0);
   }
+  function legEdge(x, key, last){      // 轉乘行程的第一段出發／最後一段抵達時間（分鐘）
+    var l = (x.legs || []).filter(function(y){ return tmin(normTime(y[key])) != null; }); if(!l.length) return null;
+    return tmin(normTime(l[last ? l.length - 1 : 0][key]));
+  }
   function gapHtml(prev, x){
     if(!prev || !x) return '';
-    var own = !!(String(x.transport || '').trim() || String(x.route || '').trim());      // 後一個行程自己已經寫了交通方式：小卡不重複顯示，只補「緩衝」與導航
+    var hasLegs = (x.legs || []).some(function(y){ return String(y.from || '').trim() || String(y.to || '').trim(); });
+    var own = !!(String(x.transport || '').trim() || String(x.route || '').trim()) && x.cat !== '交通' && !hasLegs;      // 後一個行程自己已經寫了交通方式：小卡不重複顯示，只補「緩衝」與導航
     var min = amt(x.gapMin) || routeMin(x.route), mode = String(x.gapMode || x.transport || '').trim();
     var from = String(prev.place || '').trim(), to = String(x.place || '').trim();
     var nav = from && to && from !== to ? 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(from) + '&destination=' + encodeURIComponent(to) + '&travelmode=' + gapTravelMode(mode) : '';
-    var t0 = toMin(prev.end || prev.time), t1 = toMin(x.time), diff = (t0 != null && t1 != null) ? t1 - t0 : null;
+    var t0 = toMin(prev.end); if(t0 == null) t0 = legEdge(prev, 'arr', true); if(t0 == null) t0 = toMin(prev.time);      // 前一個行程是轉乘：用最後一段的抵達時間
+    var t1 = toMin(x.time); if(t1 == null) t1 = legEdge(x, 'dep', false);
+    var diff = (t0 != null && t1 != null) ? t1 - t0 : null;
     var parts = [];
     if(min > 0){
-      if(!own) parts.push('<span>' + tIcon(mode) + ' 預計移動 <b>' + esc(fmtMin(min)) + '</b>' + (mode ? '（' + esc(mode) + '）' : '') + '</span>');
-      if(diff != null) parts.push(diff >= min ? '<span class="gbuf">' + (own ? '⏳ ' : '') + '緩衝 ' + esc(fmtMin(diff - min)) + (own ? '（已扣掉移動 ' + esc(fmtMin(min)) + '）' : '') + '</span>' : '<span class="gwarn">⚠ 時間不夠，差 ' + esc(fmtMin(min - diff)) + (own ? '（移動約 ' + esc(fmtMin(min)) + '）' : '') + '</span>');
+      if(!own) parts.push('<span>' + tIcon(mode) + ' 預計移動 <b>' + esc(gapFmt(min)) + '</b>' + (mode ? '（' + esc(mode) + '）' : '') + '</span>');
+      if(diff != null) parts.push(diff >= min ? '<span class="gbuf">' + (own ? '⏳ ' : '') + '緩衝 ' + esc(gapFmt(diff - min)) + (own ? '（已扣掉移動 ' + esc(gapFmt(min)) + '）' : '') + '</span>' : '<span class="gwarn">⚠ 時間不夠，差 ' + esc(gapFmt(min - diff)) + (own ? '（移動約 ' + esc(gapFmt(min)) + '）' : '') + '</span>');
     } else if(diff != null && diff > 0){
-      parts.push('<span class="gbuf">⏳ 中間空檔 ' + esc(fmtMin(diff)) + (own ? '' : '（還沒填移動時間）') + '</span>');
+      parts.push('<span class="gbuf">⏳ 中間空檔 ' + esc(gapFmt(diff)) + (own ? '' : '（還沒填移動時間）') + '</span>');
     } else if(nav && !own){
       parts.push('<span class="gbuf">' + tIcon(mode) + ' 前往下一站</span>');
     }
@@ -3759,7 +3766,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function rslHas(x){ return rslOn(x) && !!(String(x.rsvDate || '').trim() || String(x.rsvTime || '').trim()); }
   function rslText(x, full){ return (x.rsvDate ? esc(d(x.rsvDate)) + (full ? esc(wk(x.rsvDate)) : '') : '') + (x.rsvTime ? (x.rsvDate ? ' ' : '') + esc(tm12(x.rsvTime)) : ''); }
   function rsvCls(st){ return st === '已預約' ? 'rs-ok' : st === '候補' ? 'rs-wait' : 'rs-no'; }
-  function spProg(t){ var a = t.spots || []; return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
+  function spProg(t, lid){ var a = (t.spots || []).filter(function(x){ return (x.list || '') === (lid || ''); }); return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
     var f = x.from, e = x.to; if(!f && !e) return '';
     var txt = (f ? esc(d(f)) : '') + (f && e ? ' – ' : (f ? ' 起' : '')) + (e ? (f ? '' : '至 ') + esc(d(e)) : '');
@@ -4435,7 +4442,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
         var names = [o.it.nst, o.it.stFrom, o.it.stTo];
         (o.it.legs || []).forEach(function(lg){ names.push(lg.from, lg.to); });
         var hit = names.some(function(v){ var ns = mStd(v); return !!ns && (ns === k || ns === k2); });
-        return hit || (k.length >= 3 && mNorm(o.it.title).indexOf(k) >= 0);
+        return hit;      // 只標「實際用到」的站：最近車站、起站／到站、轉乘起訖站；行程名稱剛好含站名不算
       });
     }
     var cache = {}, any = false;
@@ -4453,7 +4460,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       return '<details class="mtline" style="--lc:' + L.color + '"' + (open ? ' open' : '') + '><summary><i class="mtdot"></i>' + (L.type && M_TYPE_ICON[L.type] ? M_TYPE_ICON[L.type] + ' ' : '') + esc(L.name) + '<span class="mtc">' + L.st.length + ' 站' + (hits ? '・' + hits + ' 個行程站' : '') + '</span></summary><ol class="mtst" style="--lc:' + L.color + '">' + rows + '</ol>' + ((L.key && !viewOnly) ? '<div class="btns"><button class="mini" type="button" data-do="linedel" data-k="' + esc(L.key) + '">刪除這條線</button></div>' : '') + '</details>';
     }).join('');
     return '<section class="sec" id="metrosec"><div class="sh"><h3>🚇 路線圖・' + esc(C.name) + '</h3></div>' +
-      '<div class="mtbox">依行程偵測：<b>' + esc(C.name) + '</b>' + (C.ic ? '　建議 IC 卡：' + esc(C.ic) : '') + '<small>行程站：行程項目填的「最近車站」、起站／到站、轉乘路段的起訖站，或行程名稱剛好含站名（至少 3 個字），都會標出來。</small></div>' +
+      '<div class="mtbox">依行程偵測：<b>' + esc(C.name) + '</b>' + (C.ic ? '　建議 IC 卡：' + esc(C.ic) : '') + '<small>行程站：只標出你實際會用到的站，也就是行程項目填的「最近車站」、起站／到站，以及轉乘路段的起訖站。</small></div>' +
       lines + (C.stub ? '<p class="hint">這裡只有你在行程裡查過或手動加的線；地鐵、市電要的話可以按下面的按鈕從網路抓。</p><div class="btns"><button class="mini" type="button" data-do="metrofetch"' + (metroBusy ? ' disabled' : '') + '>' + (metroBusy ? '抓取中…（最多約 45 秒）' : '從網路抓取地鐵／市電') + '</button></div>' + (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '') : C.auto ?
         '<p class="hint">⚠ 這是 ' + esc(C.fetched) + ' 從網路（OpenStreetMap）自動抓取的路線，可能缺站或站序有誤，出發前請抽查實際會搭的站。</p>' +
         '<div class="btns"><button class="mini" type="button" data-do="metrofetch"' + (metroBusy ? ' disabled' : '') + '>' + (metroBusy ? '抓取中…' : '重新抓取') + '</button><button class="mini" type="button" data-do="metroclear">清除抓取的路線</button></div>' + (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '') :
@@ -4755,11 +4762,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '</section>';
   }
   function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
-  var spOpen = {}, spOnly = false, spType = '', spDoneOpen = false;      // 打卡點：哪幾張展開、是否只看未打卡
-  function spotsView(t){
-    var all = t.spots || [];
+  var spOpen = {}, spOnly = false, spTypes = {}, spDoneOpens = {};      // 打卡點：哪幾張展開、是否只看未打卡
+  function spRefresh(t){ ['', '2'].forEach(function(l){ var n = document.getElementById('spsec' + l); if(n) n.outerHTML = spotsView(t, l); }); }
+  function spList2Name(t){ return String(t.spTitle2 || '').trim() || '打卡點 2'; }
+  function spotsView(t, lid){
+    lid = lid || '';
+    var all = (t.spots || []).filter(function(x){ return (x.list || '') === lid; }), spType = spTypes[lid] || '';
     var types = SPOT_TYPES.filter(function(ty){ return all.some(function(x){ return (x.type || '其他') === ty; }); });
     if(spType && types.indexOf(spType) < 0) spType = '';      // 該類型已經沒有項目就取消篩選
+    spTypes[lid] = spType;
     var inType = function(x){ return !spType || (x.type || '其他') === spType; };
     // 未打卡的在前、已打卡的沉到最下面（各自維持原本順序）
     var sp = all.map(function(x, i){ return { x:x, i:i }; }).filter(function(o){ return !o.x.done && inType(o.x); })
@@ -4794,16 +4805,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
             ((rsvOn(x) && !x.done) || tail ? '<div class="spsub">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + (rslHas(x) ? ' ' + rslText(x) : '') + '</span>' : '') + (tail ? '<span class="sptail">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
     };
-    var doneHtml = dn.length ? '<details id="spdone" class="spdone"' + (spDoneOpen ? ' open' : '') + '><summary>已打卡<small>（' + dn.length + '）</small></summary><div class="spdonebody">' + dn.map(cardOf).join('') + '</div></details>' : '';
-    return '<section class="sec" id="spsec"><div class="sh"><h3>應援打卡點' + (all.length ? '<small id="spprog">' + spProg(t) + '</small>' : '') + '</h3>' +
+    var doneHtml = dn.length ? '<details id="spdone' + lid + '" class="spdone"' + (spDoneOpens[lid] ? ' open' : '') + '><summary>已打卡<small>（' + dn.length + '）</small></summary><div class="spdonebody">' + dn.map(cardOf).join('') + '</div></details>' : '';
+    if(lid && !all.length && !editMode) return '';      // 第二份清單還沒有項目時，瀏覽模式不佔位置
+    return '<section class="sec" id="spsec' + lid + '"><div class="sh"><h3>' + (lid ? esc(spList2Name(t)) : '應援打卡點') + (all.length ? '<small id="spprog' + lid + '">' + spProg(t, lid) + '</small>' : '') + '</h3>' +
       '</div>' +
       (all.length ? '<div class="spbar' + (pct === 100 ? ' full' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="打卡進度"><i style="width:' + pct + '%"></i></div>' : '') +
-      (types.length > 1 ? '<div class="sptypes">' + ['全部'].concat(types).map(function(ty){ var on = ty === '全部' ? !spType : spType === ty; return '<button class="mini" type="button" data-do="sptype" data-ty="' + (ty === '全部' ? '' : esc(ty)) + '" aria-pressed="' + on + '">' + esc(ty) + '</button>'; }).join('') + '</div>' : '') +
+      (types.length > 1 ? '<div class="sptypes">' + ['全部'].concat(types).map(function(ty){ var on = ty === '全部' ? !spType : spType === ty; return '<button class="mini" type="button" data-do="sptype" data-l="' + lid + '" data-ty="' + (ty === '全部' ? '' : esc(ty)) + '" aria-pressed="' + on + '">' + esc(ty) + '</button>'; }).join('') + '</div>' : '') +
       (sp.length ? sp.map(cardOf).join('') : '<p class="vempty">' + (all.length ? (dn.length ? (spType ? '這個類型都打卡完成了 🎉' : '全部都打卡完成了 🎉') : '這個類型沒有符合的項目') : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + doneHtml + '</section>';
   }
   function spotEdit(x){
-    var a = ' data-sp="' + x.id + '"';
-    return '<div class="bk"><div class="bh"><select' + a + ' data-k="type" aria-label="打卡點類型">' +
+    var a = ' data-sp="' + x.id + '"', t0 = cur();
+    var lsel = t0 ? '<label class="payrow">放在哪份清單<select' + a + ' data-k="list" aria-label="打卡點所屬清單"><option value=""' + ((x.list || '') === '' ? ' selected' : '') + '>應援打卡點</option><option value="2"' + (x.list === '2' ? ' selected' : '') + '>' + esc(spList2Name(t0)) + '</option></select></label>' : '';
+    return lsel + '<div class="bk"><div class="bh"><select' + a + ' data-k="type" aria-label="打卡點類型">' +
       SPOT_TYPES.map(function(c){ return '<option' + (c === x.type ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
       '<input' + a + ' data-k="name" aria-label="打卡點名稱" placeholder="例如：生日咖啡廳、地鐵站廣告" value="' + esc(x.name || '') + '">' +
       '<button class="del" type="button" data-do="delsp" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
@@ -4828,7 +4841,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone') spDoneOpen = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone' || el.id === 'spdone2') spDoneOpens[el.id === 'spdone2' ? '2' : ''] = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -4929,7 +4942,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' :
       exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section>';
-    if(fan) h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3">' + infoH + spotsView(t) + '</div></div><div class="expbot">' + expH + '</div>';
+    if(fan) h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3">' + infoH + spotsView(t) + spotsView(t, '2') + '</div></div><div class="expbot">' + expH + '</div>';
     else h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '">' + expH + wishView(t) + '</div></div>';
     return h;
   }
@@ -4975,11 +4988,18 @@ a.name{display:block; color:inherit; text-decoration:none;}
 
     h += tcEditSec(t);
 
-    if(fan) h += '<section class="sec"><div class="sh"><h3>應援打卡點' + (t.spots.length ? '<small>' + spProg(t) + '</small>' : '') + '</h3><div class="btns">' +
-        '<button class="mini" type="button" data-do="addsp">＋ 新增一筆</button></div></div>' +
-        (t.spots.length ? t.spots.map(function(x){
-          return crow('sp', x.id, '', '<span class="btag">' + esc(x.type || '其他') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [spWhen(x).replace(/<[^>]*>/g, '').replace(/　/g, ' '), spBook(x) && x.reserve ? '需先預約' : '', spBook(x) && x.walkin ? '開放現場名額' : '', x.addr].filter(Boolean).join(' ・ '), '', 'delsp');
-        }).join('') : '<div class="empty">生日咖啡廳、地鐵廣告、快閃店、展覽…都可以記在這裡，可填展出期間與特典，去過就打勾。</div>') + '</section>';
+    if(fan){
+      var spEditSec = function(lid){
+        var list = t.spots.filter(function(x){ return (x.list || '') === lid; });
+        return '<section class="sec" id="sec-sp' + lid + '"><div class="sh"><h3>' + (lid ? esc(spList2Name(t)) : '應援打卡點') + (list.length ? '<small>' + spProg(t, lid) + '</small>' : '') + '</h3><div class="btns">' +
+          '<button class="mini" type="button" data-do="addsp" data-l="' + lid + '">＋ 新增一筆</button></div></div>' +
+          (lid ? '<label class="payrow">清單名稱<input data-t="1" data-k="spTitle2" aria-label="第二份打卡點清單名稱" placeholder="打卡點 2" value="' + esc(t.spTitle2 || '') + '"></label>' : '') +
+          (list.length ? list.map(function(x){
+            return crow('sp', x.id, '', '<span class="btag">' + esc(x.type || '其他') + '</span> ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), [spWhen(x).replace(/<[^>]*>/g, '').replace(/　/g, ' '), spBook(x) && x.reserve ? '需先預約' : '', spBook(x) && x.walkin ? '開放現場名額' : '', x.addr].filter(Boolean).join(' ・ '), '', 'delsp');
+          }).join('') : '<div class="empty">' + (lid ? '另一份打卡點清單（例如：美食、購物、備用點），格式跟上面一樣，去過就打勾。' : '生日咖啡廳、地鐵廣告、快閃店、展覽…都可以記在這裡，可填展出期間與特典，去過就打勾。') + '</div>') + '</section>';
+      };
+      h += spEditSec('') + spEditSec('2');
+    }
 
 
     h += '<section class="sec" id="sec-ck"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
@@ -5080,7 +5100,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     document.addEventListener('focusout', function(){ setTimeout(function(){ var a = document.activeElement; if(!a || !/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) document.body.classList.remove('kbd'); }, 50); });
   })();
   // 標題旁的快速跳轉：只列出畫面上真的有的區塊
-  var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通'],['spsec','應援打卡點'],['recsec','推薦必買'],['merchsec','購物清單'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
+  var SEC_NAV = [['sec-info','活動資訊'],['sec-bk','預訂資料'],['sec-st','住宿'],['tcsec','交通'],['spsec','應援打卡點'],['spsec2','打卡點 2'],['recsec','推薦必買'],['merchsec','購物清單'],['sec-board','每日行程'],['sec-exp','花費'],['wishsec','備選景點']];
   function buildSecNav(){
     var nav = document.getElementById('secnav'); if(!nav) return;
     // 每日行程與購物在同一欄的不同分頁：另一個分頁的區塊也要能跳過去（唯讀分享頁沒有分頁）
@@ -5299,8 +5319,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
           if(ds.k === 'reserve'){ var rb = el.closest('.bk').querySelector('.sprsv'); if(rb) rb.hidden = !rsvOn(spx); syncRsv(el.closest('.bk'), spx); }
           if(ds.k === 'done'){
             var spc = el.closest('.spv'); if(spc) spc.classList.toggle('done', el.checked);
-            if($('spprog')) $('spprog').textContent = spProg(t);
-            var sps2 = $('spsec'); if(sps2) sps2.outerHTML = spotsView(t);      // 重排：已打卡的沉到最下面
+            spRefresh(t);      // 重排：已打卡的沉到最下面（兩份清單一起重畫，進度數字也會更新）
           }
         } else {
           spx[ds.k] = el.value;
@@ -5488,7 +5507,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(/^lk-exp-/.test(b.dataset.to || '') && !document.getElementById(b.dataset.to)){ xOpen = true; catFilter = 'all'; renderDetail(); }
       if(/^lk-sp-/.test(b.dataset.to || '')){      // 要跳去的打卡點若收合或被「只看未打卡」藏起來，先展開
         var gsid = String(b.dataset.to).slice(6), gsx = byId(t.spots, gsid);
-        if(gsx){ spOpen[gsid] = true; if(gsx.done) spDoneOpen = true; if(spType && (gsx.type || '其他') !== spType) spType = ''; var gsp = $('spsec'); if(gsp) gsp.outerHTML = spotsView(t); }
+        if(gsx){ var gl = gsx.list || ''; spOpen[gsid] = true; if(gsx.done) spDoneOpens[gl] = true; if(spTypes[gl] && (gsx.type || '其他') !== spTypes[gl]) spTypes[gl] = ''; spRefresh(t); }
       }
       var tg = document.getElementById(b.dataset.to);
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
@@ -5727,13 +5746,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
       renderDetail(); doPersist(); return;
     }
     if(act === 'sptype'){
-      spType = b.dataset.ty || '';
-      var spt = $('spsec'); if(spt) spt.outerHTML = spotsView(t);
+      spTypes[b.dataset.l || ''] = b.dataset.ty || '';
+      spRefresh(t);
       return;
     }
     if(act === 'spfilter'){
       spOnly = !spOnly;
-      var sps = $('spsec'); if(sps) sps.outerHTML = spotsView(t);
+      spRefresh(t);
       return;
     }
     if(act === 'dupit'){
@@ -5851,7 +5870,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var shd = fanShows(t, true), shT = shd.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       t.fanInfo.shows = shd.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addsp'){
-      t.spots.push({ id:uid(), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
+      t.spots.push({ id:uid(), list:(b.dataset.l || ''), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });
