@@ -368,6 +368,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .shpin input{font:inherit; font-size:18px; font-weight:900; letter-spacing:0.4em; width:9em; padding:6px 8px; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
   .shpin small{font-size:12px; color:var(--ink-faint); font-weight:500;}
   .ov{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:0 0 14px;}
+  .ovc.wide2{grid-column:1 / -1;}
+  .ovseg{display:flex; margin:-4px 0 14px; border:1px solid var(--ink);}
+  .ovseg button{flex:1; padding:8px 4px; font-size:13px; font-weight:700; background:none; color:var(--ink); border:0; letter-spacing:0; cursor:pointer;}
+  .ovseg button[aria-pressed="true"]{background:var(--ink); color:var(--paper);}
   .ovc{border:1px solid var(--line-strong); background:var(--fill); padding:12px 12px 10px; min-width:0; display:flex; flex-direction:column; gap:2px;}
   .ovk{font-size:12px; font-weight:700; letter-spacing:0.08em; color:var(--ink-faint);}
   .ovn{font-size:clamp(22px,7vw,30px); font-weight:900; line-height:1.15; font-variant-numeric:tabular-nums; overflow-wrap:anywhere;}
@@ -392,13 +396,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .xrow.paid{opacity:.55;} .xrow.paid .xarr b{text-decoration:line-through;} .xrow.paid .xarr small{color:#2e8b57;}
   .xrow .xck input{width:22px; height:22px; accent-color:var(--accent); cursor:pointer; margin:0;}
   .xrow .sgw{grid-column:1 / -1; font-size:12px; color:var(--danger);}
-  .pcards{display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; margin-top:6px;}
-  .pcard{display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-areas:"a n" "a d" "a g"; gap:0 10px; align-items:center; text-align:left; padding:10px; background:var(--fill); border:1px solid var(--line); color:var(--ink); font:inherit; cursor:pointer; letter-spacing:0;}
+  .pcards{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-auto-rows:1fr; gap:8px; margin-top:6px;}
+  .pcard{width:100%; min-width:0; height:100%; box-sizing:border-box; display:grid; grid-template-columns:auto minmax(0,1fr); grid-template-areas:"a n" "a d" "a g"; gap:0 10px; align-items:center; text-align:left; padding:10px; background:var(--fill); border:1px solid var(--line); color:var(--ink); font:inherit; cursor:pointer; letter-spacing:0;}
   .pcard.me{border-color:var(--accent); box-shadow:inset 0 0 0 1px var(--accent);}
   .pcard .av{grid-area:a;}
   .pcard b{grid-area:n; font-size:14px; font-weight:900; overflow-wrap:anywhere;}
   .pcard b small{margin-left:6px; font-size:10px; font-weight:700; color:var(--accent); border:1px solid var(--accent); padding:0 4px;}
-  .pcard .pcd{grid-area:d; font-size:11px; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+  .pcard .pcd{grid-area:d; font-size:11px; overflow-wrap:anywhere; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
   .pcard .pcn{grid-area:g; font-size:13px; font-weight:900; color:var(--ink-dim); font-variant-numeric:tabular-nums;}
   .pcard .pcn.get{color:#2e8b57;} .pcard .pcn.owe{color:var(--danger);}
   html[data-theme="dark"] .pcard .pcn.get{color:#5fd49a;}
@@ -429,6 +433,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   /* ── 手機底部導航欄：只在旅程詳細頁、窄螢幕出現；拇指一按就跳到行程／購物／花費／清單 ── */
   .bnav{display:none;}
   @media (max-width:799px){
+    body.wide .secnav .mini[data-to="sec-board"], body.wide .secnav .mini[data-to="merchsec"], body.wide .secnav .mini[data-to="sec-exp"]{display:none;}   /* 底部導航欄已經有行程／購物／花費，上面的快捷鈕不重複放 */
     body.wide .bnav{display:flex; position:fixed; left:0; right:0; bottom:0; z-index:12; background:var(--paper); border-top:1px solid var(--line-strong); padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);}
     body.wide.kbd .bnav{display:none;}
     body.wide{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));}
@@ -2154,27 +2159,45 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function payTag(t, x){
     if(!x.payer) return '';
     var P = peopleOf(t), sh = (x.sharers || []).filter(function(n){ return P.indexOf(n) >= 0; });
-    return '<div class="xs xpay">' + avHtml(P, x.payer, 1) + ' ' + esc(x.payer) + ' 付・' + (sh.length && sh.length < P.length ? '分攤：' + sh.map(esc).join('、') : '全員分攤') + '</div>';
+    var myTxt = '', tv = twdOf(t, x), allSh = sharersOf(t, x, P);
+    if(t.me && P.indexOf(t.me) >= 0 && tv != null) myTxt = allSh.indexOf(t.me) >= 0 ? '・<b>你分攤 ' + money(tv / allSh.length) + '</b>' : '・你不分攤';
+    return '<div class="xs xpay">' + avHtml(P, x.payer, 1) + ' ' + esc(x.payer) + ' 付・' + (sh.length && sh.length < P.length ? '分攤：' + sh.map(esc).join('、') : '全員分攤') + myTxt + '</div>';
   }
   // ---- 頭像與總覽：每位成員固定一個顏色，頭像放名字第一個字 ----
   var AV_COLORS = ['#c2410c','#1d6fa5','#2e8b57','#8e44ad','#a07407','#c0392b','#0e7c86','#5b4bd6'];
   function avInit(n){ var ch = Array.from(String(n || '').trim())[0] || '?'; return /[a-z]/i.test(ch) ? ch.toUpperCase() : ch; }
   function avHtml(P, name, sm){ var i = P.indexOf(name); return '<span class="av' + (sm ? ' sm' : '') + '" style="background:' + AV_COLORS[(i < 0 ? 0 : i) % AV_COLORS.length] + '" aria-hidden="true">' + esc(avInit(name)) + '</span>'; }
   function xfPaid(t, f){ var sv = (t.settled || {})[f.from + '→' + f.to]; return sv != null && Math.abs(Number(sv) - Math.round(f.v)) <= 1; }
+  var sumView = 'mine';      // 'mine'＝只算「你」分攤到的金額（預設，總額、餅圖、類別都跟著變）；'all'＝全部總額
+  function myShareOf(t, x, P, me){      // 一筆花費裡「你」分到多少（新台幣）；沒選付款人的不算分攤
+    if(!x.payer || P.indexOf(x.payer) < 0) return 0;
+    var tv = twdOf(t, x); if(tv == null) return 0;
+    var sh = sharersOf(t, x, P);
+    return sh.indexOf(me) >= 0 ? tv / sh.length : 0;
+  }
   function overviewHtml(t, c){
-    var P = c.P, tot = 0, me = P.indexOf(t.me) >= 0 ? t.me : '';
-    (t.expenses || []).forEach(function(x){ var v = twdOf(t, x); if(v != null) tot += v; });
-    var left = '<div class="ovc"><div class="ovk">總支出</div><div class="ovn">NT$ ' + money(tot) + '</div><div class="ovs">每人平均 NT$ ' + money(tot / P.length) + '・' + P.length + ' 人</div></div>', right;
+    var P = c.P, tot = 0, loose = 0, me = P.indexOf(t.me) >= 0 ? t.me : '';
+    (t.expenses || []).forEach(function(x){
+      var v = twdOf(t, x); if(v == null) return;
+      tot += v; if(!x.payer || P.indexOf(x.payer) < 0) loose += v;
+    });
+    var left = '<div class="ovc"><div class="ovk">總支出</div><div class="ovn">NT$ ' + money(tot) + '</div><div class="ovs">' + (loose > 0.5 ? '其中沒選付款人（不分攤）NT$ ' + money(loose) : '全部都有分攤') + '</div></div>', html;
     if(me){
       var pay = 0, recv = 0, anyX = c.xf.length > 0;
       c.xf.forEach(function(f){ if(xfPaid(t, f)) return; if(f.from === me) pay += f.v; if(f.to === me) recv += f.v; });
-      var net = recv - pay, k = net > 0.5 ? '你應收' : net < -0.5 ? '你應付' : (anyX ? '你的帳' : '你的帳'), cls = net > 0.5 ? 'pos' : net < -0.5 ? 'neg' : 'zero';
+      var net = recv - pay, k = net > 0.5 ? '你還要收' : net < -0.5 ? '你還要付' : '你的帳', cls = net > 0.5 ? 'pos' : net < -0.5 ? 'neg' : 'zero';
       var big = net > 0.5 || net < -0.5 ? 'NT$ ' + money(Math.abs(net)) : (anyX ? '已結清 ✓' : '已打平');
-      right = '<div class="ovc"><div class="ovk">' + k + '</div><div class="ovn ' + cls + '">' + big + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + '<button type="button" data-do="setme" data-name="">換人</button></div></div>';
+      var looseTxt = loose > 0.5 ? '・另有 NT$ ' + money(loose) + ' 沒選付款人，沒算進來' : '';
+      var mine = sumView === 'mine'
+        ? '<div class="ovc"><div class="ovk">你的總支出（分攤後）</div><div class="ovn">NT$ ' + money(c.owe[me]) + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + '' + looseTxt + '<button type="button" data-do="setme" data-name="">換人</button></div></div>'
+        : '<div class="ovc"><div class="ovk">你的分攤花費</div><div class="ovn">NT$ ' + money(c.owe[me]) + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + '・你先付了 NT$ ' + money(c.paid[me]) + '<button type="button" data-do="setme" data-name="">換人</button></div></div>';
+      var rem = '<div class="ovc' + (sumView === 'mine' ? '' : ' wide2') + '"><div class="ovk">' + k + '</div><div class="ovn ' + cls + '">' + big + '</div><div class="ovs">' + (net > 0.5 || net < -0.5 ? '你先付 NT$ ' + money(c.paid[me]) + ' − 你分攤 NT$ ' + money(c.owe[me]) + '，已扣掉「已給」' : '分攤的錢都處理好了') + '</div></div>';
+      var seg = '<div class="ovseg" role="group" aria-label="統計方式"><button type="button" data-do="sumview" data-v="mine" aria-pressed="' + (sumView === 'mine') + '">我的分攤</button><button type="button" data-do="sumview" data-v="all" aria-pressed="' + (sumView !== 'mine') + '">全部總額</button></div>';
+      html = '<div class="ov">' + (sumView === 'mine' ? '' : left) + mine + rem + '</div>' + seg;
     } else {
-      right = '<div class="ovc"><div class="ovk">你是哪一位？</div><div class="ovpick">' + P.map(function(p){ return '<button type="button" data-do="setme" data-name="' + esc(p) + '">' + avHtml(P, p, 1) + esc(p) + '</button>'; }).join('') + '</div><div class="ovs">選了才會算出你要付／收多少</div></div>';
+      html = '<div class="ov">' + left + '<div class="ovc"><div class="ovk">你是哪一位？</div><div class="ovpick">' + P.map(function(p){ return '<button type="button" data-do="setme" data-name="' + esc(p) + '">' + avHtml(P, p, 1) + esc(p) + '</button>'; }).join('') + '</div><div class="ovs">選了才會算出你分攤多少、要付／收多少</div></div></div>';
     }
-    return '<div class="ov">' + left + right + '</div>';
+    return html;
   }
   function splitHtml(t){
     var c = splitCalc(t); if(!c) return '';
@@ -2210,7 +2233,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     h += '<div class="pcards">' + c.P.map(function(p){
       var net = c.paid[p] - c.owe[p], me = p === t.me;
       return '<button type="button" class="pcard' + (me ? ' me' : '') + '" data-do="setme" data-name="' + esc(p) + '" title="點一下設為「你」">' + avHtml(c.P, p) + '<b>' + esc(p) + (me ? '<small>你</small>' : '') + '</b>' +
-        '<span class="pcd">已付 ' + money(c.paid[p]) + '・分攤 ' + money(c.owe[p]) + '</span>' +
+        '<span class="pcd">已付 ' + money(c.paid[p]) + '<br>分攤 ' + money(c.owe[p]) + '</span>' +
         '<span class="pcn ' + (net > 0.5 ? 'get' : net < -0.5 ? 'owe' : '') + '">' + (net > 0.5 ? '應收 ' + money(net) : net < -0.5 ? '應付 ' + money(-net) : '已打平') + '</span></button>';
     }).join('') + '</div>';
     if(c.noRate) h += '<div class="swarn">有 ' + c.noRate + ' 筆外幣花費還沒填匯率，沒算進分攤。</div>';
@@ -2265,10 +2288,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     });
   }
-  function sumHtml(t){ var c = splitCalc(t), ov = (c && c.any) ? overviewHtml(t, c) : '', h = ov + sumHtml0(t, !!ov) + splitHtml(t); setTimeout(drawPie, 0); return h; }
+  function sumHtml(t){ var c = splitCalc(t), ov = (c && c.any) ? overviewHtml(t, c) : '', mineMe = (ov && sumView === 'mine' && c.P.indexOf(t.me) >= 0) ? { P:c.P, me:t.me } : null, h = ov + sumHtml0(t, !!ov, mineMe) + splitHtml(t); setTimeout(drawPie, 0); return h; }
   window.addEventListener('load', function(){ drawPie(); });
-  function sumHtml0(t, noTotal){
-    var total = 0, by = {}, bud = t.budgets || {}, byCur = {}, miss = {}, curOrder = [];
+  function sumHtml0(t, noTotal, mineMe){
+    var total = 0, by = {}, bud = mineMe ? {} : (t.budgets || {}), byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
       var n = signed(x); if(!n) return;
       var c = ecur(t, x), r = rateOf(t, c);
@@ -2276,6 +2299,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       byCur[c] += n;
       var tv = twdOf(t, x);
       if(tv == null){ miss[c] = 1; return; }
+      if(mineMe) tv = myShareOf(t, x, mineMe.P, mineMe.me);      // 只看我的分攤：每筆只算「你」分到的那一份
       total += tv; by[x.cat] = (by[x.cat] || 0) + tv;
     });
     var h = noTotal ? '' : '<div class="total">總花費 <b>' + money(total) + '</b> 元</div>';
@@ -2283,7 +2307,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     CATS.forEach(function(c){ if(c === REFUND) return; var b = amt(bud[c]); if(b > 0){ bsum += b; bspent += by[c] || 0; } else free += by[c] || 0; });
     if(bsum > 0) h += '<div class="approx">預算合計 <b>' + money(bsum) + '</b>　' + (bsum - bspent >= 0 ? '<span class="left ' + (bspent / bsum >= BUD_WARN ? 'warn' : 'ok') + '">' + (bspent / bsum >= BUD_WARN ? '⚠ ' : '') + '還能花 ' + money(bsum - bspent) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>' : '<span class="left over">已超支 ' + money(bspent - bsum) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>') + (free > 0 ? '<br>未設預算的類別另花 <b>' + money(free) + '</b> 元' : '') + '</div>';
     var foreign = curOrder.filter(function(c){ return c !== 'TWD'; });
-    if(foreign.length) h += '<div class="approx">原幣小計　' + curOrder.map(function(c){ return esc(c) + ' <b>' + money(byCur[c]) + '</b>'; }).join('　＋　') + '</div>';
+    if(foreign.length && !mineMe) h += '<div class="approx">原幣小計　' + curOrder.map(function(c){ return esc(c) + ' <b>' + money(byCur[c]) + '</b>'; }).join('　＋　') + '</div>';
     var ms = Object.keys(miss);
     if(ms.length) h += '<div class="approx warn">尚未填匯率：' + ms.map(esc).join('、') + '（這些金額還沒算進總花費）</div>';
     if(by[REFUND]) h += '<div class="approx">已扣除退款 <b>' + money(Math.abs(by[REFUND])) + '</b></div>';
@@ -2304,7 +2328,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     }
     var spent = cats.filter(function(c){ return by[c] > 0; }), idle = cats.filter(function(c){ return !(by[c] > 0); });
     pieData = spent.map(function(c){ return { c:c, v:by[c] }; });
-    var out = h + (spent.length ? '<div class="piebox"><div class="pt">類別消費比例（新台幣）</div><div class="pc"><canvas id="catPie" role="img" aria-label="各類別消費比例餅圖"></canvas></div></div>' : '') + '<div class="clist">' + spent.map(row).join('') + '</div>';
+    var out = h + (spent.length ? '<div class="piebox"><div class="pt">類別消費比例（新台幣）' + (mineMe ? '・我的分攤' : '') + '</div><div class="pc"><canvas id="catPie" role="img" aria-label="各類別消費比例餅圖"></canvas></div></div>' : '') + '<div class="clist">' + spent.map(row).join('') + '</div>';
     if(idle.length) out += '<details class="cidle"' + (idle.indexOf(catFilter) >= 0 ? ' open' : '') + '><summary>尚未花費（' + idle.length + '）：' + idle.map(esc).join('、') + '</summary><div class="clist">' + idle.map(row).join('') + '</div></details>';
     return out;
   }
@@ -2900,24 +2924,32 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(/腳踏車|單車|自行車|騎/.test(m)) return 'bicycling';
     return 'transit';
   }
+  function routeMin(str){      // 從交通欄文字讀出「約 15 分鐘」「約 1 小時 20 分」；讀不出來就回傳 0
+    str = String(str || '');
+    var m = /約\s*(?:(\d+(?:\.\d+)?)\s*小時)?\s*(?:(\d+)\s*分)?/.exec(str);
+    if(!m || (!m[1] && !m[2])) return 0;
+    return (m[1] ? parseFloat(m[1]) * 60 : 0) + (m[2] ? +m[2] : 0);
+  }
   function gapHtml(prev, x){
     if(!prev || !x) return '';
-    var min = amt(x.gapMin), mode = String(x.gapMode || '').trim();
+    var own = !!(String(x.transport || '').trim() || String(x.route || '').trim());      // 後一個行程自己已經寫了交通方式：小卡不重複顯示，只補「緩衝」與導航
+    var min = amt(x.gapMin) || routeMin(x.route), mode = String(x.gapMode || x.transport || '').trim();
     var from = String(prev.place || '').trim(), to = String(x.place || '').trim();
     var nav = from && to && from !== to ? 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(from) + '&destination=' + encodeURIComponent(to) + '&travelmode=' + gapTravelMode(mode) : '';
     var t0 = toMin(prev.end || prev.time), t1 = toMin(x.time), diff = (t0 != null && t1 != null) ? t1 - t0 : null;
-    if(!(min > 0) && !nav && !(diff != null && diff > 0)) return '';
-    var h = '<div class="gapc" aria-label="兩個行程之間的移動">';
+    var parts = [];
     if(min > 0){
-      h += '<span>' + tIcon(mode) + ' 預計移動 <b>' + esc(fmtMin(min)) + '</b>' + (mode ? '（' + esc(mode) + '）' : '') + '</span>';
-      if(diff != null) h += diff >= min ? '<span class="gbuf">緩衝 ' + esc(fmtMin(diff - min)) + '</span>' : '<span class="gwarn">⚠ 時間不夠，差 ' + esc(fmtMin(min - diff)) + '</span>';
+      if(!own) parts.push('<span>' + tIcon(mode) + ' 預計移動 <b>' + esc(fmtMin(min)) + '</b>' + (mode ? '（' + esc(mode) + '）' : '') + '</span>');
+      if(diff != null) parts.push(diff >= min ? '<span class="gbuf">' + (own ? '⏳ ' : '') + '緩衝 ' + esc(fmtMin(diff - min)) + (own ? '（已扣掉移動 ' + esc(fmtMin(min)) + '）' : '') + '</span>' : '<span class="gwarn">⚠ 時間不夠，差 ' + esc(fmtMin(min - diff)) + (own ? '（移動約 ' + esc(fmtMin(min)) + '）' : '') + '</span>');
     } else if(diff != null && diff > 0){
-      h += '<span class="gbuf">⏳ 中間空檔 ' + esc(fmtMin(diff)) + '（還沒填移動時間）</span>';
-    } else if(nav){
-      h += '<span class="gbuf">' + tIcon(mode) + ' 前往下一站</span>';
+      parts.push('<span class="gbuf">⏳ 中間空檔 ' + esc(fmtMin(diff)) + (own ? '' : '（還沒填移動時間）') + '</span>');
+    } else if(nav && !own){
+      parts.push('<span class="gbuf">' + tIcon(mode) + ' 前往下一站</span>');
     }
-    if(nav) h += '<a class="gnav" href="' + esc(nav) + '" target="_blank" rel="noopener" title="在 Google 地圖看從「' + esc(from) + '」到「' + esc(to) + '」的路線與即時時間">🧭 導航</a>';
-    return h + '</div>';
+    if(!parts.length && !nav) return '';
+    if(!parts.length) parts.push('<span class="gbuf">' + tIcon(mode) + ' 前往下一站</span>');
+    return '<div class="gapc" aria-label="兩個行程之間的移動">' + parts.join('') +
+      (nav ? '<a class="gnav" href="' + esc(nav) + '" target="_blank" rel="noopener" title="在 Google 地圖看從「' + esc(from) + '」到「' + esc(to) + '」的路線與即時時間">🧭 導航</a>' : '') + '</div>';
   }
   function itemView(x, day){
     var dt = durText(x);
@@ -5016,7 +5048,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     buildSecNav();
     buildBnav();
   }
-  // 手機底部導航欄：按鈕依畫面上真的有的區塊決定；瀏覽模式有「編輯」、編輯模式有「完成」
+  // 手機底部導航欄：按鈕依畫面上真的有的區塊決定（返回、編輯、完成都在上方工作列，這裡不重複放）
   var BN_SPY = [];
   function buildBnav(){
     var el = $('detail'), old = $('bnav'); if(old) old.remove();
@@ -5024,24 +5056,21 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var has = function(id){ return !!document.getElementById(id); }, tabbed = !viewOnly;
     var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
     var list = [];
-    if(!viewOnly) list.push(['link', '', '列表', '←']);
+    if(ck) list.push(['jump', ck, '清單', '✅']);
     if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
     if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
     if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
-    if(ck) list.push(['jump', ck, '清單', '✅']);
-    if(!viewOnly) list.push([editMode ? 'done' : 'edit', '', editMode ? '完成' : '編輯', editMode ? '✔️' : '✏️']);
     BN_SPY = list.filter(function(x){ return x[0] === 'jump'; }).map(function(x){ return x[1]; });
     el.insertAdjacentHTML('beforeend', '<nav id="bnav" class="bnav" aria-label="底部導航">' + list.map(function(x){
-      if(x[0] === 'link') return '<a class="bn" href="#"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</a>';
-      if(x[0] === 'jump') return '<button type="button" class="bn" data-do="jump" data-to="' + x[1] + '"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</button>';
-      return '<button type="button" class="bn main" data-do="' + x[0] + '"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</button>';
+      return '<button type="button" class="bn" data-do="jump" data-to="' + x[1] + '"><i aria-hidden="true">' + x[3] + '</i>' + x[2] + '</button>';
     }).join('') + '</nav>');
     bnavSpy();
   }
   function bnavSpy(){      // 依捲動位置標示目前在哪一區
     var nav = $('bnav'); if(!nav) return;
     var barh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0, line = barh + window.innerHeight * 0.35, cur0 = '';
-    BN_SPY.forEach(function(id){ var n = document.getElementById(id); if(n && n.getBoundingClientRect().top <= line) cur0 = id; });
+    var bestTop = -1e9;
+    BN_SPY.forEach(function(id){ var n = document.getElementById(id); if(!n) return; var tp = n.getBoundingClientRect().top; if(tp <= line && tp > bestTop){ bestTop = tp; cur0 = id; } });      // 取「已經捲過、離畫面上緣最近」的那一區（跟按鈕順序無關）
     [].forEach.call(nav.querySelectorAll('[data-to]'), function(b){ if(b.dataset.to === cur0) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
   }
   (function(){
@@ -5436,9 +5465,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
-    if(viewOnly && ['ckinfo','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
+    if(viewOnly && act === 'setme'){ t.me = (b.dataset.name && b.dataset.name !== t.me) ? b.dataset.name : ''; var sm2 = $('sum'); if(sm2) sm2.innerHTML = sumHtml(t); return; }      // 朋友的唯讀頁：只在這個畫面記住「我是誰」，不寫回雲端
+    if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
+    if(act === 'sumview'){ sumView = b.dataset.v === 'mine' ? 'mine' : 'all'; var sumEl2 = $('sum'); if(sumEl2) sumEl2.innerHTML = sumHtml(t); return; }
     if(act === 'jump'){
       var jto = b.dataset.to, wantTab = jto === 'sec-board' ? 'plan' : (jto === 'merchsec' || jto === 'recsec') ? 'shop' : '';
       if(wantTab && !viewOnly && midTab !== wantTab){ midTab = wantTab; renderDetail(); }      // 先切到對的分頁再捲過去
