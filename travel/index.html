@@ -402,7 +402,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .av.sm{width:20px; height:20px; font-size:11px; vertical-align:middle;}
   .xfl{display:grid; gap:0;}
   .xrow{display:grid; grid-template-columns:64px minmax(0,1fr) 64px 28px; align-items:center; gap:6px; padding:9px 0; cursor:pointer;}
-  .xrow + .xrow{border-top:1px solid var(--line);}
+  .xwrap + .xwrap{border-top:1px solid var(--line);}
+  .xpart{display:flex; gap:6px; align-items:center; justify-content:flex-end; padding:0 0 8px;}
+  .xpart input{width:110px; min-width:0; padding:4px 8px; font-size:13px;}
   .xrow .xp{display:flex; flex-direction:column; align-items:center; gap:3px; min-width:0;}
   .xrow .xp em{font-style:normal; font-size:12px; font-weight:700; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .xarr{display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--ink-dim); min-width:0;}
@@ -450,7 +452,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   /* ── 手機底部導航欄：只在旅程詳細頁、窄螢幕出現；拇指一按就跳到行程／購物／花費／清單 ── */
   .bnav{display:none;}
   @media (max-width:799px){
-    body.wide .secnav .mini[data-to="sec-board"], body.wide .secnav .mini[data-to="merchsec"], body.wide .secnav .mini[data-to="sec-exp"]{display:none;}   /* 底部導航欄已經有行程／購物／花費，上面的快捷鈕不重複放 */
+    body.wide .secnav .mini[data-to="sec-info"], body.wide .secnav .mini[data-to="sec-board"], body.wide .secnav .mini[data-to="merchsec"], body.wide .secnav .mini[data-to="sec-exp"]{display:none;}   /* 底部導航欄已經有行程／購物／花費，上面的快捷鈕不重複放 */
     body.wide .bnav{display:flex; position:fixed; left:0; right:0; bottom:0; z-index:12; background:var(--paper); border-top:1px solid var(--line-strong); padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);}
     body.wide.kbd .bnav{display:none;}
     body.wide{padding-bottom:calc(64px + env(safe-area-inset-bottom,0px));}
@@ -716,7 +718,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .gapc{position:relative; display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:0 0 0 22px; padding:9px 0 9px 20px; font-size:12px; color:var(--ink-dim);}
   .gapc::before{content:''; position:absolute; left:0; top:0; bottom:0; border-left:2px dashed var(--line-strong);}
   .gapc::after{content:''; position:absolute; left:-4px; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--paper); border:2px solid var(--line-strong);}
-  .gapc .gtxt{flex:1 1 100%; font-size:13px; font-weight:500; color:var(--ink); overflow-wrap:anywhere;}
+  .gapc .gtxt{flex:0 1 auto; min-width:0; font-size:13px; font-weight:500; color:var(--ink); overflow-wrap:anywhere;}
   .gapc .gtxt b{font-weight:900;}
   .gpill{display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; border:1px solid var(--line-strong); background:var(--paper); font-weight:700; line-height:1.4; white-space:nowrap; color:var(--ink);}
   .gpill.ok{color:#2e8b57; border-color:#2e8b57;}
@@ -725,6 +727,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .gpill.bad{color:var(--danger); border-color:var(--danger);}
   .gapc .gnav{margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; color:var(--paper); background:var(--ink); border:1px solid var(--ink); text-decoration:none; white-space:nowrap;}
   .gapc .gnav:hover,.gapc .gnav:focus-visible{background:var(--accent); border-color:var(--accent);}
+  @media (max-width:799px){ .gapc .gw{display:none;} .gapc .gpill{padding:2px 8px;} .gapc .gnav{padding:3px 8px;} }
   .ie3.igap{display:flex; gap:6px;}
   .ie3.igap input{min-width:0; flex:1;}
   .itop{display:flex; gap:10px; align-items:baseline;}
@@ -1636,6 +1639,41 @@ a.name{display:block; color:inherit; text-decoration:none;}
   $('fclr').addEventListener('click', function(){ q = ''; yearF = 'all'; placeF = 'all'; $('q').value = ''; render(); });
   $('kind').addEventListener('change', function(){ $('eventWrap').hidden = this.value !== 'fan'; });
 
+  // ---- 記住上次停留的位置：重新整理或從主畫面重開時，回到同一趟旅程、同一天、同一個捲動位置 ----
+  var RESUME_KEY = 'resume:v1', resume = null;
+  try{
+    resume = JSON.parse(localStorage.getItem(RESUME_KEY) || 'null');
+    if(resume && (!resume.id || Date.now() - (resume.ts || 0) > 14 * 864e5)) resume = null;   // 超過兩週就當作新的開始
+    if(resume && !location.hash) history.replaceState(null, '', '#/t/' + encodeURIComponent(resume.id));
+  }catch(e){ resume = null; }
+  function resumeSave(){
+    try{
+      if(viewOnly) return;
+      var m = location.hash.match(/^#\/t\/(.+)$/);
+      if(!m){ if(shownId == null && loaded) localStorage.removeItem(RESUME_KEY); return; }
+      if(!loaded || $('detail').hidden) return;
+      localStorage.setItem(RESUME_KEY, JSON.stringify({ id: decodeURIComponent(m[1]), y: Math.round(window.scrollY), day: dayFilter, tab: midTab, ts: Date.now() }));
+    }catch(e){}
+  }
+  function resumeApply(){      // 剛進入旅程時呼叫：還原那一天、分頁與捲動位置；回傳是否有還原
+    var r = resume; resume = null;
+    if(!r || String(r.id) !== String(currentId) || viewOnly) return false;
+    var t = cur(); if(!t) return false;
+    var chg = false;
+    if(r.day && r.day !== 'all' && (t.days || []).some(function(x){ return String(x.id) === String(r.day); }) && dayFilter !== r.day){ dayFilter = r.day; chg = true; }
+    if(r.tab && r.tab !== midTab){ midTab = r.tab; chg = true; }
+    if(chg) renderDetail();
+    var y = r.y || 0;
+    requestAnimationFrame(function(){ window.scrollTo(0, y); setTimeout(function(){ window.scrollTo(0, y); }, 250); });   // 內容晚一點才排好，所以再補一次
+    return true;
+  }
+  (function(){
+    var tm = 0;
+    window.addEventListener('scroll', function(){ clearTimeout(tm); tm = setTimeout(resumeSave, 300); }, { passive:true });
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'hidden') resumeSave(); });
+    window.addEventListener('pagehide', resumeSave);
+  })();
+
   auth.onAuthStateChanged(function(user){
     if(shareRoute()){ route(); return; }      // 朋友打開分享連結：不用登入
     if(unsub){ unsub(); unsub = null; }
@@ -2198,7 +2236,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   var AV_COLORS = ['#c2410c','#1d6fa5','#2e8b57','#8e44ad','#a07407','#c0392b','#0e7c86','#5b4bd6'];
   function avInit(n){ var ch = Array.from(String(n || '').trim())[0] || '?'; return /[a-z]/i.test(ch) ? ch.toUpperCase() : ch; }
   function avHtml(P, name, sm){ var i = P.indexOf(name); return '<span class="av' + (sm ? ' sm' : '') + '" style="background:' + AV_COLORS[(i < 0 ? 0 : i) % AV_COLORS.length] + '" aria-hidden="true">' + esc(avInit(name)) + '</span>'; }
-  function xfPaid(t, f){ var sv = (t.settled || {})[f.from + '→' + f.to]; return sv != null && Math.abs(Number(sv) - Math.round(f.v)) <= 1; }
+  // 已給的金額可以分次記：t.settled[「A→B」] ＝ 累計已給多少（給滿就算結清）；舊資料存的是整筆金額，一樣適用
+  function xfRest(t, f){ var sv = (t.settled || {})[f.from + '→' + f.to]; return sv == null ? f.v : Math.max(0, f.v - (Number(sv) || 0)); }
+  function xfPaid(t, f){ var sv = (t.settled || {})[f.from + '→' + f.to]; return sv != null && xfRest(t, f) <= 1; }
+  var xpOpen = {};      // 哪幾筆轉帳正開著「只給一部分」的輸入列
   var sumView = 'mine';      // 'mine'＝只算「你」分攤到的金額（預設，總額、餅圖、類別都跟著變）；'all'＝全部總額
   function myShareOf(t, x, P, me){      // 一筆花費裡「你」分到多少（新台幣）；沒選付款人的不算分攤
     if(!x.payer) return viewOnly ? 0 : (twdOf(t, x) || 0);      // 沒選付款人＝個人花費，全額算在「我」身上（朋友的唯讀頁看到的是分享者的個人花費，不算）
@@ -2218,11 +2259,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var left = '<div class="ovc"><div class="ovk">總支出</div><div class="ovn">NT$ ' + money(tot) + '</div></div>', html;
     if(me){
       var pay = 0, recv = 0, anyX = c.xf.length > 0;
-      c.xf.forEach(function(f){ if(xfPaid(t, f)) return; if(f.from === me) pay += f.v; if(f.to === me) recv += f.v; });
+      c.xf.forEach(function(f){ var r = xfRest(t, f); if(r <= 1) return; if(f.from === me) pay += r; if(f.to === me) recv += r; });
       var net = recv - pay, k = net > 0.5 ? '你還要收' : net < -0.5 ? '你還要付' : '你的帳', cls = net > 0.5 ? 'pos' : net < -0.5 ? 'neg' : 'zero';
       var big = net > 0.5 || net < -0.5 ? 'NT$ ' + money(Math.abs(net)) : (anyX ? '已結清 ✓' : '已打平');
       var mine = sumView === 'mine'
-        ? '<div class="ovc"><div class="ovk">你的總支出</div><div class="ovn">NT$ ' + money(c.owe[me] + personal) + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + (personal > 0.5 ? '・含個人花費 NT$ ' + money(personal) : '') + '<button type="button" data-do="setme" data-name="">換人</button></div></div>'
+        ? '<div class="ovc"><div class="ovk">你的總支出</div><div class="ovn">NT$ ' + money(c.owe[me] + personal) + '</div><div class="ovs">' + '<span title="' + esc(me) + '">' + avHtml(P, me, 1) + '</span>' + (personal > 0.5 ? '含個人花費 NT$ ' + money(personal) : '') + '<button type="button" data-do="setme" data-name="">換人</button></div></div>'
         : '<div class="ovc"><div class="ovk">你的分攤花費</div><div class="ovn">NT$ ' + money(c.owe[me]) + '</div><div class="ovs">' + avHtml(P, me, 1) + esc(me) + '・你先付了 NT$ ' + money(c.paid[me]) + '<button type="button" data-do="setme" data-name="">換人</button></div></div>';
       var rem = '<div class="ovc' + (sumView === 'mine' ? '' : ' wide2') + '"><div class="ovk">' + k + '</div><div class="ovn ' + cls + '">' + big + '</div><div class="ovs">' + (net > 0.5 || net < -0.5 ? '你先付 NT$ ' + money(c.paid[me]) + ' − 你分攤 NT$ ' + money(c.owe[me]) + '，已扣掉「已給」' : '分攤的錢都處理好了') + '</div></div>';
       var seg = '<div class="ovseg" role="group" aria-label="統計方式"><button type="button" data-do="sumview" data-v="mine" aria-pressed="' + (sumView === 'mine') + '">我的花費</button><button type="button" data-do="sumview" data-v="all" aria-pressed="' + (sumView !== 'mine') + '">全部總額</button></div>';
@@ -2241,13 +2282,15 @@ a.name{display:block; color:inherit; text-decoration:none;}
       c.xf.forEach(function(f){
         var key = f.from + '→' + f.to, amtN = Math.round(f.v), sv = stl[key];
         f.key = key; f.amtN = amtN;
-        f.paid = sv != null && Math.abs(Number(sv) - amtN) <= 1;
-        f.changed = sv != null && !f.paid;
+        f.sv = sv == null ? 0 : (Number(sv) || 0);
+        f.rest = Math.max(0, f.v - f.sv);
+        f.paid = sv != null && f.rest <= 1;
+        f.part = !f.paid && f.sv > 0.5;
         if(!gm[f.to]){ gm[f.to] = { to:f.to, sum:0, got:0, list:[] }; groups.push(gm[f.to]); }
         gm[f.to].sum += f.v; gm[f.to].list.push(f);
         totAll += f.v;
         if(f.paid){ gm[f.to].got += f.v; totPaid += f.v; }
-        else { nUn++; lines.push(f.from + ' → ' + f.to + '　' + money(f.v) + ' 元'); }
+        else { nUn++; totPaid += Math.min(f.sv, f.v); lines.push(f.from + ' → ' + f.to + '　' + money(f.rest) + ' 元' + (f.part ? '（已給 ' + money(f.sv) + '）' : '')); }
       });
       var left = totAll - totPaid, pct = totAll > 0 ? Math.round(totPaid / totAll * 100) : 0;
       h += '<div class="sgsum' + (nUn ? '' : ' fin') + '">' + (nUn
@@ -2255,11 +2298,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
         : '<span>✓ 全部結清（共 <b>' + money(totAll) + '</b> 元）</span>') + '</div>' +
         '<div class="spbar' + (nUn ? '' : ' full') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="結清進度"><i style="width:' + pct + '%"></i></div>';
       h += '<div class="xfl">' + c.xf.map(function(f){
-        return '<label class="xrow' + (f.paid ? ' paid' : '') + '"><span class="xp">' + avHtml(c.P, f.from) + '<em>' + esc(f.from) + '</em></span>' +
-          '<span class="xarr"><b>$' + money(f.v) + '</b><i class="xln"></i><small>' + (f.paid ? '✓ 已給' : '應給') + '</small></span>' +
+        var open = !viewOnly && !f.paid && (f.part || xpOpen[f.key]);
+        return '<div class="xwrap"><label class="xrow' + (f.paid ? ' paid' : '') + '"><span class="xp">' + avHtml(c.P, f.from) + '<em>' + esc(f.from) + '</em></span>' +
+          '<span class="xarr"><b>$' + money(f.part ? f.rest : f.v) + '</b><i class="xln"></i><small>' + (f.paid ? '✓ 已給' : f.part ? '還差（已給 ' + money(f.sv) + '）' : '應給') + '</small></span>' +
           '<span class="xp">' + avHtml(c.P, f.to) + '<em>' + esc(f.to) + '</em></span>' +
-          '<span class="xck"><input type="checkbox" data-settle="' + esc(f.key) + '" data-amt="' + f.amtN + '"' + (f.paid ? ' checked' : '') + ' aria-label="' + esc(f.from) + ' 已給 ' + esc(f.to) + '"></span>' +
-          (f.changed ? '<span class="sgw">⚠ 金額有變動（之前標記的是 ' + money(stl[f.key]) + '），請重新確認</span>' : '') + '</label>';
+          '<span class="xck"><input type="checkbox" data-settle="' + esc(f.key) + '" data-amt="' + f.amtN + '"' + (f.paid ? ' checked' : '') + ' aria-label="' + esc(f.from) + ' 已給 ' + esc(f.to) + '"></span></label>' +
+          (viewOnly || f.paid ? '' : open
+            ? '<div class="xpart"><input type="text" inputmode="decimal" autocomplete="off" data-xpin="' + esc(f.key) + '" placeholder="這次給多少" aria-label="這次給了多少"><button class="mini" type="button" data-do="xpadd" data-k="' + esc(f.key) + '" data-full="' + f.amtN + '">記上這一筆</button>' + (f.part ? '<button class="mini" type="button" data-do="xpclr" data-k="' + esc(f.key) + '">清除</button>' : '') + '</div>'
+            : '<div class="xpart"><button class="mini" type="button" data-do="xpopen" data-k="' + esc(f.key) + '">只給一部分</button></div>') + '</div>';
       }).join('') + '</div>';
       h += '<div class="sgcopy"><button class="mini" type="button" data-do="copy" data-code="' + esc(nUn ? lines.join('\n') : '分攤已全部結清') + '">複製</button><span class="dcl">' + (nUn ? '複製還沒給的轉帳清單，可直接貼到群組' : '已全部結清') + '</span></div>';
     } else if(c.used) h += '<div class="shint">大家都打平了，不用互相轉帳。</div>';
@@ -2278,9 +2324,11 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function budgetAlertHtml(t){
     if(phase(t).k !== 'now') return '';
     var bud = t.budgets || {}, by = {}, items = [], bsum = 0, bspent = 0, anyOver = false;
+    var sc = splitCalc(t), mine = (sc && sc.any && sc.P.indexOf(t.me) >= 0) ? { P:sc.P, me:t.me } : null;      // 多人旅程：預算是自己的，拿「我的分攤」來比
     (t.expenses || []).forEach(function(x){
       var n = signed(x); if(!n) return;
       var tv = twdOf(t, x); if(tv == null) return;
+      if(mine) tv = myShareOf(t, x, mine.P, mine.me);
       by[x.cat] = (by[x.cat] || 0) + tv;
     });
     CATS.forEach(function(c){
@@ -2321,10 +2369,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }
     });
   }
-  function sumHtml(t){ var c = splitCalc(t), ov = (c && c.any) ? overviewHtml(t, c) : '', mineMe = (ov && sumView === 'mine' && c.P.indexOf(t.me) >= 0) ? { P:c.P, me:t.me } : null, h = ov + sumHtml0(t, !!ov, mineMe) + splitHtml(t); setTimeout(drawPie, 0); return h; }
+  function sumHtml(t){ var c = splitCalc(t), ov = (c && c.any) ? overviewHtml(t, c) : '', mineMe = (ov && sumView === 'mine' && c.P.indexOf(t.me) >= 0) ? { P:c.P, me:t.me } : null, h = ov + sumHtml0(t, !!ov, mineMe); setTimeout(drawPie, 0);
+    setTimeout(function(){      // 分攤結算放在花費明細下面（另一個容器），跟著總覽一起更新；保留「詳細」展開狀態
+      var sb = $('splitbox'); if(!sb) return;
+      var dd = sb.querySelector('.spdet'), was = !!(dd && dd.open);
+      sb.innerHTML = splitHtml(t); dd = sb.querySelector('.spdet'); if(dd && was) dd.open = true;
+    }, 0);
+    return h; }
+  function splitBox(t){ return '<div id="splitbox">' + splitHtml(t) + '</div>'; }
   window.addEventListener('load', function(){ drawPie(); });
   function sumHtml0(t, noTotal, mineMe){
-    var total = 0, by = {}, bud = mineMe ? {} : (t.budgets || {}), byCur = {}, miss = {}, curOrder = [];
+    var total = 0, by = {}, bud = (noTotal && !mineMe) ? {} : (t.budgets || {}), byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
       var n = signed(x); if(!n) return;
       var c = ecur(t, x), r = rateOf(t, c);
@@ -2971,26 +3026,35 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var hasLegs = (x.legs || []).some(function(y){ return String(y.from || '').trim() || String(y.to || '').trim(); });
     return !!(String(x.transport || '').trim() || String(x.route || '').trim()) && x.cat !== '交通' && !hasLegs;
   }
+  function gapStText(x){ return stView(x).replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&gt;/g,'>').replace(/&lt;/g,'<').trim(); }
   function gapHtml(prev, x){
     if(!prev || !x) return '';
     var own = gapOwn(x);      // 後一個行程自己已經寫了交通方式：小卡不重複顯示，只補「緩衝」與導航
-    var min = amt(x.gapMin) || routeMin(x.route), mode = String(x.gapMode || x.transport || '').trim();
+    var stT = own ? gapStText(x) : '';      // 起站→到站・約幾分鐘（卡片裡的那行）改放在這裡
+    var min = amt(x.gapMin) || routeMin(x.route) || routeMin(stT), mode = String(x.gapMode || x.transport || '').trim();
     var from = String(prev.place || '').trim(), to = String(x.place || '').trim();
     var nav = from && to && from !== to ? 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(from) + '&destination=' + encodeURIComponent(to) + '&travelmode=' + gapTravelMode(mode) : '';
     var t0 = toMin(prev.end); if(t0 == null) t0 = legEdge(prev, 'arr', true); if(t0 == null) t0 = toMin(prev.time);      // 前一個行程是轉乘：用最後一段的抵達時間
     var t1 = toMin(x.time); if(t1 == null) t1 = legEdge(x, 'dep', false);
     var diff = (t0 != null && t1 != null) ? t1 - t0 : null;
     var parts = [];
-    if(own) parts.push('<span class="gtxt">' + tIcon(x.transport) + ' ' + (String(x.transport || '').trim() ? '<b>' + esc(String(x.transport).trim()) + '</b>' : '') + (String(x.transport || '').trim() && String(x.route || '').trim() ? '　' : '') + esc(String(x.route || '').trim()) + '</span>');
+    if(own) parts.push('<span class="gtxt">' + tIcon(x.transport) + ' ' + (String(x.transport || '').trim() ? '<b>' + esc(String(x.transport).trim()) + '</b>' : '') + (String(x.transport || '').trim() && (String(x.route || '').trim() || stT) ? '　' : '') + esc([String(x.route || '').trim(), stT].filter(Boolean).join('　')) + '</span>');
     if(min > 0){
-      if(!own) parts.push('<span class="gpill">' + tIcon(mode) + ' 移動 ' + esc(gapFmt(min)) + (mode ? ' · ' + esc(mode) : '') + '</span>');
+      if(!own) parts.push('<span class="gpill">' + tIcon(mode) + ' <span class="gw">移動 </span>' + esc(gapFmt(min)) + (mode ? '<span class="gw"> · ' + esc(mode) + '</span>' : '') + '</span>');
       if(diff != null){
         var tip = own ? ' title="已扣掉移動約 ' + esc(gapFmt(min)) + '"' : '';
-        if(diff >= min){ var bf = diff - min; parts.push('<span class="gpill ' + (bf >= 10 ? 'ok' : 'tight') + '"' + tip + '>⏳ 緩衝 ' + esc(gapFmt(bf)) + (bf < 10 ? '・很趕' : '') + '</span>'); }
-        else parts.push('<span class="gpill bad"' + tip + '>⚠ 時間不夠・少 ' + esc(gapFmt(min - diff)) + '</span>');
+        if(diff >= min){
+          var bf = diff - min, bi = bf >= 10 ? '🟢' : '🏃';
+          if(bf >= 10){ /* 時間充裕：不顯示 */ }
+          else if(own) parts.push('<span class="gpill ' + (bf >= 10 ? 'ok' : 'tight') + '" title="緩衝 ' + esc(gapFmt(bf)) + '">' + bi + '<span class="gw"> ' + (bf >= 10 ? '時間充裕' : '很趕') + '</span></span>');      // 上面已經有車程時間：提示不再重複寫時間（長按／滑過可看緩衝）
+          else parts.push('<span class="gpill ' + (bf >= 10 ? 'ok' : 'tight') + '">' + bi + ' <span class="gw">緩衝 </span>' + esc(gapFmt(bf)) + (bf < 10 ? '<span class="gw">・很趕</span>' : '') + '</span>');
+        } else {
+          if(own) parts.push('<span class="gpill bad" title="少 ' + esc(gapFmt(min - diff)) + '">⚠<span class="gw"> 時間不夠</span></span>');
+          else parts.push('<span class="gpill bad">⚠ <span class="gw">時間不夠・</span>少 ' + esc(gapFmt(min - diff)) + '</span>');
+        }
       }
     } else if(diff != null && diff > 0){
-      parts.push('<span class="gpill"' + (own ? '' : ' title="還沒填移動時間"') + '>⏳ 空檔 ' + esc(gapFmt(diff)) + '</span>');
+      parts.push('<span class="gpill"' + (own ? '' : ' title="還沒填移動時間"') + '>☕ <span class="gw">空檔 </span>' + esc(gapFmt(diff)) + '</span>');
     } else if(nav && !own){
       parts.push('<span class="gpill">' + tIcon(mode) + ' 前往下一站</span>');
     }
@@ -3012,7 +3076,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (pills ? '<div class="pills">' + pills + '</div>' : '') + remindHtml(x, day) + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
-      (hideTrans ? ((stView(x) + fareTag(t0, x)) ? '<div class="itrans">' + stView(x) + fareTag(t0, x) + '</div>' : '') : ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '')) +
+      (hideTrans ? (fareTag(t0, x) ? '<div class="itrans">' + fareTag(t0, x) + '</div>' : '') : ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '')) +
       metroNstView(x) + seatView(x) + legsView(t0, x) +
       featView(x) +
       (x.cat === '美食' ? dishView(x) : '') + shopsView(x, day) + buyHint(t0, x) +
@@ -5041,8 +5105,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
       }).join('');
     } else xBody = shown.map(xRow).join('');
     var expH = '<section class="sec" id="sec-exp"><div class="sh"><h3>花費</h3></div>' +
-      (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' :
-      exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
+      (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' + splitBox(t) :
+      exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' + splitBox(t) : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section>';
     if(fan) h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3">' + infoH + spotsView(t) + trailView(t) + '</div></div><div class="expbot">' + expH + '</div>';
     else h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '">' + expH + wishView(t) + '</div></div>';
@@ -5057,7 +5121,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       var FI = function(label, type, key, full){
         return '<label' + (full ? ' class="full"' : '') + '>' + label + '<input type="' + type + '" data-f="1" data-k="' + key + '" value="' + esc(fi[key] || '') + '"></label>';
       };
-      h += '<section class="sec"><div class="sh"><h3>活動資訊</h3></div><div class="fgrid">' +
+      h += '<section class="sec" id="sec-info"><div class="sh"><h3>活動資訊</h3></div><div class="fgrid">' +
         '<div class="full sptypes salemode" role="group" aria-label="購票方式"><span class="lb">購票方式</span>' +
           ['ticket','lottery'].map(function(k){ return '<button class="mini" type="button" data-do="salemode" data-v="' + k + '" aria-pressed="' + (k === smode) + '">' + SALE_MODES[k] + '</button>'; }).join('') + '</div>' +
         FI(sml + '日', 'date', 'saleDate') + FI(sml + '時間（選填）', 'time', 'saleTime') +
@@ -5123,7 +5187,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
       (peopleOf(t).length >= 2 ? '<p class="hint">分攤成員：' + peopleOf(t).map(esc).join('、') + '（要修改請到旅程列表按「編輯」）</p>' : '<p class="hint">想分攤花費：到旅程列表按「編輯」，在「分攤成員」填兩位以上（記得包含自己），這裡每筆花費就能選誰付的、誰分攤。</p>') +
       t.expenses.map(function(x){
         return crow('ex', x.id, '', (CAT_ICON[x.cat] || '') + ' ' + (x.name ? esc(x.name) : '<span class="muted">（未命名）</span>'), esc(x.cat || '') + (payOf(x) ? '・' + esc(payOf(x)) : '') + (x.payer ? '・' + esc(x.payer) + ' 付' : ''), String(x.amount == null ? '' : x.amount).trim() ? '<small>' + esc(ecur(t, x)) + '</small> ' + money(signed(x)) : '', 'delexp');
-      }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' +
+      }).join('') + '<div id="sum">' + sumHtml(t) + '</div>' + splitBox(t) +
       '<div class="rate" id="rateRow">' + rateRowsHtml(t) + '</div>' +
       budgetEdit(t) +
       '<p class="hint">每筆花費可各自選幣別，匯率填一次就會換算成新台幣。類別選「退款」，或金額前面加負號，都會從總花費扣掉。</p></section>';
@@ -5179,6 +5243,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
     var list = [];
     if(ck) list.push(['jump', ck, '清單', '✅']);
+    if(has('sec-info')) list.push(['jump', 'sec-info', '活動', '🎫']);
     if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
     if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
     if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
@@ -5418,6 +5483,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     } else if(ds.settle){
       t.settled = t.settled || {};
       if(el.checked) t.settled[ds.settle] = Number(ds.amt); else delete t.settled[ds.settle];
+      delete xpOpen[ds.settle];
       var sumEl = $('sum');
       if(sumEl){ var wasOpen = !!(sumEl.querySelector('.spdet') && sumEl.querySelector('.spdet').open); sumEl.innerHTML = sumHtml(t); var dd0 = sumEl.querySelector('.spdet'); if(dd0 && wasOpen) dd0.open = true; }
     } else if(ds.sp){
@@ -5598,6 +5664,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
+    if(act === 'xpopen' || act === 'xpadd' || act === 'xpclr'){
+      var xk = b.dataset.k; t.settled = t.settled || {};
+      if(act === 'xpopen') xpOpen[xk] = true;
+      else if(act === 'xpclr'){ delete t.settled[xk]; delete xpOpen[xk]; doPersist(); }
+      else {
+        var xin = b.parentNode.querySelector('input[data-xpin]'), xv = amt(xin && xin.value), xfull = Number(b.dataset.full) || 0;
+        if(!(xv > 0)){ if(xin) xin.focus(); return; }
+        var nv = (Number(t.settled[xk]) || 0) + xv;
+        if(nv >= xfull - 1) nv = xfull;      // 給滿了就算結清
+        t.settled[xk] = nv; delete xpOpen[xk]; doPersist();
+      }
+      var sumEl3 = $('sum'); if(sumEl3) sumEl3.innerHTML = sumHtml(t);
+      return;
+    }
     if(act === 'sumview'){ sumView = b.dataset.v === 'mine' ? 'mine' : 'all'; var sumEl2 = $('sum'); if(sumEl2) sumEl2.innerHTML = sumHtml(t); return; }
     if(act === 'jump'){
       var jto = b.dataset.to, wantTab = jto === 'sec-board' ? 'plan' : (jto === 'merchsec' || jto === 'recsec') ? 'shop' : '';
@@ -6286,7 +6366,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
     $('detail').hidden = !inDetail;
     if(!auth.currentUser){ return; }
     $('app').hidden = inDetail;
-    if(inDetail){ renderDetail(); if(entering) window.scrollTo(0, 0); }
+    if(inDetail){ renderDetail(); if(entering && !resumeApply()) window.scrollTo(0, 0); }
     else if(loaded){ render(); }
   }
   window.addEventListener('hashchange', route);
