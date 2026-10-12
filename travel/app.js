@@ -1940,7 +1940,7 @@
   }
   function gapOwn(x){      // 這個行程自己寫了「怎麼過去」（交通方式／路線）：直接顯示在前面的間隔小卡裡，行程卡片就不重複
     var hasLegs = (x.legs || []).some(function(y){ return String(y.from || '').trim() || String(y.to || '').trim(); });
-    return !!(String(x.transport || '').trim() || String(x.route || '').trim()) && x.cat !== '交通' && !hasLegs;
+    return !!(String(x.transport || '').trim() || String(x.route || '').trim()) && !hasLegs;      // 類型是「交通」的行程也一樣：第一個行程前面沒有間隔小卡，所以仍留在卡片裡
   }
   function gapStText(x){ return stView(x).replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&gt;/g,'>').replace(/&lt;/g,'<').trim(); }
   function gapHtml(prev, x){
