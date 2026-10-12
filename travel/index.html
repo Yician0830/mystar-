@@ -2677,6 +2677,17 @@ a.name{display:block; color:inherit; text-decoration:none;}
   }
   function legSum(x){ var n = 0; (x.legs || []).forEach(function(l){ n += amt(l.fare); }); return n; }
   function tmin(v){ var m = /^\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*$/.exec(String(v || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  // 轉乘的每一段：起訖站都對得到同一條線的站名（內建高雄／網路抓的路線圖）才算站數與預估時間，對不到就不顯示
+  function legStops(t, y){
+    var C = metroCity(t); if(!C) return null;
+    var f = metroFind(C, y.from), g = metroFind(C, y.to); if(!f.length || !g.length) return null;
+    var tr = String(y.train || ''), want = -1;
+    C.lines.forEach(function(L, i){ if(want < 0 && tr && tr.indexOf(L.name) >= 0) want = i; });
+    var ns = [];
+    f.forEach(function(a){ g.forEach(function(b){ if(a.l === b.l && (want < 0 || a.l === want)) ns.push(Math.abs(a.i - b.i)); }); });
+    if(!ns.length || !ns[0] || ns.some(function(n){ return n !== ns[0]; })) return null;
+    return { n:ns[0], min:Math.max(2, ns[0] * (C.min || 2)) };
+  }
   function legsView(t, x){
     var l = (x.legs || []).filter(function(y){ return String(y.from || '').trim() || String(y.to || '').trim() || String(y.train || '').trim(); });
     if(!l.length) return '';
@@ -2695,8 +2706,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
           html += '<div class="tlw' + (w < 5 ? ' warn' : '') + '">⏳ 轉乘等待 ' + w + ' 分' + (w < 5 ? '（很趕，確認月台和下一班）' : '') + '</div>';
         }
       }
+      var lsn = legStops(t, y);
       html += '<div class="tlr"><span class="tln">' + (i + 1) + '</span><div class="tlb">' + (String(y.train || '').trim() ? '<b>' + esc(y.train) + '</b>　' : '') +
-        esc(y.from || '') + (y.dep ? ' ' + esc(normTime(y.dep)) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(normTime(y.arr)) : '') + (lt.rides[i] ? '（' + fmtMin(lt.rides[i]) + '）' : '') + legSeatHtml(y) + '</div>' +
+        esc(y.from || '') + (y.dep ? ' ' + esc(normTime(y.dep)) : '') + ' → ' + esc(y.to || '') + (y.arr ? ' ' + esc(normTime(y.arr)) : '') + (lt.rides[i] ? '（' + fmtMin(lt.rides[i]) + (lsn ? '・約 ' + lsn.n + ' 站' : '') + '）' : (lsn ? '（約 ' + lsn.n + ' 站・預估約 ' + lsn.min + ' 分）' : '')) + legSeatHtml(y) + '</div>' +
         (amt(y.fare) > 0 ? '<span class="tlf">' + (y.pay === TC_CASH ? '💴 現金 ' : '') + cu + ' ' + money(amt(y.fare)) + '</span>' : '') + '</div>';
     });
     return '<div class="tlegs"><div class="tlh">🚆 轉乘 ' + (chain.length ? esc(chain.join(' → ')) : '') + '</div>' + html +
