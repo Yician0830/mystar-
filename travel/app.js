@@ -2746,9 +2746,9 @@
     }).join('') + '</div></section>';
   }
   // 把某一天的行程整理成純文字（時間、地點、交通），方便直接貼到 LINE
-  function dayText(t, day, idx){
+  function dayText(t, day, idx, bare){
     var L = [], ds = day.date ? d(day.date) + ' ' + wk(day.date) : '';
-    L.push('【' + (t.title || '旅程') + '】Day ' + (idx + 1) + (ds ? '・' + ds : '') + (day.title ? '・' + day.title : ''));
+    L.push((bare ? '▍' : '【' + (t.title || '旅程') + '】') + 'Day ' + (idx + 1) + (ds ? '・' + ds : '') + (day.title ? '・' + day.title : ''));
     sortedItems(day).forEach(function(x){
       var tr = timeRange(x), head = (tr ? tr + ' ' : '') + (x.title || '行程');
       L.push(''); L.push(head);
@@ -2764,6 +2764,45 @@
       }
       if(x.note) L.push('📝 ' + String(x.note).trim());
     });
+    return L.join('\n');
+  }
+  // 整趟行程整理成純文字，給朋友看：不含訂位／訂房代號、花費、行前清單等私人資料
+  function tripText(t){
+    var L = [], fan = t.kind === 'fan';
+    L.push('【' + (t.title || '旅程') + '】');
+    var dr = t.start ? d(t.start) + (t.end && t.end !== t.start ? ' – ' + d(t.end) : '') : '';
+    if(dr) L.push('📅 ' + dr);
+    var where = [t.place, fan ? t.event : ''].filter(Boolean).join('・');
+    if(where) L.push('📍 ' + where);
+    if(fan && t.fanInfo){
+      var fi = t.fanInfo, vn = [fi.venue, fi.venueAddr].map(function(v){ return String(v || '').trim(); }).filter(Boolean).join('　');
+      if(vn) L.push('🎫 場館：' + vn);
+      if(String(fi.venueGate || '').trim()) L.push('🚪 入場口：' + String(fi.venueGate).trim());
+    }
+    var bks = (t.bookings || []).filter(function(x){ return String(x.name || '').trim(); });
+    if(bks.length){
+      L.push(''); L.push('✈️ 預訂');
+      bks.forEach(function(x){
+        L.push('・' + (x.type ? '[' + x.type + '] ' : '') + String(x.name).trim() + (String(x.time || '').trim() ? '　' + String(x.time).trim() : ''));
+        if(isFlight(x) && String(x.term || '').trim()) L.push('　航廈 ' + String(x.term).trim());
+        if(String(x.note || '').trim()) L.push('　' + String(x.note).trim().replace(/\n+/g, ' '));
+      });
+    }
+    var sts = (t.stays || []).filter(function(x){ return String(x.name || '').trim(); });
+    if(sts.length){
+      L.push(''); L.push('🏨 住宿');
+      sts.forEach(function(x){
+        var dt = [x.checkin ? d(x.checkin) + (x.checkinTime ? ' ' + x.checkinTime : '') : '', x.checkout ? d(x.checkout) + (x.checkoutTime ? ' ' + x.checkoutTime : '') : ''].filter(Boolean).join(' → '), nn = stayHint(x);
+        L.push('・' + String(x.name).trim() + (dt ? '　' + dt : '') + (/^共/.test(nn) ? '（' + nn + '）' : ''));
+        if(String(x.address || '').trim()) L.push('　📍 ' + String(x.address).trim());
+        if(String(x.note || '').trim()) L.push('　' + String(x.note).trim().replace(/\n+/g, ' '));
+      });
+    }
+    (t.days || []).forEach(function(day, i){
+      if(!(day.items || []).length) return;
+      L.push(''); L.push('────────────'); L.push(dayText(t, day, i, true));
+    });
+    if(String(t.note || '').trim()){ L.push(''); L.push('📝 ' + String(t.note).trim()); }
     return L.join('\n');
   }
   function isBlank(t){
@@ -4151,9 +4190,9 @@
       if(phase(t).k === 'now'){ var td = ymd(new Date()), hit = t.days.filter(function(x){ return x.date === td; })[0]; if(hit) dayFilter = hit.id; }
     }
     var fan = t.kind === 'fan';
-    var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
+    var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span><button type="button" class="save alt" data-do="copytrip">複製行程</button></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
-      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
+      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="copytrip">複製行程</button><button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div>' + (editMode ? '' : '<nav class="secnav" id="secnav" aria-label="快速跳轉"></nav>') + '</div>';
@@ -4607,7 +4646,7 @@
     normDays(t);
     var act = b.dataset.do, newItemId = null;
     if(viewOnly && act === 'setme'){ t.me = (b.dataset.name && b.dataset.name !== t.me) ? b.dataset.name : ''; var sm2 = $('sum'); if(sm2) sm2.innerHTML = sumHtml(t); return; }      // 朋友的唯讀頁：只在這個畫面記住「我是誰」，不寫回雲端
-    if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
+    if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','copytrip','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
     if(act === 'xpopen' || act === 'xpadd' || act === 'xpclr'){
@@ -4940,6 +4979,17 @@
       if(ae2 && $('detail').contains(ae2) && ae2.blur) ae2.blur();
       t.days.forEach(function(day){ day.items = sortedItems(day); });   // 完成時依時間排好
       editMode = false; renderDetail(); doPersist(); return;
+    }
+    if(act === 'copytrip'){
+      var ttxt = tripText(t), tok = function(){ b.textContent = '已複製 ✓'; setTimeout(function(){ b.textContent = '複製行程'; }, 1600); };
+      var tfb = function(){      // 舊瀏覽器／非 https 的備援：用隱藏 textarea 複製
+        var ta = document.createElement('textarea'); ta.value = ttxt; ta.setAttribute('readonly', ''); ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;';
+        document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, ta.value.length);
+        var ok = false; try{ ok = document.execCommand('copy'); }catch(e){} ta.remove();
+        if(ok) tok(); else alert('複製失敗，請手動選取文字複製');
+      };
+      if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ttxt).then(tok, tfb); else tfb();
+      return;
     }
     if(act === 'copyday'){
       var cdi = -1, cd = t.days.filter(function(y, k){ if(String(y.id) === b.dataset.day){ cdi = k; return true; } return false; })[0]; if(!cd) return;
