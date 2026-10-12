@@ -10,6 +10,9 @@
     --line:rgba(242,239,230,0.14); --line-strong:rgba(242,239,230,0.4);
     --accent:#eaa540; --danger:#ff6b7d; --fill:rgba(242,239,230,0.07);
   }
+  /* 行程分類色：卡片左邊的色條（交通／景點／美食／購物／住宿／活動），刻意避開狀態用的綠、紅 */
+  :root{--c-spot:#1f7a8c; --c-food:#b8452f; --c-trans:#3b5fa8; --c-shop:#8a4f9e; --c-stay:#6b7a2a; --c-act:#b23a6e;}
+  html[data-theme="dark"]{--c-spot:#5cc0d4; --c-food:#f08a63; --c-trans:#7fa0e8; --c-shop:#c392d6; --c-stay:#b5c75c; --c-act:#ee7fa8;}
   :root{color-scheme:light;}
   html[data-theme="dark"]{color-scheme:dark;}
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -51,6 +54,13 @@
   .del{background:transparent; color:var(--ink-faint); padding:4px 8px; font-size:13px; font-weight:500; letter-spacing:0;}
   .del:hover,.del:focus-visible{background:transparent; color:var(--danger);}
   .empty{padding:40px 0; text-align:center; color:var(--ink-faint); font-size:15px;}
+  .empty .eico{display:block; font-size:36px; line-height:1; margin-bottom:12px;}
+  /* 旅程列表：左邊色條區分一般旅遊（藍）和追星（強調色） */
+  .trip{--kc:var(--line-strong); border-left:4px solid var(--kc); padding-left:14px;}
+  .trip.kgen{--kc:var(--c-trans);} .trip.kfan{--kc:var(--accent);}
+  .trip.kgen .tag{color:var(--c-trans); border-color:var(--c-trans);}
+  /* 各區塊還沒有資料時：虛線框，比一行灰字更像「這裡可以填」 */
+  .sec > .vempty{padding:14px 12px; margin:0 0 12px; text-align:center; border:1px dashed var(--line-strong); background:var(--fill);}
   @media (max-width:520px){
     .wrap{padding:20px 20px 56px;}
     form{grid-template-columns:1fr;}
@@ -345,6 +355,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .tre .tr1{display:flex; gap:6px;}
   .tre .tr1 input{flex:1; min-width:0;}
   .pinbox{width:min(400px,calc(100% - 32px)); box-sizing:border-box; margin:12vh auto 0; padding:24px 24px; border:1px solid var(--line-strong); background:var(--fill); text-align:center; display:grid; grid-template-columns:minmax(0,1fr); gap:12px;}
+  .pinbox .pinlock{font-size:44px; line-height:1; margin-bottom:-2px;}
   .pinbox h3{font-size:18px; font-weight:900; white-space:nowrap;}
   .pinbox p{font-size:13px; color:var(--ink-dim);}
   .pinbox input{font:inherit; font-size:28px; font-weight:900; letter-spacing:0.6em; text-align:center; padding:8px 0 8px 0.6em; width:100%; box-sizing:border-box; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
@@ -414,7 +425,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .nextup .nm{font-size:13px; font-weight:500; color:var(--ink-dim); overflow-wrap:anywhere;}
   .nextup .nbtn{justify-self:start; margin-top:2px;}
   .nextup.done{border-left-color:var(--line-strong);}
-  .icard.nxt{box-shadow:inset 4px 0 0 var(--accent);}
+  .icard.nxt{box-shadow:inset 0 0 0 2px var(--accent);}
   .icard .ntag{justify-self:start; font-size:12px; font-weight:900; letter-spacing:0.06em; color:var(--accent);}
   .offl{font-weight:700;}
   .offl[hidden]{display:none;}
@@ -688,17 +699,19 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .dtop .cnt{margin-left:auto; font-size:12px; font-weight:700; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
   .dsub{padding:0 2px 2px; font-size:13px; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
   .dsub b{margin-left:10px; font-size:14px; color:var(--ink);}
-  .icard{background:var(--fill); padding:12px; display:grid; gap:8px;}
+  .icard{background:var(--fill); padding:12px; display:grid; gap:8px; border-left:4px solid var(--cc, var(--line-strong));}
+  .icard[data-cat="景點"]{--cc:var(--c-spot);} .icard[data-cat="美食"]{--cc:var(--c-food);} .icard[data-cat="交通"]{--cc:var(--c-trans);}
+  .icard[data-cat="購物"]{--cc:var(--c-shop);} .icard[data-cat="住宿"]{--cc:var(--c-stay);} .icard[data-cat="活動"]{--cc:var(--c-act);}
   .gapc{position:relative; display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:0 0 0 22px; padding:9px 0 9px 20px; font-size:12px; color:var(--ink-dim);}
   .gapc::before{content:''; position:absolute; left:0; top:0; bottom:0; border-left:2px dashed var(--line-strong);}
   .gapc::after{content:''; position:absolute; left:-4px; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--paper); border:2px solid var(--line-strong);}
   .gapc .gtxt{flex:0 1 auto; min-width:0; font-size:13px; font-weight:500; color:var(--ink); overflow-wrap:anywhere;}
   .gapc .gtxt b{font-weight:900;}
-  .gpill{display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; border:1px solid var(--line-strong); background:var(--paper); font-weight:700; line-height:1.4; white-space:nowrap; color:var(--ink);}
-  .gpill.ok{color:#2e8b57; border-color:#2e8b57;}
-  html[data-theme="dark"] .gpill.ok{color:#5fd49a; border-color:#5fd49a;}
-  .gpill.tight{color:var(--accent); border-color:var(--accent);}
-  .gpill.bad{color:var(--danger); border-color:var(--danger);}
+  .gpill{--c:#8a8570; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:2px; background:var(--fill); font-weight:700; line-height:1.4; white-space:nowrap; color:var(--ink-dim);}
+  @supports (background:color-mix(in srgb,red 10%,transparent)){
+    .gpill{background:color-mix(in srgb,var(--c) 16%,transparent); color:color-mix(in srgb,var(--c) 70%,var(--ink));}
+  }
+  .gpill.ok{--c:#2e8b57;} .gpill.tight{--c:var(--accent);} .gpill.bad{--c:var(--danger);}
   .gapc .gnav{margin-left:auto; display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:99px; font-size:12px; font-weight:700; color:var(--paper); background:var(--ink); border:1px solid var(--ink); text-decoration:none; white-space:nowrap;}
   .gapc .gnav:hover,.gapc .gnav:focus-visible{background:var(--accent); border-color:var(--accent);}
   @media (max-width:799px){ .gapc .gw{display:none;} .gapc .gpill{padding:2px 8px;} .gapc .gnav{padding:3px 8px;} }
@@ -706,6 +719,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .ie3.igap input{min-width:0; flex:1;}
   .itop{display:flex; gap:10px; align-items:baseline;}
   .itime{flex:0 0 auto; font-size:13px; font-weight:700; color:var(--accent); font-variant-numeric:tabular-nums;}
+  .icard .itop{align-items:flex-start;}
+  .icard .itop .itime{display:flex; flex-direction:column; width:5.8em; line-height:1.35; white-space:nowrap;}
+  .icard .itop .itime .t1{font-size:14px;}
+  .icard .itop .itime .t2{font-size:12px; font-weight:500; color:var(--ink-faint);}
   .ititle{font-size:16px; font-weight:900; line-height:1.4; overflow-wrap:anywhere;}
   .pills{display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px;}
   .pillq{font-size:12px; font-weight:700; color:var(--ink-faint); white-space:nowrap;}
@@ -714,9 +731,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   @supports (background:color-mix(in srgb,red 10%,transparent)){
     .pill{background:color-mix(in srgb,var(--c) 16%,transparent); color:color-mix(in srgb,var(--c) 70%,var(--ink));}
   }
-  .pill[data-v="景點"]{--c:#3b7ea1;} .pill[data-v="美食"]{--c:#c7742a;} .pill[data-v="交通"]{--c:#6f7d8c;}
-  .pill[data-v="購物"]{--c:#a5478f;} .pill[data-v="住宿"]{--c:#8a6d3b;} .pill[data-v="活動"]{--c:#d1436b;}
-  .pill[data-v="已預訂"]{--c:#2e8b57;} .pill[data-v="未預訂"]{--c:#cc2036;} .pill[data-v="臨時"]{--c:#7a5bb5;}
+  /* 標籤只有三種：① 分類色（跟卡片色條同色） ② 狀態色（綠＝已完成／紅＝需處理） ③ 強調色（提醒、注意）；其餘一律中性灰 */
+  .pill[data-v="景點"]{--c:var(--c-spot);} .pill[data-v="美食"]{--c:var(--c-food);} .pill[data-v="交通"]{--c:var(--c-trans);}
+  .pill[data-v="購物"]{--c:var(--c-shop);} .pill[data-v="住宿"]{--c:var(--c-stay);} .pill[data-v="活動"]{--c:var(--c-act);}
+  .pill[data-v="已預訂"]{--c:#2e8b57;} .pill[data-v="未預訂"]{--c:var(--danger);} .pill[data-v="臨時"]{--c:var(--accent);}
   .icard .place{font-size:13px; overflow-wrap:anywhere;}
   .icard input,.icard select{width:100%; min-width:0;}
   .icard input[data-k="title"]{font-weight:900;}
@@ -877,8 +895,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .iet{display:grid; grid-template-columns:148px minmax(0,1fr); gap:8px; align-items:center;}
   .idurt{font-size:13px; font-weight:500; color:var(--ink-faint);}
   .idurt.has{font-weight:700; color:var(--accent);}
-  .pill[data-v="停留"]{--c:#8a6d3b;}
-  .pill[data-v="現場候位"]{--c:#b8741a;}
+  .pill[data-v="停留"]{--c:#8a8570;}
+  .pill[data-v="現場候位"]{--c:var(--accent);}
   .icard .itrans{font-size:13px; font-weight:500; color:var(--ink-dim); overflow-wrap:anywhere;}
   .icard .itrans b{font-weight:900; color:var(--ink);}
   .ie4{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,2fr); gap:8px;}
@@ -931,7 +949,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .tcdlg-f{display:grid; gap:4px; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .tcdlg-f input{width:100%; min-width:0; font-size:16px;}   /* 16px：iPhone 點輸入框不會自動放大 */
   .tcdlg-err{min-height:1.2em; font-size:13px; font-weight:700; color:var(--danger);}
-  .tcdlg-ok{font-weight:900; color:var(--accent); border-color:var(--accent);}
+  .tcdlg-ok{font-weight:900;}
   .xcard.xwarn{border-style:dashed;}
   .xcard .xs.xw{color:var(--danger); font-weight:700;}
   .dsub .dsum{margin-left:10px; font-size:13px; font-weight:700; color:var(--accent);}

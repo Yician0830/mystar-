@@ -360,8 +360,8 @@
               : ph.k === 'now' ? '<span class="count">旅途中・第 ' + ph.n + ' 天</span>' : '';
     var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
     var chip = saleChip(t, fan, ph), tt = tripTotal(t);
-    return '<div class="trip"><div class="main">' +
-      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
+    return '<div class="trip ' + (fan ? 'kfan' : 'kgen') + '"><div class="main">' +
+      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '★ 追星' : '✈ 旅遊') + '</span>' +
       '<a class="name" href="#/t/' + t.id + '">' + esc(t.title) + '</a>' +
       (where ? '<div class="where">' + where + '</div>' : '') +
       '<div class="meta">' + count + '<span>' + dates + '</span>' + chip + showChip(t, fan, ph) + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span class="mbrk"></span><span>行前清單 <b>' + prog(t) + '</b></span>' : '') + (fan && (t.spots || []).length ? '<span>打卡 <b>' + spProg(t) + '</b></span>' : '') + '</div>' +
@@ -419,7 +419,7 @@
     if(active) $('fcount').textContent = '符合的旅程：' + shown.length + ' 趟';
     renderStats(shown);
     if(!shown.length){
-      el.innerHTML = '<div class="empty">' + (!trips.length ? '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。' : active ? '找不到符合的旅程，換個關鍵字或清除篩選看看。' : '這個分類還沒有旅程。') + '</div>';
+      el.innerHTML = '<div class="empty"><span class="eico" aria-hidden="true">' + (!trips.length ? '🧳' : active ? '🔍' : '🗂️') + '</span>' + (!trips.length ? '還沒有旅程，按上方「＋ 新增旅程」開始第一趟。' : active ? '找不到符合的旅程，換個關鍵字或清除篩選看看。' : '這個分類還沒有旅程。') + '</div>';
       return;
     }
     var next = [], past = [];
@@ -1612,6 +1612,11 @@
     if(x.time) return tm12(x.time) + (x.end ? '–' + tm12(x.end) : '');
     return x.end ? '至 ' + x.end : '';
   }
+  // 行程卡片用：開始時間一行、結束時間在下一行，讓每張卡片的標題都從同一個位置開始
+  function timeHtml(x){
+    if(x.time) return '<span class="t1">' + esc(tm12(x.time)) + '</span>' + (x.end ? '<span class="t2">–' + esc(tm12(x.end)) + '</span>' : '');
+    return x.end ? '<span class="t1">' + esc('至 ' + x.end) + '</span>' : '';
+  }
   // 舊資料是一大段文字（每行一個行程）：轉成卡片。id 由日期 id 加序號決定，重複轉換也不會變
   function normDays(t){
     (t.days || []).forEach(function(day){
@@ -1912,7 +1917,7 @@
     var map = x.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place) : '';
     var t0 = cur();
     var isNx = nxtMark && String(nxtMark.id) === String(x.id);
-    return '<div class="icard' + (isNx ? ' nxt' : '') + '" id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span>' : '') +
+    return '<div class="icard' + (isNx ? ' nxt' : '') + '"' + (x.cat ? ' data-cat="' + esc(x.cat) + '"' : '') + ' id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + timeHtml(x) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
       (pills ? '<div class="pills">' + pills + '</div>' : '') + remindHtml(x, day) + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
@@ -2063,7 +2068,7 @@
     ].filter(function(r){ return String(r[1] == null ? '' : r[1]).trim(); });
     return '<div class="mbox ckbox" role="document"><div class="mhead"><h3>' + esc(x.name || '航班') + ' 報到資訊</h3></div><div class="mbody">' +
       (rows.length ? rows.map(function(r){ return '<div class="ckrow"><span>' + r[0] + '</span><b>' + esc(r[1]) + '</b></div>'; }).join('') : '<p class="vempty">還沒有填報到資料。</p>') +
-      '</div><div class="mfoot"><span></span><button type="button" data-do="ckclose">關閉</button></div></div>';
+      '</div><div class="mfoot"><span></span><button type="button" class="ghost" data-do="ckclose">關閉</button></div></div>';
   }
   function ckPopClose(){ var el = document.getElementById('ckpop'); if(el) el.remove(); document.body.style.overflow = ''; }
   function ckPopOpen(x){
@@ -2198,7 +2203,7 @@
       '<label class="tcdlg-f"><span>實際儲值金額（' + esc(c) + '）</span><input id="tcdAmt" inputmode="decimal" autocomplete="off" value="' + esc(e.amount == null ? '' : e.amount) + '"></label>' +
       (foreign ? '<label class="tcdlg-f"><span>實際付出的台幣金額（選填）</span><input id="tcdPaid" inputmode="decimal" autocomplete="off" placeholder="留空就用匯率換算" value="' + esc(e.paidTwd || '') + '"></label>' : '') +
       '<div class="tcdlg-err" id="tcdErr" role="alert"></div></div>' +
-      '<div class="mfoot"><button type="button" id="tcdCancel">取消</button><button type="button" id="tcdOk" class="tcdlg-ok">確認儲值</button></div></div>';
+      '<div class="mfoot"><button type="button" id="tcdCancel" class="ghost">取消</button><button type="button" id="tcdOk" class="tcdlg-ok">確認儲值</button></div></div>';
     function close(){ el.remove(); }
     function submit(){
       var v = String($('tcdAmt').value || '').trim();
@@ -2377,7 +2382,7 @@
     metroSyncList();
     var a = ' data-p="' + day.id + '" data-i="' + x.id + '"';
     var opts = function(list, cur, ph){ return '<option value="">' + ph + '</option>' + list.map(function(c){ return '<option' + (c === cur ? ' selected' : '') + '>' + c + '</option>'; }).join(''); };
-    return '<div class="icard"><div class="ie1"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
+    return '<div class="icard"' + (x.cat ? ' data-cat="' + esc(x.cat) + '"' : '') + '><div class="ie1"><input type="time"' + a + ' data-k="time" aria-label="時間" value="' + esc(x.time || '') + '">' +
       '<input' + a + ' data-k="title" aria-label="行程名稱" placeholder="行程名稱" value="' + esc(x.title || '') + '">' +
       '<button class="del" type="button" data-do="delit" data-day="' + day.id + '" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' +
       '<div class="iet"><input type="time"' + a + ' data-k="end" aria-label="離開時間" value="' + esc(x.end || '') + '">' +
@@ -5179,7 +5184,7 @@
       if(!(window.crypto && crypto.subtle)){ fail('這個瀏覽器不支援解密，請改用較新的瀏覽器，並用 https 網址開啟。'); return; }
       var askPin = function(msg){
         if(shownShare !== id) return;
-        $('detail').innerHTML = '<form class="pinbox" id="pinform" autocomplete="off"><h3>🔒 這個行程有密碼</h3><p>請輸入分享者給你的 4 位數密碼。同一個裝置只需要輸入一次。</p>' +
+        $('detail').innerHTML = '<form class="pinbox" id="pinform" autocomplete="off"><div class="pinlock" aria-hidden="true">🔒</div><h3>這個行程有密碼</h3><p>請輸入分享者給你的 4 位數密碼。同一個裝置只需要輸入一次。</p>' +
           '<input id="pininp" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" aria-label="4 位數密碼" autocomplete="off"><div class="pinerr" id="pinerr" role="alert">' + esc(msg || '') + '</div><button class="save" type="submit">查看</button></form>';
         var f = $('pinform'), inp = $('pininp'), busy = false;
         var go = function(){
