@@ -1,13 +1,14 @@
 // 旅遊紀錄 service worker
 // 只快取「頁面外殼」（HTML、圖示、Firebase SDK、字型），讓離線也能開啟。
 // 旅程資料本身由 Firestore 離線快取負責；Firestore 與登入的請求不經過這裡。
-var CACHE = 'travel-archive-v1';   // 改版時把 v1 改成 v2，舊快取會在啟用時清掉
+var CACHE = 'travel-archive-v2';   // 改版時把 v2 改成 v3，舊快取會在啟用時清掉
 
-var CORE = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
+var CORE = ['./', './index.html', './style.css', './app.js', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-180.png'];
 var EXTERNAL = [
   'https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js',
   'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js',
   'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js',
   'https://fonts.googleapis.com/css2?family=Archivo+Black&family=Noto+Sans+TC:wght@500;700;900&display=swap'
 ];
 
@@ -55,8 +56,8 @@ self.addEventListener('fetch', function(e){
     return;
   }
 
-  // Firebase SDK 與字型檔（版本固定，內容不會變）：優先用快取
-  if(url.hostname === 'www.gstatic.com' && url.pathname.indexOf('/firebasejs/') === 0 || url.hostname === 'fonts.gstatic.com'){
+  // Firebase SDK、Chart.js 與字型檔（版本固定，內容不會變）：優先用快取
+  if(url.hostname === 'www.gstatic.com' && url.pathname.indexOf('/firebasejs/') === 0 || url.hostname === 'fonts.gstatic.com' || url.hostname === 'cdnjs.cloudflare.com' && url.pathname.indexOf('/Chart.js/') > 0){
     e.respondWith(caches.match(req).then(function(hit){
       return hit || fetch(req).then(function(res){ return store(req, res); });
     }));
