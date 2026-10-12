@@ -5677,7 +5677,7 @@ function renderScheduleListBody(filteredSchedule){
           ${checklistHtml}
         </div>
         <div class="card-actions">
-          ${s.date && s.date<=today ? `<button class="icon-btn to-fanlog" title="轉成紀錄" aria-label="轉成紀錄" data-tab="schedule" data-id="${s.id}">📝</button>` : ''}
+          ${canConvertScheduleToFanlog(s) ? `<button class="icon-btn to-fanlog" title="轉成紀錄" aria-label="轉成紀錄" data-tab="schedule" data-id="${s.id}">📝</button>` : ''}
           <button class="icon-btn edit" title="編輯" aria-label="編輯" data-tab="schedule" data-id="${s.id}">✎</button>
           <button class="icon-btn del" title="刪除" aria-label="刪除" data-tab="schedule" data-id="${s.id}">🗑</button>
         </div>
@@ -9489,7 +9489,14 @@ function duplicateFanlog(id){
 }
 
 /* ================= Schedule form ================= */
-/* 把一筆已經發生（或就是今天）的行程，一鍵轉成追星紀錄的新增表單並帶入資料，
+/* 「轉成紀錄」可用的時間範圍：已經發生的行程不限時間，未來的行程則在開始日期前 N 天內就可以提前轉 */
+const SCHEDULE_TO_FANLOG_AHEAD_DAYS = 30;
+function canConvertScheduleToFanlog(s){
+  if(!s || !s.date) return false;
+  const days = daysUntilDate(s.date);
+  return days!==null && days <= SCHEDULE_TO_FANLOG_AHEAD_DAYS;
+}
+/* 把一筆已經發生（或一個月內即將發生）的行程，一鍵轉成追星紀錄的新增表單並帶入資料，
    避免同一場活動要在「行程」跟「紀錄」各打一次幾乎一樣的內容。
    只帶「標題／藝人／日期／分類」這些兩邊都有、意義相同的欄位，
    分類如果不在紀錄自己的分類清單裡，表單會自動退回「其他（自行輸入）」，不會硬塞一個不存在的選項。
@@ -9569,7 +9576,7 @@ function openScheduleForm(id, prefill){
     <div class="modal-actions">
       <div style="display:flex;gap:8px;margin-right:auto;">
         ${existing ? `<button class="btn danger" id="schDeleteBtn">🗑 刪除</button>` : ''}
-        ${existing && existing.date && existing.date<=todayStr() ? `<button class="btn ghost" id="schToFanlogBtn">📝 轉成紀錄</button>` : ''}
+        ${existing && canConvertScheduleToFanlog(existing) ? `<button class="btn ghost" id="schToFanlogBtn">📝 轉成紀錄</button>` : ''}
       </div>
       <button class="btn ghost" id="cancelBtn">取消</button>
       <button class="btn primary" id="saveBtn">儲存</button>
