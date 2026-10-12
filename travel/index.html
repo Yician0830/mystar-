@@ -375,10 +375,10 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .tre .r2.eq{grid-template-columns:repeat(2,minmax(0,1fr));}
   .tre .tr1{display:flex; gap:6px;}
   .tre .tr1 input{flex:1; min-width:0;}
-  .pinbox{max-width:320px; margin:12vh auto 0; padding:24px 20px; border:1px solid var(--line-strong); background:var(--fill); text-align:center; display:grid; gap:12px;}
-  .pinbox h3{font-size:18px; font-weight:900;}
+  .pinbox{width:min(400px,calc(100% - 32px)); box-sizing:border-box; margin:12vh auto 0; padding:24px 24px; border:1px solid var(--line-strong); background:var(--fill); text-align:center; display:grid; grid-template-columns:minmax(0,1fr); gap:12px;}
+  .pinbox h3{font-size:18px; font-weight:900; white-space:nowrap;}
   .pinbox p{font-size:13px; color:var(--ink-dim);}
-  .pinbox input{font:inherit; font-size:28px; font-weight:900; letter-spacing:0.6em; text-align:center; padding:8px 0 8px 0.6em; width:100%; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
+  .pinbox input{font:inherit; font-size:28px; font-weight:900; letter-spacing:0.6em; text-align:center; padding:8px 0 8px 0.6em; width:100%; box-sizing:border-box; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink);}
   .pinbox .pinerr{color:var(--danger); font-weight:700; min-height:1.2em;}
   .shpin{display:grid; gap:6px; margin:10px 0;}
   .shpin label{font-size:13px; font-weight:700;}
