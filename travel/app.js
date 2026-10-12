@@ -1645,7 +1645,7 @@
   function fareTag(t, x){
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null, isCash = x.lkTc === TC_CASH && !noCard(x.transport);
     if(!fareHas(x) && !c && !isCash) return '';
-    return '　<span class="ifaret">' + (fareHas(x) ? '約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) + (paxOf(x) > 1 ? '（' + money(amt(x.fare)) + ' × ' + paxOf(x) + ' 人）' : '') : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (isCash ? (fareHas(x) ? '・' : '') + '💴 現金／購票' : '') + (legCashOf(x) > 0 && !isCash ? (fareHas(x) || c ? '・' : '') + '💴 其中現金 ' + money(legCashOf(x)) : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
+    return '　<span class="ifaret">' + (fareHas(x) ? '車資 約 ' + esc(fareCur(t, x)) + ' ' + money(fareOf(x)) + (paxOf(x) > 1 ? '（' + money(amt(x.fare)) + ' × ' + paxOf(x) + ' 人）' : '') : '') + (c && (t.tcards || []).length > 1 ? (fareHas(x) ? '・' : '') + '💳 ' + esc(c.name || c.type || '交通卡') : '') + (isCash ? (fareHas(x) ? '・' : '') + '💴 現金／購票' : '') + (legCashOf(x) > 0 && !isCash ? (fareHas(x) || c ? '・' : '') + '💴 其中現金 ' + money(legCashOf(x)) : '') + (c && x.fareDone ? '・✓ 已搭乘' + (amt(x.fareAct) > 0 ? ' 實際 ' + money(amt(x.fareAct)) : '') : '') + '</span>';
   }
   function fareRow(a, x){
     var t = cur(), cards = t.tcards || [], nch = noCard(x.transport) ? ' hidden' : '', on = !noCard(x.transport) && (!!String(x.transport || '').trim() || !!x.lkTc || fareHas(x));
@@ -1955,7 +1955,7 @@
     var t1 = toMin(x.time); if(t1 == null) t1 = legEdge(x, 'dep', false);
     var diff = (t0 != null && t1 != null) ? t1 - t0 : null;
     var parts = [];
-    if(own) parts.push('<span class="gtxt">' + tIcon(x.transport) + ' ' + (String(x.transport || '').trim() ? '<b>' + esc(String(x.transport).trim()) + '</b>' : '') + (String(x.transport || '').trim() && (String(x.route || '').trim() || stT) ? '　' : '') + esc([String(x.route || '').trim(), stT].filter(Boolean).join('　')) + '</span>');
+    if(own) parts.push('<span class="gtxt">' + tIcon(x.transport) + ' ' + (String(x.transport || '').trim() ? '<b>' + esc(String(x.transport).trim()) + '</b>' : '') + (String(x.transport || '').trim() && (String(x.route || '').trim() || stT) ? '　' : '') + esc([String(x.route || '').trim(), stT].filter(Boolean).join('　')) + fareTag(cur(), x) + '</span>');
     if(min > 0){
       if(!own) parts.push('<span class="gpill">' + tIcon(mode) + ' <span class="gw">移動 </span>' + esc(gapFmt(min)) + (mode ? '<span class="gw"> · ' + esc(mode) + '</span>' : '') + '</span>');
       if(diff != null){
@@ -1991,7 +1991,7 @@
       (pills ? '<div class="pills">' + pills + '</div>' : '') + remindHtml(x, day) + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
-      (hideTrans ? (fareTag(t0, x) ? '<div class="itrans">' + fareTag(t0, x) + '</div>' : '') : ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '')) +
+      (hideTrans ? '' : ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '')) +
       metroNstView(x) + seatView(x) + legsView(t0, x) +
       featView(x) +
       (x.cat === '美食' ? rsvView(x) + dishView(x) : '') + shopsView(x, day) + buyHint(t0, x) +
