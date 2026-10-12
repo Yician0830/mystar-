@@ -1525,7 +1525,7 @@
     var f = String(x.stFrom || '').trim(), g = String(x.stTo || '').trim(), d = String(x.dur || '').trim();
     if(/^\d+$/.test(d)) d = '約 ' + d + ' 分鐘';
     var mr = metroRide(cur(), x), ms = '';
-    if(mr){ ms = '約 ' + mr.n + ' 站'; if(!d) d = '約 ' + mr.min + ' 分鐘（依站數估算）'; }
+    if(mr){ ms = '約 ' + mr.n + ' 站'; if(!d) d = '約 ' + mr.min + ' 分鐘'; }
     else { var br2 = busRide(cur(), x); if(br2) ms = '約 ' + br2.n + ' 站'; }
     return (f || g || d || ms) ? '　<span class="ist">' + ((f || g) ? esc(f) + ' → ' + esc(g) : '') + (ms ? ((f || g) ? '・' : '') + ms : '') + (d ? ((f || g || ms) ? '・' : '') + esc(d) : '') + '</span>' : '';
   }
@@ -1969,8 +1969,6 @@
           else parts.push('<span class="gpill bad">⚠ <span class="gw">時間不夠・</span>少 ' + esc(gapFmt(min - diff)) + '</span>');
         }
       }
-    } else if(diff != null && diff > 0){
-      parts.push('<span class="gpill"' + (own ? '' : ' title="還沒填移動時間"') + '>☕ <span class="gw">空檔 </span>' + esc(gapFmt(diff)) + '</span>');
     } else if(nav && !own){
       parts.push('<span class="gpill">' + tIcon(mode) + ' 前往下一站</span>');
     }
