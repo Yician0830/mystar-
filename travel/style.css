@@ -59,8 +59,8 @@
   .trip{--kc:var(--line-strong); border-left:4px solid var(--kc); padding-left:14px;}
   .trip.kgen{--kc:var(--c-trans);} .trip.kfan{--kc:var(--accent);}
   .trip.kgen .tag{color:var(--c-trans); border-color:var(--c-trans);}
-  .trip .ctry{display:inline-block; margin:0 0 8px 6px; padding:1px 8px 1px 0; font-size:12px; font-weight:700; letter-spacing:0.06em; color:var(--ink-dim); border:1px solid var(--line-strong); vertical-align:top; white-space:nowrap;}
-  .trip .ctry b{display:inline-block; margin-right:7px; padding:1px 6px; font-family:var(--display); font-weight:400; font-size:11px; letter-spacing:0.08em; background:var(--ink); color:var(--paper);}
+  .trip .cflag{display:inline-flex; align-items:center; gap:6px; font-weight:700; color:var(--ink-dim);}
+  .trip .cflag img{border-radius:2px; box-shadow:0 0 0 1px var(--line);}
   /* 各區塊還沒有資料時：虛線框，比一行灰字更像「這裡可以填」 */
   .sec > .vempty{padding:14px 12px; margin:0 0 12px; text-align:center; border:1px dashed var(--line-strong); background:var(--fill);}
   @media (max-width:520px){

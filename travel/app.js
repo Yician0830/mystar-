@@ -397,11 +397,13 @@
     var count = ph.k === 'up' ? '<span class="count' + (ph.n <= 7 ? ' soon' : '') + '">' + (ph.n === 0 ? '今天出發' : '還有 ' + ph.n + ' 天') + '</span>'
               : ph.k === 'now' ? '<span class="count">旅途中・第 ' + ph.n + ' 天</span>' : '';
     var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
+    var ct = ctryOf(t), cc = ct ? ct[0].toLowerCase() : '';
+    var flag = ct ? '<span class="cflag" title="' + ct[1] + '"><img src="https://flagcdn.com/w20/' + cc + '.png" srcset="https://flagcdn.com/w40/' + cc + '.png 2x" width="16" height="12" alt="" loading="lazy" onerror="this.remove()">' + ct[1] + '</span>' : '';
     var chip = saleChip(t, fan, ph), tt = tripTotal(t);
     return '<div class="trip ' + (fan ? 'kfan' : 'kgen') + '"><div class="main">' +
-      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '★ 追星' : '✈ 旅遊') + '</span>' + (function(c){ return c ? '<span class="ctry" title="' + c[1] + '"><b>' + c[0] + '</b>' + c[1] + '</span>' : ''; })(ctryOf(t)) +
+      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '★ 追星' : '✈ 旅遊') + '</span>' + 
       '<a class="name" href="#/t/' + t.id + '">' + esc(t.title) + '</a>' +
-      (where ? '<div class="where">' + where + '</div>' : '') +
+      ((flag || where) ? '<div class="where">' + flag + (flag && where ? '・' : '') + where + '</div>' : '') +
       '<div class="meta">' + count + '<span>' + dates + '</span>' + chip + showChip(t, fan, ph) + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span class="mbrk"></span><span>行前清單 <b>' + prog(t) + '</b></span>' : '') + (fan && (t.spots || []).length ? '<span>打卡 <b>' + spProg(t) + '</b></span>' : '') + '</div>' +
       (tt.has ? '<div class="ttl"><span class="ttll">' + (tt.mine ? '我的總支出' : '總花費') + '</span><b class="ttln">' + (tt.total ? money(tt.total) + (tt.miss ? '＋' : '') : '尚未換算') + '</b>' + (tt.total ? '<span class="ttlu">元</span>' : '') + (tt.miss ? '<small class="ttlw">部分幣別未填匯率</small>' : '') + '</div>' : '') +
       ksumHtml(t, fan, ph, !!(chip && t.fanInfo && t.fanInfo.saleDate)) +
