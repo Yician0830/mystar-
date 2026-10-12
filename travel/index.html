@@ -816,6 +816,9 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .trip .due,.meta .due b{color:var(--danger); font-weight:700;}
   .nobuy{display:inline-block; color:var(--danger); font-weight:900; font-size:1.05em; line-height:1.5; padding:0 8px; margin:0 2px; border:1px solid var(--danger); border-radius:3px; letter-spacing:0.06em;}
   .dueok{color:var(--ink-faint); font-size:13px;}
+  .dueok.on{color:#1f7a49 !important; border-color:#1f7a49 !important; background:rgba(46,139,87,.12) !important;}
+  .dueok.off{color:var(--ink-faint) !important; border-style:dashed !important;}
+  html[data-theme="dark"] .dueok.on{color:#5fd49a !important; border-color:#5fd49a !important; background:rgba(95,212,154,.14) !important;}
   .shows{display:grid; gap:8px;}
   .shows .shd{display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; color:var(--ink-dim);}
   .shcard{padding:10px 12px; background:var(--fill); border:1px solid var(--line);}
@@ -1044,6 +1047,7 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .mladd input,.mladd textarea{display:block; width:100%; box-sizing:border-box; margin:8px 0 0; font:inherit; font-size:13px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; background:transparent; color:inherit;}
   .llrow{display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:6px 0;}
   .llrow .legline-in{flex:1 1 200px; min-width:0;}
+  .llrow .legparse-in{flex:1 1 200px; min-width:0;}
   .llrow .bussug{font-size:12px; color:var(--ink-dim);}
   .busrow .bussug{font-size:12px; color:var(--ink-dim);}
   .busman{flex:0 0 100%; display:flex; flex-direction:column; align-items:flex-start; gap:6px;}
@@ -2655,6 +2659,22 @@ a.name{display:block; color:inherit; text-decoration:none;}
     else { var br2 = busRide(cur(), x); if(br2) ms = '約 ' + br2.n + ' 站'; }
     return (f || g || d || ms) ? '　<span class="ist">' + ((f || g) ? esc(f) + ' → ' + esc(g) : '') + (ms ? ((f || g) ? '・' : '') + ms : '') + (d ? ((f || g || ms) ? '・' : '') + esc(d) : '') + '</span>' : '';
   }
+  // 一句話拆成轉乘路段：「橘線 鹽埕埔 → 美麗島 → 紅線 世運」→ 橘線 鹽埕埔→美麗島、紅線 美麗島→世運
+  // 規則：用箭頭（→ -> > ，）或「轉乘」隔開站名；站名前面接線名（含「線／號線／公車／巴士」結尾）就是搭那一段的路線：
+  //       第一站前面的線名＝第一段，其他站前面的線名＝進到那一站這一段
+  function legParse(str){
+    var parts = String(str || '').replace(/再?轉乘/g, ' → ').split(/\s*(?:→|->|＞|>|⇒|➝|，|,|;|；)\s*/).map(function(x){ return x.trim(); }).filter(Boolean);
+    var sts = [], lines = [];
+    parts.forEach(function(tok){
+      var m = /^(.*?(?:號線|線|公車|巴士|客運|特急|快速))\s*(.+)$/.exec(tok), ln = '', st = tok;
+      if(m){ ln = m[1].trim(); st = m[2].trim(); }
+      else { var m2 = /^(\S+)\s+(\S+)$/.exec(tok); if(m2 && /^(?:\d+\S*|[A-Za-z]+\d*)$/.test(m2[1])){ ln = m2[1]; st = m2[2]; } }      // 「307 高雄車站」這種公車號碼
+      sts.push(st); lines.push(ln);
+    });
+    var out = [];
+    for(var i = 0; i + 1 < sts.length; i++) out.push({ from:sts[i], to:sts[i + 1], train: i === 0 ? (lines[0] || lines[1]) : lines[i + 1] });
+    return out;
+  }
   function legSum(x){ var n = 0; (x.legs || []).forEach(function(l){ n += amt(l.fare); }); return n; }
   function tmin(v){ var m = /^\s*(\d{1,2})\s*[:：]\s*(\d{2})\s*$/.exec(String(v || '')); return m ? (+m[1]) * 60 + (+m[2]) : null; }
   function legsView(t, x){
@@ -2686,6 +2706,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   function legsEdit(day, x){
     var legs = x.legs || [];
     return '<details class="itx itx-legs"' + (legs.length ? ' open' : '') + '><summary>🚆 轉乘路段（每段填起訖、時間、車資）</summary>' +
+      '<div class="llrow lparse"><input class="legparse-in" autocomplete="off" aria-label="一句話拆成路段" placeholder="快速輸入：橘線 鹽埕埔 → 美麗島 → 紅線 世運">' +
+      '<button class="mini" type="button" data-do="legparse" data-day="' + day.id + '" data-id="' + x.id + '">拆成路段</button></div>' +
       '<div class="llrow"><input class="legline-in" autocomplete="off" aria-label="線名" placeholder="加入站名選單：填線名（例：千歲線、函館本線）">' +
       '<button class="mini" type="button" data-do="legline" data-day="' + day.id + '" data-id="' + x.id + '">🚆 查這條線</button><span class="bussug">' + legStSummary(cur()) + '</span>' +
       '<datalist id="legst">' + legStOptions(cur()) + '</datalist></div>' +
@@ -3879,13 +3901,13 @@ a.name{display:block; color:inherit; text-decoration:none;}
     if(!x.done){
       var l2 = f && toDate(f) ? dueLeft(toDate(f)) : null, l = e && toDate(e) ? dueLeft(toDate(e)) : null;
       // 還沒開始：「未開始」；已開始：「已開始」。快結束（3 天內）與已結束未打卡仍維持提醒，免得錯過
-      if(l2 && l2.n > 0) tail = '<span class="dueok">未開始</span>';
+      if(l2 && l2.n > 0) tail = '<span class="dueok off">○ 未開始</span>';
       else if(l){
         if(l.n < 0) tail = '<span class="due">已結束・未打卡</span>';
         else if(l.n <= 3) tail = '<span class="due">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
-        else tail = l2 ? '<span class="dueok">已開始</span>' : '';
+        else tail = l2 ? '<span class="dueok on">● 已開始</span>' : '';
       }
-      else if(l2) tail = '<span class="dueok">已開始</span>';
+      else if(l2) tail = '<span class="dueok on">● 已開始</span>';
     }
     if(part === 'txt') return txt;
     if(part === 'tail') return tail;
@@ -3997,6 +4019,14 @@ a.name{display:block; color:inherit; text-decoration:none;}
         { name:'南北線', color:'#1a9e4b', st:['麻生','北34条','北24条','北18条','北12条','さっぽろ','大通','すすきの','中島公園','幌平橋','中の島','平岸','南平岸','澄川','自衛隊前','真駒内'] },
         { name:'東西線', color:'#f08a1c', st:['宮の沢','発寒南','琴似','二十四軒','西28丁目','円山公園','西18丁目','西11丁目','大通','バスセンター前','菊水','東札幌','白石','南郷7丁目','南郷13丁目','南郷18丁目','大谷地','ひばりが丘','新さっぽろ'] },
         { name:'東豊線', color:'#1e9ad6', st:['栄町','新道東','元町','環状通東','東区役所前','北13条東','さっぽろ','大通','豊水すすき','学園前','豊平公園','美園','月寒中央','福住'] }
+      ] },
+    // 高雄捷運（內建；站名資料來源：維基百科，通車狀態可能再有變動——不夠用時，旅程裡仍可再從網路補抓）
+    { name:'高雄', keys:['高雄','kaohsiung'], ic:'悠遊卡／一卡通', min:2, zh:{},
+      alt:{ '楠梓科技園區':['楠梓加工區'], '左營':['左營高鐵','高鐵左營','左營/高鐵'], '高雄車站':['高雄火車站'], '橋頭火車站':['橋頭'], '岡山高醫':['南岡山'], '鳳山西站':['鳳山西'], '凱旋':['前鎮之星'], '前鎮高中':['五甲'] },
+      lines:[
+        { name:'紅線', color:'#d2282d', st:['小港','高雄國際機場','草衙','前鎮高中','凱旋','獅甲','三多商圈','中央公園','美麗島','高雄車站','後驛','凹子底','巨蛋','生態園區','左營','世運','油廠國小','楠梓科技園區','後勁','都會公園','青埔','橋頭糖廠','橋頭火車站','岡山高醫'] },
+        { name:'橘線', color:'#f08a1c', st:['西子灣','鹽埕埔','市議會','美麗島','信義國小','文化中心','五塊厝','技擊館','衛武營','鳳山西站','鳳山','大東','鳳山國中','大寮'] },
+        { name:'環狀輕軌', color:'#7ab51d', st:['籬仔內','凱旋瑞田','前鎮之星','凱旋中華','夢時代','經貿園區','軟體園區','高雄展覽館','旅運中心','光榮碼頭','真愛碼頭','駁二大義','駁二蓬萊','哈瑪星'] }
       ] }
   ];
   var M_ALIAS_RAW = [['薄野','すすきの'], ['札幌','さっぽろ'], ['新札幌','新さっぽろ'], ['大通公園','大通'], ['豐水薄野','豊水すすき'], ['豊水薄野','豊水すすき'], ['雲雀丘','ひばりが丘'], ['巴士中心前','バスセンター前'], ['巴士總站前','バスセンター前']];
@@ -5760,14 +5790,20 @@ a.name{display:block; color:inherit; text-decoration:none;}
       if(act === 'addstep'){ var tn = emodal.querySelectorAll('.stepr input[data-k="label"]'); if(tn.length) tn[tn.length - 1].focus({ preventScroll:false }); }
       return;
     }
-    if(act === 'addleg' || act === 'delleg'){
+    if(act === 'addleg' || act === 'delleg' || act === 'legparse'){
+      var lpv = act === 'legparse' ? ((b.parentNode.querySelector('.legparse-in') || {}).value || '') : '', lpl = act === 'legparse' ? legParse(lpv) : [];
+      if(act === 'legparse' && !lpl.length){ var lpi = b.parentNode.querySelector('.legparse-in'); if(lpi){ lpi.focus(); lpi.placeholder = '至少要兩個站，用 → 隔開，例：橘線 鹽埕埔 → 美麗島 → 紅線 世運'; } return; }
       var lae = document.activeElement; if(lae && lae.blur) lae.blur();      // 先讓正在輸入的欄位存進去
       var lday = t.days.filter(function(x){ return String(x.id) === b.dataset.day; })[0];
       var litm = lday && (lday.items || []).filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       if(!litm) return;
       litm.legs = litm.legs || [];
       var lprev = litm.legs[litm.legs.length - 1];
-      if(act === 'addleg') litm.legs.push({ id:uid(), from:(lprev && lprev.to) ? lprev.to : '', to:'', train:'', dep:'', arr:'', fare:'' });
+      if(act === 'legparse'){
+        litm.legs = litm.legs.filter(function(y){ return String(y.from || '').trim() || String(y.to || '').trim() || String(y.train || '').trim() || String(y.fare || '').trim(); });      // 先丟掉空白的路段
+        lpl.forEach(function(y){ litm.legs.push({ id:uid(), from:y.from, to:y.to, train:y.train || '', dep:'', arr:'', fare:'' }); });
+      }
+      else if(act === 'addleg') litm.legs.push({ id:uid(), from:(lprev && lprev.to) ? lprev.to : '', to:'', train:'', dep:'', arr:'', fare:'' });
       else { litm.legs = litm.legs.filter(function(y){ return String(y.id) !== b.dataset.lg; }); if(legSum(litm) > 0) litm.fare = String(legSum(litm)); }
       var lwasNew = !!(modalCtx && modalCtx.isNew), lmbx = emodal && emodal.querySelector('.mbox'), ltp = lmbx ? lmbx.scrollTop : 0;
       renderDetail(); doPersist();
