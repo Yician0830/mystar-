@@ -2759,7 +2759,7 @@
       if(legs.length){
         legs.forEach(function(y){ L.push('🚆 ' + [y.train, [String(y.from || '').trim(), String(y.to || '').trim()].filter(Boolean).join(' → ')].filter(Boolean).join(' ')); });
       } else {
-        var tp = [x.transport, [String(x.stFrom || '').trim(), String(x.stTo || '').trim()].filter(Boolean).join(' → '), String(x.dur || '').trim()].filter(Boolean).join('　');
+        var tp = [x.transport, [String(x.stFrom || '').trim(), String(x.stTo || '').trim()].filter(Boolean).join(' → ')].filter(Boolean).join('　');
         if(tp) L.push('🚆 ' + tp);
       }
       if(x.note) L.push('📝 ' + String(x.note).trim());
