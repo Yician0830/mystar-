@@ -1814,6 +1814,7 @@
   }
   function rsvText(x){
     var p = [];
+    if(x.status !== '已預訂') return '';      // 只有已預訂才顯示預約時間／人數
     if(String(x.rtime || '').trim()) p.push('預約 ' + tm12(x.rtime));
     if(String(x.party || '').trim()) p.push(String(x.party).trim() + ' 人');
     return p.join('・');
@@ -2477,7 +2478,7 @@
       legsEdit(day, x) +
       '<div class="itx itx-spot"' + (x.cat === '景點' ? '' : ' hidden') + '><textarea' + a + ' data-k="intro" aria-label="景點介紹" placeholder="介紹／亮點，例如：火山地形、硫磺味、步道約 30 分鐘">' + esc(x.intro || '') + '</textarea>' +
         '<input' + a + ' data-k="feat" aria-label="推薦參觀特色" placeholder="✨ 推薦參觀特色，用「、」分隔，例如：噴氣口、鬼像、足湯" autocomplete="off" value="' + esc(x.feat || '') + '"></div>' +
-      '<div class="itx itx-food"' + (x.cat === '美食' ? '' : ' hidden') + '><div class="rsvrow"><label>預約時間<input type="time"' + a + ' data-k="rtime" value="' + esc(x.rtime || '') + '"></label><label>人數<input' + a + ' data-k="party" inputmode="numeric" autocomplete="off" placeholder="例如 4" value="' + esc(x.party || '') + '"></label></div><div class="dhead"><span>必點推薦<small class="dsum">' + (dishTotal(x) ? '　預估 ' + esc(dishTotal(x)) : '') + '</small></span>' +
+      '<div class="itx itx-food"' + (x.cat === '美食' ? '' : ' hidden') + '><div class="rsvrow"' + (x.status === '已預訂' ? '' : ' hidden') + '><label>預約時間<input type="time"' + a + ' data-k="rtime" value="' + esc(x.rtime || '') + '"></label><label>人數<input' + a + ' data-k="party" inputmode="numeric" autocomplete="off" placeholder="例如 4" value="' + esc(x.party || '') + '"></label></div><div class="dhead"><span>必點推薦<small class="dsum">' + (dishTotal(x) ? '　預估 ' + esc(dishTotal(x)) : '') + '</small></span>' +
         '<button class="mini" type="button" data-do="adddish" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增必點</button></div>' +
         (x.dishes || []).map(function(ds){
           var da = ' data-p="' + day.id + '" data-i="' + x.id + '" data-dd="' + ds.id + '"';
@@ -4362,7 +4363,7 @@
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
           if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
-        if(ds.k === 'status'){ var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && seatOk(it2.transport)); }
+        if(ds.k === 'status'){ var rsI = el.closest('.icard') || el.closest('.mbox'), rsR = rsI && rsI.querySelector('.rsvrow'); if(rsR) rsR.hidden = it2.status !== '已預訂'; var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && seatOk(it2.transport)); }
         if(ds.k === 'passOk'){ var pcb = $('passcmp'); if(pcb) pcb.innerHTML = passCmpInner(t); }
         if(ds.k === 'stFrom' || ds.k === 'stTo' || ds.k === 'route' || ds.k === 'transport' || ds.k === 'dur'){ var mhE = el.closest('.icard') && el.closest('.icard').querySelector('.mhint'); if(mhE) mhE.innerHTML = metroHintHtml(it2); }
         if(ds.k === 'transport' || ds.k === 'route') busSync(el.closest('.icard'), t, it2);
