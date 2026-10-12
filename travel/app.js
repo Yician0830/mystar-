@@ -338,7 +338,7 @@
         var nm = String(f.name || ''), cm = nm.match(/\b[A-Z0-9]{2}\s?\d{1,4}\b/), dm = String(f.time || '').match(/(\d{1,2})\s*[\/\-.]\s*(\d{1,2})/);
         return ((dm ? (+dm[1]) + '/' + (+dm[2]) + ' ' : '') + (cm ? cm[0].replace(/\s/g, '') : nm)).trim();
       }).filter(Boolean);
-      if(fsegs.length) rows.push(['✈ 航班', fsegs.join(' → '), '']);
+      if(fsegs.length) rows.push(['✈️ 航班', fsegs.join(' → '), '']);
     }
     // 每一筆住宿各列一行（依入住日排序），多間住宿都會顯示
     sts.filter(function(x){ return x.name; })

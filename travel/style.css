@@ -705,8 +705,8 @@ a.name{display:block; color:inherit; text-decoration:none;}
   .icard[data-cat="景點"]{--cc:var(--c-spot);} .icard[data-cat="美食"]{--cc:var(--c-food);} .icard[data-cat="交通"]{--cc:var(--c-trans);}
   .icard[data-cat="購物"]{--cc:var(--c-shop);} .icard[data-cat="住宿"]{--cc:var(--c-stay);} .icard[data-cat="活動"]{--cc:var(--c-act);}
   .gapc{position:relative; display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin:0 0 0 22px; padding:9px 0 9px 20px; font-size:12px; color:var(--ink-dim);}
-  .gapc::before{content:''; position:absolute; left:0; top:0; bottom:0; border-left:2px dashed var(--line-strong);}
-  .gapc::after{content:''; position:absolute; left:-4px; top:50%; width:10px; height:10px; margin-top:-5px; border-radius:50%; background:var(--paper); border:2px solid var(--line-strong);}
+  .gapc::before{content:''; position:absolute; left:0; top:0; bottom:0; box-sizing:border-box; width:2px; border-left:2px dashed var(--line-strong);}
+  .gapc::after{content:''; position:absolute; left:1px; top:50%; box-sizing:border-box; width:12px; height:12px; transform:translate(-50%,-50%); border-radius:50%; background:var(--paper); border:2px solid var(--line-strong);}
   .gapc .gtxt{flex:0 1 auto; min-width:0; font-size:13px; font-weight:500; color:var(--ink); overflow-wrap:anywhere;}
   .gapc .gtxt b{font-weight:900;}
   .gpill{--c:#8a8570; display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:2px; background:var(--fill); font-weight:700; line-height:1.4; white-space:nowrap; color:var(--ink-dim);}
