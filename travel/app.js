@@ -24,6 +24,44 @@
 
   function esc(t){ return String(t).replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c){ return c.normalize('NFKC'); }).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function d(s){ return s ? s.replace(/-/g,'.') : ''; }
+
+  // ---- 旅程所在國家：只認常見的城市／地區關鍵字，認不出來就不顯示（不亂猜）。Windows 的瀏覽器不會顯示國旗 emoji，所以用「國碼＋國名」的小章 ----
+  var COUNTRIES = [
+    ['JP','日本',['日本','東京','大阪','京都','北海道','札幌','沖繩','那霸','福岡','名古屋','奈良','神戶','橫濱','仙台','廣島','九州','箱根','富士山','函館','小樽','登別','tokyo','osaka','kyoto','sapporo','okinawa','fukuoka']],
+    ['KR','韓國',['韓國','首爾','釜山','濟州','仁川','大邱','江陵','seoul','busan','jeju']],
+    ['TH','泰國',['泰國','曼谷','清邁','普吉','芭達雅','蘇美島','喀比','bangkok','chiang mai','phuket']],
+    ['VN','越南',['越南','河內','胡志明','峴港','富國島','會安','下龍灣','hanoi','da nang']],
+    ['SG','新加坡',['新加坡','singapore']],
+    ['MY','馬來西亞',['馬來西亞','吉隆坡','檳城','沙巴','蘭卡威','馬六甲','kuala lumpur','penang']],
+    ['HK','香港',['香港','hong kong']],
+    ['MO','澳門',['澳門','macau']],
+    ['CN','中國',['中國','上海','北京','廣州','深圳','成都','杭州','西安','重慶','哈爾濱','shanghai','beijing']],
+    ['TW','台灣',['台灣','臺灣','台北','臺北','新北','台中','臺中','高雄','台南','臺南','花蓮','台東','臺東','墾丁','宜蘭','新竹','嘉義','南投','澎湖','金門','阿里山','日月潭']],
+    ['PH','菲律賓',['菲律賓','宿霧','馬尼拉','長灘島','巴拉望','薄荷島','cebu','manila']],
+    ['ID','印尼',['印尼','峇里','巴厘','雅加達','日惹','bali','jakarta']],
+    ['KH','柬埔寨',['柬埔寨','吳哥','暹粒','金邊']],
+    ['US','美國',['美國','紐約','洛杉磯','舊金山','夏威夷','拉斯維加斯','西雅圖','芝加哥','波士頓','華盛頓','關島','new york','los angeles','san francisco','hawaii','las vegas']],
+    ['CA','加拿大',['加拿大','溫哥華','多倫多','蒙特婁','vancouver','toronto']],
+    ['GB','英國',['英國','倫敦','愛丁堡','曼徹斯特','london','edinburgh']],
+    ['FR','法國',['法國','巴黎','里昂','paris']],
+    ['IT','義大利',['義大利','羅馬','米蘭','威尼斯','佛羅倫斯','那不勒斯','rome','milan','venice']],
+    ['DE','德國',['德國','柏林','慕尼黑','法蘭克福','berlin','munich']],
+    ['ES','西班牙',['西班牙','巴塞隆納','馬德里','barcelona','madrid']],
+    ['CH','瑞士',['瑞士','蘇黎世','日內瓦','少女峰']],
+    ['TR','土耳其',['土耳其','伊斯坦堡','安塔利亞','istanbul']],
+    ['AE','阿聯酋',['杜拜','阿布達比','阿聯','dubai']],
+    ['AU','澳洲',['澳洲','雪梨','墨爾本','布里斯本','伯斯','黃金海岸','sydney','melbourne']],
+    ['NZ','紐西蘭',['紐西蘭','奧克蘭','皇后鎮','auckland','queenstown']]
+  ];
+  function ctryOf(t){
+    var txt = String((t && t.place) || '').toLowerCase();
+    if(!txt) return null;
+    for(var i = 0; i < COUNTRIES.length; i++){
+      var ks = COUNTRIES[i][2];
+      for(var j = 0; j < ks.length; j++) if(txt.indexOf(ks[j]) >= 0) return COUNTRIES[i];
+    }
+    return null;
+  }
   function showErr(m){ $('err').textContent = m || ''; }
 
   // ---- 資料用量：全部行程存在同一份雲端文件，單份上限約 1 MB；這裡用 JSON 大小估算（實際略有出入），接近上限就提醒 ----
@@ -361,7 +399,7 @@
     var where = [t.place, fan ? t.event : ''].filter(Boolean).map(esc).join('・');
     var chip = saleChip(t, fan, ph), tt = tripTotal(t);
     return '<div class="trip ' + (fan ? 'kfan' : 'kgen') + '"><div class="main">' +
-      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '★ 追星' : '✈ 旅遊') + '</span>' +
+      '<span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '★ 追星' : '✈ 旅遊') + '</span>' + (function(c){ return c ? '<span class="ctry" title="' + c[1] + '"><b>' + c[0] + '</b>' + c[1] + '</span>' : ''; })(ctryOf(t)) +
       '<a class="name" href="#/t/' + t.id + '">' + esc(t.title) + '</a>' +
       (where ? '<div class="where">' + where + '</div>' : '') +
       '<div class="meta">' + count + '<span>' + dates + '</span>' + chip + showChip(t, fan, ph) + ((t.checklist && t.checklist.length && ph.k !== 'past') ? '<span class="mbrk"></span><span>行前清單 <b>' + prog(t) + '</b></span>' : '') + (fan && (t.spots || []).length ? '<span>打卡 <b>' + spProg(t) + '</b></span>' : '') + '</div>' +
@@ -2725,7 +2763,7 @@
     if(!x.done){
       var l2 = f && toDate(f) ? dueLeft(toDate(f)) : null, l = e && toDate(e) ? dueLeft(toDate(e)) : null;
       // 還沒開始：「未開始」；已開始：「已開始」。快結束（3 天內）與已結束未打卡仍維持提醒，免得錯過
-      if(l2 && l2.n > 0) tail = '<span class="dueok off">○ 未開始</span>';
+      if(l2 && l2.n > 0) tail = '<span class="dueok off"><i class="rdot"></i>未開始</span>';
       else if(l){
         if(l.n < 0) tail = '<span class="due">已結束・未打卡</span>';
         else if(l.n <= 3) tail = '<span class="due">' + (l.n === 0 ? '今天最後一天' : l.n === 1 ? '明天結束' : '還有 ' + l.n + ' 天結束') + '</span>';
