@@ -1003,7 +1003,7 @@
     ['藥品', '💊', ['個人常備藥與處方藥（附英文藥單）','止痛退燒藥','腸胃藥','感冒藥','過敏藥','OK 繃與簡易急救用品','暈車藥','防蚊液／防曬乳']],
     ['追星應援物', '🎤', ['手燈／應援棒（確認電池）','應援扇／手幅／標語','應援服與周邊','小卡與收納夾','粉絲俱樂部會員證','購票憑證與實名證件','物販用現金','防水袋與保護套']]
   ];
-  function packIcon(g){ for(var i = 0; i < PACK_TPL.length; i++) if(PACK_TPL[i][0] === g) return PACK_TPL[i][1]; return '🧳'; }
+  function packIcon(g){ if(g === COLD_GRP) return '🧣'; for(var i = 0; i < PACK_TPL.length; i++) if(PACK_TPL[i][0] === g) return PACK_TPL[i][1]; return '🧳'; }
   function packItems(t){ return (t.packing || []).filter(function(x){ return String(x.text || '').trim(); }); }
   function packProg(t){ var a = packItems(t); return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function packGroups(t){
@@ -1016,11 +1016,63 @@
     [].forEach.call(document.querySelectorAll('.pkprog'), function(n){ n.textContent = packProg(t); });
     packGroups(t).forEach(function(gr){ [].forEach.call(document.querySelectorAll('[data-pg]'), function(n){ if(n.dataset.pg === gr.g) n.textContent = packGrpProg(gr.list); }); });
   }
+
+  // ---- 防寒推薦：依天氣預報的最低溫（或手動選防寒等級）＋天數，列出該帶的保暖用品與數量 ----
+  var COLD_GRP = '防寒保暖';
+  var COLD_RANK = { none:0, cool:1, cold:2, harsh:3, severe:4 };
+  var COLD_NAME = { none:'不需要', cool:'涼', cold:'冷', harsh:'嚴寒', severe:'極寒' };
+  var COLD_OPTS = [['', '自動（依天氣預報）'], ['none', '不需要防寒'], ['cool', '涼（約 5～14°）'], ['cold', '冷（約 0～4°）'], ['harsh', '嚴寒（約 -10～-1°）'], ['severe', '極寒（-11° 以下）']];
+  function coldFromTemp(m){ return m >= 15 ? 'none' : m >= 5 ? 'cool' : m >= 0 ? 'cold' : m >= -10 ? 'harsh' : 'severe'; }
+  function tripWx(t){      // 旅程期間預報（含去年同期）的最低溫與是否有降雪；抓不到天氣就回 null
+    var raw = null; try{ raw = wxRaw(wxKeyOf(t)); }catch(e){}
+    if(!raw || raw.fail || !raw.days) return null;
+    var min = null, snow = false, n = 0;
+    (t.days || []).forEach(function(day){
+      var w = day.date && raw.days[day.date]; if(!w || w.min == null || isNaN(+w.min)) return;
+      n++; if(min == null || +w.min < min) min = +w.min;
+      var c = +w.code; if((c >= 71 && c <= 77) || c === 85 || c === 86) snow = true;
+    });
+    return n ? { min:min, snow:snow } : null;
+  }
+  function coldInfo(t){
+    var wx = tripWx(t), sel = t.coldLv || '';
+    if(sel && COLD_RANK[sel] != null) return { lv:sel, auto:false, wx:wx };
+    return { lv: wx ? coldFromTemp(wx.min) : '', auto:true, wx:wx };
+  }
+  function coldRecs(t, lv, snow){
+    var r = COLD_RANK[lv] || 0, n = (t.days || []).length || 5, heat = Math.max(2, Math.ceil(n / 2)), L = [];
+    if(r < 1) return L;
+    L.push(r >= 3 ? '羽絨外套（防風防水）' : r >= 2 ? '厚外套（防風）' : '薄外套或防風外套');
+    L.push((r >= 2 ? '發熱衣 ' : '長袖內搭 ') + heat + ' 件');
+    if(r >= 2) L.push('發熱褲 ' + (r >= 3 ? 3 : 2) + ' 件');
+    L.push(r >= 2 ? '圍巾、手套' : '薄圍巾');
+    if(r >= 3) L.push('毛帽', '保暖襪 ' + n + ' 雙', '雪靴或防滑鞋', '防滑鞋貼（鞋底止滑）', '護唇膏與保濕乳液');
+    if(r >= 2) L.push('暖暖包 ' + n * (r >= 4 ? 4 : r >= 3 ? 3 : 2) + ' 片');
+    if(r >= 4 || (r >= 3 && snow)) L.push('冰爪（結冰路面）');
+    if(r >= 4) L.push('刷毛內搭褲或雪褲', '護頸與口罩（擋風）', '雙層手套（內薄外厚）');
+    if(r >= 2 && snow) L.push('防水手套與防水外層（預報有降雪）');
+    return L;
+  }
+  function coldStem(s){ return String(s || '').replace(/\s*\d+.*$/, '').trim(); }
+  function coldMissing(t, recs){
+    var have = {}; (t.packing || []).forEach(function(x){ if(x.grp === COLD_GRP) have[coldStem(x.text)] = 1; });
+    return recs.filter(function(s){ return !have[coldStem(s)]; });
+  }
+  function packColdHtml(t){
+    if(viewOnly) return '';
+    var ci = coldInfo(t);
+    if(!ci.lv) return '<div id="pkcold" class="pkcold">' + (editMode ? '<span class="muted">還沒有天氣預報資料，可以先手動選防寒等級</span>' : '') + '</div>';
+    if(ci.lv === 'none') return '<div id="pkcold" class="pkcold">❄️ 防寒等級：不需要</div>';
+    var wxp = ci.wx ? '預報最低 ' + ci.wx.min + '°' + (ci.wx.snow ? '・有降雪' : '') : '';
+    var miss = coldMissing(t, coldRecs(t, ci.lv, ci.wx && ci.wx.snow));
+    return '<div id="pkcold" class="pkcold">❄️ ' + (ci.auto ? esc(wxp) + '，建議防寒等級：' : '防寒等級：') + '<b>' + COLD_NAME[ci.lv] + '</b>' + (ci.auto ? '' : '（手動）') + '　' +
+      (miss.length ? '<button class="mini" type="button" data-do="packcold">加入 ' + miss.length + ' 項防寒用品</button>' : '<span class="pkok">✓ 防寒用品都在清單裡了</span>') + '</div>';
+  }
   function packViewHtml(t){      // 瀏覽模式：可收合的清單，只列有填的項目
     var items = packItems(t);
-    if(!items.length) return viewOnly ? '' : '<details id="packbar" class="ckbar"><summary>行李打包清單<small class="pkprog">0／0</small></summary><div class="ckbody"><p class="pkempty">還沒有清單。</p><button class="mini" type="button" data-do="packtpl" data-g="all">套用打包範本（證件、電子產品、藥品、追星應援物）</button></div></details>';
+    if(!items.length) return viewOnly ? '' : '<details id="packbar" class="ckbar"><summary>行李打包清單<small class="pkprog">0／0</small></summary><div class="ckbody">' + packColdHtml(t) + '<p class="pkempty">還沒有清單。</p><button class="mini" type="button" data-do="packtpl" data-g="all">套用打包範本（證件、電子產品、藥品、追星應援物）</button></div></details>';
     var all = items.every(function(x){ return x.done; });
-    return '<details id="packbar" class="ckbar' + (all ? ' alldone' : '') + '"' + (packBarOpen ? ' open' : '') + '><summary>行李打包清單<small class="pkprog">' + packProg(t) + '</small></summary><div class="ckbody">' +
+    return '<details id="packbar" class="ckbar' + (all ? ' alldone' : '') + '"' + (packBarOpen ? ' open' : '') + '><summary>行李打包清單<small class="pkprog">' + packProg(t) + '</small></summary><div class="ckbody">' + packColdHtml(t) +
       packGroups(t).filter(function(gr){ return packGrpProg(gr.list) !== '0／0'; }).map(function(gr){
         return '<div class="pkg"><div class="pkh"><span>' + packIcon(gr.g) + ' ' + esc(gr.g) + '</span><small data-pg="' + esc(gr.g) + '">' + packGrpProg(gr.list) + '</small></div>' +
           gr.list.filter(function(x){ return String(x.text || '').trim(); }).map(function(x){
@@ -1033,6 +1085,7 @@
     return '<section class="sec"><div class="sh"><h3>行李打包清單' + ((t.packing || []).length ? '<small class="pkprog">' + packProg(t) + '</small>' : '') + '</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="packtpl" data-g="all">套用全部範本</button>' +
       '<button class="mini" type="button" data-do="packgrp">＋ 新增分類</button></div></div>' +
+      '<div class="pkcoldedit"><label>❄️ 防寒等級<select data-tf="coldLv">' + COLD_OPTS.map(function(o){ return '<option value="' + o[0] + '"' + ((t.coldLv || '') === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' + packColdHtml(t) + '</div>' +
       '<div class="pkchips"><span class="dcl">套用單一範本</span>' + chips + '</div>' +
       ((t.packing || []).length ? packGroups(t).map(function(gr){
         return '<div class="pkg"><div class="pkh"><span>' + packIcon(gr.g) + ' ' + esc(gr.g) + '</span><small data-pg="' + esc(gr.g) + '">' + packGrpProg(gr.list) + '</small><button class="mini" type="button" data-do="addpack" data-g="' + esc(gr.g) + '">＋ 新增一項</button></div>' +
@@ -1346,7 +1399,7 @@
   }
   // ---- 預估交通費：行程選了交通工具後，可填預估車資、指定用哪張交通卡；加總後算出各卡大概還要儲值多少 ----
   function paxOf(x){ var n = amt(x.pax); return n >= 1 ? Math.round(n) : 1; }
-  function fareOf(x){ if(noCard(x.transport)) return 0; var n = amt(x.fare); return n > 0 ? n * paxOf(x) : 0; }   // 預估車資填「每人」，乘上人數＝這一段總額   // 步行／租車／包車／計程車不預估車資
+  function fareOf(x){ if(x.rainPlan || noCard(x.transport)) return 0; var n = amt(x.fare); return n > 0 ? n * paxOf(x) : 0; }   // 預估車資填「每人」，乘上人數＝這一段總額   // 步行／租車／包車／計程車不預估車資
   function fareHas(x){ return fareOf(x) > 0; }
   // 轉乘路段可以各自選「現金／購票」：那幾段不算進交通卡要儲值的金額，也不會從卡片餘額扣掉
   function legCashPer(x){ var n = 0; if(noCard(x.transport)) return 0; (x.legs || []).forEach(function(l){ if(l.pay === TC_CASH) n += amt(l.fare); }); return n; }
@@ -1979,6 +2032,17 @@
     return '<div class="gapc" aria-label="兩個行程之間的移動">' + parts.join('') +
       (nav ? '<a class="gnav" href="' + esc(nav) + '" target="_blank" rel="noopener" title="在 Google 地圖看從「' + esc(from) + '」到「' + esc(to) + '」的路線與即時時間">🧭 導航</a>' : '') + '</div>';
   }
+  // ---- 雨天備案：備案項目顯示「若下雨，改去這裡」（有選替代項目就一起寫），被替代的原項目也會提示備案是哪個 ----
+  function rbLabel(y){ return (y.time ? tm12(y.time) + ' ' : '') + (y.title || '（未命名）'); }
+  function rainBackups(day, x){ return ((day && day.items) || []).filter(function(y){ return y.rainPlan && y.id !== x.id && String(y.rainFor || '') === String(x.id); }); }
+  function rainLineHtml(x, day){
+    if(x.rainPlan){
+      var rf = x.rainFor && ((day && day.items) || []).filter(function(y){ return String(y.id) === String(x.rainFor); })[0];
+      return '<div class="rainln">☂️ 若下雨，改去這裡' + (rf ? '<span>（取代：' + esc(rbLabel(rf)) + '）</span>' : '') + '</div>';
+    }
+    var bk = rainBackups(day, x);
+    return bk.length ? '<div class="rainln alt">☂️ 若下雨 → 改去：' + bk.map(function(y){ return esc(y.title || '（未命名）'); }).join('、') + '</div>' : '';
+  }
   function itemView(x, day, hideTrans){
     var dt = durText(x);
     // 分類與需要注意的狀態（未預訂、現場候位、臨時）用色塊；「已預訂」「停留」改成安靜的小字，「不用訂」不顯示
@@ -1987,9 +2051,9 @@
     var map = x.place ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(x.place) : '';
     var t0 = cur();
     var isNx = nxtMark && String(nxtMark.id) === String(x.id);
-    return '<div class="icard' + (isNx ? ' nxt' : '') + '"' + (x.cat ? ' data-cat="' + esc(x.cat) + '"' : '') + ' id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + timeHtml(x) + '</span>' : '') +
+    return '<div class="icard' + (isNx ? ' nxt' : '') + (x.rainPlan ? ' rainbk' : '') + '"' + (x.cat ? ' data-cat="' + esc(x.cat) + '"' : '') + ' id="lk-it-' + x.id + '">' + (isNx ? '<span class="ntag">' + (nxtMark.cur ? '▶ 進行中' : '▶ 下一個') + '</span>' : '') + '<div class="itop">' + (timeRange(x) ? '<span class="itime">' + timeHtml(x) + '</span>' : '') +
       '<b class="ititle">' + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>') + '</b></div>' +
-      (pills ? '<div class="pills">' + pills + '</div>' : '') + remindHtml(x, day) + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
+      (pills ? '<div class="pills">' + pills + '</div>' : '') + rainLineHtml(x, day) + remindHtml(x, day) + hoursLine(x) + hoursWarnHtml(day, x) + ckDayHtml(t0, day, x) + fwdLinks(t0, x) +
       
       ((x.cat === '景點' && String(x.intro || '').trim()) ? '<div class="vtext itintro">' + esc(x.intro) + '</div>' : '') +
       (hideTrans ? '' : ((x.transport || x.route || fareHas(x)) ? '<div class="itrans">' + tIcon(x.transport) + ' ' + (x.transport ? '<b>' + esc(x.transport) + '</b>' : '') + (x.transport && x.route ? '　' : '') + (x.route ? esc(x.route) : '') + stView(x) + fareTag(t0, x) + '</div>' : '')) +
@@ -2308,6 +2372,52 @@
     return '<div id="duealert" class="duebox' + (items.length && items[0].n <= 0 ? ' over' : '') + '" role="status"><div class="dbt">⏰ 待辦提醒</div>' +
       (items.length ? '<ul>' + items.map(function(o){ return '<li>' + o.h + '</li>'; }).join('') + '</ul>' : '<div class="dbe">目前沒有要處理的提醒</div>') + '</div>';
   }
+
+  // ---- 溫馨小語：待辦提醒框上方的一句話，依預報天氣、出發倒數、旅途中的當天天氣挑一句（同一天固定同一句）----
+  function warmInfo(t){
+    var raw = null; try{ raw = wxRaw(wxKeyOf(t)); }catch(e){}
+    var o = { min:null, snow:false, pop:0, fc:false, today:null };
+    if(!raw || raw.fail || !raw.days) return o;
+    var tk = ymd(new Date());
+    (t.days || []).forEach(function(day){
+      var w = day.date && raw.days[day.date]; if(!w) return;
+      if(w.min != null && !isNaN(+w.min) && (o.min == null || +w.min < o.min)) o.min = +w.min;
+      var c = +w.code; if((c >= 71 && c <= 77) || c === 85 || c === 86) o.snow = true;
+      if(w.pop != null && +w.pop > o.pop) o.pop = +w.pop;
+      if(w.src !== 'last') o.fc = true;      // 有真正的預報（不是去年同期）
+      if(day.date === tk) o.today = w;
+    });
+    return o;
+  }
+  function warmMsg(t){
+    var s = toDate(t.start || ((t.days || [])[0] || {}).date), e = toDate(t.end || (((t.days || [])[(t.days || []).length - 1]) || {}).date);
+    if(!s) return '';
+    var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var seed = now.getFullYear() * 400 + now.getMonth() * 31 + now.getDate();
+    var pick = function(a){ return a[seed % a.length]; };
+    var w = warmInfo(t), d = Math.round((s - now) / 86400000);
+    var snowW = function(x){ return x && ((+x.code >= 71 && +x.code <= 77) || +x.code === 85 || +x.code === 86); };
+    if(now >= s && (!e || now <= e)){      // 旅途中：看今天的天氣
+      var tw = w.today;
+      if(snowW(tw)) return '今天有降雪，走路慢慢來，鞋底踩穩 ❄️';
+      if(tw && +tw.min <= -10) return '今天最低 ' + tw.min + '°，出門前多加一件，暖暖包貼起來 🧣';
+      if(tw && tw.pop != null && +tw.pop > 50) return '今天降雨機率 ' + tw.pop + '%，傘帶著，也可以看看雨天備案 ☂️';
+      if(e && +now === +e) return '最後一天了，把美好的回憶好好帶回家，路上平安 🧳';
+      return pick(['旅途愉快，慢慢玩，注意安全 🌿', '今天也玩得開心，記得喝水休息 ✨', '走累了就坐下來喝杯熱的吧 ☕']);
+    }
+    if(d < 0) return '';
+    if(d === 0) return '今天出發！護照、手機、充電器，最後確認一次 ✈️';
+    if(d === 1) return '明天就出發囉，早點睡，行李再檢查一次 ✨';
+    var fc = w.fc, past = fc ? '' : '去年同期';
+    if(w.snow) return fc ? '這趟預報有降雪，鞋底記得防滑，慢慢走最安全 ❄️' : '去年同期有下雪，今年也可能銀白一片，鞋子選防滑的 ❄️';
+    if(w.min != null && w.min <= -10) return fc ? '天氣嚴冷，最低可能到 ' + w.min + '°，請注意保暖，暖暖包多備一些 🧣' : '去年同期最低 ' + w.min + '°，今年大概也很冷，保暖先準備好 🧣';
+    if(w.min != null && w.min <= 0) return '這趟天氣偏冷，記得多帶一件保暖外套 🧥';
+    if(w.pop > 50) return '旅程中可能會下雨，雨具和備案先放進行李吧 ☂️';
+    if(d <= 7) return '再 ' + d + ' 天就出發了，行李整理得怎麼樣？🧳';
+    if(d <= 30) return '還有 ' + d + ' 天，期待的心情慢慢升溫 ✨';
+    return pick(['還有 ' + d + ' 天，慢慢規劃，好好期待 🌸', '離出發還有 ' + d + ' 天，先把想去的地方排進來吧 🗺️']);
+  }
+  function warmHtml(t){ return '<div id="warmline" class="warmline" role="status">' + esc(warmMsg(t)) + '</div>'; }
   function dueAlertRefresh(t){      // 在檢視頁勾選項目後，提醒列即時更新（沒有要提醒的就拿掉）
     var el = $('duealert'), h = dueAlertHtml(t);
     if(!el) return;
@@ -2619,6 +2729,7 @@
       '<div class="ie2"><select' + a + ' data-k="cat" aria-label="類型">' + opts(IT_CATS, x.cat, '類型') + '</select>' +
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       '<label class="irain"><input type="checkbox"' + a + ' data-k="rainPlan"' + (x.rainPlan ? ' checked' : '') + '>☂️ 雨天備案（下雨時才去）</label>' +
+      '<div class="irfor"' + (x.rainPlan ? '' : ' hidden') + '><select' + a + ' data-k="rainFor" aria-label="替代哪一個項目"><option value="">替代哪一個項目（選填）</option>' + sortedItems(day).filter(function(y){ return y.id !== x.id && !y.rainPlan; }).map(function(y){ return '<option value="' + esc(y.id) + '"' + (String(x.rainFor || '') === String(y.id) ? ' selected' : '') + '>' + esc(rbLabel(y)) + '</option>'; }).join('') + '</select></div>' +
       '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
@@ -2670,6 +2781,7 @@
   function routeLinks(day, t){
     var pl = [];
     sortedItems(day).forEach(function(x){
+      if(x.rainPlan) return;      // 雨天備案不算進整天路線
       var v = String(x.place || '').trim();
       if(v && pl[pl.length - 1] !== v) pl.push(v);
     });
@@ -2833,7 +2945,10 @@
     var key = wxKeyOf(t), raw = wxRaw(key);
     if(raw && !raw.fail){
       [].forEach.call(document.querySelectorAll('#detail [data-wx]'), function(el){ var w = raw.days && raw.days[el.dataset.wx]; el.innerHTML = w ? wxHtml(w) : ''; });
+      [].forEach.call(document.querySelectorAll('#detail [data-rbk]'), function(el){ var w = raw.days && raw.days[el.dataset.rbk]; el.hidden = !(w && w.pop != null && w.pop > 50); });
       var n = $('wxnote'); if(n) n.innerHTML = tzNote(t, raw);
+      var wlw = $('warmline'); if(wlw && !editMode) wlw.outerHTML = warmHtml(t);      // 預報到了就更新溫馨小語
+      var pcw = $('pkcold'); if(pcw && !editMode) pcw.outerHTML = packColdHtml(t);      // 預報到了就更新防寒建議
     }
     var fresh = raw && !raw.fail && Date.now() - raw.ts < WX_TTL, hasRaw = raw && !raw.fail;
     if(!wxCity(t)){ wxSay('🌤 要顯示天氣與時差，請按「編輯」填寫「地點」（例：札幌）'); return; }
@@ -2850,7 +2965,9 @@
   function dayExtra(t, day){
     var rl = routeLinks(day, t), hasWx = !!day.date && !!wxCity(t);
     if(!rl && !hasWx) return '';
-    return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rl + '</div>';
+    var rbs = hasWx ? sortedItems(day).filter(function(y){ return y.rainPlan && String(y.title || '').trim(); }) : [];
+    var rbk = rbs.length ? '<span class="rbk" data-rbk="' + esc(day.date) + '" hidden>☂️ 降雨機率偏高，可改去：' + rbs.map(function(y){ return esc(rbLabel(y)); }).join('、') + '</span>' : '';
+    return '<div class="dsub dx">' + (hasWx ? '<span class="wx" data-wx="' + esc(day.date) + '"></span>' : '') + rbk + rl + '</div>';
   }
   // ---- 備選景點：想去但還沒排進哪天的暫存區（一般旅遊），一鍵加入某一天 ----
   var wishOpen = false;
@@ -4206,7 +4323,7 @@
 
     if(!ckItems.length) h += ckBuild();
     var dueBox = dueAlertHtml(t);
-    h = h.replace('<!--CKTOP-->', '<div class="topbar' + (dueBox ? '' : ' solo') + '">' + dueBox + '<div class="tb-r">' + ckTop + packViewHtml(t) + '</div></div>');
+    h = h.replace('<!--CKTOP-->', '<div class="topbar' + (dueBox ? '' : ' solo') + '">' + (dueBox ? '<div class="tb-l">' + warmHtml(t) + dueBox + '</div>' : (viewOnly && warmMsg(t) ? '<div class="tb-w">' + warmHtml(t) + '</div>' : '')) + '<div class="tb-r">' + ckTop + packViewHtml(t) + '</div></div>');
 
     var xOpenNow = xOpen || catFilter !== 'all';
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
@@ -4705,7 +4822,8 @@
       }
     } else if(ds.tf){
       t[ds.tf] = el.value;
-      if(ds.tf === 'passPrice'){ var pcb2 = $('passcmp'); if(pcb2) pcb2.innerHTML = passCmpInner(t); }
+      if(ds.tf === 'coldLv'){ var pcd = $('pkcold'); if(pcd) pcd.outerHTML = packColdHtml(t); }
+    if(ds.tf === 'passPrice'){ var pcb2 = $('passcmp'); if(pcb2) pcb2.innerHTML = passCmpInner(t); }
       var tfl = $('mgtfl'); if(tfl) tfl.innerHTML = mgTfList(t);
     } else if(ds.mg){
       var mgx = byId(t.merch, ds.mg);
@@ -4760,6 +4878,10 @@
     if(e.target.matches && e.target.matches(AMT_SEL)) amtWarnUpdate(e.target);
     if(e.target.dataset && e.target.dataset.k === 'lseatType'){
       [].forEach.call(e.target.parentNode.querySelectorAll('[data-k="lcar"],[data-k="lseatNo"]'), function(n){ n.hidden = e.target.value !== '指定席'; });
+    }
+    if(e.target.dataset && e.target.dataset.k === 'rainPlan'){
+      var rfl = e.target.closest('.irain'), rfb = rfl && rfl.nextElementSibling;
+      if(rfb && rfb.classList.contains('irfor')) rfb.hidden = !e.target.checked;
     }
     if(e.target.dataset && e.target.dataset.k === 'seatType'){
       [].forEach.call(e.target.parentNode.querySelectorAll('[data-k="carNo"],[data-k="seatNo"]'), function(n){ n.hidden = e.target.value === '自由席'; });
@@ -5304,6 +5426,9 @@
     } else if(act === 'packgrp'){
       var gn = prompt('分類名稱（例如：盥洗用品、衣物）'); gn = gn && gn.trim(); if(!gn) return;
       t.packing.push({ id:uid(), grp:gn, text:'', done:false });
+    } else if(act === 'packcold'){
+      var cinf = coldInfo(t);
+      coldMissing(t, coldRecs(t, cinf.lv, cinf.wx && cinf.wx.snow)).forEach(function(s){ t.packing.push({ id:uid(), grp:COLD_GRP, text:s, done:false }); });
     } else if(act === 'packtpl'){
       var want = b.dataset.g || 'all', havePk = {};
       t.packing.forEach(function(x){ havePk[(x.grp || '') + '|' + x.text] = 1; });
