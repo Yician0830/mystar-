@@ -3088,6 +3088,122 @@
     if(String(t.note || '').trim()){ L.push(''); L.push('📝 ' + String(t.note).trim()); }
     return L.join('\n');
   }
+  // ---- 存成 PDF：純文字＋表格，沒有任何排版；用瀏覽器的列印視窗選「另存為 PDF」 ----
+  function pdfTable(head, rows){
+    if(!rows.length) return '';
+    return '<table border="1" cellspacing="0" cellpadding="4" style="border-collapse:collapse;width:100%"><thead><tr>' +
+      head.map(function(h){ return '<th align="left">' + esc(h) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function(r){ return '<tr>' + r.map(function(c){ return '<td valign="top">' + esc(c == null ? '' : c).replace(/\n/g, '<br>') + '</td>'; }).join('') + '</tr>'; }).join('') +
+      '</tbody></table>';
+  }
+  var PDF_SECS = [['bk','預訂資料'],['st','住宿'],['days','每日行程'],['exp','花費'],['ck','行前清單']];
+  function pdfSel(){
+    var s = {}; PDF_SECS.forEach(function(x){ s[x[0]] = true; });
+    try{ var o = JSON.parse(localStorage.getItem('pdf-sel') || 'null'); if(o) PDF_SECS.forEach(function(x){ if(x[0] in o) s[x[0]] = !!o[x[0]]; }); }catch(e){}
+    return s;
+  }
+  function pdfHas(t){
+    var f = function(a){ return (a || []).filter(function(x){ return String(x.name || x.text || '').trim(); }).length > 0; };
+    return { bk: f(t.bookings), st: f(t.stays), days: (t.days || []).some(function(x){ return (x.items || []).length; }),
+      exp: (t.expenses || []).some(function(x){ return amt(x.amount) || String(x.name || '').trim(); }), ck: f(t.checklist) };
+  }
+  function tripPdfHtml(t, sel){
+    var H = [], s = function(v){ return String(v == null ? '' : v).trim(); };
+    H.push('<h1>' + esc(t.title || '旅程') + '</h1>');
+    var dr = t.start ? d(t.start) + (t.end && t.end !== t.start ? ' – ' + d(t.end) : '') : '';
+    var meta = [dr, t.place, t.kind === 'fan' ? t.event : ''].filter(Boolean).join('　／　');
+    if(meta) H.push('<p>' + esc(meta) + '</p>');
+    if(sel.bk){
+      var bk = (t.bookings || []).filter(function(x){ return s(x.name); });
+      if(bk.length){
+        H.push('<h2>預訂資料</h2>');
+        H.push(pdfTable(['類型','名稱','時間','代號／座位','備註'], bk.map(function(x){
+          return [x.type || '', s(x.name), s(x.time), [s(x.code), s(x.seat), isFlight(x) && s(x.term) ? '航廈 ' + s(x.term) : ''].filter(Boolean).join('　'), s(x.note)];
+        })));
+      }
+    }
+    if(sel.st){
+      var st = (t.stays || []).filter(function(x){ return s(x.name); });
+      if(st.length){
+        H.push('<h2>住宿</h2>');
+        H.push(pdfTable(['名稱','入住','退房','地址','代號','備註'], st.map(function(x){
+          return [s(x.name), x.checkin ? d(x.checkin) + (x.checkinTime ? ' ' + x.checkinTime : '') : '', x.checkout ? d(x.checkout) + (x.checkoutTime ? ' ' + x.checkoutTime : '') : '', s(x.address), s(x.code), s(x.note)];
+        })));
+      }
+    }
+    if(sel.days){
+      (t.days || []).forEach(function(day, i){
+        if(!(day.items || []).length) return;
+        H.push('<h2>Day ' + (i + 1) + (day.date ? '　' + esc(d(day.date)) + ' ' + esc(wk(day.date)) : '') + (day.title ? '　' + esc(day.title) : '') + '</h2>');
+        H.push(pdfTable(['時間','行程','地點','交通','備註'], sortedItems(day).map(function(x){
+          var legs = (x.legs || []).filter(function(y){ return s(y.from) || s(y.to); });
+          var tp = legs.length ? legs.map(function(y){ return [s(y.train), [s(y.from), s(y.to)].filter(Boolean).join(' → ')].filter(Boolean).join(' '); }).join('\n')
+            : [x.transport, [s(x.stFrom), s(x.stTo)].filter(Boolean).join(' → ')].filter(Boolean).join(' ');
+          return [timeRange(x) || '', (x.title || '行程') + (x.rainPlan ? ' [雨天備案]' : ''), x.place && x.place !== x.title ? x.place : '', tp, s(x.note)];
+        })));
+      });
+    }
+    if(sel.exp){
+      var ex = (t.expenses || []).filter(function(x){ return amt(x.amount) || s(x.name); }), tot = 0;
+      if(ex.length){
+        H.push('<h2>花費</h2>');
+        var rows = ex.map(function(x){
+          var tv = twdOf(t, x); if(tv != null && !expPre(t, x)) tot += tv;
+          return [x.cat || '', s(x.name), ecur(t, x) + ' ' + money(signed(x)), tv != null ? 'NT$ ' + money(tv) : ''];
+        });
+        H.push(pdfTable(['類別','項目','原幣金額','約新台幣'], rows));
+        H.push('<p>合計約 NT$ ' + money(tot) + '</p>');
+      }
+    }
+    if(sel.ck){
+      var ck = (t.checklist || []).filter(function(x){ return s(x.text); });
+      if(ck.length){
+        H.push('<h2>行前清單</h2>');
+        H.push(pdfTable(['完成','項目'], ck.map(function(x){ return [x.done ? '✓' : '', s(x.text)]; })));
+      }
+    }
+    if(s(t.note)) H.push('<p>' + esc(s(t.note)).replace(/\n/g, '<br>') + '</p>');
+    return H.join('\n');
+  }
+  function printTripPdf(t, sel){
+    var fr = document.createElement('iframe');
+    fr.setAttribute('aria-hidden', 'true');
+    fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(fr);
+    var doc = fr.contentWindow.document;
+    doc.open();
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(t.title || '旅程') + '</title></head><body>' + tripPdfHtml(t, sel) + '</body></html>');
+    doc.close();
+    setTimeout(function(){
+      try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){}
+      setTimeout(function(){ if(fr.parentNode) fr.parentNode.removeChild(fr); }, 2000);
+    }, 300);
+  }
+  function openPdfPick(t){
+    var old = document.getElementById('pdfdlg'); if(old) old.remove();
+    var sel = pdfSel(), has = pdfHas(t);
+    var el = document.createElement('div'); el.id = 'pdfdlg'; el.className = 'emodal on'; el.style.zIndex = '70';
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+    el.innerHTML = '<div class="mbox tcdlg-box"><div class="mhead"><h3>存成 PDF</h3></div><div class="mbody tcdlg-body">' +
+      '<p class="muted">勾選要放進 PDF 的內容（純文字＋表格）。按「匯出」後，在列印視窗的「目的地」選「另存為 PDF」。</p>' +
+      PDF_SECS.filter(function(x){ return has[x[0]]; }).map(function(x){
+        return '<label class="ck"><input type="checkbox" data-pk="' + x[0] + '"' + (sel[x[0]] ? ' checked' : '') + '> ' + esc(x[1]) + '</label>';
+      }).join('') + '</div>' +
+      '<div class="mfoot"><button type="button" class="ghost" id="pdfCancel">取消</button><button type="button" id="pdfOk">匯出</button></div></div>';
+    function close(){ el.remove(); }
+    el.addEventListener('click', function(ev){ if(ev.target === el) close(); });
+    el.addEventListener('keydown', function(ev){ if(ev.key === 'Escape'){ ev.stopPropagation(); close(); } });
+    document.body.appendChild(el);
+    $('pdfCancel').onclick = close;
+    $('pdfOk').onclick = function(){
+      var s = {}; PDF_SECS.forEach(function(x){ s[x[0]] = sel[x[0]]; });
+      el.querySelectorAll('input[data-pk]').forEach(function(i){ s[i.dataset.pk] = i.checked; });
+      try{ localStorage.setItem('pdf-sel', JSON.stringify(s)); }catch(e){}
+      PDF_SECS.forEach(function(x){ if(!has[x[0]]) s[x[0]] = false; });
+      close(); printTripPdf(t, s);
+    };
+    var f = el.querySelector('input'); if(f) f.focus();
+  }
   function isBlank(t){
     if(!t) return false;
     var fi = t.fanInfo || {};
@@ -4476,9 +4592,9 @@
       if(phase(t).k === 'now'){ var td = ymd(new Date()), hit = t.days.filter(function(x){ return x.date === td; })[0]; if(hit) dayFilter = hit.id; }
     }
     var fan = t.kind === 'fan';
-    var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span><button type="button" class="save alt" data-do="copytrip">複製行程</button></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
+    var h = (viewOnly ? '<div class="bar"><span class="savest">朋友分享的旅程・唯讀</span><button type="button" class="save alt" data-do="copytrip">複製行程</button><button type="button" class="save alt" data-do="pdf">存成 PDF</button></div>' : '<div class="bar"><a class="back" href="#">← 旅遊紀錄</a>' +
       '<span id="savest" class="savest' + (saveDirty ? ' dirty' : '') + '" role="status" aria-live="polite">' + esc(saveMsg) + '</span>' +
-      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="copytrip">複製行程</button><button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
+      (editMode ? '<button type="button" class="save" data-do="done">完成</button>' : '<button type="button" class="save alt" data-do="copytrip">複製行程</button><button type="button" class="save alt" data-do="pdf">存成 PDF</button><button type="button" class="save alt" data-do="share">' + (t.share && t.share.id ? '分享中' : '分享') + '</button><button type="button" class="save alt" data-do="edit">編輯</button>') + '</div>') +
       '<div class="dhead"><span class="tag' + (fan ? ' fan' : '') + '">' + (fan ? '追星' : '旅遊') + '</span>' +
       '<h2 id="dtitle">' + esc(t.title) + '</h2>' +
       '<div class="dm" id="dmeta">' + dmHtml(t) + '</div><div class="dm" id="wxnote"></div>' + (editMode ? '' : '<nav class="secnav" id="secnav" aria-label="快速跳轉"></nav>') + '</div>';
@@ -4956,6 +5072,7 @@
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.trail = t.trail || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
     var act = b.dataset.do, newItemId = null;
+    if(act === 'pdf'){ openPdfPick(t); return; }
     if(viewOnly && act === 'setme'){ t.me = (b.dataset.name && b.dataset.name !== t.me) ? b.dataset.name : ''; var sm2 = $('sum'); if(sm2) sm2.innerHTML = sumHtml(t); return; }      // 朋友的唯讀頁：只在這個畫面記住「我是誰」，不寫回雲端
     if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','copytrip','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
