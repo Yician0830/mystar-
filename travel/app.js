@@ -1832,10 +1832,11 @@
   function hrsOn(x){ return ['景點','美食','購物'].indexOf(x.cat) >= 0; }   // 營業時間／公休日只在景點、美食、購物才出現
   // 營業型態：fixed 固定時段（一段）／two 兩段式／24h 全天營業；舊資料有填第二段的視為兩段式
   // 營業時間顯示成 12 小時制加上午／下午（11:00 → 上午 11:00，15:00 → 下午 3:00），跟編輯時時間欄的樣子一致
-  function tm12(v){ var m = toMin(v); if(m == null) return String(v || ''); var h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return (h < 12 ? '上午 ' : '下午 ') + (h % 12 === 0 ? 12 : h % 12) + ':' + mm; }
+  // 午夜與中午容易看錯，所以特別標出：00:xx → 凌晨 12:xx，12:xx → 中午 12:xx
+  function tm12(v){ var m = toMin(v); if(m == null) return String(v || ''); var h = Math.floor(m / 60), mm = String(m % 60).padStart(2, '0'); return (h === 0 ? '凌晨 ' : h === 12 ? '中午 ' : h < 12 ? '上午 ' : '下午 ') + (h % 12 === 0 ? 12 : h % 12) + ':' + mm; }
   // 自由文字（例如預訂時間「02/20 08:30 → 13:10」）裡的 HH:MM 一律換成上午／下午；已經寫了上午／下午的不再重複轉換
   function tmText(v){
-    return String(v == null ? '' : v).replace(/(?<![上下]午\s?)(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])/g, function(m, h, mi){
+    return String(v == null ? '' : v).replace(/(?<!(?:上午|下午|凌晨|中午)\s?)(?<![\d:])(\d{1,2}):(\d{2})(?![\d:])/g, function(m, h, mi){
       return +h > 23 || +mi > 59 ? m : tm12(('0' + h).slice(-2) + ':' + mi);
     });
   }
@@ -2055,6 +2056,7 @@
           '<div class="bg"><input data-b="' + x.id + '" data-k="time" aria-label="預訂時間" placeholder="時間，例如 02/20 08:30 → 13:10" value="' + esc(x.time || '') + '">' +
           '<div class="bcode"><input data-b="' + x.id + '" data-k="code" aria-label="訂位代號或座位" placeholder="訂位代號／座位" autocomplete="off" value="' + esc(x.code || '') + '">' +
           '<button class="mini" type="button" data-do="copy">複製</button></div></div>' +
+          (x.type === '航班' ? flEdit(cur(), x) : '') +
           (x.type === '航班' ? '<div class="bkck"><div class="bg"><select data-b="' + x.id + '" data-k="ckWay" aria-label="報到方式"><option value="">報到方式</option>' + CK_WAYS.map(function(c){ return '<option' + (c === x.ckWay ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select>' +
             '<select data-b="' + x.id + '" data-k="ckState" aria-label="報到狀態">' + CK_ST.map(function(c){ return '<option' + (c === (x.ckState || '未報到') ? ' selected' : '') + '>' + c + '</option>'; }).join('') + '</select></div>' +
             '<div class="bg"><label>線上報到開放<input type="datetime-local" data-b="' + x.id + '" data-k="ckOpen" value="' + esc(x.ckOpen || '') + '"></label>' +
@@ -2163,6 +2165,159 @@
       items.push('<b>' + esc(x.name || '航班') + '</b> <span class="warn">' + when + (due ? '（櫃檯 ' + due.md + ' ' + tm12(due.hm) + ' 截止）' : '') + '</span>');
     });
     return items.length ? '<div class="budalert" role="status">✈ 報到提醒　' + items.join('　') + '</div>' : '';
+  }
+  // ---- 航班結構化欄位：起降「當地時間」＋時區 → 自動算飛行時間，並檢查輸入是否合理 ----
+  var TZ_LIST = [['Asia/Taipei','台灣'],['Asia/Tokyo','日本'],['Asia/Seoul','韓國'],['Asia/Hong_Kong','香港'],['Asia/Macau','澳門'],['Asia/Shanghai','中國'],['Asia/Bangkok','泰國'],['Asia/Ho_Chi_Minh','越南'],['Asia/Singapore','新加坡'],['Asia/Kuala_Lumpur','馬來西亞'],['Asia/Manila','菲律賓'],['Asia/Jakarta','印尼（雅加達）'],['Europe/Paris','法國'],['Europe/London','英國'],['America/New_York','美東'],['America/Los_Angeles','美西'],['Australia/Sydney','雪梨']];
+  function tzName(tz){ for(var i = 0; i < TZ_LIST.length; i++) if(TZ_LIST[i][0] === tz) return TZ_LIST[i][1]; return tz; }
+  function tripTz(t){ var cs = wxCands(t); for(var i = 0; i < cs.length; i++){ var kn = wxKnown(cs[i]); if(kn && kn.timezone) return kn.timezone; } return 'Asia/Taipei'; }
+  function flParse(v){ var m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(String(v || '')); return m ? { y:+m[1], mo:+m[2], d:+m[3], h:+m[4], mi:+m[5] } : null; }
+  function flUtc(v, tz){      // 某個時區的「牆上時間」換成 UTC 毫秒
+    var p = flParse(v); if(!p) return null;
+    var g = Date.UTC(p.y, p.mo - 1, p.d, p.h, p.mi);
+    try{ var off = wxOff(tz, new Date(g)), u = g - off * 60000, off2 = wxOff(tz, new Date(u)); if(off2 !== off) u = g - off2 * 60000; return u; }catch(e){ return null; }
+  }
+  function flStamp(t, x){ var p = flParse(x.fdep); return p ? new Date(p.y, p.mo - 1, p.d, p.h, p.mi).getTime() : bkStamp(t, x); }
+  function flIdx(t, x){      // 這是第幾班航班（依出發時間排序）：偶數＝去程方向，奇數＝回程方向
+    var l = (t.bookings || []).filter(function(b){ return isFlight(b) && (b === x || String(b.name || '').trim() || String(b.time || '').trim() || b.fdep); })
+      .map(function(b, i){ return { b:b, k:flStamp(t, b), i:i }; }).sort(function(a, b){ return a.k === b.k ? a.i - b.i : (a.k < b.k ? -1 : 1); });
+    for(var j = 0; j < l.length; j++) if(l[j].b === x) return j;
+    return 0;
+  }
+  function flTz(t, x){      // 沒選時區就用預設：去程＝台灣→旅程地點，回程反過來
+    var out = flIdx(t, x) % 2 === 0, dest = tripTz(t);
+    return { dep:x.fdepTz || (out ? 'Asia/Taipei' : dest), arr:x.farrTz || (out ? dest : 'Asia/Taipei') };
+  }
+  function flInfo(t, x){
+    if(!isFlight(x) || !x.fdep || !x.farr) return null;
+    var z = flTz(t, x), a = flUtc(x.fdep, z.dep), b = flUtc(x.farr, z.arr);
+    return (a == null || b == null) ? null : { min:Math.round((b - a) / 60000), z:z };
+  }
+  function flWarns(t, x){
+    var f = flInfo(t, x), w = []; if(!f) return w;
+    if(f.min <= 0) w.push('抵達時間早於起飛時間，請核對日期與時區');
+    else if(f.min < 30 || f.min > 16 * 60) w.push('飛行時間 ' + fmtMin(f.min) + ' 看起來不合理，請核對');
+    else (t.bookings || []).forEach(function(o){
+      if(o === x || !isFlight(o) || w.length) return;
+      var g = flInfo(t, o); if(!g || g.min <= 0) return;
+      var df = Math.abs(g.min - f.min);
+      if(df > 45) w.push('和「' + (o.name || '另一班航班') + '」的飛行時間（' + fmtMin(g.min) + '）差了 ' + fmtMin(df) + '，同一條航線來回通常差不多，請核對時間');
+    });
+    return w;
+  }
+  function flClock(v){ var p = flParse(v); return p ? p.mo + '/' + p.d + ' ' + tm12(('0' + p.h).slice(-2) + ':' + ('0' + p.mi).slice(-2)) : ''; }
+  function flightHtml(t, x){      // 檢視頁：預訂卡片上的起降資訊與提醒
+    var f = flInfo(t, x); if(!f) return '';
+    return '<div class="vtext">✈ 起飛 ' + esc(flClock(x.fdep)) + '（' + esc(tzName(f.z.dep)) + '）→ 抵達 ' + esc(flClock(x.farr)) + '（' + esc(tzName(f.z.arr)) + '）' + (f.min > 0 ? '　飛行約 <b>' + fmtMin(f.min) + '</b>' : '') + '</div>' +
+      flWarns(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('');
+  }
+  function flNote(t, x){
+    var f = flInfo(t, x); if(!f) return '填好起飛與抵達的當地時間，會自動算出飛行時間';
+    return (f.min > 0 ? '飛行約 ' + esc(fmtMin(f.min)) : '') + flWarns(t, x).map(function(m){ return '<div class="ihrs warn">⚠ ' + esc(m) + '</div>'; }).join('');
+  }
+  function flTzSel(x, k, val, label){
+    var list = TZ_LIST.slice(); if(!list.some(function(z){ return z[0] === val; })) list.push([val, val]);
+    return '<select data-b="' + x.id + '" data-k="' + k + '" aria-label="' + label + '">' + list.map(function(z){ return '<option value="' + z[0] + '"' + (z[0] === val ? ' selected' : '') + '>' + esc(z[1]) + '</option>'; }).join('') + '</select>';
+  }
+  function flEdit(t, x){
+    var z = flTz(t, x), a = ' data-b="' + x.id + '"';
+    return '<div class="bkfl"><div class="sdates"><label>起飛（當地時間）<input type="datetime-local"' + a + ' data-k="fdep" value="' + esc(x.fdep || '') + '"></label><label>起飛地時區' + flTzSel(x, 'fdepTz', z.dep, '起飛地時區') + '</label></div>' +
+      '<div class="sdates"><label>抵達（當地時間）<input type="datetime-local"' + a + ' data-k="farr" value="' + esc(x.farr || '') + '"></label><label>抵達地時區' + flTzSel(x, 'farrTz', z.arr, '抵達地時區') + '</label></div>' +
+      '<div class="nn bkfn" role="status">' + flNote(t, x) + '</div></div>';
+  }
+  function flAutoTime(x){      // 預訂時間文字還空著時，用起降時間產生「02/20 10:20 → 15:00」
+    var p = flParse(x.fdep), q = flParse(x.farr); if(!p || !q) return '';
+    var z2 = function(n){ return ('0' + n).slice(-2); };
+    return z2(p.mo) + '/' + z2(p.d) + ' ' + z2(p.h) + ':' + z2(p.mi) + ' → ' + ((p.mo === q.mo && p.d === q.d) ? '' : z2(q.mo) + '/' + z2(q.d) + ' ') + z2(q.h) + ':' + z2(q.mi);
+  }
+  // ---- 行前清單 ⇄ 預訂／行程 連結：連結的行程標成「已預訂／不用訂」、連結的預訂填了訂位代號，清單項目就自動打勾 ----
+  function ckFindIt(t, id){
+    var days = t.days || [];
+    for(var i = 0; i < days.length; i++){ var it = (days[i].items || []).filter(function(y){ return String(y.id) === String(id); })[0]; if(it) return { day:days[i], di:i, it:it }; }
+    return null;
+  }
+  function ckRefObj(t, r){ return r.k === 'bk' ? byId(t.bookings, r.id) : r.k === 'it' ? (ckFindIt(t, r.id) || {}).it : null; }
+  function ckRefs(t, x){ return (x.lk || []).filter(function(r){ return !!ckRefObj(t, r); }); }
+  function ckRefOk(t, r){
+    var o = ckRefObj(t, r); if(!o) return false;
+    return r.k === 'bk' ? !!String(o.code || '').trim() : (o.status === '已預訂' || o.status === '不用訂');
+  }
+  function syncCkLinks(t){      // 回傳這次自動改了哪些項目的 id
+    var ch = [];
+    (t.checklist || []).forEach(function(x){
+      var refs = ckRefs(t, x); if(!refs.length) return;
+      var ok = refs.every(function(r){ return ckRefOk(t, r); });
+      if(!!x.done !== ok){ x.done = ok; ch.push(x.id); }
+    });
+    return ch;
+  }
+  function ckLinkPaint(t, ids){
+    ids.forEach(function(id){
+      var x = byId(t.checklist, id), inp = document.querySelector('#detail input[data-c="' + id + '"][data-k="done"]'); if(!x || !inp) return;
+      inp.checked = !!x.done; var row = inp.closest('.ck'); if(row) row.classList.toggle('done', !!x.done);
+    });
+    if($('prog')) $('prog').textContent = prog(t);
+    dueAlertRefresh(t);
+  }
+  function ckLinkChip(t, x){
+    var refs = ckRefs(t, x); if(!refs.length) return '';
+    var ok = refs.filter(function(r){ return ckRefOk(t, r); }).length;
+    return ' <small class="ckdue ' + (ok === refs.length ? 'dueok' : 'due') + '" title="由連結的預訂／行程自動判斷">🔗 ' + ok + '／' + refs.length + '</small>';
+  }
+  function ckRefLabel(t, r){
+    var o = ckRefObj(t, r); if(!o) return '';
+    if(r.k === 'bk') return '🧾 ' + (o.type ? o.type + ' ' : '') + (o.name || '未命名預訂');
+    var f = ckFindIt(t, r.id);
+    return '📍 Day ' + (f.di + 1) + (o.time ? ' ' + tm12(o.time) : '') + ' ' + (o.title || '行程');
+  }
+  function ckLinkEdit(t, x){
+    var refs = x.lk || [], used = {}; refs.forEach(function(r){ used[r.k + ':' + r.id] = 1; });
+    var chips = refs.map(function(r){
+      var lb = ckRefLabel(t, r), ok = ckRefOk(t, r);
+      return '<span class="cklc"' + (lb ? '' : ' style="opacity:.5"') + '>' + (lb ? esc(lb) + (ok ? ' ✓' : '・未完成') : '（已刪除）') +
+        '<button class="del" type="button" data-do="ckunlk" data-id="' + x.id + '" data-ref="' + r.k + ':' + esc(r.id) + '" aria-label="移除連結" title="移除連結">×</button></span>';
+    }).join('');
+    var opts = '', bks = (t.bookings || []).filter(function(b){ return !used['bk:' + b.id] && (String(b.name || '').trim() || b.type); });
+    if(bks.length) opts += '<optgroup label="預訂資料（填了訂位代號就算完成）">' + bks.map(function(b){ return '<option value="bk:' + b.id + '">' + esc((b.type ? b.type + ' ' : '') + (b.name || '未命名')) + '</option>'; }).join('') + '</optgroup>';
+    (t.days || []).forEach(function(day, i){
+      var its = sortedItems(day).filter(function(y){ return !used['it:' + y.id] && String(y.title || '').trim(); });
+      if(its.length) opts += '<optgroup label="Day ' + (i + 1) + (day.date ? '　' + esc(d(day.date)) : '') + '（標成已預訂就算完成）">' + its.map(function(y){ return '<option value="it:' + y.id + '">' + esc((y.time ? tm12(y.time) + ' ' : '') + y.title) + '</option>'; }).join('') + '</optgroup>';
+    });
+    if(!chips && !opts) return '';
+    return '<div class="cklk" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 10px 2em;font-size:.85em">' + chips +
+      (opts ? '<select data-c="' + x.id + '" data-k="lkAdd" aria-label="連結預訂或行程"><option value="">🔗 連結預訂／行程（完成後自動打勾）</option>' + opts + '</select>' : '') + '</div>';
+  }
+  // 待辦提醒（頁面最上方）：行前清單有填期限、還沒勾的項目，以及行程裡「未預訂」並設了訂位提醒的項目。
+  // 到期前 7 天開始顯示，逾期沒完成會一直顯示（旅程結束後不再顯示）
+  var DUE_WARN_DAYS = 7;
+  function dueAlertHtml(t){
+    if(viewOnly || phase(t).k === 'past') return '';
+    var items = [], md = function(dt){ return (dt.getMonth() + 1) + '/' + dt.getDate(); };
+    var say = function(n, dt, tail){ return n < 0 ? '已逾期 ' + (-n) + ' 天（' + md(dt) + '）' : n === 0 ? '今天' + tail : n === 1 ? '明天' + tail : md(dt) + ' 前' + tail + '（還有 ' + n + ' 天）'; };
+    (t.checklist || []).forEach(function(x){
+      if(x.done || !String(x.text || '').trim() || !x.due) return;
+      var dt = toDate(x.due); if(!dt) return;
+      var n = dueLeft(dt).n; if(n > DUE_WARN_DAYS) return;
+      items.push({ n:n, h:'<b>' + esc(x.text) + '</b> <span class="' + (n <= 0 ? 'over' : 'warn') + '">' + say(n, dt, '截止') + '</span>' });
+    });
+    (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){
+      var r = remindInfo(x, day); if(!r || r.diff > DUE_WARN_DAYS) return;
+      items.push({ n:r.diff, h:'<b>訂位：' + esc(x.title || '（未命名）') + '</b> <span class="' + (r.diff <= 0 ? 'over' : 'warn') + '">' + say(r.diff, r.due, '該訂') + '</span>' });
+    }); });
+    if(!items.length) return '';
+    items.sort(function(a, b){ return a.n - b.n; });
+    var more = items.length > 6 ? '<span class="muted">還有 ' + (items.length - 6) + ' 項…</span>' : '';
+    return '<div id="duealert" class="budalert' + (items[0].n <= 0 ? ' over' : '') + '" role="status">⏰ 待辦提醒　' + items.slice(0, 6).map(function(o){ return o.h; }).join('　') + (more ? '　' + more : '') + '</div>';
+  }
+  function dueAlertRefresh(t){      // 在檢視頁勾選項目後，提醒列即時更新（沒有要提醒的就拿掉）
+    var el = $('duealert'), h = dueAlertHtml(t);
+    if(!el) return;
+    if(h) el.outerHTML = h; else el.remove();
+  }
+  // 清單項目的期限標籤（檢視頁）
+  function ckDueChip(x){
+    if(!x.due || !toDate(x.due)) return '';
+    var l = dueLeft(toDate(x.due)), late = !x.done && l.n < 0, soon = !x.done && l.n >= 0 && l.n <= DUE_WARN_DAYS;
+    return ' <small class="ckdue' + (late ? ' due' : soon ? ' due' : ' dueok') + '">' + esc(d(x.due)) + ' 前' + (x.done ? '' : '・' + l.txt) + '</small>';
   }
   // 櫃檯截止當天：行程第一個項目顯示截止時間
   function ckDayHtml(t, day, x){
@@ -3996,7 +4151,7 @@
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
-    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + packAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1 stk">';
+    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + dueAlertHtml(t) + budgetAlertHtml(t) + packAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1 stk">';
     var infoH = '';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
@@ -4021,14 +4176,14 @@
       var ckAll = t.checklist.every(function(x){ return x.done || !String(x.text || '').trim(); });
       ckTop = '<details id="ckbar" class="ckbar' + (ckAll ? ' alldone' : '') + '"' + (ckBarOpen && !ckAll ? ' open' : '') + '><summary>行前清單<small id="prog">' + prog(t) + '</small></summary><div class="ckbody">' +
         ckItems.map(function(x){
-          return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + '><span>' + esc(x.text) + '</span></label>';
+          return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + (ckRefs(t, x).length ? ' disabled title="由連結的預訂／行程自動判斷"' : '') + '><span>' + esc(x.text) + ckDueChip(x) + ckLinkChip(t, x) + '</span></label>';
         }).join('') + '</div></details>';
     }
     h += '<section class="sec" id="sec-bk"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
-          (x.time ? '<div class="btime">' + esc(tmText(x.time)) + '</div>' : '') + ckBookBtn(x) +
+          (x.time ? '<div class="btime">' + esc(tmText(x.time)) + '</div>' : '') + (isFlight(x) ? flightHtml(t, x) : '') + ckBookBtn(x) +
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
@@ -4156,9 +4311,10 @@
       '<button class="mini" type="button" data-do="tpl">套用' + (fan ? '追星' : '旅遊') + '範本</button>' +
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
       (t.checklist.length ? t.checklist.map(function(x){
-        return '<div class="ck' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="完成">' +
+        return '<div class="ck' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + (ckRefs(t, x).length ? ' disabled title="由連結的預訂／行程自動判斷"' : '') + ' aria-label="完成">' +
           '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="清單項目" placeholder="要準備的東西">' +
-          '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>';
+          '<input type="date" data-c="' + x.id + '" data-k="due" value="' + esc(x.due || '') + '" aria-label="期限（選填）" title="期限（選填）：到期前 7 天會在頁面最上方提醒" style="flex:0 0 auto;width:9.8em">' +
+          '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' + ckLinkEdit(t, x);
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
     h += packEditHtml(t);
@@ -4183,6 +4339,7 @@
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.trail = t.trail || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
+    if(!viewOnly && syncCkLinks(t).length) setTimeout(doPersist, 0);      // 連結的預訂／行程狀態變了，行前清單自動打勾並存檔
     if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
       dayInitFor = currentId; dayFilter = 'all'; midTab = 'plan';
@@ -4406,6 +4563,14 @@
       if(bk && ds.k === 'lkExpAdd') addExpLink(t, el, bk, 'bk', '');
       else if(bk){
         bk[ds.k] = el.value;
+        if(/^(fdep|farr|fdepTz|farrTz)$/.test(ds.k)){      // 航班起降時間／時區：即時重算飛行時間；預訂時間文字還空著就自動帶入
+          var bkc = el.closest('.bk');
+          if(!String(bk.time || '').trim() && bk.fdep && bk.farr){
+            bk.time = flAutoTime(bk);
+            var bti = bkc && bkc.querySelector('input[data-k="time"]'); if(bti) bti.value = bk.time;
+          }
+          var bfn = bkc && bkc.querySelector('.bkfn'); if(bfn) bfn.innerHTML = flNote(t, bk);
+        }
         if(ds.k === 'type' && emodal && emodal.querySelector('.mbody')){      // 航班才有報到欄位，換類型就重畫
           emodal.querySelector('.mbody').innerHTML = bkEdit(bk);
           var bsel = emodal.querySelector('select[data-k="type"]'); if(bsel) bsel.focus();
@@ -4434,13 +4599,24 @@
           it.done = el.checked;
           el.closest('.ck').classList.toggle('done', el.checked);
           if($('prog')) $('prog').textContent = prog(t);
+          var ckl = el.closest('.ck'), ckc = ckl && ckl.querySelector('.ckdue');
+          if(ckc){ ckc.outerHTML = ckDueChip(it).trim() ? ckDueChip(it) : ''; }
+          dueAlertRefresh(t);
           var cbar = $('ckbar');
           if(cbar){
             var allDone = (t.checklist || []).every(function(x){ return x.done || !String(x.text || '').trim(); });
             cbar.classList.toggle('alldone', allDone);
             if(allDone) setTimeout(function(){ var b2 = $('ckbar'); if(b2 && b2.classList.contains('alldone')) b2.open = false; }, 500);   // 全部勾完：稍等一下再自動收起
           }
-        } else { it.text = el.value; }
+        } else if(ds.k === 'lkAdd'){
+          if(el.value){
+            var lkp = el.value.split(':'); it.lk = it.lk || [];
+            if(!it.lk.some(function(r){ return r.k === lkp[0] && String(r.id) === lkp[1]; })) it.lk.push({ k:lkp[0], id:lkp[1] });
+            syncCkLinks(t); renderDetail(); doPersist();
+          }
+          return;
+        } else if(ds.k === 'due'){ it.due = el.value; }
+        else { it.text = el.value; }
       }
     } else if(ds.e){
       var ex = (t.expenses || []).filter(function(x){ return String(x.id) === ds.e; })[0];
@@ -4574,6 +4750,7 @@
       t[ds.k] = el.value;
       if($('sum')) $('sum').innerHTML = sumHtml(t);
     }
+    if(!viewOnly){ var ckch = syncCkLinks(t); if(ckch.length) ckLinkPaint(t, ckch); }      // 行程狀態／訂位代號改了：連結的清單項目自動打勾
     doPersist();
   });
   // 打字中就先提示「尚未儲存」，離開欄位後自動儲存
@@ -4685,6 +4862,15 @@
       }
       var tg = document.getElementById(b.dataset.to);
       if(tg){ tg.scrollIntoView({behavior:'smooth', block:'center'}); tg.classList.add('flash'); setTimeout(function(){ tg.classList.remove('flash'); }, 1600); }
+      return;
+    }
+    if(act === 'ckunlk'){
+      var ckx = (t.checklist || []).filter(function(y){ return String(y.id) === b.dataset.id; })[0];
+      if(ckx){
+        ckx.lk = (ckx.lk || []).filter(function(r){ return (r.k + ':' + r.id) !== b.dataset.ref; });
+        if(!ckx.lk.length) delete ckx.lk;
+        syncCkLinks(t); renderDetail(); doPersist();
+      }
       return;
     }
     if(act === 'ckinfo'){ var ckb = byId(t.bookings, b.dataset.id); if(ckb) ckPopOpen(ckb); return; }
