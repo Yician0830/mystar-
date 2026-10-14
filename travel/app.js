@@ -1530,17 +1530,19 @@
     if(/^\d+(\.\d+)?$/.test(rs)) n = Math.floor(+rs);                                  // 純數字＝幾天前
     else if((m = rs.match(/(\d+|十二|十一|[一二兩三四五六七八九十])\s*個?\s*月/))) mo = cn[m[1]] || +m[1];   // 「一個月前」「2個月」
     else if((m = rs.match(/(\d+)\s*[天日]/))) n = +m[1];                                  // 「14天前」
-    if(x.status !== '未預訂' || !remindOk(x.transport) || !(n > 0 || mo > 0) || !day || !day.date) return null;
+    var od = x.status === '未預訂' && x.openDate ? toDate(x.openDate) : null;      // 有填「開放預訂日」就直接用那一天
+    if(x.status !== '未預訂' || !day || !day.date) return null;
+    if(!od && (!remindOk(x.transport) || !(n > 0 || mo > 0))) return null;
     var dep = toDate(day.date); if(!dep) return null;
     var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if(dep < now) return null;
-    var due = new Date(dep.getFullYear(), dep.getMonth() - mo, dep.getDate() - n);
+    var due = od ? od : new Date(dep.getFullYear(), dep.getMonth() - mo, dep.getDate() - n);
     return { due:due, diff:Math.round((due - now) / 86400000) };
   }
   function remindHtml(x, day){
     var r = remindInfo(x, day); if(!r) return '';
     var md = (r.due.getMonth() + 1) + '/' + r.due.getDate();
-    if(r.diff > 0) return '<div class="irem">⏰ 訂位提醒：' + md + '（還有 ' + r.diff + ' 天）</div>';
+    if(r.diff > 0) return '<div class="irem">⏰ ' + (x.openDate ? '開放預訂日：' : '訂位提醒：') + md + '（還有 ' + r.diff + ' 天）</div>';
     if(r.diff === 0) return '<div class="irem due">⏰ 今天該訂位了</div>';
     return '<div class="irem due">⚠ 該訂位了（' + md + ' 就該訂，已過 ' + (-r.diff) + ' 天）</div>';
   }
@@ -2744,6 +2746,7 @@
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       '<label class="irain"><input type="checkbox"' + a + ' data-k="rainPlan"' + (x.rainPlan ? ' checked' : '') + '>☂️ 雨天備案（下雨時才去）</label>' +
       '<div class="irfor"' + (x.rainPlan ? '' : ' hidden') + '><select' + a + ' data-k="rainFor" aria-label="替代哪一個項目"><option value="">替代哪一個項目（選填）</option>' + sortedItems(day).filter(function(y){ return y.id !== x.id && !y.rainPlan; }).map(function(y){ return '<option value="' + esc(y.id) + '"' + (String(x.rainFor || '') === String(y.id) ? ' selected' : '') + '>' + esc(rbLabel(y)) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="ie3 itx-open"' + (x.status === '未預訂' || x.openDate ? '' : ' hidden') + '><label class="ck"><span>開放預訂日（選填）</span><input type="date"' + a + ' data-k="openDate" aria-label="開放預訂日" value="' + esc(x.openDate || '') + '"></label></div>' +
       '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && remindOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
@@ -3022,7 +3025,7 @@
         return '<div class="dcol"><div class="dchd">' + top + '<button class="del" type="button" data-do="delday" data-id="' + day.id + '" aria-label="刪除這一天" title="刪除這一天">×</button></div>' +
           '<input type="date" data-d="' + day.id + '" data-k="date" aria-label="' + label + ' 日期" value="' + esc(day.date || '') + '">' +
           '<input data-d="' + day.id + '" data-k="title" aria-label="' + label + ' 主題" placeholder="今天的主題（選填）" value="' + esc(day.title || '') + '"></div>' +
-          sortedItems(day).map(function(x){ return crow('it', x.id, day.id, (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span> ' : '') + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>'), [x.cat, x.status, x.place, x.transport].filter(Boolean).map(esc).join(' ・ '), '', 'delit'); }).join('') +
+          sortedItems(day).map(function(x){ return crow('it', x.id, day.id, (timeRange(x) ? '<span class="itime">' + esc(timeRange(x)) + '</span> ' : '') + (x.title ? esc(x.title) : '<span class="muted">（未命名）</span>'), [x.cat, x.status, (x.status === '未預訂' && x.openDate && toDate(x.openDate)) ? '開放預訂 ' + (toDate(x.openDate).getMonth() + 1) + '/' + toDate(x.openDate).getDate() : '', x.place, x.transport].filter(Boolean).map(esc).join(' ・ '), '', 'delit'); }).join('') +
           '<button class="mini dadd" type="button" data-do="addit" data-day="' + day.id + '">＋ 新增行程</button></div>';
       }
       return '<div class="dcol"><div class="dchd">' + top + '</div>' +
@@ -4768,7 +4771,7 @@
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
           if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
-        if(ds.k === 'status'){ var rsI = el.closest('.icard') || el.closest('.mbox'), rsR = rsI && rsI.querySelector('.rsvrow'); if(rsR) rsR.hidden = it2.status !== '已預訂'; var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && remindOk(it2.transport)); }
+        if(ds.k === 'status'){ var rsI = el.closest('.icard') || el.closest('.mbox'), rsR = rsI && rsI.querySelector('.rsvrow'); if(rsR) rsR.hidden = it2.status !== '已預訂'; var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && remindOk(it2.transport)); var opI = (el.closest('.icard') || el.closest('.mbox')) && (el.closest('.icard') || el.closest('.mbox')).querySelector('.itx-open'); if(opI) opI.hidden = !(it2.status === '未預訂' || it2.openDate); }
         if(ds.k === 'passOk'){ var pcb = $('passcmp'); if(pcb) pcb.innerHTML = passCmpInner(t); }
         if(ds.k === 'stFrom' || ds.k === 'stTo' || ds.k === 'route' || ds.k === 'transport' || ds.k === 'dur'){ var mhE = el.closest('.icard') && el.closest('.icard').querySelector('.mhint'); if(mhE) mhE.innerHTML = metroHintHtml(it2); }
         if(ds.k === 'transport' || ds.k === 'route') busSync(el.closest('.icard'), t, it2);
