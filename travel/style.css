@@ -1240,3 +1240,8 @@ html[data-theme="dark"] .dx .rbk{background:rgba(127,180,220,0.10);}
 
 /* 唯讀分享頁沒有提醒框：溫馨小語單獨一整列放在清單上方 */
 .topbar .tb-w{min-width:0; grid-column:1 / -1;}
+
+
+/* ---- 還能花的當地現金預估 ---- */
+.ccard .cjp{grid-column:1 / -1; text-align:right; font-size:11px; font-weight:600; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
+.approx.cjpt{font-weight:600;}

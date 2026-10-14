@@ -1305,6 +1305,16 @@
     return h; }
   function splitBox(t){ return '<div id="splitbox">' + splitHtml(t) + '</div>'; }
   window.addEventListener('load', function(){ drawPie(); });
+  // 「還能花」旁邊的當地現金預估：台幣餘額 ÷ 匯率，前後抓 4% 當成範圍（匯率、換匯手續費、刷卡手續費都會有出入），取整後顯示
+  function cashHint(t, twd){
+    var cu = tripCur(t); if(!cu || cu === 'TWD' || !(twd > 0)) return '';
+    var r = rateOf(t, cu); if(!(r > 0)) return '';
+    var c = twd / r, step = c >= 100000 ? 5000 : c >= 10000 ? 1000 : c >= 1000 ? 100 : 10;
+    var lo = Math.floor(c * 0.96 / step) * step, hi = Math.ceil(c * 1.04 / step) * step;
+    var nm = cu === 'JPY' ? '日幣' : ((CURRENCIES.filter(function(y){ return y[0] === cu; })[0] || [])[1] || cu);
+    return '約 ' + esc(nm) + ' ' + money(lo) + '–' + money(hi) + ' 現金';
+  }
+  function cashHintTitle(t){ var cu = tripCur(t); return '以匯率 ' + rateOf(t, cu) + ' 估算，前後抓 4% 當範圍；實際依換匯或刷卡匯率、手續費會有出入'; }
   function sumHtml0(t, noTotal, mineMe){
     var total = 0, by = {}, bud = (noTotal && !mineMe) ? {} : (t.budgets || {}), byCur = {}, miss = {}, curOrder = [];
     t.expenses.forEach(function(x){
@@ -1321,6 +1331,7 @@
     var bsum = 0, bspent = 0, free = 0;
     CATS.forEach(function(c){ if(c === REFUND) return; var b = amt(bud[c]); if(b > 0){ bsum += b; bspent += by[c] || 0; } else free += by[c] || 0; });
     if(bsum > 0) h += '<div class="approx">預算合計 <b>' + money(bsum) + '</b>　' + (bsum - bspent >= 0 ? '<span class="left ' + (bspent / bsum >= BUD_WARN ? 'warn' : 'ok') + '">' + (bspent / bsum >= BUD_WARN ? '⚠ ' : '') + '還能花 ' + money(bsum - bspent) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>' : '<span class="left over">已超支 ' + money(bspent - bsum) + '（已用 ' + Math.round(bspent / bsum * 100) + '%）</span>') + (free > 0 ? '<br>未設預算的類別另花 <b>' + money(free) + '</b> 元' : '') + '</div>';
+    if(bsum > 0 && bsum - bspent > 0 && cashHint(t, bsum - bspent)) h += '<div class="approx cjpt" title="' + esc(cashHintTitle(t)) + '">💴 預算還能花的錢，' + cashHint(t, bsum - bspent) + '</div>';
     var foreign = curOrder.filter(function(c){ return c !== 'TWD'; });
     if(foreign.length && !mineMe) h += '<div class="approx">原幣小計　' + curOrder.map(function(c){ return esc(c) + ' <b>' + money(byCur[c]) + '</b>'; }).join('　＋　') + '</div>';
     var ms = Object.keys(miss);
@@ -1339,7 +1350,7 @@
       var clk = editMode ? '' : ' clk' + (catFilter === c ? ' on' : '') + '" role="button" tabindex="0" aria-pressed="' + (catFilter === c) + '" aria-label="看「' + c + '」的花費明細" data-cat="' + c;
       return '<div class="ccard' + (lv === 'warn' || lv === 'over' ? ' lv-' + lv : '') + clk + '"' + tt + '><span class="cn">' + CAT_ICON[c] + ' ' + c + '</span>' +
         '<span class="cbar"><i style="--w:' + bw + '%"></i><em>' + pct + '%</em></span>' +
-        '<span class="ca"><small>TWD</small>' + money(v) + '</span>' + left + '</div>';
+        '<span class="ca"><small>TWD</small>' + money(v) + '</span>' + left + ((b > 0 && lv !== 'over' && b - v > 0 && cashHint(t, b - v)) ? '<span class="cjp" title="' + esc(cashHintTitle(t)) + '">💴 ' + cashHint(t, b - v) + '</span>' : '') + '</div>';
     }
     var spent = cats.filter(function(c){ return by[c] > 0; }), idle = cats.filter(function(c){ return !(by[c] > 0); });
     pieData = spent.map(function(c){ return { c:c, v:by[c] }; });
@@ -2394,28 +2405,29 @@
     if(!s) return '';
     var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     var seed = now.getFullYear() * 400 + now.getMonth() * 31 + now.getDate();
-    var pick = function(a){ return a[seed % a.length]; };
+    var pick = function(a){ return a[seed % a.length]; };      // 同一天固定同一句，隔天才換
     var w = warmInfo(t), d = Math.round((s - now) / 86400000);
     var snowW = function(x){ return x && ((+x.code >= 71 && +x.code <= 77) || +x.code === 85 || +x.code === 86); };
+    // 每句控制在約 36 字內（手機窄欄位兩行放得下），超過會被裁掉
     if(now >= s && (!e || now <= e)){      // 旅途中：看今天的天氣
       var tw = w.today;
-      if(snowW(tw)) return '今天有降雪，走路慢慢來，鞋底踩穩 ❄️';
-      if(tw && +tw.min <= -10) return '今天最低 ' + tw.min + '°，出門前多加一件，暖暖包貼起來 🧣';
-      if(tw && tw.pop != null && +tw.pop > 50) return '今天降雨機率 ' + tw.pop + '%，傘帶著，也可以看看雨天備案 ☂️';
-      if(e && +now === +e) return '最後一天了，把美好的回憶好好帶回家，路上平安 🧳';
-      return pick(['旅途愉快，慢慢玩，注意安全 🌿', '今天也玩得開心，記得喝水休息 ✨', '走累了就坐下來喝杯熱的吧 ☕']);
+      if(snowW(tw)) return pick(['今天有降雪，走路慢慢來，鞋底踩穩 ❄️', '下雪的日子，步伐放慢，拍幾張雪景吧 📷', '今天飄雪，手套別脫，小心路滑 ❄️']);
+      if(tw && +tw.min <= -10) return pick(['今天最低 ' + tw.min + '°，出門前多加一件，暖暖包貼起來 🧣', '今天好冷（最低 ' + tw.min + '°），保暖做足再出門 🧤', '最低 ' + tw.min + '°，圍巾手套都戴好，別著涼了 🧣']);
+      if(tw && tw.pop != null && +tw.pop > 50) return pick(['今天降雨機率 ' + tw.pop + '%，傘帶著，也可看雨天備案 ☂️', '今天可能下雨（' + tw.pop + '%），雨具備好再出發 ☂️', '下雨天也有下雨天的風景，傘記得帶 ☔']);
+      if(e && +now === +e) return pick(['最後一天了，把美好回憶帶回家，路上平安 🧳', '最後一天，行李別漏東西，平安回家 🏠', '旅程最後一天，好好享受，收尾也要開心 🌟']);
+      return pick(['旅途愉快，慢慢玩，注意安全 🌿', '今天也玩得開心，記得喝水休息 ✨', '走累了就坐下來喝杯熱的吧 ☕', '別忘了多拍幾張照片 📷', '吃點好吃的，犒賞自己 🍜', '慢慢逛，不趕時間，最舒服 🌸']);
     }
     if(d < 0) return '';
-    if(d === 0) return '今天出發！護照、手機、充電器，最後確認一次 ✈️';
-    if(d === 1) return '明天就出發囉，早點睡，行李再檢查一次 ✨';
-    var fc = w.fc, past = fc ? '' : '去年同期';
-    if(w.snow) return fc ? '這趟預報有降雪，鞋底記得防滑，慢慢走最安全 ❄️' : '去年同期有下雪，今年也可能銀白一片，鞋子選防滑的 ❄️';
-    if(w.min != null && w.min <= -10) return fc ? '天氣嚴冷，最低可能到 ' + w.min + '°，請注意保暖，暖暖包多備一些 🧣' : '去年同期最低 ' + w.min + '°，今年大概也很冷，保暖先準備好 🧣';
-    if(w.min != null && w.min <= 0) return '這趟天氣偏冷，記得多帶一件保暖外套 🧥';
-    if(w.pop > 50) return '旅程中可能會下雨，雨具和備案先放進行李吧 ☂️';
-    if(d <= 7) return '再 ' + d + ' 天就出發了，行李整理得怎麼樣？🧳';
-    if(d <= 30) return '還有 ' + d + ' 天，期待的心情慢慢升溫 ✨';
-    return pick(['還有 ' + d + ' 天，慢慢規劃，好好期待 🌸', '離出發還有 ' + d + ' 天，先把想去的地方排進來吧 🗺️']);
+    if(d === 0) return pick(['今天出發！護照、手機、充電器，最後確認 ✈️', '出發日到了，深呼吸，一切都準備好了 ✨', '今天出發，祝一路順風、玩得開心 ✈️']);
+    if(d === 1) return pick(['明天就出發囉，早點睡，行李再檢查一次 ✨', '倒數一天！證件和充電器放進包包了嗎？🎒', '明天出發，今晚好好睡一覺 🌙']);
+    var fc = w.fc;
+    if(w.snow) return pick(fc ? ['這趟預報有降雪，鞋底記得防滑，慢慢走最安全 ❄️', '預報會下雪，防滑鞋貼和手套別忘了 ❄️', '雪景可期，保暖和防滑都準備好 ❄️'] : ['去年同期有下雪，今年也可能銀白一片，鞋子選防滑的 ❄️', '去年這時候下過雪，防滑鞋貼先準備起來 ❄️', '今年可能也有雪，保暖和防滑先備著 ❄️']);
+    if(w.min != null && w.min <= -10) return pick(fc ? ['天氣嚴冷，最低可能到 ' + w.min + '°，請注意保暖，暖暖包多備一些 🧣', '預報最低 ' + w.min + '°，天氣嚴冷，保暖一定要做足 🧤', '最低 ' + w.min + '°，發熱衣和暖暖包都帶足喔 🧣'] : ['去年同期最低 ' + w.min + '°，今年大概也很冷，保暖先準備好 🧣', '去年這時候最低 ' + w.min + '°，禦寒裝備先備好 🧤', '今年可能也很冷（去年最低 ' + w.min + '°），保暖別省 🧣']);
+    if(w.min != null && w.min <= 0) return pick(['這趟天氣偏冷，記得多帶一件保暖外套 🧥', '天氣偏冷，洋蔥式穿法最保險 🧅', '出門在外別著涼，保暖衣物帶夠 🧥']);
+    if(w.pop > 50) return pick(['旅程中可能會下雨，雨具和備案先放進行李吧 ☂️', '可能會下雨，記得帶傘，備案也準備好 ☂️', '下雨也沒關係，備案景點已經在等你 ☂️']);
+    if(d <= 7) return pick(['再 ' + d + ' 天就出發了，行李整理得怎麼樣？🧳', '倒數 ' + d + ' 天！清單上還有沒勾的嗎？📋', d + ' 天後就出發，心情是不是已經飛起來了？✈️']);
+    if(d <= 30) return pick(['還有 ' + d + ' 天，期待的心情慢慢升溫 ✨', '離出發 ' + d + ' 天，換好外幣了嗎？💴', '還有 ' + d + ' 天，把想吃的店再確認一遍 🍜', d + ' 天後見，先把票券和訂位檢查一次 🎫']);
+    return pick(['還有 ' + d + ' 天，慢慢規劃，好好期待 🌸', '離出發還有 ' + d + ' 天，先把想去的地方排進來吧 🗺️', d + ' 天後的自己，一定會感謝現在的準備 ✨', '慢慢來，好好規劃，期待也是旅行的一部分 🌈']);
   }
   function warmHtml(t){ return '<div id="warmline" class="warmline" role="status">' + esc(warmMsg(t)) + '</div>'; }
   function dueAlertRefresh(t){      // 在檢視頁勾選項目後，提醒列即時更新（沒有要提醒的就拿掉）
