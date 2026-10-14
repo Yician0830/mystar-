@@ -4308,7 +4308,7 @@
           return '<label class="ck v' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + (ckRefs(t, x).length ? ' disabled title="由連結的預訂／行程自動判斷"' : '') + '><span>' + esc(x.text) + ckDueChip(x) + ckLinkChip(t, x) + '</span></label>';
         }).join('') + '</div></details>';
     }
-    h += '<section class="sec" id="sec-bk"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
+    if(!(viewOnly && t._noBk)) h += '<section class="sec" id="sec-bk"><div class="sh"><h3>預訂資料' + offlHtml() + '</h3></div>' +
       (t.bookings.length ? '<div class="bkgrid">' + t.bookings.map(function(x){
         return '<div class="bk v" id="lk-bk-' + x.id + '"><div class="bvh"><span class="btag">' + esc(x.type || '') + '</span><b class="bname">' +
           (x.name ? esc(x.name) : '<span class="muted">（尚未填寫）</span>') + '</b></div>' +
@@ -4316,7 +4316,7 @@
                     (x.note ? '<div class="vtext">' + esc(x.note) + '</div>' : '') + '</div>';
       }).join('') + '</div>' : '<p class="vempty">還沒有預訂資料，按右上角「編輯」新增。</p>') + '</section>';
 
-    h += '<section class="sec" id="sec-st"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
+    if(!(viewOnly && t._noSt)) h += '<section class="sec" id="sec-st"><div class="sh"><h3>住宿' + offlHtml() + '</h3></div>' +
       (t.stays.length ? t.stays.map(function(x){
         var q = (String(x.name || '') + ' ' + String(x.address || '')).trim();
         var map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '';
@@ -5506,6 +5506,22 @@
       (c.bookings || []).forEach(function(x){ x.code = ''; });
       (c.stays || []).forEach(function(x){ x.code = ''; });
       shows.forEach(function(x){ x.seat = ''; });
+      // 行程項目裡的座位也一併拿掉：場次加進行程時自動寫進備註的「座位：…」那一行、車廂與座位號、轉乘各段的車廂與座位
+      (c.days || []).forEach(function(dy){ (dy.items || []).forEach(function(x){
+        if(x.note) x.note = String(x.note).split('\n').filter(function(l){ return !/^\s*座位[：:]/.test(l); }).join('\n');
+        x.carNo = ''; x.seatNo = '';
+        (x.legs || []).forEach(function(lg){ lg.lcar = ''; lg.lseatNo = ''; });
+      }); });
+    }
+    var allIt = (c.days || []).reduce(function(a, dy){ return a.concat(dy.items || []); }, []);
+    if(sh.bk === false){      // 不分享預訂資料：整份拿掉，行程項目與清單上連到預訂的標籤一起清掉
+      c.bookings = []; c._noBk = true;
+      allIt.forEach(function(x){ delete x.lkBk; });
+      (c.checklist || []).forEach(function(x){ if(x.lk) x.lk = x.lk.filter(function(r){ return r.k !== 'bk'; }); });
+    }
+    if(sh.st === false){      // 不分享住宿
+      c.stays = []; c._noSt = true;
+      allIt.forEach(function(x){ delete x.lkStay; });
     }
     if(!sh.exp){
       c.expenses = []; c.budgets = {}; c.people = ''; c._noExp = true;
@@ -5553,7 +5569,9 @@
   function shRender(){
     var t = shTrip(); if(!t){ shModal.hidden = true; return; }
     var sh = t.share, on = !!(sh && sh.id);
-    var opts = '<div class="shopts"><label><input type="checkbox" data-sh="codes"' + (on && sh.codes ? ' checked' : '') + '><span>也分享訂位代號、座位<br><small>預設不分享，這些是別人拿去可能會冒用的資料</small></span></label>' +
+    var opts = '<div class="shopts"><label><input type="checkbox" data-sh="bk"' + (!on || sh.bk !== false ? ' checked' : '') + '><span>分享預訂資料<br><small>航班、車票、訂房等預訂卡片；取消勾選，對方就看不到這一區</small></span></label>' +
+      '<label><input type="checkbox" data-sh="st"' + (!on || sh.st !== false ? ' checked' : '') + '><span>分享住宿資訊<br><small>住宿名稱、日期與地址；取消勾選，對方就看不到這一區</small></span></label>' +
+      '<label><input type="checkbox" data-sh="codes"' + (on && sh.codes ? ' checked' : '') + '><span>也分享訂位代號、座位<br><small>預設不分享，這些是別人拿去可能會冒用的資料</small></span></label>' +
       '<label><input type="checkbox" data-sh="exp"' + (on && sh.exp ? ' checked' : '') + '><span>也分享花費、預算與分攤<br><small>預設不分享</small></span></label></div>';
     var pinRow = '<div class="shpin"><label for="shpin">查看密碼（4 位數字' + (on ? '' : '，選填') + '）</label><input id="shpin" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="0000" value="' + esc((on && sh.pin) || '') + '">' +
       (on ? '<div><button class="mini" type="button" data-shdo="setpin">' + (sh.pin ? '更新密碼' : '設定密碼') + '</button></div>' : '') +
@@ -5563,7 +5581,7 @@
         ? '<p>拿到連結的人可以看這一趟的內容，但不能修改，也不用登入。你之後修改旅程，對方重新整理就會看到最新的。</p>' +
           '<div class="shurl"><input id="shurl" readonly value="' + esc(shareUrl(sh.id)) + '" aria-label="分享連結"><button class="mini" type="button" data-shdo="copy">複製</button></div>' + pinRow + opts +
           (sh.pin ? '<p>4 位數密碼只能擋一般人，不是銀行等級的保護，請只把連結傳給信任的人。</p>' : '<p>沒有設定密碼：知道網址的人都能打開，請只傳給信任的人。</p>')
-        : '<p>會產生一個只讀的連結，傳給朋友就能看這一趟的行程、住宿與打卡點。你只分享這一趟，其他旅程不會被看到。</p>' + pinRow + opts) +
+        : '<p>會產生一個只讀的連結，傳給朋友就能看這一趟的行程、預訂資料、住宿與打卡點（預訂資料和住宿可以在下面選擇要不要分享）。你只分享這一趟，其他旅程不會被看到。</p>' + pinRow + opts) +
       (shMsg ? '<p class="shwarn">' + esc(shMsg) + '</p>' : '') +
       '<div class="shbtns">' + (on ? '<button class="mini" type="button" data-shdo="stop">停止分享</button>' : '<button class="save" type="button" data-shdo="make">產生分享連結</button>') + '<button class="mini" type="button" data-shdo="close">關閉</button></div></div>';
   }
@@ -5585,7 +5603,7 @@
     if(act === 'make'){
       var pv = ($('shpin') ? $('shpin').value : '').trim();
       if(pv && !/^\d{4}$/.test(pv)){ shMsg = '密碼要剛好 4 位數字，或留空不設密碼。'; shRender(); return; }
-      t.share = { id:newShareId(), codes: !!shModal.querySelector('[data-sh="codes"]').checked, exp: !!shModal.querySelector('[data-sh="exp"]').checked };
+      t.share = { id:newShareId(), bk: !!shModal.querySelector('[data-sh="bk"]').checked, st: !!shModal.querySelector('[data-sh="st"]').checked, codes: !!shModal.querySelector('[data-sh="codes"]').checked, exp: !!shModal.querySelector('[data-sh="exp"]').checked };
       if(pv){ t.share.pin = pv; t.share.salt = newSalt(); }
       b.disabled = true; b.textContent = '產生中…'; shMsg = '';
       syncShare(t).then(function(ok){
