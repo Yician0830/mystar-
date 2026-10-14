@@ -3163,7 +3163,7 @@
       }
     }
     if(s(t.note)) H.push('<p>' + esc(s(t.note)).replace(/\n/g, '<br>') + '</p>');
-    return H.join('\n');
+    return H.join('\n').replace(/<h2>[\s\S]*?(?=<h2>|$)/g, function(m){ return '<div class="blk">' + m + '</div>'; });
   }
   function printTripPdf(t, sel){
     var fr = document.createElement('iframe');
@@ -3172,7 +3172,7 @@
     document.body.appendChild(fr);
     var doc = fr.contentWindow.document;
     doc.open();
-    doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(t.title || '旅程') + '</title></head><body>' + tripPdfHtml(t, sel) + '</body></html>');
+    doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + esc(t.title || '旅程') + '</title><style>@page{margin:0}body{margin:0;padding:15mm 14mm}.blk{break-inside:avoid;page-break-inside:avoid}tr{break-inside:avoid;page-break-inside:avoid}h2{break-after:avoid}</style></head><body>' + tripPdfHtml(t, sel) + '</body></html>');
     doc.close();
     setTimeout(function(){
       try{ fr.contentWindow.focus(); fr.contentWindow.print(); }catch(e){}
