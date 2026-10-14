@@ -1529,7 +1529,7 @@
     if(/^\d+(\.\d+)?$/.test(rs)) n = Math.floor(+rs);                                  // 純數字＝幾天前
     else if((m = rs.match(/(\d+|十二|十一|[一二兩三四五六七八九十])\s*個?\s*月/))) mo = cn[m[1]] || +m[1];   // 「一個月前」「2個月」
     else if((m = rs.match(/(\d+)\s*[天日]/))) n = +m[1];                                  // 「14天前」
-    if(x.status !== '未預訂' || !seatOk(x.transport) || !(n > 0 || mo > 0) || !day || !day.date) return null;
+    if(x.status !== '未預訂' || !remindOk(x.transport) || !(n > 0 || mo > 0) || !day || !day.date) return null;
     var dep = toDate(day.date); if(!dep) return null;
     var now = new Date(); now = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     if(dep < now) return null;
@@ -1561,6 +1561,7 @@
     return (+m[1] < 10 ? '0' : '') + (+m[1]) + ':' + m[2];
   }
   // 只有鐵路類（JR、列車、特急、新幹線、高鐵、台鐵…）才會有座席；地鐵、公車、步行、計程車等不用
+  function remindOk(tr){ return seatOk(tr) || /客運|巴士/.test(String(tr || '')); }      // 訂位提醒：火車類之外，客運、巴士也可以設
   function seatOk(tr){ return /JR|列車|火車|新幹線|特急|高鐵|台鐵|臺鐵|鐵路|train|rail/i.test(String(tr || '')); }
   function fmtMin(m){ m = Math.round(m); return m < 60 ? m + ' 分' : Math.floor(m / 60) + ' 小時' + (m % 60 ? ' ' + (m % 60) + ' 分' : ''); }
   // 由各段出發／抵達時間算出每段車程、轉乘等待與全程時間（跨午夜自動算成隔天）
@@ -2742,7 +2743,7 @@
       '<select' + a + ' data-k="status" aria-label="預約狀態">' + opts(IT_ST, x.status, '預約狀態') + '</select></div>' +
       '<label class="irain"><input type="checkbox"' + a + ' data-k="rainPlan"' + (x.rainPlan ? ' checked' : '') + '>☂️ 雨天備案（下雨時才去）</label>' +
       '<div class="irfor"' + (x.rainPlan ? '' : ' hidden') + '><select' + a + ' data-k="rainFor" aria-label="替代哪一個項目"><option value="">替代哪一個項目（選填）</option>' + sortedItems(day).filter(function(y){ return y.id !== x.id && !y.rainPlan; }).map(function(y){ return '<option value="' + esc(y.id) + '"' + (String(x.rainFor || '') === String(y.id) ? ' selected' : '') + '>' + esc(rbLabel(y)) + '</option>'; }).join('') + '</select></div>' +
-      '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && seatOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
+      '<div class="ie3 itx-remind"' + (((x.status === '未預訂' || String(x.remind || '').trim()) && remindOk(x.transport)) ? '' : ' hidden') + '><input' + a + ' data-k="remind" inputmode="numeric" autocomplete="off" aria-label="提前幾天提醒訂位" placeholder="出發前多久提醒訂位（選填，例如 14 或 1個月）" value="' + esc(x.remind || '') + '"></div>' +
       lkSelects(a, x, day) +
       '<input' + a + ' data-k="place" aria-label="地點" placeholder="地點／地址（檢視時可一鍵開地圖）" value="' + esc(x.place || '') + '">' +
       '<div class="ie3 igap"><input' + a + ' data-k="gapMin" inputmode="numeric" autocomplete="off" aria-label="從上一站移動幾分鐘" placeholder="從上一站移動（分鐘）" value="' + esc(x.gapMin || '') + '"><input' + a + ' data-k="gapMode" list="tmodes" autocomplete="off" aria-label="移動方式" placeholder="方式（地鐵、步行…）" value="' + esc(x.gapMode || '') + '"></div>' +
@@ -4766,7 +4767,7 @@
           if(fnt) fnt.innerHTML = fcd ? fareCardLine(t, fcd) : '';
           if(fci) fci.placeholder = '預估車資・每人（' + fareCur(t, it2) + '）';
         }
-        if(ds.k === 'status'){ var rsI = el.closest('.icard') || el.closest('.mbox'), rsR = rsI && rsI.querySelector('.rsvrow'); if(rsR) rsR.hidden = it2.status !== '已預訂'; var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && seatOk(it2.transport)); }
+        if(ds.k === 'status'){ var rsI = el.closest('.icard') || el.closest('.mbox'), rsR = rsI && rsI.querySelector('.rsvrow'); if(rsR) rsR.hidden = it2.status !== '已預訂'; var rmI = el.closest('.icard') && el.closest('.icard').querySelector('.itx-remind'); if(rmI) rmI.hidden = !((it2.status === '未預訂' || String(it2.remind || '').trim()) && remindOk(it2.transport)); }
         if(ds.k === 'passOk'){ var pcb = $('passcmp'); if(pcb) pcb.innerHTML = passCmpInner(t); }
         if(ds.k === 'stFrom' || ds.k === 'stTo' || ds.k === 'route' || ds.k === 'transport' || ds.k === 'dur'){ var mhE = el.closest('.icard') && el.closest('.icard').querySelector('.mhint'); if(mhE) mhE.innerHTML = metroHintHtml(it2); }
         if(ds.k === 'transport' || ds.k === 'route') busSync(el.closest('.icard'), t, it2);
@@ -5018,7 +5019,7 @@
       var stIc = e.target.closest('.icard') || e.target.closest('.mbox') || document, stBox = stIc.querySelector('.itx-st');
       var sOk = seatOk(e.target.value), sRow = stIc.querySelector('.itx-seat');
       var rmBox = stIc.querySelector('.itx-remind'), stSel = stIc.querySelector('[data-k="status"]'), rmInp = stIc.querySelector('[data-k="remind"]');
-      if(rmBox) rmBox.hidden = !(sOk && ((stSel && stSel.value === '未預訂') || (rmInp && String(rmInp.value).trim())));
+      if(rmBox) rmBox.hidden = !(remindOk(e.target.value) && ((stSel && stSel.value === '未預訂') || (rmInp && String(rmInp.value).trim())));
       if(sRow) sRow.classList.toggle('seathide', !sOk || !!stIc.querySelector('.legr'));
       [].forEach.call(stIc.querySelectorAll('.legr'), function(lr){
         var ls = lr.querySelector('[data-k="lseatType"]'); if(ls) ls.hidden = !sOk;
