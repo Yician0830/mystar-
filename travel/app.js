@@ -62,6 +62,7 @@
     }
     return null;
   }
+  function isDomestic(t){ var c = ctryOf(t); return !!(c && c[0] === 'TW'); }      // 地點是台灣：不顯示周遊券相關功能
   function showErr(m){ $('err').textContent = m || ''; }
 
   // ---- 資料用量：全部行程存在同一份雲端文件，單份上限約 1 MB；這裡用 JSON 大小估算（實際略有出入），接近上限就提醒 ----
@@ -1705,7 +1706,7 @@
     return '<div class="fsum"><div>🚆 預計交通費合計 約 <b>' + fmt(tot) + '</b>（' + cnt + ' 段）</div>' +
       (Object.keys(need).length ? '<div class="fneed">💳 建議儲值合計 約 ' + fmt(need) + '<span class="fnsub">（已扣掉卡片目前餘額）</span></div>' : (Object.keys(f.cards).length ? '<div>💳 目前卡片餘額夠用</div>' : '')) +
       (cashTxt ? '<div class="fo">💴 現金／購票 ' + cashTxt + '，不用儲值</div>' : '') +
-      (other ? '<div class="fo">另有 ' + other + ' 還沒指定交通卡，不會算進建議儲值</div>' : '') + passBox(t) + remindList(t) + '</div>';
+      (other ? '<div class="fo">另有 ' + other + ' 還沒指定交通卡，不會算進建議儲值</div>' : '') + (isDomestic(t) ? '' : passBox(t)) + remindList(t) + '</div>';
   }
   function fareTag(t, x){
     var c = x.lkTc ? byId(t.tcards, x.lkTc) : null, isCash = x.lkTc === TC_CASH && !noCard(x.transport);
@@ -1719,7 +1720,7 @@
       (cards.length ? '<select class="fare-card"' + nch + a + ' data-k="lkTc" aria-label="使用的交通卡"><option value="">使用的交通卡</option><option value="' + TC_CASH + '"' + (x.lkTc === TC_CASH ? ' selected' : '') + '>現金／購票（不用交通卡）</option>' + cards.map(function(y){ return '<option value="' + y.id + '"' + (String(y.id) === String(x.lkTc) ? ' selected' : '') + '>' + esc(lkText('lkTc', y)) + '</option>'; }).join('') + '</select>' : '') +
       '<div class="fare-in"><input' + a + ' data-k="fare" inputmode="decimal" autocomplete="off" aria-label="預估車資（每人）" placeholder="預估車資・每人（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fare == null ? '' : x.fare) + '"></div></div>' +
       (cards.length ? '<div class="ie3 fare-card fare-done' + (x.lkTc === TC_CASH ? ' cashhide' : '') + '"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
-      '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="passOk"' + (x.passOk ? ' checked' : '') + '><span>周遊券可搭（比較周遊券時算進去）</span></label></div>' +
+      (isDomestic(t) ? '' : '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="passOk"' + (x.passOk ? ' checked' : '') + '><span>周遊券可搭（比較周遊券時算進去）</span></label></div>') +
       '<div class="ie3 fare-card itx-seat' + ((seatOk(x.transport) && !(x.legs || []).length) ? '' : ' seathide') + '"' + nch + '><select' + a + ' data-k="seatType" aria-label="座席類型"><option value="">座席類型</option><option value="指定席"' + (x.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (x.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
       (cards.length ? '' : '<div class="muted sm12 fare-card"' + nch + '>先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
