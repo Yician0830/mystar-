@@ -1177,3 +1177,34 @@ a.name{display:block; color:inherit; text-decoration:none;}
     .list .trip .main .tag{align-self:flex-start;}
     .list .trip .main .ksum{margin-top:auto; border-top:10px solid transparent; background-clip:padding-box;}
   }
+
+
+/* ---- 從 app.js 內嵌樣式搬進來 ---- */
+.cklk{display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:-4px 0 10px 2em; font-size:.85em;}
+.cklc{display:inline-flex; align-items:center; gap:4px; padding:2px 4px 2px 8px; border:1px solid var(--line-strong); background:var(--fill); color:var(--ink-dim);}
+.cklc.gone{opacity:.5;}
+.cklc .del{min-width:0; min-height:0; padding:0 4px;}
+.cklk select{max-width:100%; min-width:0;}
+.ck input.ckdate{flex:0 0 auto; width:9.8em;}
+.sm12{font-size:12px;}
+.vempty.loading{padding:40px 0;}
+.empty.gap40{margin-top:40px;}
+@media (max-width:560px){ .cklk{margin-left:0;} .ck input.ckdate{width:8.6em;} }
+
+
+/* ---- 頂端一列：待辦提醒（對齊預訂資料欄）＋行前清單／打包清單（對齊每日行程＋花費欄）---- */
+.topbar{display:grid; grid-template-columns:minmax(0,1fr); gap:0 clamp(20px,2.5vw,40px); align-items:start;}
+.topbar .tb-r{min-width:0;}
+.duebox{box-sizing:border-box; height:112px; margin:0 0 20px; padding:8px 14px; overflow-y:auto; background:var(--fill); border:1px solid var(--line-strong); border-left:4px solid var(--warn); font-size:13px; font-weight:700; line-height:1.6; color:var(--ink-dim);}
+.duebox.over{border-left-color:var(--danger);}
+.duebox .dbt{font-size:13px; font-weight:900; color:var(--ink); margin-bottom:2px;}
+.duebox ul{list-style:none; margin:0; padding:0;}
+.duebox li{padding:1px 0;}
+.duebox b{color:var(--ink); font-weight:900;}
+.duebox .over{color:var(--danger);} .duebox .warn{color:var(--warn);}
+.duebox .dbe{font-weight:500; color:var(--ink-faint);}
+@media (min-width:1200px){
+  .topbar{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr) minmax(0,1fr);}   /* 跟下面 .cols 一模一樣的三欄，寬度才會完全對齊 */
+  .topbar .tb-r{grid-column:2 / -1;}
+  .topbar.solo .tb-r{grid-column:1 / -1;}
+}

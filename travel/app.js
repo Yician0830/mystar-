@@ -1593,7 +1593,7 @@
       '<div class="llrow"><input class="legline-in" autocomplete="off" aria-label="線名" placeholder="加入站名選單：填線名（例：千歲線、函館本線）">' +
       '<button class="mini" type="button" data-do="legline" data-day="' + day.id + '" data-id="' + x.id + '">🚆 查這條線</button><span class="bussug">' + legStSummary(cur()) + '</span>' +
       '<datalist id="legst">' + legStOptions(cur()) + '</datalist></div>' +
-      '<div class="dhead"><span class="muted" style="font-size:12px">車資填每人金額，有填就會自動加總成預估車資；某一段要用現金／購票，可在該段選付款方式</span>' +
+      '<div class="dhead"><span class="muted sm12">車資填每人金額，有填就會自動加總成預估車資；某一段要用現金／購票，可在該段選付款方式</span>' +
       '<button class="mini" type="button" data-do="addleg" data-day="' + day.id + '" data-id="' + x.id + '">＋ 新增路段</button></div>' +
       legs.map(function(lg){
         var ta = ' data-p="' + day.id + '" data-i="' + x.id + '" data-lg="' + lg.id + '"';
@@ -1656,7 +1656,7 @@
       (cards.length ? '<div class="ie3 fare-card fare-done' + (x.lkTc === TC_CASH ? ' cashhide' : '') + '"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="fareDone"' + (x.fareDone ? ' checked' : '') + '><span>已搭乘（會從卡片餘額扣掉）</span></label><div class="fare-in"><input' + a + ' data-k="fareAct" inputmode="decimal" autocomplete="off" aria-label="實際車資" placeholder="實際車資（' + esc(fareCur(t, x)) + '）" value="' + esc(x.fareAct == null ? '' : x.fareAct) + '"></div></div>' : '') +
       '<div class="ie3 fare-card"' + nch + '><label class="ck"><input type="checkbox"' + a + ' data-k="passOk"' + (x.passOk ? ' checked' : '') + '><span>周遊券可搭（比較周遊券時算進去）</span></label></div>' +
       '<div class="ie3 fare-card itx-seat' + ((seatOk(x.transport) && !(x.legs || []).length) ? '' : ' seathide') + '"' + nch + '><select' + a + ' data-k="seatType" aria-label="座席類型"><option value="">座席類型</option><option value="指定席"' + (x.seatType === '指定席' ? ' selected' : '') + '>指定席</option><option value="自由席"' + (x.seatType === '自由席' ? ' selected' : '') + '>自由席</option></select><input' + a + ' data-k="trainNo" autocomplete="off" aria-label="車次" placeholder="車次（例如：北斗 5 號）" value="' + esc(x.trainNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="carNo" autocomplete="off" aria-label="車廂" placeholder="車廂（例如：3）" value="' + esc(x.carNo || '') + '"><input' + (x.seatType === '自由席' ? ' hidden' : '') + a + ' data-k="seatNo" autocomplete="off" aria-label="座位" placeholder="座位（例如：12A）" value="' + esc(x.seatNo || '') + '"></div>' +
-      (cards.length ? '' : '<div class="muted fare-card"' + nch + ' style="font-size:12px">先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
+      (cards.length ? '' : '<div class="muted sm12 fare-card"' + nch + '>先到「交通」新增卡片，這裡就能選要用哪一張。</div>') +
       '<div class="nn itx-fnote" role="status">' + (c ? fareCardLine(t, c) : '') + '</div></div>';
   }
   // ---- 停留時長：開始時間到離開時間；離開時間比開始早，視為隔天離開 ----
@@ -2273,7 +2273,7 @@
     var refs = x.lk || [], used = {}; refs.forEach(function(r){ used[r.k + ':' + r.id] = 1; });
     var chips = refs.map(function(r){
       var lb = ckRefLabel(t, r), ok = ckRefOk(t, r);
-      return '<span class="cklc"' + (lb ? '' : ' style="opacity:.5"') + '>' + (lb ? esc(lb) + (ok ? ' ✓' : '・未完成') : '（已刪除）') +
+      return '<span class="cklc' + (lb ? '' : ' gone') + '">' + (lb ? esc(lb) + (ok ? ' ✓' : '・未完成') : '（已刪除）') +
         '<button class="del" type="button" data-do="ckunlk" data-id="' + x.id + '" data-ref="' + r.k + ':' + esc(r.id) + '" aria-label="移除連結" title="移除連結">×</button></span>';
     }).join('');
     var opts = '', bks = (t.bookings || []).filter(function(b){ return !used['bk:' + b.id] && (String(b.name || '').trim() || b.type); });
@@ -2283,12 +2283,12 @@
       if(its.length) opts += '<optgroup label="Day ' + (i + 1) + (day.date ? '　' + esc(d(day.date)) : '') + '（標成已預訂就算完成）">' + its.map(function(y){ return '<option value="it:' + y.id + '">' + esc((y.time ? tm12(y.time) + ' ' : '') + y.title) + '</option>'; }).join('') + '</optgroup>';
     });
     if(!chips && !opts) return '';
-    return '<div class="cklk" style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 10px 2em;font-size:.85em">' + chips +
+    return '<div class="cklk">' + chips +
       (opts ? '<select data-c="' + x.id + '" data-k="lkAdd" aria-label="連結預訂或行程"><option value="">🔗 連結預訂／行程（完成後自動打勾）</option>' + opts + '</select>' : '') + '</div>';
   }
   // 待辦提醒（頁面最上方）：行前清單有填期限、還沒勾的項目，以及行程裡「未預訂」並設了訂位提醒的項目。
-  // 到期前 7 天開始顯示，逾期沒完成會一直顯示（旅程結束後不再顯示）
-  var DUE_WARN_DAYS = 7;
+  // 到期前 30 天開始顯示，逾期沒完成會一直顯示（旅程結束後不再顯示）
+  var DUE_WARN_DAYS = 30;
   function dueAlertHtml(t){
     if(viewOnly || phase(t).k === 'past') return '';
     var items = [], md = function(dt){ return (dt.getMonth() + 1) + '/' + dt.getDate(); };
@@ -2303,10 +2303,10 @@
       var r = remindInfo(x, day); if(!r || r.diff > DUE_WARN_DAYS) return;
       items.push({ n:r.diff, h:'<b>訂位：' + esc(x.title || '（未命名）') + '</b> <span class="' + (r.diff <= 0 ? 'over' : 'warn') + '">' + say(r.diff, r.due, '該訂') + '</span>' });
     }); });
-    if(!items.length) return '';
     items.sort(function(a, b){ return a.n - b.n; });
-    var more = items.length > 6 ? '<span class="muted">還有 ' + (items.length - 6) + ' 項…</span>' : '';
-    return '<div id="duealert" class="budalert' + (items[0].n <= 0 ? ' over' : '') + '" role="status">⏰ 待辦提醒　' + items.slice(0, 6).map(function(o){ return o.h; }).join('　') + (more ? '　' + more : '') + '</div>';
+    // 固定高度的提醒框：放在頁面最上方，跟行前清單、打包清單同一列；沒有提醒時也留著，版面才不會跳動
+    return '<div id="duealert" class="duebox' + (items.length && items[0].n <= 0 ? ' over' : '') + '" role="status"><div class="dbt">⏰ 待辦提醒</div>' +
+      (items.length ? '<ul>' + items.map(function(o){ return '<li>' + o.h + '</li>'; }).join('') + '</ul>' : '<div class="dbe">目前沒有要處理的提醒</div>') + '</div>';
   }
   function dueAlertRefresh(t){      // 在檢視頁勾選項目後，提醒列即時更新（沒有要提醒的就拿掉）
     var el = $('duealert'), h = dueAlertHtml(t);
@@ -4151,7 +4151,7 @@
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
     nxtKey = currentId + '|' + (nInfo ? (nInfo.cur ? 'c' : 'n') + (nPick ? nPick.id : '-') : '');
-    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + dueAlertHtml(t) + budgetAlertHtml(t) + packAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1 stk">';
+    var h = nextUpHtml(t, nInfo) + ckAlertHtml(t) + budgetAlertHtml(t) + packAlertHtml(t) + '<!--CKTOP--><div class="cols"><div class="col c1 stk">';
     var infoH = '';
     if(fan){
       var fi = t.fanInfo || {}, linkTxt = /^(undefined|null)$/i.test(String(fi.link == null ? '' : fi.link).trim()) ? '' : String(fi.link == null ? '' : fi.link).trim(), href = safeUrl(linkTxt);
@@ -4205,7 +4205,8 @@
 
 
     if(!ckItems.length) h += ckBuild();
-    h = h.replace('<!--CKTOP-->', ckTop + packViewHtml(t));
+    var dueBox = dueAlertHtml(t);
+    h = h.replace('<!--CKTOP-->', '<div class="topbar' + (dueBox ? '' : ' solo') + '">' + dueBox + '<div class="tb-r">' + ckTop + packViewHtml(t) + '</div></div>');
 
     var xOpenNow = xOpen || catFilter !== 'all';
     var exps = t.expenses.filter(function(x){ return String(x.name || '').trim() || String(x.amount == null ? '' : x.amount).trim(); });
@@ -4313,7 +4314,7 @@
       (t.checklist.length ? t.checklist.map(function(x){
         return '<div class="ck' + (x.done ? ' done' : '') + '"><input type="checkbox" data-c="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + (ckRefs(t, x).length ? ' disabled title="由連結的預訂／行程自動判斷"' : '') + ' aria-label="完成">' +
           '<input data-c="' + x.id + '" data-k="text" value="' + esc(x.text || '') + '" aria-label="清單項目" placeholder="要準備的東西">' +
-          '<input type="date" data-c="' + x.id + '" data-k="due" value="' + esc(x.due || '') + '" aria-label="期限（選填）" title="期限（選填）：到期前 7 天會在頁面最上方提醒" style="flex:0 0 auto;width:9.8em">' +
+          '<input type="date" data-c="' + x.id + '" data-k="due" value="' + esc(x.due || '') + '" aria-label="期限（選填）" title="期限（選填）：到期前 30 天會在頁面最上方提醒" class="ckdate">' +
           '<button class="del" type="button" data-do="delck" data-id="' + x.id + '" aria-label="刪除" title="刪除">×</button></div>' + ckLinkEdit(t, x);
       }).join('') : '<div class="empty">還沒有清單。按「套用範本」會帶入常用項目，再自己增減。</div>') +
       '</section>';
@@ -5500,8 +5501,8 @@
     viewOnly = true; shownShare = id; sharedTrip = null; currentId = null; editMode = false;
     document.body.classList.add('viewonly', 'wide');
     $('login').hidden = true; $('who').hidden = true; $('app').hidden = true; $('head').hidden = true; $('detail').hidden = false;
-    $('detail').innerHTML = '<p class="vempty" style="padding:40px 0">讀取中…</p>';
-    var fail = function(msg){ if(shownShare === id) $('detail').innerHTML = '<div class="empty" style="margin-top:40px">' + msg + '</div>'; };
+    $('detail').innerHTML = '<p class="vempty loading">讀取中…</p>';
+    var fail = function(msg){ if(shownShare === id) $('detail').innerHTML = '<div class="empty gap40">' + msg + '</div>'; };
     db.collection('shared').doc(id).get().then(function(doc){
       if(shownShare !== id) return;
       if(!doc.exists){ fail('這個分享連結已經失效，或分享已被關閉。'); return; }
