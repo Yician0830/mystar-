@@ -3964,7 +3964,17 @@
         (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '')) + (metroNote && !metroMsg ? '<p class="hint">' + esc(metroNote) + '</p>' : '') + metroAddHtml(t) + '</section>';
   }
   // 中間欄：每日行程／購物・必買 分頁（分享給朋友的唯讀頁面沒有購物分頁）
-  var midTab = 'plan';
+  var midTab = 'plan', rightTab = 'info';   // 追星旅程右欄：info 活動資訊／spot 應援打卡點／trail 同款踩點
+  function rightHtml(t, infoH){
+    var parts = [['info', '活動資訊', infoH, ''], ['spot', '應援打卡點', spotsView(t), (t.spots || []).length ? spProg(t, '') : ''], ['trail', '同款踩點', trailView(t), (t.trail || []).some(trNamed) ? trProg(t) : '']];
+    if(viewOnly) parts = parts.filter(function(x){ return String(x[2] || '').trim(); });
+    if(!parts.length) return '';
+    if(!parts.some(function(x){ return x[0] === rightTab; })) rightTab = parts[0][0];
+    var tabs = '<div id="rtabs" class="sptypes midtabs" role="group" aria-label="切換右欄內容">' + parts.map(function(x){
+      return '<button class="mini" type="button" data-do="rtab" data-tab="' + x[0] + '" aria-pressed="' + (rightTab === x[0]) + '">' + x[1] + (x[3] ? ' <small>' + x[3] + '</small>' : '') + '</button>';
+    }).join('') + '</div>';
+    return tabs + parts.filter(function(x){ return x[0] === rightTab; })[0][2];
+  }
   function midHtml(t){
     if(viewOnly) return boardHtml(t, false);
     var tabs = '<div class="sptypes midtabs" role="group" aria-label="切換中間欄內容">' + [['plan', '每日行程'], ['shop', '購物・必買']].concat(metroTabOn(t) ? [['metro', '路線圖']] : []).map(function(x){
@@ -4256,6 +4266,7 @@
       '</section>';
   }
   function spLate(x){ if(x.done || !x.to || !toDate(x.to)) return false; var l = dueLeft(toDate(x.to)); return !!l && l.n < 0; }   // 已過期但還沒打卡
+  var trOpen = {}, trDoneOpen = false;   // 同款踩點：哪幾張展開、已打卡區是否展開
   var spOpen = {}, spOnly = false, spTypes = {}, spDoneOpens = {};      // 打卡點：哪幾張展開、是否只看未打卡
   function spRefresh(t){ ['', '2'].forEach(function(l){ var n = document.getElementById('spsec' + l); if(n) n.outerHTML = spotsView(t, l); }); }
   function spList2Name(t){ return String(t.spTitle2 || '').trim() || '打卡點 2'; }
@@ -4339,18 +4350,20 @@
     var card = function(x){
       var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', src = safeUrl(x.src);
       var who = [x.who, x.when].filter(function(v){ return String(v || '').trim(); }).map(function(v){ return esc(String(v).trim()); }).join('・');
-      return '<div class="trc' + (x.done ? ' done' : '') + '" id="lk-tr-' + x.id + '"><div class="trh"><input type="checkbox" data-tr="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
-        '<b>' + esc(x.name) + '</b><span class="trtag">' + esc(x.type || '其他') + '</span></div>' +
+      var open = !!trOpen[x.id];
+      return '<div class="trc' + (x.done ? ' done' : '') + (open ? ' open' : '') + '" id="lk-tr-' + x.id + '"><div class="trh" role="button" tabindex="0" aria-expanded="' + open + '" data-trt="' + x.id + '" title="點一下展開／收合" style="cursor:pointer"><input type="checkbox" data-tr="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
+        '<b>' + esc(x.name) + '</b><span class="trtag">' + esc(x.type || '其他') + '</span><span class="trchev" aria-hidden="true" style="margin-left:6px;display:inline-block;transition:transform .15s;transform:rotate(' + (open ? '180' : '0') + 'deg)">▾</span></div><div class="trbody"' + (open ? '' : ' hidden') + '>' +
         (who ? '<div class="trl"><i aria-hidden="true">👤</i><span>' + who + '</span></div>' : '') +
         (String(x.dish || '').trim() ? '<div class="trl"><i aria-hidden="true">🍽</i><span><b>同款美食</b>　' + esc(x.dish) + '</span></div>' : '') +
         (String(x.shot || '').trim() ? '<div class="trl"><i aria-hidden="true">📷</i><span><b>同款拍法</b>　' + esc(x.shot) + '</span></div>' : '') +
         ((x.addr || map) ? '<div class="trl"><i aria-hidden="true">📍</i><span>' + (x.addr ? esc(x.addr) + ' ' : '') + (map ? '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</span></div>' : '') +
         (src ? '<div class="trl"><i aria-hidden="true">🔗</i><span><a class="vlink" href="' + esc(src) + '" target="_blank" rel="noopener">出處／參考照片 ↗</a></span></div>' : '') +
-        (String(x.note || '').trim() ? '<div class="trl"><i aria-hidden="true">📝</i><span>' + esc(x.note) + '</span></div>' : '') + trAddPanel(t, x) + '</div>';
+        (String(x.note || '').trim() ? '<div class="trl"><i aria-hidden="true">📝</i><span>' + esc(x.note) + '</span></div>' : '') + trAddPanel(t, x) + '</div></div>';
     };
     return '<section class="sec" id="trsec"><div class="sh"><h3>同款踩點' + '<small id="trprog">' + trProg(t) + '</small></h3></div>' +
       '<div class="spbar' + (pct === 100 ? ' full' : '') + '" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="同款踩點進度"><i style="width:' + pct + '%"></i></div>' +
-      undone.concat(done).map(card).join('') + '</section>';
+      (undone.length ? undone.map(card).join('') : '<p class="vempty">全部都打卡完成了 🎉</p>') +
+      (done.length ? '<details id="trdone" class="spdone"' + (trDoneOpen ? ' open' : '') + '><summary>已打卡<small>（' + done.length + '）</small></summary><div class="spdonebody">' + done.map(card).join('') + '</div></details>' : '') + '</section>';
   }
   function trailEdit(t){
     var list = t.trail || [];
@@ -4396,7 +4409,7 @@
       '<textarea' + a + ' data-k="note" aria-label="備註" placeholder="排隊狀況、注意事項…">' + esc(x.note || '') + '</textarea></div>';
   }
   var ckBarOpen = false;   // 行前清單摺疊列是否展開（重畫頁面時維持原狀）
-  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone' || el.id === 'spdone2') spDoneOpens[el.id === 'spdone2' ? '2' : ''] = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
+  document.addEventListener('toggle', function(e){ var el = e.target; if(!el) return; if(el.dataset && el.dataset.mgtg){ if(el.open) mgTagOpenId = el.dataset.mgtg; else if(mgTagOpenId === el.dataset.mgtg) mgTagOpenId = ''; } else if(el.id === 'mgaddd') mgAddOpen = el.open; else if(el.id === 'mgtf') mgTfOpen = el.open; else if(el.id === 'mgdone') mgDoneOpen = el.open; else if(el.id === 'recmore') recMoreOpen = el.open; else if(el.id === 'trdone') trDoneOpen = el.open; else if(el.id === 'ckbar') ckBarOpen = el.open; else if(el.id === 'spdone' || el.id === 'spdone2') spDoneOpens[el.id === 'spdone2' ? '2' : ''] = el.open; else if(el.dataset && el.dataset.sh){ if(el.open) shOpen[el.dataset.sh] = 1; else delete shOpen[el.dataset.sh]; } else if(el.dataset && el.dataset.tcd){ if(el.open) tcOpen[el.dataset.tcd] = 1; else delete tcOpen[el.dataset.tcd]; } }, true);
   function viewBody(t, fan){
     var nInfo = todayNext(t), nPick = nInfo && (nInfo.cur || nInfo.next);
     nxtMark = nPick ? { id:nPick.id, cur:!!nInfo.cur } : null;
@@ -4498,7 +4511,7 @@
       (exps.length && !xOpenNow ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細<span class="xhint">　點上方類別可只看該類別</span></span><span class="xtog"><button class="mini" type="button" data-do="xopen" aria-expanded="false">▸ 展開明細（' + exps.length + ' 筆）</button></span></div>' + splitBox(t) :
       exps.length ? '<div id="sum">' + sumHtml(t) + '</div><div class="ssub"><span class="xl">明細' + (catFilter === 'all' ? '<span class="xhint">　點上方類別可只看該類別</span>' : '　・　' + esc(catFilter) + '　<button class="mini" type="button" data-do="catf">顯示全部</button>') + '</span><span class="xtog">' + [['all','全部'],['day','依天數']].map(function(g){ return '<button class="mini" type="button" data-do="xgrp" data-g="' + g[0] + '" aria-pressed="' + (xGroup === g[0]) + '">' + g[1] + '</button>'; }).join('') + '<button class="mini" type="button" data-do="xclose" aria-expanded="true">▾ 收合</button></span></div><div class="xgrid">' + xBody + '</div>' + splitBox(t) : '<p class="vempty">還沒有花費紀錄，按右上角「編輯」新增。</p>') +
       '</section>';
-    if(fan) h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3">' + infoH + spotsView(t) + trailView(t) + '</div></div><div class="expbot">' + expH + '</div>';
+    if(fan) h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3">' + rightHtml(t, infoH) + '</div></div><div class="expbot">' + expH + '</div>';
     else h += '</div><div class="col c2">' + midHtml(t) + '</div><div class="col c3' + (xOpenNow ? '' : ' stk') + '">' + expH + wishView(t) + '</div></div>';
     return h;
   }
@@ -4635,7 +4648,7 @@
     var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
     var list = [];
     if(ck) list.push(['jump', ck, '清單', '✅']);
-    if(has('sec-info')) list.push(['jump', 'sec-info', '活動', '🎫']);
+    if(has('sec-info') || (has('rtabs') && !viewOnly)) list.push(['jump', 'sec-info', '活動', '🎫']);
     if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
     if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
     if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
@@ -4664,6 +4677,7 @@
     var nav = document.getElementById('secnav'); if(!nav) return;
     // 每日行程與購物在同一欄的不同分頁：另一個分頁的區塊也要能跳過去（唯讀分享頁沒有分頁）
     var tabbed = { 'sec-board':1, 'merchsec':1, 'recsec':1 };
+    if(!viewOnly && document.getElementById('rtabs')){ tabbed['sec-info'] = 1; tabbed['spsec'] = 1; tabbed['trsec'] = 1; }
     nav.innerHTML = SEC_NAV.filter(function(x){ return document.getElementById(x[0]) || (!viewOnly && tabbed[x[0]]); }).map(function(x){
       return '<button type="button" class="mini" data-do="jump" data-to="' + x[0] + '">' + x[1] + '</button>';
     }).join('');
@@ -5055,7 +5069,7 @@
     if(e.key !== 'Enter' && e.key !== ' ') return;
     var rw = e.target.classList && e.target.classList.contains('crow') ? e.target : null;
     if(rw){ e.preventDefault(); openModal(rw.dataset.open, rw.dataset.id, rw.dataset.day, false); return; }
-    if(e.target.classList && e.target.classList.contains('sphead')){ e.preventDefault(); e.target.click(); return; }
+    if(e.target.classList && (e.target.classList.contains('sphead') || e.target.classList.contains('trh'))){ e.preventDefault(); e.target.click(); return; }
     var cc = e.target.closest && e.target.closest('.ccard[data-cat]'); if(!cc) return;
     e.preventDefault(); toggleCat(cc.dataset.cat);
   });
@@ -5063,6 +5077,15 @@
     if(emodal && e.target === emodal){ requestCloseModal(); return; }
     var cc = e.target.closest('.ccard[data-cat]');
     if(cc && !editMode){ toggleCat(cc.dataset.cat); return; }
+    var trh = e.target.closest('.trh[data-trt]');
+    if(trh && !e.target.closest('input,a,button')){
+      var tid = trh.dataset.trt, tcard = trh.closest('.trc'), tbody = tcard && tcard.querySelector('.trbody'); trOpen[tid] = !trOpen[tid];
+      if(tcard) tcard.classList.toggle('open', !!trOpen[tid]);
+      if(tbody) tbody.hidden = !trOpen[tid];
+      trh.setAttribute('aria-expanded', String(!!trOpen[tid]));
+      var chv = trh.querySelector('.trchev'); if(chv) chv.style.transform = 'rotate(' + (trOpen[tid] ? 180 : 0) + 'deg)';
+      return;
+    }
     var sph = e.target.closest('.sphead');
     if(sph && !e.target.closest('input,a')){
       var sid = sph.dataset.spt, scard = sph.closest('.spv'); spOpen[sid] = !spOpen[sid];
@@ -5079,7 +5102,7 @@
     var act = b.dataset.do, newItemId = null;
     if(act === 'pdf'){ openPdfPick(t); return; }
     if(viewOnly && act === 'setme'){ t.me = (b.dataset.name && b.dataset.name !== t.me) ? b.dataset.name : ''; var sm2 = $('sum'); if(sm2) sm2.innerHTML = sumHtml(t); return; }      // 朋友的唯讀頁：只在這個畫面記住「我是誰」，不寫回雲端
-    if(viewOnly && ['ckinfo','sumview','ckclose','goto','jump','copy','copytrip','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
+    if(viewOnly && ['ckinfo','rtab','sumview','ckclose','goto','jump','copy','copytrip','catf','xopen','xclose','xgrp','dayf','spfilter','sptype'].indexOf(act) < 0) return;      // 唯讀頁面只處理「看」的按鈕
     var snapJson = UNDO_LABEL[act] ? JSON.stringify(t) : null;
     if(!snapJson) hideUndo();
     if(act === 'xpopen' || act === 'xpadd' || act === 'xpclr'){
@@ -5097,7 +5120,10 @@
       return;
     }
     if(act === 'sumview'){ sumView = b.dataset.v === 'mine' ? 'mine' : 'all'; var sumEl2 = $('sum'); if(sumEl2) sumEl2.innerHTML = sumHtml(t); return; }
+    if(act === 'rtab'){ rightTab = b.dataset.tab; renderDetail(); return; }
     if(act === 'jump'){
+      var rmap = { 'sec-info':'info', 'spsec':'spot', 'trsec':'trail' }, rjt = rmap[b.dataset.to];
+      if(rjt && rightTab !== rjt && document.getElementById('rtabs')){ rightTab = rjt; renderDetail(); }
       var jto = b.dataset.to, wantTab = jto === 'sec-board' ? 'plan' : (jto === 'merchsec' || jto === 'recsec') ? 'shop' : '';
       if(wantTab && !viewOnly && midTab !== wantTab){ midTab = wantTab; renderDetail(); }      // 先切到對的分頁再捲過去
       var jt = document.getElementById(b.dataset.to);
@@ -5113,6 +5139,7 @@
       if(b.dataset.day){ midTab = 'plan'; if(dayFilter !== 'all') dayFilter = b.dataset.day; renderDetail(); }
       // 花費明細預設收合（或被類別篩掉）：要跳過去的卡片不在畫面上時，先展開全部
       if(/^lk-exp-/.test(b.dataset.to || '') && !document.getElementById(b.dataset.to)){ xOpen = true; catFilter = 'all'; renderDetail(); }
+      if(/^lk-sp-/.test(b.dataset.to || '') && rightTab !== 'spot' && document.getElementById('rtabs')){ rightTab = 'spot'; renderDetail(); }
       if(/^lk-sp-/.test(b.dataset.to || '')){      // 要跳去的打卡點若收合或被「只看未打卡」藏起來，先展開
         var gsid = String(b.dataset.to).slice(6), gsx = byId(t.spots, gsid);
         if(gsx){ var gl = gsx.list || ''; spOpen[gsid] = true; if(gsx.done) spDoneOpens[gl] = true; if(spTypes[gl] && (gsx.type || '其他') !== spTypes[gl]) spTypes[gl] = ''; spRefresh(t); }
