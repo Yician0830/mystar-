@@ -2660,7 +2660,7 @@
     if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.rtime) && e(x.party) && !x.rainPlan && e(x.time) && e(x.intro) && e(x.feat) && e(x.nst) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); }) && (x.shops || []).every(function(y){ return e(y.name) && e(y.note) && !y.done; }) && (x.steps || []).every(function(y){ return e(y.label) && e(y.text); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
-    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.host) && e(x.post) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
+    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.host) && e(x.post) && e(x.img) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
     if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.norange) && e(x.balance) && e(x.deposit);
     return e(x.name) && e(x.amount);
   }
@@ -4336,9 +4336,9 @@
     var doneN = all.filter(function(x){ return x.done; }).length;
     var pct = all.length ? Math.round(doneN / all.length * 100) : 0;
     var cardOf = function(x){
-        var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x, 'txt'), tail = spWhen(x, 'tail');
+        var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', wn = spWhen(x, 'txt'), tail = spWhen(x, 'tail'), imgU = safeUrl(x.img);
         var open = !!spOpen[x.id];
-        var body = (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
+        var body = (imgU ? '<div class="spimg"><a href="' + esc(imgU) + '" target="_blank" rel="noopener" title="點一下開啟原圖"><img src="' + esc(imgU) + '" alt="' + esc(x.name || '') + ' 參考照片" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.spimg\').remove()"></a></div>' : '') + (wn ? '<div class="btime stime spwhen">' + wn + '</div>' : '') +
           ((spBook(x) && (x.reserve || x.walkin)) ? '<div class="spchips">' + (x.reserve ? '<span class="spchip ' + rsvCls(rsvSt(x)) + '">需先預約・' + esc(rsvSt(x)) + '</span>' : '') + (x.walkin ? '<span class="spchip ok">開放現場名額</span>' : '') +
             ((rsvOn(x) && !rslOn(x) && safeUrl(x.rsvLink)) ? '<a class="spchip spgo" href="' + esc(safeUrl(x.rsvLink)) + '" target="_blank" rel="noopener">預約頁面 ↗</a>' : '') + '</div>' : '') +
           ((x.addr || map) ? '<div class="vtext addrline">' + (x.addr ? esc(x.addr) : '') + (map ? (x.addr ? ' ' : '') + '<a class="vlink" href="' + esc(map) + '" target="_blank" rel="noopener">在地圖開啟</a>' : '') + '</div>' : '') +
@@ -4353,6 +4353,7 @@
           '<div class="sphead spk" role="button" tabindex="0" aria-expanded="' + open + '" data-spt="' + x.id + '" title="點一下展開／收合">' +
             '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
             '<b class="bname" title="' + esc(x.type || '其他') + '">' + (x.name ? esc(plainName(x.name)) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
+            (imgU ? '<img class="spthumb" src="' + esc(imgU) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') +
             '<span class="spchev" aria-hidden="true">▾</span>' +
             ((rsvOn(x) && !x.done) || tail ? '<div class="spsub" style="background:none;border:0;box-shadow:none;padding:0">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + (rslHas(x) ? ' ' + rslText(x) : '') + '</span>' : '') + (tail ? '<span class="sptail" style="background:none;border:0;box-shadow:none;padding:0">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
@@ -4450,6 +4451,7 @@
       '<input' + a + ' data-k="perk" aria-label="特典" placeholder="特典，例如：點飲品送小卡、需先預約" value="' + esc(x.perk || '') + '">' +
       '<input' + a + ' data-k="host" autocomplete="off" aria-label="主辦人帳號" placeholder="主辦人帳號，例如：@xxx_support" value="' + esc(x.host || '') + '">' +
       '<input' + a + ' data-k="post" inputmode="url" autocomplete="off" aria-label="文章連結" placeholder="文章連結（貼上活動貼文網址，檢視時可一鍵開啟）" value="' + esc(x.post || '') + '">' +
+      '<input' + a + ' data-k="img" inputmode="url" autocomplete="off" aria-label="參考照片網址" placeholder="參考照片圖片網址（選填，會顯示縮圖）" value="' + esc(x.img || '') + '">' +
       '<input' + a + ' data-k="hours" aria-label="活動時間" placeholder="活動時間，例如：每日 10:00–22:00" value="' + esc(x.hours || '') + '">' +
       lkExpHtml(cur(), 'sp', '', x) +
       '<div class="spflags">' +
@@ -5623,7 +5625,7 @@
       var shd = fanShows(t, true), shT = shd.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       t.fanInfo.shows = shd.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addsp'){
-      t.spots.unshift({ id:uid(), list:(b.dataset.l || ''), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', host:'', post:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
+      t.spots.unshift({ id:uid(), list:(b.dataset.l || ''), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', host:'', post:'', img:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });

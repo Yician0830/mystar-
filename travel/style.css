@@ -1274,3 +1274,11 @@ html[data-theme="dark"] .dx .rbk{background:rgba(127,180,220,0.10);}
   .trimg a{display:block; line-height:0;}
   .trimg img{display:block; max-width:100%; max-height:180px; object-fit:cover; border:1px solid var(--line); background:var(--paper);}
   @media (max-width:600px){ .trh .trthumb{width:32px; height:32px;} .trimg{margin-left:0;} }
+
+  /* 應援打卡點：參考照片（收合時右側小縮圖，展開後顯示大圖） */
+  .spv .sphead .spthumb{flex:0 0 auto; width:30px; height:30px; object-fit:cover; border:1px solid var(--line); background:var(--paper); margin-left:auto;}
+  .spv .sphead .spthumb + .spsub{margin-left:0;}
+  .spv .spimg{margin-left:34px;}
+  .spv .spimg a{display:block; line-height:0;}
+  .spv .spimg img{display:block; max-width:100%; max-height:180px; object-fit:cover; border:1px solid var(--line); background:var(--paper);}
+  @media (max-width:600px){ .spv .sphead .spthumb{width:28px; height:28px;} .spv .spimg{margin-left:0;} }
