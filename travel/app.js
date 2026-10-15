@@ -4286,17 +4286,24 @@
     spTypes[lid] = spType;
     var inType = function(x){ return !spType || (x.type || '其他') === spType; };
     // 未打卡的在前、已打卡的沉到最下面（各自維持原本順序）
-    var sp = all.map(function(x, i){ return { x:x, i:i }; }).filter(function(o){ return !o.x.done && inType(o.x); })
-      .sort(function(a, b){   // 同類型排在一起（依類型順序）；同類型內：已過期未打卡的最先；
+    var spStarted = function(x){ var f = x.from; if(!f || !toDate(f)) return false; var l2 = dueLeft(toDate(f)); return !!l2 && l2.n <= 0; };   // 已開始（開始日已到）
+    var pend = all.map(function(x, i){ return { x:x, i:i }; }).filter(function(o){ return !o.x.done && inType(o.x); });
+    var grpStarted = {};      // 該類型裡只要有「已開始」的，整組就改用開始時間排序；全部都還沒開始就用名稱排序
+    pend.forEach(function(o){ if(spStarted(o.x)) grpStarted[o.x.type || '其他'] = true; });
+    var sp = pend
+      .sort(function(a, b){   // 同類型排在一起（依類型順序）
         var ta = SPOT_TYPES.indexOf(a.x.type || '其他'), tb = SPOT_TYPES.indexOf(b.x.type || '其他');
         if(ta !== tb) return (ta < 0 ? 99 : ta) - (tb < 0 ? 99 : tb);
-        // 其餘依開始日由近到遠（沒開始日就用結束日）、沒填日期的排最後；同一天「未預約」優先
-        var la = spLate(a.x) ? 0 : 1, lb = spLate(b.x) ? 0 : 1;
+        var la = spLate(a.x) ? 0 : 1, lb = spLate(b.x) ? 0 : 1;      // 已結束還沒打卡的最先
         if(la !== lb) return la - lb;
-        var ka = a.x.from || a.x.to || '9999-99-99', kb = b.x.from || b.x.to || '9999-99-99';
-        if(ka !== kb) return ka < kb ? -1 : 1;
-        var ra = (rsvOn(a.x) && rsvSt(a.x) === '未預約') ? 0 : 1, rb = (rsvOn(b.x) && rsvSt(b.x) === '未預約') ? 0 : 1;
-        return ra !== rb ? ra - rb : a.i - b.i;
+        if(grpStarted[a.x.type || '其他']){
+          // 有已開始的：依開始日由近到遠（沒開始日就用結束日）、沒填日期的排最後
+          var ka = a.x.from || a.x.to || '9999-99-99', kb = b.x.from || b.x.to || '9999-99-99';
+          if(ka !== kb) return ka < kb ? -1 : 1;
+        }
+        // 全部都未開始（或開始時間相同）：依名稱排序
+        var nc = String(a.x.name || '').localeCompare(String(b.x.name || ''), 'zh-Hant');
+        return nc || (a.i - b.i);
       }).map(function(o){ return o.x; });
     var dn = all.filter(function(x){ return x.done && inType(x); }).map(function(x, i){ return { x:x, i:i }; }).sort(function(a, b){ var ta = SPOT_TYPES.indexOf(a.x.type || '其他'), tb = SPOT_TYPES.indexOf(b.x.type || '其他'); return ((ta < 0 ? 99 : ta) - (tb < 0 ? 99 : tb)) || (a.i - b.i); }).map(function(o){ return o.x; });   // 已打卡的收進最下面的摺疊區
     var doneN = all.filter(function(x){ return x.done; }).length;
@@ -4368,11 +4375,12 @@
     var undone = byType(all.filter(function(x){ return !x.done; })), done = byType(all.filter(function(x){ return x.done; }));
     var doneN = done.length, pct = all.length ? Math.round(doneN / all.length * 100) : 0;
     var card = function(x){
-      var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', src = safeUrl(x.src);
+      var q = (x.addr || x.name || '').trim(), map = q ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q) : '', src = safeUrl(x.src), imgU = safeUrl(x.img);
       var who = String(x.when || '').trim() ? esc(String(x.when).trim()) : '';   // 誰去過已顯示在標題列，展開後只補「何時／哪個節目」
       var open = !!trOpen[x.id];
       return '<div class="trc' + (x.done ? ' done' : '') + (open ? ' open' : '') + '" id="lk-tr-' + x.id + '" style="border-left-color:' + trColor(x.type || '其他') + '"><div class="trh" role="button" tabindex="0" aria-expanded="' + open + '" data-trt="' + x.id + '" title="點一下展開／收合" style="cursor:pointer"><input type="checkbox" data-tr="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
-        '<span style="flex:1;min-width:0"><b>' + esc(x.name) + '</b>' + (String(x.who || '').trim() ? '<small class="trwho" style="display:block;font-weight:600;opacity:.75;margin-top:2px">👤 ' + esc(String(x.who).trim()) + '</small>' : '') + '</span><span class="trtag"' + trTagStyle(x.type || '其他') + '>' + esc(x.type || '其他') + '</span><span class="trchev" aria-hidden="true" style="margin-left:6px;display:inline-block;transition:transform .15s;transform:rotate(' + (open ? '180' : '0') + 'deg)">▾</span></div><div class="trbody"' + (open ? '' : ' hidden') + '>' +
+        '<span style="flex:1;min-width:0"><b>' + esc(x.name) + '</b>' + (String(x.who || '').trim() ? '<small class="trwho" style="display:block;font-weight:600;opacity:.75;margin-top:2px">👤 ' + esc(String(x.who).trim()) + '</small>' : '') + '</span>' + (imgU ? '<img class="trthumb" src="' + esc(imgU) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') + '<span class="trtag"' + trTagStyle(x.type || '其他') + '>' + esc(x.type || '其他') + '</span><span class="trchev" aria-hidden="true" style="margin-left:6px;display:inline-block;transition:transform .15s;transform:rotate(' + (open ? '180' : '0') + 'deg)">▾</span></div><div class="trbody"' + (open ? '' : ' hidden') + '>' +
+        (imgU ? '<div class="trimg"><a href="' + esc(imgU) + '" target="_blank" rel="noopener" title="點一下開啟原圖"><img src="' + esc(imgU) + '" alt="' + esc(x.name || '') + ' 參考照片" loading="lazy" referrerpolicy="no-referrer" onerror="this.closest(\'.trimg\').remove()"></a></div>' : '') +
         (who ? '<div class="trl"><i aria-hidden="true">👤</i><span>' + who + '</span></div>' : '') +
         (String(x.dish || '').trim() ? '<div class="trl"><i aria-hidden="true">🍽</i><span><b>同款美食</b>　' + esc(x.dish) + '</span></div>' : '') +
         (String(x.shot || '').trim() ? '<div class="trl"><i aria-hidden="true">📷</i><span><b>同款拍法</b>　' + esc(x.shot) + '</span></div>' : '') +
@@ -4398,6 +4406,7 @@
           '<div class="r2 eq"><input' + a + ' data-k="dish" aria-label="同款美食" placeholder="同款美食（點了什麼）" value="' + esc(x.dish || '') + '"><input' + a + ' data-k="shot" aria-label="同款拍法" placeholder="同款拍法（角度、位置）" value="' + esc(x.shot || '') + '"></div>' +
           '<input' + a + ' data-k="addr" aria-label="地址" placeholder="地址（檢視時可一鍵開地圖）" value="' + esc(x.addr || '') + '">' +
           '<input' + a + ' data-k="src" inputmode="url" aria-label="出處連結" placeholder="出處／參考照片連結（選填）" value="' + esc(x.src || '') + '">' +
+          '<input' + a + ' data-k="img" inputmode="url" aria-label="參考照片網址" placeholder="參考照片圖片網址（選填，會顯示縮圖）" value="' + esc(x.img || '') + '">' +
           '<input' + a + ' data-k="note" aria-label="備註" placeholder="備註（營業時間、要不要預約…）" value="' + esc(x.note || '') + '"></div>';
       }).join('') : '<div class="empty">還沒有同款踩點。按「＋ 新增一筆」開始記。</div>') + '</section>';
   }
@@ -5612,7 +5621,7 @@
         if(!have2[tx]) t.checklist.push({ id:uid(), text:tx, done:false });
       });
     } else if(act === 'addtr'){
-      t.trail.unshift({ id:uid(), type:'美食', who:'', when:'', name:'', dish:'', shot:'', addr:'', src:'', note:'', done:false });
+      t.trail.unshift({ id:uid(), type:'美食', who:'', when:'', name:'', dish:'', shot:'', addr:'', src:'', img:'', note:'', done:false });
     } else if(act === 'deltr'){
       t.trail = t.trail.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'setme'){
