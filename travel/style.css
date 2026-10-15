@@ -1248,3 +1248,7 @@ html[data-theme="dark"] .dx .rbk{background:rgba(127,180,220,0.10);}
 
   /* 打卡點標題列的「未開始／已開始」：不要底色與外框（只留文字顏色） */
   .spv .sphead .dueok.on,.spv .sphead .dueok.off,html[data-theme="dark"] .spv .sphead .dueok.on,html[data-theme="dark"] .spv .sphead .dueok.off{background:none !important; border:0 !important; padding:0 !important;}
+
+  /* 打卡點展開後的「主辦人帳號／活動文章」：跟日期、地址對齊（同樣縮排 34px） */
+  .spv .sphost,.spv .sppost{margin-left:34px;}
+  .spv .sphost .spk-ico,.spv .sppost .spk-ico{display:inline-block; width:18px; margin-right:4px; text-align:center; font-size:12px;}
