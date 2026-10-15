@@ -374,7 +374,7 @@
     var a = [t.title, t.place, t.event, t.note];
     (t.bookings || []).forEach(function(x){ a.push(x.name, x.code, x.note, x.seat, x.term); });
     (t.stays || []).forEach(function(x){ a.push(x.name, x.address, x.note); });
-    (t.spots || []).forEach(function(x){ a.push(x.name, x.addr, x.perk, x.note); });
+    (t.spots || []).forEach(function(x){ a.push(x.name, x.addr, x.perk, x.host, x.note); });
     (t.trail || []).forEach(function(x){ a.push(x.name, x.who, x.addr, x.dish, x.shot, x.note); });
     (t.tcards || []).forEach(function(x){ a.push(x.name, x.range, x.norange, x.note); });
     return a.filter(Boolean).join(' ').toLowerCase();
@@ -2660,7 +2660,7 @@
     if(c.kind === 'it') return e(x.title) && e(x.note) && e(x.place) && e(x.rtime) && e(x.party) && !x.rainPlan && e(x.time) && e(x.intro) && e(x.feat) && e(x.nst) && e(x.open) && e(x.close) && e(x.open2) && e(x.close2) && (!x.hmode || x.hmode === 'fixed') && !(x.closed || []).length && e(x.closedNote) && e(x.fare) && (x.dishes || []).every(function(y){ return e(y.name) && e(y.price); }) && (x.shops || []).every(function(y){ return e(y.name) && e(y.note) && !y.done; }) && (x.steps || []).every(function(y){ return e(y.label) && e(y.text); });
     if(c.kind === 'bk') return e(x.name) && e(x.code) && e(x.note) && e(x.time) && e(x.ckWay) && e(x.ckOpen) && e(x.ckDue) && e(x.seat) && e(x.bag) && e(x.term) && (!x.ckState || x.ckState === '未報到');
     if(c.kind === 'st') return e(x.name) && e(x.address) && e(x.code) && e(x.note);
-    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
+    if(c.kind === 'sp') return e(x.name) && e(x.addr) && e(x.perk) && e(x.host) && e(x.post) && e(x.note) && !x.reserve && !x.walkin && e(x.rsvLink) && e(x.rsvDate) && e(x.rsvTime) && e(x.hours);
     if(c.kind === 'tc') return e(x.name) && e(x.note) && e(x.range) && e(x.norange) && e(x.balance) && e(x.deposit);
     return e(x.name) && e(x.amount);
   }
@@ -3252,6 +3252,11 @@
   function rslHas(x){ return rslOn(x) && !!(String(x.rsvDate || '').trim() || String(x.rsvTime || '').trim()); }
   function rslText(x, full){ return (x.rsvDate ? esc(d(x.rsvDate)) + (full ? esc(wk(x.rsvDate)) : '') : '') + (x.rsvTime ? (x.rsvDate ? ' ' : '') + esc(tm12(x.rsvTime)) : ''); }
   function rsvCls(st){ return st === '已預約' ? 'rs-ok' : st === '候補' ? 'rs-wait' : 'rs-no'; }
+  function spHostHtml(x){   // 主辦人帳號：一般文字照原樣顯示；貼的是網址就變成可點的連結
+    var h = String(x.host || '').trim(); if(!h) return '';
+    var u = /^(https?:\/\/|www\.)/i.test(h) ? safeUrl(h) : '';
+    return u ? '<a class="vlink" href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(h.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')) + '</a>' : '<span class="sphostn">' + esc(h) + '</span>';
+  }
   function spProg(t, lid){ var a = (t.spots || []).filter(function(x){ return (x.list || '') === (lid || ''); }); return a.filter(function(x){ return x.done; }).length + '／' + a.length; }
   function spWhen(x, part){      // part：'txt' 只回日期、'tail' 只回倒數膠囊、省略＝兩者
     var f = x.from, e = x.to; if(!f && !e) return '';
@@ -3295,6 +3300,8 @@
     if(rslHas(x)) notes.push('預約場次：' + rslText(x).replace(/&amp;/g, '&'));
     if(String(x.hours || '').trim()) notes.push('活動時間：' + String(x.hours).trim());
     if(String(x.perk || '').trim()) notes.push('特典：' + String(x.perk).trim());
+    if(String(x.host || '').trim()) notes.push('主辦：' + String(x.host).trim());
+    if(safeUrl(x.post)) notes.push('文章：' + safeUrl(x.post));
     if(String(x.note || '').trim()) notes.push(String(x.note).trim());
     it.note = notes.join('\n');
     return it;
@@ -4304,6 +4311,8 @@
           (rslHas(x) ? '<div class="vtext sphours"><span class="spk-lbl">預約場次</span>' + rslText(x, true) + '</div>' : '') +
           (String(x.hours || '').trim() ? '<div class="vtext sphours"><span class="spk-lbl">活動時間</span>' + esc(x.hours) + '</div>' : '') +
           (x.perk ? '<div class="vtext spperk"><span class="spk-ico">🎁</span>' + esc(x.perk) + '</div>' : '') +
+          (spHostHtml(x) ? '<div class="vtext sphost"><span class="spk-ico">👤</span>' + spHostHtml(x) + '</div>' : '') +
+          (safeUrl(x.post) ? '<div class="vtext sppost"><span class="spk-ico">🔗</span><a class="vlink" href="' + esc(safeUrl(x.post)) + '" target="_blank" rel="noopener">活動文章 ↗</a></div>' : '') +
           (x.note ? '<div class="vtext spnote">' + esc(x.note) + '</div>' : '') +
           lkRow(t, x, 'lkSpot') + spAddPanel(t, x);
         return '<div class="bk v spv' + (x.done ? ' done' : '') + (spLate(x) ? ' late' : '') + (open ? ' open' : '') + '" data-t="' + esc(x.type || '其他') + '" id="lk-sp-' + x.id + '">' +
@@ -4403,6 +4412,8 @@
       '<label>結束<input type="date"' + a + ' data-k="to" min="' + esc(x.from || '') + '" value="' + esc(x.to || '') + '"></label></div>' +
       '<input' + a + ' data-k="addr" aria-label="地址" placeholder="地址（貼上地圖上的地址，檢視時可一鍵開地圖）" value="' + esc(x.addr || '') + '">' +
       '<input' + a + ' data-k="perk" aria-label="特典" placeholder="特典，例如：點飲品送小卡、需先預約" value="' + esc(x.perk || '') + '">' +
+      '<input' + a + ' data-k="host" autocomplete="off" aria-label="主辦人帳號" placeholder="主辦人帳號，例如：@xxx_support" value="' + esc(x.host || '') + '">' +
+      '<input' + a + ' data-k="post" inputmode="url" autocomplete="off" aria-label="文章連結" placeholder="文章連結（貼上活動貼文網址，檢視時可一鍵開啟）" value="' + esc(x.post || '') + '">' +
       '<input' + a + ' data-k="hours" aria-label="活動時間" placeholder="活動時間，例如：每日 10:00–22:00" value="' + esc(x.hours || '') + '">' +
       lkExpHtml(cur(), 'sp', '', x) +
       '<div class="spflags">' +
@@ -5575,7 +5586,7 @@
       var shd = fanShows(t, true), shT = shd.filter(function(x){ return String(x.id) === b.dataset.id; })[0];
       t.fanInfo.shows = shd.filter(function(x){ return String(x.id) !== b.dataset.id; });
     } else if(act === 'addsp'){
-      t.spots.unshift({ id:uid(), list:(b.dataset.l || ''), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
+      t.spots.unshift({ id:uid(), list:(b.dataset.l || ''), type:'咖啡廳', name:'', from:'', to:'', addr:'', perk:'', host:'', post:'', note:'', reserve:false, walkin:false, rsvStatus:'', rsvLink:'', rsvDate:'', rsvTime:'', hours:'', done:false });
     } else if(act === 'delsp'){
       var spd = byId(t.spots, b.dataset.id);
       t.spots = t.spots.filter(function(x){ return String(x.id) !== b.dataset.id; });

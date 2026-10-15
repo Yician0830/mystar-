@@ -1245,3 +1245,6 @@ html[data-theme="dark"] .dx .rbk{background:rgba(127,180,220,0.10);}
 /* ---- 還能花的當地現金預估 ---- */
 .ccard .cjp{grid-column:1 / -1; text-align:right; font-size:11px; font-weight:600; color:var(--ink-faint); font-variant-numeric:tabular-nums;}
 .approx.cjpt{font-weight:600;}
+
+  /* 打卡點標題列的「未開始／已開始」：不要底色與外框（只留文字顏色） */
+  .spv .sphead .dueok.on,.spv .sphead .dueok.off,html[data-theme="dark"] .spv .sphead .dueok.on,html[data-theme="dark"] .spv .sphead .dueok.off{background:none !important; border:0 !important; padding:0 !important;}
