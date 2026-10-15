@@ -1252,3 +1252,11 @@ html[data-theme="dark"] .dx .rbk{background:rgba(127,180,220,0.10);}
   /* 打卡點展開後的「主辦人帳號／活動文章」：跟日期、地址對齊（同樣縮排 34px） */
   .spv .sphost,.spv .sppost{margin-left:34px;}
   .spv .sphost .spk-ico,.spv .sppost .spk-ico{display:inline-block; width:18px; margin-right:4px; text-align:center; font-size:12px;}
+
+  /* 待辦提醒框的捲軸：平常隱形，滑鼠移上去才淡淡出現（跟右側欄一致） */
+  .duebox{scrollbar-width:thin; scrollbar-color:transparent transparent;}
+  .duebox:hover{scrollbar-color:var(--line-strong) transparent;}
+  .duebox::-webkit-scrollbar{width:6px;}
+  .duebox::-webkit-scrollbar-track{background:transparent;}
+  .duebox::-webkit-scrollbar-thumb{background:transparent; border-radius:99px;}
+  .duebox:hover::-webkit-scrollbar-thumb{background:var(--line-strong);}
