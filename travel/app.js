@@ -4353,7 +4353,6 @@
           '<div class="sphead spk" role="button" tabindex="0" aria-expanded="' + open + '" data-spt="' + x.id + '" title="點一下展開／收合">' +
             '<input type="checkbox" data-sp="' + x.id + '" data-k="done"' + (x.done ? ' checked' : '') + ' aria-label="已打卡">' +
             '<b class="bname" title="' + esc(x.type || '其他') + '">' + (x.name ? esc(plainName(x.name)) : '<span class="muted">（尚未填寫）</span>') + '</b>' +
-            (imgU ? '<img class="spthumb" src="' + esc(imgU) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">' : '') +
             '<span class="spchev" aria-hidden="true">▾</span>' +
             ((rsvOn(x) && !x.done) || tail ? '<div class="spsub" style="background:none;border:0;box-shadow:none;padding:0">' + (rsvOn(x) && !x.done ? '<span class="sprs ' + rsvCls(rsvSt(x)) + '">' + esc(rsvSt(x)) + (rslHas(x) ? ' ' + rslText(x) : '') + '</span>' : '') + (tail ? '<span class="sptail" style="background:none;border:0;box-shadow:none;padding:0">' + tail + '</span>' : '') + '</div>' : '') + '</div>' +
           (body ? '<div class="spdetail">' + body + '</div>' : '') + '</div>';
