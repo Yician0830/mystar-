@@ -3964,7 +3964,8 @@
         (metroMsg ? '<p class="hint">' + esc(metroMsg) + '</p>' : '')) + (metroNote && !metroMsg ? '<p class="hint">' + esc(metroNote) + '</p>' : '') + metroAddHtml(t) + '</section>';
   }
   // 中間欄：每日行程／購物・必買 分頁（分享給朋友的唯讀頁面沒有購物分頁）
-  var midTab = 'plan', rightTab = 'info';   // 追星旅程右欄：info 活動資訊／spot 應援打卡點／trail 同款踩點
+  var leftTab = '', midTab = 'plan', rightTab = 'info';   // leftTab：編輯模式左欄分頁
+    // 追星旅程右欄：info 活動資訊／spot 應援打卡點／trail 同款踩點
   function rightHtml(t, infoH){
     var parts = [['info', '活動資訊', infoH, ''], ['spot', '應援打卡點', spotsView(t), (t.spots || []).length ? spProg(t, '') : ''], ['trail', '同款踩點', trailView(t), (t.trail || []).some(trNamed) ? trProg(t) : '']];
     if(viewOnly) parts = parts.filter(function(x){ return String(x[2] || '').trim(); });
@@ -4319,8 +4320,8 @@
       (sp.length ? sp.map(cardOf).join('') : '<p class="vempty">' + (all.length ? (dn.length ? (spType ? '這個類型都打卡完成了 🎉' : '全部都打卡完成了 🎉') : '這個類型沒有符合的項目') : '還沒有打卡點，按右上角「編輯」新增：生日咖啡廳、地鐵廣告、快閃店、展覽…') + '</p>') + doneHtml + '</section>';
   }
   // ---- 同款踩點：藝人以前來過的店家／景點，去打卡拍同款照片、吃同款美食（跟應援打卡點是不同的東西）----
-  var TR_TYPES = ['美食', '咖啡甜點', '景點', '購物', '其他'];
-  var TR2IT = { '美食':'美食', '咖啡甜點':'美食', '景點':'景點', '購物':'購物', '其他':'其他' };
+  var TR_TYPES = ['美食', '咖啡甜點', '景點', '購物', '飯店', '其他'];
+  var TR2IT = { '美食':'美食', '咖啡甜點':'美食', '景點':'景點', '購物':'購物', '飯店':'住宿', '其他':'其他' };
   function trToItem(x){      // 同款踩點 → 行程項目：名稱、地點、誰去過、同款美食／拍法都帶進備註
     var it = newItem(), notes = [], who = [x.who, x.when].filter(function(v){ return String(v || '').trim(); }).map(function(v){ return String(v).trim(); }).join('・');
     it.title = plainName(x.name || ''); it.cat = TR2IT[x.type] || '其他'; it.place = plainName(x.addr || x.name || ''); it.lkTr = x.id;
@@ -4516,10 +4517,13 @@
     return h;
   }
   // 編輯模式：原本的輸入框版面
+  function h0slice(str, a, b){ return str.slice(a, b); }
   function editBody(t, fan){
     var h = '';
     h += '<div class="cols"><div class="col c1">';
+    var c1Start = h.length, marks = [];
     if(fan){
+      marks.push(['info', '活動資訊', h.length]);
       var shows = fanShows(t, true), fi = t.fanInfo || {}, smode = saleMode(fi), sml = SALE_MODES[smode];
       var FI = function(label, type, key, full){
         return '<label' + (full ? ' class="full"' : '') + '>' + label + '<input type="' + type + '" data-f="1" data-k="' + key + '" value="' + esc(fi[key] || '') + '"></label>';
@@ -4541,6 +4545,7 @@
         '<button class="mini" type="button" data-do="openlink">開啟</button></div></label>' +
         '</div></section>';
     }
+    marks.push(['trip', '預訂・住宿・交通', h.length]);
     h += '<section class="sec"><div class="sh"><h3>預訂資料</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="addbk">＋ 新增一筆</button></div></div>' +
       (t.bookings.length ? t.bookings.map(function(x){
@@ -4558,6 +4563,7 @@
     h += tcEditSec(t);
 
     if(fan){
+      marks.push(['spot', '打卡點・踩點', h.length]);
       var spEditSec = function(lid){
         var list = t.spots.filter(function(x){ return (x.list || '') === lid; });
         return '<section class="sec" id="sec-sp' + lid + '"><div class="sh"><h3>' + (lid ? esc(spList2Name(t)) : '應援打卡點') + (list.length ? '<small>' + spProg(t, lid) + '</small>' : '') + '</h3><div class="btns">' +
@@ -4571,6 +4577,7 @@
     }
 
 
+    marks.push(['ck', '清單・打包', h.length]);
     h += '<section class="sec" id="sec-ck"><div class="sh"><h3>行前清單' + (t.checklist.length ? '<small id="prog">' + prog(t) + '</small>' : '') + '</h3><div class="btns">' +
       '<button class="mini" type="button" data-do="tpl">套用' + (fan ? '追星' : '旅遊') + '範本</button>' +
       '<button class="mini" type="button" data-do="addck">＋ 新增一項</button></div></div>' +
@@ -4583,6 +4590,12 @@
       '</section>';
     h += packEditHtml(t);
 
+    var c1All = h.slice(c1Start); h = h.slice(0, c1Start);
+    var segs = marks.map(function(m, i){ return { k:m[0], l:m[1], html:h0slice(c1All, m[2] - c1Start, i + 1 < marks.length ? marks[i + 1][2] - c1Start : c1All.length) }; });
+    if(!segs.some(function(x){ return x.k === leftTab; })) leftTab = segs[0].k;
+    h += '<div id="ltabs" class="sptypes midtabs" role="group" aria-label="切換左欄內容">' + segs.map(function(x){
+      return '<button class="mini" type="button" data-do="ltab" data-tab="' + x.k + '" aria-pressed="' + (leftTab === x.k) + '">' + x.l + '</button>';
+    }).join('') + '</div>' + segs.filter(function(x){ return x.k === leftTab; })[0].html;
     h += '</div><div class="col c2">' + boardHtml(t, true) + '</div><div class="col c3">';
     var cur0 = t.currency || 'TWD';
     h += '<section class="sec" id="sec-exp"><div class="sh"><h3>花費</h3><div class="btns">' +
@@ -4648,7 +4661,7 @@
     var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
     var list = [];
     if(ck) list.push(['jump', ck, '清單', '✅']);
-    if(has('sec-info') || (has('rtabs') && !viewOnly)) list.push(['jump', 'sec-info', '活動', '🎫']);
+    if(has('sec-info') || (has('rtabs') && !viewOnly) || !!document.querySelector('#ltabs [data-tab="info"]')) list.push(['jump', 'sec-info', '活動', '🎫']);
     if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
     if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
     if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
@@ -5120,9 +5133,12 @@
       return;
     }
     if(act === 'sumview'){ sumView = b.dataset.v === 'mine' ? 'mine' : 'all'; var sumEl2 = $('sum'); if(sumEl2) sumEl2.innerHTML = sumHtml(t); return; }
+    if(act === 'ltab'){ leftTab = b.dataset.tab; renderDetail(); return; }
     if(act === 'rtab'){ rightTab = b.dataset.tab; renderDetail(); return; }
     if(act === 'jump'){
-      var rmap = { 'sec-info':'info', 'spsec':'spot', 'trsec':'trail' }, rjt = rmap[b.dataset.to];
+      var lmap = { 'sec-info':'info', 'sec-ck':'ck', 'sec-sp':'spot', 'sec-tr':'spot' }, ljt = editMode && lmap[b.dataset.to];
+      if(ljt && leftTab !== ljt && document.getElementById('ltabs')){ leftTab = ljt; renderDetail(); }
+      var rmap = { 'sec-info':'info', 'spsec':'spot', 'trsec':'trail' }, rjt = !editMode && rmap[b.dataset.to];
       if(rjt && rightTab !== rjt && document.getElementById('rtabs')){ rightTab = rjt; renderDetail(); }
       var jto = b.dataset.to, wantTab = jto === 'sec-board' ? 'plan' : (jto === 'merchsec' || jto === 'recsec') ? 'shop' : '';
       if(wantTab && !viewOnly && midTab !== wantTab){ midTab = wantTab; renderDetail(); }      // 先切到對的分頁再捲過去
