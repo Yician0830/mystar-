@@ -3293,18 +3293,45 @@
       '<button class="mini spadd-go" type="button" data-do="spaddgo" data-id="' + x.id + '">加入</button></div></div>';
   }
   function spToItem(x){
-    var it = newItem(), notes = [];
+    var it = newItem();
     it.title = plainName(x.name || ''); it.cat = SP2IT[x.type] || '其他'; it.place = plainName(x.addr || x.name || ''); it.lkSpot = x.id;
     if(rsvOn(x)) it.status = rsvSt(x) === '已預約' ? '已預訂' : rsvSt(x) === '未預約' ? '未預訂' : '';
     else if(spBook(x) && x.walkin) it.status = '現場候位';
+    it.spGen = spNoteLines(x).join('\n');
+    it.note = it.spGen;
+    return it;
+  }
+  // 打卡點帶進行程的備註行（預約場次／活動時間／特典／主辦／文章／備註）
+  function spNoteLines(x){
+    var notes = [];
     if(rslHas(x)) notes.push('預約場次：' + rslText(x).replace(/&amp;/g, '&'));
     if(String(x.hours || '').trim()) notes.push('活動時間：' + String(x.hours).trim());
     if(String(x.perk || '').trim()) notes.push('特典：' + String(x.perk).trim());
     if(String(x.host || '').trim()) notes.push('主辦：' + String(x.host).trim());
     if(safeUrl(x.post)) notes.push('文章：' + safeUrl(x.post));
     if(String(x.note || '').trim()) notes.push(String(x.note).trim());
-    it.note = notes.join('\n');
-    return it;
+    return notes;
+  }
+  // 行程裡由打卡點加進來的項目：備註裡「打卡點帶進來的那幾行」跟著打卡點自動更新；自己另外打的備註保留不動
+  function spSyncItems(t){
+    var n = 0, PRE = /^(預約場次|活動時間|特典|主辦|文章)：/;
+    (t.days || []).forEach(function(dy){ (dy.items || []).forEach(function(it){
+      if(!it || !it.lkSpot) return;
+      var x = byId(t.spots, it.lkSpot); if(!x) return;
+      var gen = spNoteLines(x), genS = gen.join('\n');
+      if(it.spGen === genS) return;                                  // 已經是最新
+      var cur = String(it.note || '').split('\n'), mine;
+      if(typeof it.spGen === 'string'){                              // 有記錄上次帶進來的內容：只拿掉那幾行
+        var oldL = it.spGen.split('\n');
+        mine = cur.filter(function(l){ var i = oldL.indexOf(l); if(i >= 0){ oldL.splice(i, 1); return false; } return true; });
+      } else {                                                       // 舊資料：拿掉有固定開頭的行，以及跟打卡點備註一模一樣的行
+        var xn = String(x.note || '').trim();
+        mine = cur.filter(function(l){ return !PRE.test(l) && !(xn && l.trim() === xn); });
+      }
+      mine = mine.filter(function(l){ return String(l).trim(); });
+      it.note = gen.concat(mine).join('\n'); it.spGen = genS; n++;
+    }); });
+    return n;
   }
   function plainName(v){   // 把 𝘽𝙏𝙎 這類「花式字」(數學字母) 轉回一般字母；中文與全形標點不動
     return String(v == null ? '' : v).replace(/[\u{1D400}-\u{1D7FF}]/gu, function(c){ return c.normalize('NFKC'); });
@@ -4646,6 +4673,7 @@
     if(!t){ el.innerHTML = '<a class="back" href="#">← 旅遊紀錄</a><div class="empty">找不到這趟旅程，可能已被刪除。</div>'; return; }
     t.days = t.days || []; t.expenses = t.expenses || []; t.checklist = t.checklist || []; t.packing = t.packing || []; t.trail = t.trail || []; t.bookings = t.bookings || []; t.stays = t.stays || []; t.spots = t.spots || []; t.tcards = t.tcards || []; t.wish = t.wish || []; t.merch = t.merch || [];
     normDays(t);
+    if(!viewOnly && spSyncItems(t)) setTimeout(doPersist, 0);      // 打卡點內容改了，行程裡帶進來的資訊跟著更新並存檔
     if(!viewOnly && syncCkLinks(t).length) setTimeout(doPersist, 0);      // 連結的預訂／行程狀態變了，行前清單自動打勾並存檔
     if(t.fanInfo && /^(undefined|null)$/i.test(String(t.fanInfo.link == null ? '' : t.fanInfo.link).trim())) delete t.fanInfo.link;   // 清掉誤存的「undefined」
     if(dayInitFor !== currentId){      // 每次進到旅程：旅途中就直接停在今天那一天
