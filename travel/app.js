@@ -1548,7 +1548,7 @@
   }
   function remindList(t){
     var l = [];
-    (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){ var r = remindInfo(x, day); if(r) l.push({ x:x, r:r }); }); });
+    (t.days || []).forEach(function(day){ (day.items || []).forEach(function(x){ if(x.cat !== '交通') return; var r = remindInfo(x, day); if(r) l.push({ x:x, r:r }); }); });   // 交通區只列交通類；美食等訂位提醒在行程卡片與上方「待辦提醒」顯示
     if(!l.length) return '';
     l.sort(function(a, b){ return a.r.due - b.r.due; });
     return '<div class="frem"><b>⏰ 待訂位</b>' + l.slice(0, 5).map(function(o){
@@ -4720,8 +4720,8 @@
     var ck = editMode ? 'sec-ck' : has('ckbar') ? 'ckbar' : has('packbar') ? 'packbar' : '';
     var list = [];
     if(ck) list.push(['jump', ck, '清單', '✅']);
-    if(has('sec-info') || (has('rtabs') && !viewOnly) || !!document.querySelector('#ltabs [data-tab="info"]')) list.push(['jump', 'sec-info', '活動', '🎫']);
     if(has('sec-board') || tabbed) list.push(['jump', 'sec-board', '行程', '📅']);
+    if(has('sec-info') || (has('rtabs') && !viewOnly) || !!document.querySelector('#ltabs [data-tab="info"]')) list.push(['jump', 'sec-info', '活動', '🎫']);
     if(!editMode && (has('merchsec') || has('recsec') || tabbed)) list.push(['jump', 'merchsec', '購物', '🛍️']);
     if(has('sec-exp')) list.push(['jump', 'sec-exp', '花費', '💴']);
     BN_SPY = list.filter(function(x){ return x[0] === 'jump'; }).map(function(x){ return x[1]; });
@@ -4734,7 +4734,8 @@
     var nav = $('bnav'); if(!nav) return;
     var barh = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--barh')) || 0, line = barh + window.innerHeight * 0.35, cur0 = '';
     var bestTop = -1e9;
-    BN_SPY.forEach(function(id){ var n = document.getElementById(id); if(!n) return; var tp = n.getBoundingClientRect().top; if(tp <= line && tp > bestTop){ bestTop = tp; cur0 = id; } });      // 取「已經捲過、離畫面上緣最近」的那一區（跟按鈕順序無關）
+    var BN_ALIAS = { 'spsec':'sec-info', 'trsec':'sec-info', 'recsec':'merchsec' };      // 活動分頁裡的打卡點、同款踩點算「活動」；推薦必買算「購物」
+    BN_SPY.concat(['spsec', 'trsec', 'recsec']).forEach(function(id){ var n = document.getElementById(id); if(!n || !n.getClientRects().length) return; var tp = n.getBoundingClientRect().top; if(tp <= line && tp > bestTop){ bestTop = tp; cur0 = BN_ALIAS[id] || id; } });      // 隱藏中的分頁（沒有版面）不參與判斷      // 取「已經捲過、離畫面上緣最近」的那一區（跟按鈕順序無關）
     [].forEach.call(nav.querySelectorAll('[data-to]'), function(b){ if(b.dataset.to === cur0) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current'); });
   }
   (function(){
