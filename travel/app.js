@@ -83,22 +83,60 @@
       el.hidden = !trips || !trips.length;
     }, 300);
   }
-  function persist(){
+  // ---- 防止舊資料蓋掉新資料：每次存檔都帶版本號 rev；存檔時先讀雲端目前的版本號，跟這裡記的不一樣就不寫入 ----
+  var baseRev = 0, persistChain = Promise.resolve(true), conflictOn = false;
+  function saveBanner(html, keep){
+    var b = document.getElementById('savebanner');
+    if(!html){ if(b) b.remove(); return; }
+    if(!b){
+      b = document.createElement('div'); b.id = 'savebanner'; b.setAttribute('role', 'alert');
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#b3261e;color:#fff;padding:12px 16px;font-size:15px;line-height:1.5;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+      document.body.appendChild(b);
+    }
+    b.innerHTML = html;
+    [].forEach.call(b.querySelectorAll('button'), function(x){ x.style.cssText = 'margin:6px 8px 0 0;padding:6px 12px;font-size:14px;border:1px solid #fff;background:transparent;color:#fff;border-radius:4px;cursor:pointer'; });
+    var r = b.querySelector('[data-b="reload"]'); if(r) r.onclick = function(){ location.reload(); };
+    var f = b.querySelector('[data-b="force"]'); if(f) f.onclick = function(){ if(confirm('確定用這個畫面上的資料覆蓋雲端嗎？雲端比較新的內容會被蓋掉，無法復原。')) persist(true); };
+    var c = b.querySelector('[data-b="close"]'); if(c) c.onclick = function(){ saveBanner(''); };
+  }
+  function writeDoc(force){
+    // 離線時交易會失敗，改用一般寫入（排隊，連線後同步）；有網路時用交易確認版本
+    if(navigator.onLine === false) return docRef.set({ value: trips, rev: baseRev + 1 }).then(function(){ baseRev += 1; });
+    var nr = 0;
+    return db.runTransaction(function(tx){
+      return tx.get(docRef).then(function(snap){
+        var sr = snap.exists ? (+snap.data().rev || 0) : 0;
+        if(!force && sr !== baseRev){ var er = new Error('rev-conflict'); er.code = 'rev-conflict'; throw er; }
+        nr = sr + 1;
+        tx.set(docRef, { value: trips, rev: nr });
+      });
+    }).then(function(){ baseRev = nr; });
+  }
+  function persist(force){
     if(!docRef || viewOnly) return Promise.resolve(true);
-    return docRef.set({ value: trips }).then(function(){ saveFail = ''; scheduleShareSync(); updateDataSize(); return true; }, function(e){
-      console.error(e);
-      var msg = String((e && e.message) || ''), code = String((e && e.code) || '');
-      // 區分失敗原因：資料太大／沒有權限／網路問題
-      if(/exceed|too large|maximum|size/i.test(msg) || tripsBytes() > DOC_LIMIT) saveFail = 'size';
-      else if(code === 'permission-denied') saveFail = 'perm';
-      else if(code === 'unavailable' || code === 'deadline-exceeded' || navigator.onLine === false) saveFail = 'net';
-      else saveFail = 'other';
-      alert(saveFail === 'size' ? '儲存失敗：資料量太大，已超過雲端單份文件的上限（約 1 MB），再新增內容會存不進去。\n請先刪除不需要的旅程或路線圖／巴士資料，或請人協助把行程拆開存放。'
-        : saveFail === 'perm' ? '儲存失敗：沒有寫入權限，請重新登入，或確認 Firebase 規則有允許這個帳號寫入。'
-        : saveFail === 'net' ? '儲存失敗：目前連不上網路，請檢查連線後再試一次。'
-        : '儲存失敗（原因不明），請稍後再試；若一直失敗請重新整理頁面。');
-      return false;
+    persistChain = persistChain.then(function(){
+      return writeDoc(force === true).then(function(){ saveFail = ''; conflictOn = false; saveBanner(''); scheduleShareSync(); updateDataSize(); return true; }, function(e){
+        console.error(e);
+        var msg = String((e && e.message) || ''), code = String((e && e.code) || '');
+        if(code === 'rev-conflict'){
+          saveFail = 'conflict'; conflictOn = true;
+          saveBanner('⚠ 沒有儲存：雲端上有比這個畫面更新的資料（可能在別的分頁或裝置改過）。為了不蓋掉雲端資料，這次的修改沒有寫入。<br><button type="button" data-b="reload">重新載入雲端版本</button><button type="button" data-b="force">用這個畫面覆蓋雲端</button>');
+          return false;
+        }
+        // 區分失敗原因：資料太大／沒有權限／網路問題
+        if(/exceed|too large|maximum|size/i.test(msg) || tripsBytes() > DOC_LIMIT) saveFail = 'size';
+        else if(code === 'permission-denied') saveFail = 'perm';
+        else if(code === 'unavailable' || code === 'deadline-exceeded' || navigator.onLine === false) saveFail = 'net';
+        else saveFail = 'other';
+        var m2 = saveFail === 'size' ? '儲存失敗：資料量太大，已超過雲端單份文件的上限（約 1 MB），再新增內容會存不進去。請先刪除不需要的旅程或路線圖／巴士資料。'
+          : saveFail === 'perm' ? '儲存失敗：沒有寫入權限，請重新登入，或確認 Firebase 規則有允許這個帳號寫入。'
+          : saveFail === 'net' ? '儲存失敗：目前連不上網路，請檢查連線後再試一次。'
+          : '儲存失敗（原因不明），請稍後再試；若一直失敗請重新整理頁面。';
+        saveBanner('⚠ ' + m2 + '<br><button type="button" data-b="close">關閉</button>');
+        return false;
+      });
     });
+    return persistChain;
   }
   function readOldLocal(){
     try{ var a = JSON.parse(localStorage.getItem(OLD_LOCAL_KEY) || '[]'); return Array.isArray(a) ? a : []; }catch(e){ return []; }
@@ -552,7 +590,7 @@
   auth.onAuthStateChanged(function(user){
     if(shareRoute()){ route(); return; }      // 朋友打開分享連結：不用登入
     if(unsub){ unsub(); unsub = null; }
-    docRef = null; trips = []; loaded = false;
+    docRef = null; trips = []; loaded = false; baseRev = 0; saveBanner('');
     if(!user){
       exitEdit();
       document.body.classList.remove('wide');
@@ -564,7 +602,7 @@
     docRef = db.collection('users').doc(user.uid).collection('data').doc(KEY);
     unsub = docRef.onSnapshot(function(doc){
       if(doc.exists && Array.isArray(doc.data().value)){
-        trips = doc.data().value;
+        trips = doc.data().value; baseRev = +doc.data().rev || 0;
       } else if(doc.metadata.fromCache){
         // 離線且本機沒有快取：這不代表雲端真的沒資料，先不搬移舊資料，避免之後蓋掉雲端
         trips = [];
@@ -608,7 +646,7 @@
   function doPersist(){
     setSave(navigator.onLine ? '儲存中…' : '已存在此裝置，連上網路後自動同步');
     return persist().then(function(ok){
-      if(ok === false) setSave(saveFail === 'size' ? '儲存失敗：資料量太大（超過約 1 MB）' : saveFail === 'perm' ? '儲存失敗：沒有寫入權限，請重新登入' : saveFail === 'net' ? '儲存失敗：連不上網路，恢復後再試一次' : '儲存失敗，請稍後再試一次', true);
+      if(ok === false) setSave(saveFail === 'conflict' ? '沒有儲存：雲端有更新的資料' : saveFail === 'size' ? '儲存失敗：資料量太大（超過約 1 MB）' : saveFail === 'perm' ? '儲存失敗：沒有寫入權限，請重新登入' : saveFail === 'net' ? '儲存失敗：連不上網路，恢復後再試一次' : '儲存失敗，請稍後再試一次', true);
       else setSave('已儲存 ' + hhmm());
     });
   }
