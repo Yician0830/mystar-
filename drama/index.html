@@ -446,6 +446,13 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .cardPlay:active{transform:scale(.9);}
 .f-cover .cardPlay{bottom:8px; width:28px; height:28px;}
 .g-cover.hasPlay .g-overlay{padding-right:46px;}
+
+/* 待播日期不換行、頁面與左側欄加寬 */
+.page{max-width:1480px;}
+.g-release{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+@media(min-width:900px){
+  .listRow.hasWish{grid-template-columns:minmax(400px,32%) minmax(0,1fr);}
+}
 </style>
 </head>
 <body>
@@ -1097,7 +1104,7 @@ function natKey(t){
 }
 function natCmp(a,b){ return natKey(a).localeCompare(natKey(b),'zh-Hant',{numeric:true}); }
 function titleTie(a,b){ return natCmp(a.title,b.title); }
-// 同一系列（第一季／第二季、(一)／(二)…）歸成一組：組與組之間照日期排，組內永遠由第一季排到最後一季
+// 同一系列（第一季／第二季、(一)／(二)…）歸成一組：組與組之間照日期排，組內跟著排序方向：新→舊時最新一季在前，舊→新時第一季在前
 function seriesInfo(t){
   const k = natKey(t||'');
   let seq = 1, m;
@@ -1121,7 +1128,7 @@ function sortByDateGrouped(items, desc){
       const c = desc ? gd.get(B.base).localeCompare(gd.get(A.base)) : gd.get(A.base).localeCompare(gd.get(B.base));
       return c || natCmp(A.base, B.base);
     }
-    return (A.seq-B.seq) || (a.startDate||'').localeCompare(b.startDate||'') || natCmp(a.title, b.title);
+    return (desc ? (B.seq-A.seq) : (A.seq-B.seq)) || (desc ? (b.startDate||'').localeCompare(a.startDate||'') : (a.startDate||'').localeCompare(b.startDate||'')) || natCmp(a.title, b.title);
   });
 }
 function renderList(){
