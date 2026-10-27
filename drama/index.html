@@ -466,6 +466,42 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 :root[data-theme="dark"]{--ink-soft:#D2C5B4; --ink-faint:#8A7A67;}
 [data-theme="dark"] .monthCard.zero{opacity:.75;}
 [data-theme="dark"] .monthCard.zero .mChips b{color:var(--ink-soft);}
+
+/* 年度檔案 v2 */
+.trendCard{padding:16px 18px;}
+.trendHead{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
+.trendHead .cap{margin:0; font-size:12.5px; font-weight:700; color:var(--ink-soft);}
+.trendLegend{display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-soft);}
+.trendLegend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-left:6px;}
+.trendLegend i:first-child{margin-left:0;}
+.lgDone{background:var(--rose-deep);}
+.lgRest{background:var(--rose-pale); border:1px solid var(--rose);}
+.hbars{display:flex; flex-direction:column; gap:12px;}
+.hbRow{display:flex; align-items:center; gap:12px;}
+.hbYear{flex:0 0 42px; font-family:'Zen Maru Gothic'; font-weight:700; font-size:14px; color:var(--ink);}
+.hbTrack{flex:1; min-width:0; height:26px; border-radius:9px; background:var(--surface-soft); overflow:hidden;}
+.hbFill{height:100%; border-radius:9px; background:var(--rose-pale); border:1px solid var(--rose); box-sizing:border-box; overflow:hidden; transition:width .4s ease;}
+.hbDone{height:100%; background:linear-gradient(90deg,var(--rose),var(--rose-deep)); border-radius:8px 0 0 8px;}
+.hbNum{flex:0 0 44px; text-align:right; font-size:11px; color:var(--ink-soft);}
+.hbNum b{font-family:'Zen Maru Gothic'; font-weight:900; font-size:18px; color:var(--ink); margin-right:2px;}
+.archYear{grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px;}
+.yearCard{padding:16px 18px 14px;}
+.yearCard.cur{border-color:var(--rose-deep); box-shadow:0 0 0 1px var(--rose-deep), var(--shadow);}
+.yearCard .yTop{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+.yearCard .y{display:flex; align-items:center; gap:8px; font-size:24px; color:var(--rose-deep);}
+.yearCard .yNow{font-family:'Noto Sans TC'; font-size:10px; font-weight:700; color:#fff; background:var(--rose-deep); border-radius:999px; padding:1px 9px;}
+.yearCard .yPct{font-size:11px; font-weight:700; color:var(--rose-deep); background:var(--rose-pale); border-radius:999px; padding:3px 10px;}
+.yearCard .yGrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:0 0 14px;}
+.yearCard .yGrid > div{background:var(--surface-soft); border-radius:12px; padding:9px 4px 8px; text-align:center;}
+.yearCard .yGrid b{display:block; font-family:'Zen Maru Gothic'; font-weight:900; font-size:19px; line-height:1.15; color:var(--ink);}
+.yearCard .yGrid small{font-size:10.5px; color:var(--ink-soft);}
+.yearCard .yBar{height:6px; margin-bottom:12px;}
+.yearCard .yFoot{display:flex; flex-wrap:wrap; gap:6px;}
+.yearCard .yChip{font-size:11px; color:var(--ink-soft); background:var(--surface-soft); border-radius:999px; padding:3px 10px;}
+
+/* 表單：兩欄一排時，若其中一欄被隱藏，剩下的那欄自動撐滿整行，不會一長一短 */
+.row2{display:flex; gap:10px;}
+.row2 > .field{flex:1 1 0; min-width:0;}
 </style>
 </head>
 <body>
@@ -1388,16 +1424,30 @@ function renderYearArchive(){
   const years = {};
   state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結' && x.endDate) years[y].done++; });
   const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
+  const curYear = String(new Date().getFullYear());
   document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>{
     const pct = v.n ? Math.round(v.done/v.n*100) : 0;
-    return `<div class="card clickable yearCard" onclick="openYearDetail('${y}')">
-      <div class="yTop"><span class="y">${y}</span><span class="yPct">完成 ${pct}%</span></div>
-      <div class="yStats"><div><b>${v.n}</b><small>部觀看</small></div><div><b>${v.done}</b><small>部看完</small></div></div>
+    const d = buildYearWrap(y);
+    const rated = state.filter(x=>(x.startDate||'').startsWith(y) && Number(x.rating)>0);
+    const avg = rated.length ? (rated.reduce((s,x)=>s+Number(x.rating),0)/rated.length).toFixed(1) : '';
+    const foot = [
+      avg ? `<span class="yChip">⭐ 平均 ${avg}</span>` : '',
+      d.topGenre ? `<span class="yChip">🎭 ${esc(d.topGenre[0])}</span>` : '',
+      d.topPlat ? `<span class="yChip">📺 ${esc(d.topPlat[0])}</span>` : ''
+    ].join('');
+    return `<div class="card clickable yearCard ${y===curYear?'cur':''}" onclick="openYearDetail('${y}')">
+      <div class="yTop"><span class="y">${y}${y===curYear?'<span class="yNow">今年</span>':''}</span><span class="yPct">完成 ${pct}%</span></div>
+      <div class="yGrid">
+        <div><b>${v.n}</b><small>部觀看</small></div>
+        <div><b>${v.done}</b><small>部看完</small></div>
+        <div><b>${d.ep}</b><small>集</small></div>
+        <div><b>${d.hrs}</b><small>小時</small></div>
+      </div>
       <div class="yBar"><div style="width:${pct}%"></div></div>
+      ${foot?`<div class="yFoot">${foot}</div>`:''}
     </div>`; }).join('')
     : '<div class="empty">還沒有可以彙整的年度資料</div>';
-  const listAsc = [...listDesc].reverse();
-  renderYearTrend(listAsc);
+  renderYearTrend([...listDesc].reverse());
 }
 function openYearDetail(year){
   const items = state.filter(x=>(x.startDate||'').startsWith(year))
@@ -1413,11 +1463,16 @@ function renderYearTrend(listAsc){
   if(!listAsc.length){ el.innerHTML=''; el.style.display='none'; return; }
   el.style.display='block';
   const max = Math.max(...listAsc.map(([,v])=>v.n),1);
-  const cur = String(new Date().getFullYear());
-  el.innerHTML = '<div class="cap">年度觀看量</div><div class="trendBars">' + listAsc.map(([y,v])=>{
-    const h = Math.max(6, Math.round(v.n/max*100));
-    return `<div class="tbCol" title="${y}：${v.n} 部"><div class="tbVal">${v.n}</div><div class="tbBar ${y===cur?'cur':''}" style="height:${h}px"></div><div class="tbLab">${y}</div></div>`;
-  }).join('') + '</div>';
+  const rows = [...listAsc].reverse().map(([y,v])=>{
+    const w = Math.max(6, Math.round(v.n/max*100));
+    const dw = v.n ? Math.round(v.done/v.n*100) : 0;
+    return `<div class="hbRow" title="${y}：${v.n} 部，看完 ${v.done} 部">
+      <span class="hbYear">${y}</span>
+      <div class="hbTrack"><div class="hbFill" style="width:${w}%"><div class="hbDone" style="width:${dw}%"></div></div></div>
+      <span class="hbNum"><b>${v.n}</b><small>部</small></span>
+    </div>`;
+  }).join('');
+  el.innerHTML = `<div class="trendHead"><span class="cap">年度觀看量</span><span class="trendLegend"><i class="lgDone"></i>已看完<i class="lgRest"></i>進行中／其他</span></div><div class="hbars">${rows}</div>`;
 }
 function renderPlatforms(){
   const plats = [...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
