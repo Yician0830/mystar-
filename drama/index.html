@@ -1035,6 +1035,7 @@ function openCardMenu(id, ev){
   m.id = 'cardMenu'; m.className = 'cardMenu';
   m.innerHTML = (it.status==='想看' ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
     + `<button type="button" onclick="closeCardMenu();openForm('${id}')">編輯</button>`
+    + `<button type="button" onclick="closeCardMenu();openForm('', '${id}')">複製</button>`
     + `<button type="button" class="del" onclick="closeCardMenu();delItem('${id}')">刪除</button>`;
   document.body.appendChild(m);
   const mw = m.offsetWidth, mh = m.offsetHeight;
@@ -1375,13 +1376,22 @@ async function tmdbPick(i){
     showToast(e.message==='auth' ? '金鑰無效' : '帶入失敗，請稍後再試');
   }
 }
-function openForm(id){
+function openForm(id, copyId){
   autoDoneFrom=null;
-  const existing = id ? state.find(x=>x.id===id) : null;
+  let existing = id ? state.find(x=>x.id===id) : null;
+  // 複製：以原本那筆為範本開一份新的（進度、評分、日期歸零），讓你改完劇名再儲存
+  const isCopy = !id && !!copyId && !!state.find(x=>x.id===copyId);
+  if(isCopy){
+    const src = state.find(x=>x.id===copyId);
+    existing = Object.assign({}, JSON.parse(JSON.stringify(src)), {
+      id:'', status:'追劇中', rating:0, epWatched:0, lastWatchedDate:'', startDate:'', endDate:'',
+      watchLog:[], bestYear:'', favorite:false, review:''
+    });
+  }
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
   currentFormWeekdays = existing && Array.isArray(existing.updateDays) ? [...existing.updateDays] : [];
   document.getElementById('modal').innerHTML = `
-    <h3 class="maru">${existing?'編輯':'新增'}影視劇</h3>
+    <h3 class="maru">${isCopy?'複製':existing?'編輯':'新增'}影視劇</h3>
     <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
     <div class="field" style="margin-bottom:6px;"><button type="button" class="tmdbBtn" onclick="tmdbSearch()">🔍 從 TMDB 帶入海報與資料</button></div>
     <div id="tmdbPanel"></div>
@@ -1435,7 +1445,7 @@ function openForm(id){
     <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
-      <button class="btn save" onclick="saveForm('${existing?existing.id:''}')">儲存</button>
+      <button class="btn save" onclick="saveForm('${existing&&!isCopy?existing.id:''}')">儲存</button>
     </div>`;
   paintStars(existing?Number(existing.rating)||0:0);
   updateImgPreview();
