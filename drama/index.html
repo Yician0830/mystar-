@@ -326,6 +326,61 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .wrapTop5Row .rank{background:#E9DDCC; color:#4A3D36;}
 .wrapTop5Row .t5-stars{color:#B8922F;}
 .wrapFoot{color:#9C8977; opacity:1;}
+
+/* ===== 版面美化 ===== */
+.page{max-width:1180px;}
+h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
+.sec{position:relative; padding:0 0 10px 14px; margin:38px 0 14px; border-bottom:none; font-size:16px;}
+.sec::before{content:''; position:absolute; left:0; top:2px; bottom:12px; width:4px; border-radius:4px; background:linear-gradient(180deg,var(--rose),var(--rose-deep));}
+.sec::after{content:''; position:absolute; left:0; right:0; bottom:0; height:1px; background:linear-gradient(90deg,var(--ink-faint),transparent);}
+.secMini::before,.mainListCol > .sec::before{display:none;}
+.mainListCol > .sec,.secMini{padding-left:0;}
+.mainListCol > .sec::after{display:none;}
+.card{border-radius:20px; padding:18px;}
+.stat{position:relative; overflow:hidden; padding:18px 12px;}
+.stat::after{content:''; position:absolute; left:0; right:0; top:0; height:3px; background:linear-gradient(90deg,var(--rose),var(--wisteria));}
+.stat .ic{width:36px; height:36px; margin:0 auto 6px; border-radius:50%; background:var(--rose-pale);}
+.stat .n{font-size:30px; line-height:1.1;}
+.twoCol.insight{grid-template-columns:1fr; gap:0 18px; align-items:stretch;}
+@media(min-width:760px){.twoCol.insight{grid-template-columns:1.15fr 1fr;}}
+.twoCol.insight .col{display:flex; flex-direction:column; min-width:0;}
+.twoCol.insight .col .card{flex:1;}
+.donutWrap{gap:22px; justify-content:center;}
+.donut{width:136px; height:136px; flex:0 0 136px; box-shadow:0 4px 14px rgba(90,60,45,.12);}
+.donut .hole{inset:22px;}
+.legend{gap:8px; min-width:150px;}
+.legend-row{flex-wrap:wrap; row-gap:3px;}
+.legend-track{flex:0 0 100%; height:4px; border-radius:4px; background:var(--surface-soft); overflow:hidden; margin-left:17px;}
+.legend-track div{height:100%; border-radius:4px; opacity:.85;}
+#actorChart{display:flex; flex-direction:column; justify-content:center;}
+#actorChart .bar-row{margin-bottom:14px;}
+#actorChart .bar-row:last-child{margin-bottom:0;}
+.bar-track{height:12px;}
+.bar-num{font-weight:700; color:var(--rose-deep);}
+.platGrid{grid-template-columns:repeat(auto-fill,minmax(150px,200px)); gap:12px;}
+.platCard{padding:16px 10px 14px; position:relative; overflow:hidden;}
+.platCard::before{content:''; position:absolute; left:0; right:0; top:0; height:3px; background:linear-gradient(90deg,var(--rose),var(--wisteria));}
+.platCard .plat-n{font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; color:var(--rose-deep); margin:4px 0 0; line-height:1.1;}
+.platCard .plat-n small{font-size:11px; font-weight:500; color:var(--ink-soft); margin-left:2px;}
+.archYear .card{padding:14px 16px;}
+.archYear .card .y{color:var(--rose-deep);}
+.monthCard{padding:12px 14px;}
+.monthCard .mt{color:var(--rose-deep);}
+@media(min-width:600px){.featuredScroll{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}}
+.addBtn{box-shadow:0 3px 10px rgba(0,0,0,.12);}
+.g-card{transition:transform .15s ease, box-shadow .15s ease;}
+.g-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(90,60,45,.16);}
+
+.st-upcoming{background:var(--gold-pale); color:var(--gold);}
+#sideCol{margin-top:34px; flex-direction:column; gap:16px; min-width:0;}
+#sideCol > div{margin-top:0 !important;}
+#upcomingSec{background:var(--surface-soft); border:1px solid rgba(0,0,0,.04); border-radius:22px; padding:16px 14px;}
+#upcomingGrid{grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px;}
+#upcomingSec .secMini .cnt{background:var(--gold-pale); color:var(--gold);}
+.g-release{font-size:11px; font-weight:700; color:var(--gold); margin-top:4px; line-height:1.5;}
+.g-release.soon{color:var(--rose-deep);}
+.g-release.out{color:var(--matcha);}
+.g-release.none{color:var(--ink-soft); font-weight:400;}
 </style>
 </head>
 <body>
@@ -343,16 +398,19 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 
 <div class="grid4" id="statsBar" style="margin-bottom:20px;"></div>
 
-<div class="twoCol top">
-  <div>
+<div id="featuredSec" style="display:none;">
+  <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
+  <div class="featuredScroll" id="featuredArea"></div>
+</div>
+
+<div class="twoCol top insight">
+  <div class="col">
     <div class="sec">📊 類型分布</div>
     <div class="card" id="genreChart"></div>
+  </div>
+  <div class="col">
     <div class="sec">🎭 常看演員 Top5</div>
     <div class="card" id="actorChart"></div>
-  </div>
-  <div id="featuredSec" style="display:none;">
-    <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
-    <div class="featuredScroll" id="featuredArea"></div>
   </div>
 </div>
 
@@ -376,9 +434,15 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 
 
 <div class="listRow" id="listRow">
+<div id="sideCol" style="display:none;">
+<div id="upcomingSec" style="display:none;">
+  <div class="secMini"><span>⏳ 待播（依上映日）</span><span class="cnt" id="upcomingCount"></span></div>
+  <div class="galleryGrid" id="upcomingGrid"></div>
+</div>
 <div id="wishSec" style="display:none;">
   <div class="secMini"><span>📋 片單（想看）</span><span class="cnt" id="wishCount"></span></div>
   <div class="galleryGrid" id="wishGrid"></div>
+</div>
 </div>
 <div class="mainListCol">
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
@@ -561,7 +625,7 @@ const COVER_GRADIENTS=[
 ];
 function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
-const STATUSES=[['想看','st-want'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
+const STATUSES=[['想看','st-want'],['待播','st-upcoming'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
 const PLATFORM_OPTIONS=['Netflix','Disney+','Prime Video','HBO Max','Apple TV+','Viu','LINE TV','friDay影音','KKTV','MyVideo','愛奇藝','WeTV','YouTube','電影院'];
 const COUNTRY_OPTIONS=['台灣','中國','韓國','日本','其他'];
 const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
@@ -613,7 +677,29 @@ function migrateData(arr){
   (arr||[]).forEach(x=>{ if(x.favorite===undefined) x.favorite = Number(x.rating)===5; x.platform = canonicalPlatform(x.platform); });
   return arr;
 }
-function notWish(x){ return x.status!=='想看'; }
+function isPending(x){ return x.status==='想看' || x.status==='待播'; }
+function notWish(x){ return !isPending(x); }
+function fmtYMD(d){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(d||'');
+  if(!m) return '';
+  const thisYear = String(new Date().getFullYear());
+  return (m[1]===thisYear ? '' : m[1]+'/') + parseInt(m[2],10)+'/'+parseInt(m[3],10);
+}
+function releaseText(x){
+  if(!x.releaseDate) return '📅 上映日未定';
+  const n = daysSince(x.releaseDate);
+  const base = '📅 上映 '+fmtYMD(x.releaseDate);
+  if(n===null) return base;
+  if(n<0) return base+'・還有 '+(-n)+' 天';
+  if(n===0) return base+'・🎉 今天上映';
+  return base+'・已上映 '+n+' 天';
+}
+function releaseClass(x){
+  const n = x.releaseDate ? daysSince(x.releaseDate) : null;
+  if(n===null) return 'g-release none';
+  if(n>=0) return 'g-release out';
+  return 'g-release'+(n>=-7?' soon':'');
+}
 function isEpDone(w,t){ w=Number(w)||0; t=Number(t)||0; return t>0 && w>=t; }
 function formEpDone(){
   const w=document.getElementById('fEpW'), t=document.getElementById('fEpT');
@@ -625,7 +711,7 @@ function onStatusChange(){ autoDoneFrom=null; syncWeekdayFieldVisibility(); }
 function syncEpisodeComplete(){
   const st=document.getElementById('fStatus');
   if(!st) return;
-  if(st.value!=='想看'){
+  if(st.value!=='想看' && st.value!=='待播'){
     if(formEpDone()){
       if(st.value!=='已完結'){ autoDoneFrom=st.value; st.value='已完結'; }
     } else if(autoDoneFrom!==null){
@@ -643,7 +729,9 @@ function syncWeekdayFieldVisibility(){
   const statusEl = document.getElementById('fStatus');
   const field = document.getElementById('weekdayField');
   if(statusEl){
-    const isWish = statusEl.value==='想看';
+    const isWish = statusEl.value==='想看' || statusEl.value==='待播';
+    const rf = document.getElementById('fReleaseField');
+    if(rf) rf.style.display = statusEl.value==='待播' ? '' : 'none';
     document.querySelectorAll('.wantHide').forEach(el=>{ el.style.display = isWish ? 'none' : ''; });
     const lastField = document.getElementById('fLastField');
     if(lastField) lastField.style.display = (isWish || formEpDone()) ? 'none' : '';
@@ -685,11 +773,14 @@ function renderUpdateBanner(){
   if(!el) return;
   const today = new Date().getDay();
   const due = state.filter(x=>isWatching(x) && Array.isArray(x.updateDays) && x.updateDays.includes(today));
-  if(!due.length){ el.style.display='none'; el.innerHTML=''; return; }
+  const rel = state.filter(x=>x.status==='待播' && x.releaseDate===todayStr());
+  if(!due.length && !rel.length){ el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='flex';
   const needsEnable = ('Notification' in window) && Notification.permission!=='granted';
-  el.innerHTML = `<span>🔔 今天更新：${due.map(x=>esc(x.title)).join('、')}</span>${needsEnable?'<button type="button" class="ub-enable" onclick="enableNotifications()">開啟通知提醒</button>':''}`;
-  maybeNotifyToday(due.map(x=>x.title));
+  el.innerHTML = (due.length?`<span>🔔 今天更新：${due.map(x=>esc(x.title)).join('、')}</span>`:'')
+    + (rel.length?`<span>🎬 今天上映：${rel.map(x=>esc(x.title)).join('、')}</span>`:'')
+    + (needsEnable?'<button type="button" class="ub-enable" onclick="enableNotifications()">開啟通知提醒</button>':'');
+  maybeNotifyToday(due.map(x=>x.title).concat(rel.map(x=>x.title+'（上映）')));
 }
 function allKnownTags(){
   const set = new Set(TAG_PRESETS);
@@ -724,7 +815,7 @@ async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
-  renderFeatured(); renderStats(); renderChart(); renderActors(); renderWishlist(); renderFilters(); renderList();
+  renderFeatured(); renderStats(); renderChart(); renderActors(); renderUpcoming(); renderWishlist(); renderFilters(); renderList();
   renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner();
 }
 function renderActors(){
@@ -823,7 +914,7 @@ function renderChart(){
   }).join(', ');
   const legend = entries.map(([g,n],i)=>{
     const pct = Math.round(n/total*100);
-    return `<div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-name">${esc(g)}</span><span class="legend-n">${n} 部・${pct}%</span></div>`;
+    return `<div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-name">${esc(g)}</span><span class="legend-n">${n} 部・${pct}%</span><div class="legend-track"><div style="width:${pct}%;background:${CHART_COLORS[i%CHART_COLORS.length]}"></div></div></div>`;
   }).join('');
   el.innerHTML = `<div class="donutWrap">
     <div class="donut" style="background:conic-gradient(${stops});">
@@ -840,7 +931,7 @@ function matchStatusTab(x, tab){
 function renderFilters(){
   const statusEl = document.getElementById('statusFilter');
   const listed = state.filter(notWish);
-  statusEl.innerHTML = ['__all__',...STATUSES.filter(s=>s[0]!=='想看').map(s=>s[0])].map(s=>{
+  statusEl.innerHTML = ['__all__',...STATUSES.filter(s=>s[0]!=='想看' && s[0]!=='待播').map(s=>s[0])].map(s=>{
     const n = s==='__all__' ? listed.length : listed.filter(x=>matchStatusTab(x,s)).length;
     return `<button class="chip ${filters.status===s?'active':''}" data-f="status" data-v="${s}">${s==='__all__'?'全部':s}<span class="tabN">${n}</span></button>`;
   }).join('');
@@ -875,7 +966,7 @@ function renderActiveFilters(){
   document.getElementById('filterBtn').classList.toggle('on', tags.length>0);
 }
 function renderList(){
-  let items = state.filter(x=>x.status!=='想看');
+  let items = state.filter(notWish);
   if(filters.sort==='date_asc') items.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||''));
   else if(filters.sort==='progress_desc') items.sort((a,b)=>progressPct(b)-progressPct(a));
   else if(filters.sort==='progress_asc') items.sort((a,b)=>progressPct(a)-progressPct(b));
@@ -920,7 +1011,8 @@ function cardTemplate(x,i){
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
         ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||''].filter(Boolean).join('・')}</div>`:''}
-        ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?`<span>${x.epWatched||0}/${x.epTotal}集</span>`:''}</div>`:''}
+        ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
+        ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?(x.status==='待播'?`<span>共${x.epTotal}集</span>`:`<span>${x.epWatched||0}/${x.epTotal}集</span>`):''}</div>`:''}
         ${finished&&x.endDate?`<div class="g-done">✓ 看完 ${fmtMD(x.endDate)}</div>`:''}
         ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
         ${isWatching(x)?epStepper(x):''}
@@ -1033,7 +1125,7 @@ function openCardMenu(id, ev){
   const r = btn.getBoundingClientRect();
   const m = document.createElement('div');
   m.id = 'cardMenu'; m.className = 'cardMenu';
-  m.innerHTML = (it.status==='想看' ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
+  m.innerHTML = (isPending(it) ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
     + `<button type="button" onclick="closeCardMenu();openForm('${id}')">編輯</button>`
     + `<button type="button" onclick="closeCardMenu();openForm('', '${id}')">複製</button>`
     + `<button type="button" class="del" onclick="closeCardMenu();delItem('${id}')">刪除</button>`;
@@ -1055,10 +1147,29 @@ function startWatching(id){
   save();
   showToast('已加入追劇中 ✓');
 }
+function updateSideCol(){
+  const has = state.some(isPending);
+  document.getElementById('listRow').classList.toggle('hasWish', has);
+  document.getElementById('sideCol').style.display = has ? 'flex' : 'none';
+}
+function renderUpcoming(){
+  const sec = document.getElementById('upcomingSec');
+  const items = state.filter(x=>x.status==='待播').sort((a,b)=>{
+    if(!a.releaseDate && !b.releaseDate) return 0;
+    if(!a.releaseDate) return 1;
+    if(!b.releaseDate) return -1;
+    return a.releaseDate.localeCompare(b.releaseDate);
+  });
+  updateSideCol();
+  if(!items.length){ sec.style.display='none'; return; }
+  sec.style.display='block';
+  document.getElementById('upcomingCount').textContent = items.length+' 部';
+  document.getElementById('upcomingGrid').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
+}
 function renderWishlist(){
   const sec = document.getElementById('wishSec');
   const items = state.filter(x=>x.status==='想看').sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
-  document.getElementById('listRow').classList.toggle('hasWish', items.length>0);
+  updateSideCol();
   if(!items.length){ sec.style.display='none'; return; }
   sec.style.display='block';
   document.getElementById('wishCount').textContent = items.length+' 部';
@@ -1108,7 +1219,7 @@ function renderPlatforms(){
     const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
     const mins = items.reduce((s,x)=>s+(Number(x.epWatched)||0)*epMinutes(x),0);
     const hrs = Math.round(mins/60*10)/10;
-    return `<div class="platCard" style="cursor:pointer;" onclick="filterByPlatform('${esc(p).replace(/'/g,"\\'")}')">${esc(p)}<div class="plat-sub">${n} 部<br>${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
+    return `<div class="platCard" style="cursor:pointer;" onclick="filterByPlatform('${esc(p).replace(/'/g,"\\'")}')"><div class="plat-name">${esc(p)}</div><div class="plat-n">${n}<small>部</small></div><div class="plat-sub">${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
   }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
 }
 function filterByPlatform(p){
@@ -1385,7 +1496,7 @@ function openForm(id, copyId){
     const src = state.find(x=>x.id===copyId);
     existing = Object.assign({}, JSON.parse(JSON.stringify(src)), {
       id:'', status:'追劇中', rating:0, epWatched:0, lastWatchedDate:'', startDate:'', endDate:'',
-      watchLog:[], bestYear:'', favorite:false, review:''
+      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:''
     });
   }
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
@@ -1400,6 +1511,10 @@ function openForm(id, copyId){
     <div class="row2">
       <div class="field"><label>狀態</label><select id="fStatus" onchange="onStatusChange()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       ${platformFieldHtml(existing)}
+    </div>
+    <div class="field" id="fReleaseField" style="display:none;">
+      <label>📅 上映日（預計首播日期）</label>
+      <input id="fRelease" type="date" value="${existing?existing.releaseDate||'':''}" onchange="onReleaseChange()">
     </div>
     <div class="field wantHide"><label>我的評分</label>
       <div class="starPick" id="fRatingWrap">${[1,2,3,4,5].map(n=>`<span data-v="${n}" onclick="setRating(${n})">★</span>`).join('')}</div>
@@ -1453,6 +1568,10 @@ function openForm(id, copyId){
   renderTagChips();
   syncEpisodeComplete();
   document.getElementById('overlay').classList.add('show');
+}
+function onReleaseChange(){
+  const r = document.getElementById('fRelease').value, y = document.getElementById('fAirYear');
+  if(r && y && !y.value) y.value = r.slice(0,4);
 }
 function toggleGenreDropdown(e){
   if(e) e.stopPropagation();
@@ -1528,6 +1647,7 @@ function saveForm(id){
     endDate: document.getElementById('fEnd').value,
     country: document.getElementById('fCountry').value.trim(),
     airYear: Number(document.getElementById('fAirYear').value)||0,
+    releaseDate: document.getElementById('fRelease').value,
     actor: document.getElementById('fActor').value.trim(),
     review: ((state.find(x=>x.id===id)||{}).review)||'',
     favorite: !!((state.find(x=>x.id===id)||{}).favorite)
