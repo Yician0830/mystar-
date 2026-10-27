@@ -415,6 +415,25 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .monthCard.cur{border-color:var(--rose-deep); box-shadow:0 0 0 1px var(--rose-deep), var(--shadow);}
 .monthCard.zero{opacity:.55;}
 .monthCard.zero .mChips b{color:var(--ink-faint);}
+
+/* 統計卡／平台卡頂端：改成掛在上緣的小圓角色塊，並讓四張卡各有自己的顏色 */
+.stat::after,.platCard::before{content:''; position:absolute; top:0; left:50%; right:auto; width:34px; height:4px; transform:translateX(-50%); border-radius:0 0 6px 6px; background:var(--acc,var(--rose-deep)); opacity:.9;}
+.stat{--acc:var(--rose-deep); --acc-pale:var(--rose-pale);}
+.stat:nth-child(1){--acc:var(--sky); --acc-pale:var(--sky-pale);}
+.stat:nth-child(2){--acc:var(--matcha); --acc-pale:var(--matcha-pale);}
+.stat:nth-child(3){--acc:var(--wisteria); --acc-pale:var(--wisteria-pale);}
+.stat:nth-child(4){--acc:var(--rose-deep); --acc-pale:var(--rose-pale);}
+.stat .ic{color:var(--acc); background:var(--acc-pale);}
+.stat .n{color:var(--ink);}
+.platCard{--acc:var(--rose-deep);}
+.platCard:nth-child(4n+2){--acc:var(--wisteria);}
+.platCard:nth-child(4n+3){--acc:var(--sky);}
+.platCard:nth-child(4n+4){--acc:var(--matcha);}
+.platCard .plat-n{color:var(--acc);}
+.legend-more{font-size:11px; color:var(--ink-soft); margin:2px 0 0 17px;}
+
+/* 統計卡／平台卡頂端的色塊：移除 */
+.stat::after,.platCard::before{content:none !important; display:none !important;}
 </style>
 </head>
 <body>
@@ -940,15 +959,17 @@ function renderStats(){
 function renderChart(){
   const counts = {};
   state.filter(notWish).forEach(x=> (x.genres||[]).forEach(g=> counts[g]=(counts[g]||0)+1));
-  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const allEntries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const entries = allEntries.slice(0,5);
   const el = document.getElementById('genreChart');
   if(!entries.length){ el.innerHTML = '<div class="empty">還沒有紀錄,新增後這裡會自動統計</div>'; return; }
-  const total = entries.reduce((s,[,n])=>s+n,0);
+  const total = allEntries.reduce((s,[,n])=>s+n,0);
+  const rest = total - entries.reduce((s,[,n])=>s+n,0);
   let acc = 0;
   const stops = entries.map(([g,n],i)=>{
     const from = acc/total*360; acc += n; const to = acc/total*360;
     return `${CHART_COLORS[i%CHART_COLORS.length]} ${from}deg ${to}deg`;
-  }).join(', ');
+  }).join(', ') + (rest>0 ? `, var(--ink-faint) ${acc/total*360}deg 360deg` : '');
   const legend = entries.map(([g,n],i)=>{
     const pct = Math.round(n/total*100);
     return `<div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-name">${esc(g)}</span><span class="legend-n">${n} 部・${pct}%</span><div class="legend-track"><div style="width:${pct}%;background:${CHART_COLORS[i%CHART_COLORS.length]}"></div></div></div>`;
@@ -957,7 +978,7 @@ function renderChart(){
     <div class="donut" style="background:conic-gradient(${stops});">
       <div class="hole"><div class="n">${total}</div><div class="l">部次</div></div>
     </div>
-    <div class="legend">${legend}</div>
+    <div class="legend">${legend}${rest>0?`<div class="legend-more">另有 ${allEntries.length-entries.length} 種類型・${rest} 部次</div>`:''}</div>
   </div>`;
 }
 function matchStatusTab(x, tab){
