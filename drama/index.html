@@ -453,6 +453,14 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 @media(min-width:900px){
   .listRow.hasWish{grid-template-columns:minmax(400px,32%) minmax(0,1fr);}
 }
+
+.genreOther{display:flex; gap:6px; margin-top:6px; padding-top:8px; border-top:1px dashed var(--ink-faint);}
+.genreOther input{flex:1; min-width:0; padding:7px 10px; font-size:12.5px; border-radius:10px; border:1px solid var(--ink-faint); background:var(--bg); color:var(--ink); font-family:inherit;}
+.genreOther button{flex:0 0 auto; padding:7px 14px; border:none; border-radius:10px; background:var(--rose-deep); color:#fff; font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px; cursor:pointer;}
+
+.field .chkLabel{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; margin:0;}
+.field .chkLabel input{width:auto; margin:0; accent-color:var(--rose-deep);}
+.g-novel{font-size:10.5px; color:var(--wisteria); margin-top:3px; white-space:nowrap;}
 </style>
 </head>
 <body>
@@ -906,7 +914,7 @@ function render(){
 }
 function renderActors(){
   const counts = {};
-  state.filter(notWish).forEach(x=>{
+  state.filter(x=>notWish(x) && fmtOf(x)!=='AI短劇').forEach(x=>{
     (x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=> counts[a]=(counts[a]||0)+1);
   });
   const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -940,6 +948,18 @@ let lastAutoLen='';
 function onFormatChange(initOnly){
   const f=document.getElementById('fFormat'), l=document.getElementById('fEpLen');
   if(!f||!l) return;
+  // AI短劇沒有真人演員，也不需要國家：整個欄位隱藏（已填的內容會保留，不會被清掉）
+  const ai = f.value==='AI短劇';
+  if(ai !== genreModeAi){
+    genreModeAi = ai;
+    const dd = document.getElementById('genreDropdown');
+    if(dd){
+      const picked = [...dd.querySelectorAll('input[type=checkbox]:checked')].map(el=>el.value);
+      dd.innerHTML = genreOptionsHtml(f.value, picked, false);
+      syncGenreSelectBtn();
+    }
+  }
+  ['fCountryField','fActorField'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display = ai ? 'none' : ''; });
   const d=defaultLen(f.value);
   l.placeholder='不填則以 '+d+' 分鐘估算';
   if(initOnly===true) return;
@@ -1179,6 +1199,7 @@ function cardTemplate(x,i){
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
         ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
+        ${x.fromNovel?'<div class="g-novel">📖 小說改編</div>':''}
         ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
         ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?(x.status==='待播'?`<span>共${x.epTotal}集</span>`:`<span>${x.epWatched||0}/${x.epTotal}集</span>`):''}</div>`:''}
         ${finished&&x.endDate?`<div class="g-done">✓ 看完 ${fmtMD(x.endDate)}</div>`:''}
@@ -1459,7 +1480,7 @@ function buildYearWrap(year){
   const topGenre = Object.entries(genreCounts).sort((a,b)=>b[1]-a[1])[0];
   const platCounts={}; items.forEach(x=>{ if(x.platform) platCounts[x.platform]=(platCounts[x.platform]||0)+1; });
   const topPlat = Object.entries(platCounts).sort((a,b)=>b[1]-a[1])[0];
-  const actorCounts={}; items.forEach(x=>(x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=>actorCounts[a]=(actorCounts[a]||0)+1));
+  const actorCounts={}; items.filter(x=>fmtOf(x)!=='AI短劇').forEach(x=>(x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=>actorCounts[a]=(actorCounts[a]||0)+1));
   const topActor = Object.entries(actorCounts).sort((a,b)=>b[1]-a[1])[0];
   const topRated = [...items].filter(x=>Number(x.rating)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0];
   const manualPicks = items.filter(x=>x.bestYear===year);
@@ -1689,6 +1710,8 @@ function openForm(id, copyId){
   }
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
   currentFormWeekdays = existing && Array.isArray(existing.updateDays) ? [...existing.updateDays] : [];
+  const curFmt = existing ? fmtOf(existing) : '長劇';
+  genreModeAi = curFmt==='AI短劇';
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${isCopy?'複製':existing?'編輯':'新增'}影視劇</h3>
     <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
@@ -1701,6 +1724,7 @@ function openForm(id, copyId){
       ${platformFieldHtml(existing)}
     </div>
     <div class="field"><label>作品形式</label><select id="fFormat" onchange="onFormatChange()">${FORMAT_OPTIONS.map(o=>`<option ${o===(existing?fmtOf(existing):'長劇')?'selected':''}>${o}</option>`).join('')}</select></div>
+    <div class="field"><label class="chkLabel"><input type="checkbox" id="fNovel" ${existing&&existing.fromNovel?'checked':''}> 📖 改編自小說</label></div>
     <div class="field"><label>🔗 觀看連結（App 或 YouTube 網址，選填）</label><input id="fWatchUrl" type="text" inputmode="url" autocomplete="off" value="${existing?esc(existing.watchUrl||''):''}" placeholder="https://..."></div>
     <div class="field" id="fReleaseField" style="display:none;">
       <label>📅 上映日（預計首播日期）</label>
@@ -1715,7 +1739,7 @@ function openForm(id, copyId){
       <div class="genreSelect" id="genreSelect">
         <button type="button" class="genreSelectBtn placeholder" id="genreSelectBtn" onclick="toggleGenreDropdown(event)">請選擇類型</button>
         <div class="genreDropdown" id="genreDropdown">
-          ${GENRE_OPTIONS.map(g=>`<label class="genreOpt"><input type="checkbox" value="${esc(g)}" onchange="syncGenreSelectBtn()" ${existing&&(existing.genres||[]).includes(g)?'checked':''}> ${esc(g)}</label>`).join('')}
+          ${genreOptionsHtml(curFmt, existing ? (existing.genres||[]) : [], true)}
         </div>
       </div>
     </div>
@@ -1744,10 +1768,10 @@ function openForm(id, copyId){
     </div>
     <div class="wantHide" style="font-size:11px;color:var(--ink-soft);margin:-6px 0 12px;line-height:1.5;">統計與年度／月度檔案都以「我的日期」計算，跟劇的播出時間無關。已完結的老劇：只填開始日期＝我正在補，兩個都填＝我已看完。</div>
     <div class="row2">
-      <div class="field"><label>國家</label><select id="fCountry"><option value="">未選擇</option>${(()=>{ let c=existing?(existing.country||'').trim():''; if(c==='臺灣') c='台灣'; if(c && !COUNTRY_OPTIONS.includes(c)) c='其他'; return COUNTRY_OPTIONS.map(o=>`<option value="${o}" ${o===c?'selected':''}>${o}</option>`).join(''); })()}</select></div>
+      <div class="field" id="fCountryField"><label>國家</label><select id="fCountry"><option value="">未選擇</option>${(()=>{ let c=existing?(existing.country||'').trim():''; if(c==='臺灣') c='台灣'; if(c && !COUNTRY_OPTIONS.includes(c)) c='其他'; return COUNTRY_OPTIONS.map(o=>`<option value="${o}" ${o===c?'selected':''}>${o}</option>`).join(''); })()}</select></div>
       <div class="field"><label>播出年份（選填）</label><input id="fAirYear" oninput="syncWeekdayFieldVisibility()" type="number" min="1900" max="2100" value="${existing?existing.airYear||'':''}" placeholder="例：2019"></div>
     </div>
-    <div class="field"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
+    <div class="field" id="fActorField"><label>相關演員/藝人</label><input id="fActor" value="${existing?esc(existing.actor||''):''}"></div>
     <div class="modal-actions">
       <button class="btn ghost" onclick="closeModal()">取消</button>
       <button class="btn save" onclick="saveForm('${existing&&!isCopy?existing.id:''}')">儲存</button>
@@ -1764,6 +1788,39 @@ function onReleaseChange(){
   const r = document.getElementById('fRelease').value, y = document.getElementById('fAirYear');
   if(r && y && !y.value) y.value = r.slice(0,4);
 }
+const AI_GENRE_OPTIONS=['穿越','閃婚','重生','先婚後愛','霸總'];
+let genreModeAi=false;
+// AI短劇專用類型：預設選項＋之前自己輸入過的「其他」類型（存過就自動變成選項）
+function customAiGenres(){
+  const set = new Set();
+  state.forEach(x=>{ if(fmtOf(x)==='AI短劇') (x.genres||[]).forEach(g=>{ if(!AI_GENRE_OPTIONS.includes(g) && g!=='其他') set.add(g); }); });
+  return [...set];
+}
+function genreOptionsHtml(fmt, selected, keepExtras){
+  selected = selected || [];
+  const list = fmt==='AI短劇' ? [...AI_GENRE_OPTIONS, ...customAiGenres()] : [...GENRE_OPTIONS];
+  if(keepExtras) selected.forEach(g=>{ if(!list.includes(g)) list.push(g); });
+  const opts = list.map(g=>`<label class="genreOpt"><input type="checkbox" value="${esc(g)}" onchange="syncGenreSelectBtn()" ${selected.includes(g)?'checked':''}> ${esc(g)}</label>`).join('');
+  const other = fmt==='AI短劇' ? `<div class="genreOther"><input type="text" id="fGenreCustom" placeholder="其他：自行輸入後按 Enter 加入選項" autocomplete="off" onkeydown="handleGenreCustomKey(event)"><button type="button" onclick="addCustomGenre()">加入</button></div>` : '';
+  return opts + other;
+}
+function addCustomGenre(){
+  const inp = document.getElementById('fGenreCustom');
+  if(!inp) return;
+  const v = inp.value.trim();
+  if(!v) return;
+  const dd = document.getElementById('genreDropdown');
+  let cb = [...dd.querySelectorAll('input[type=checkbox]')].find(el=>el.value===v);
+  if(!cb){
+    const lab = document.createElement('label'); lab.className = 'genreOpt';
+    cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = v; cb.onchange = syncGenreSelectBtn;
+    lab.appendChild(cb); lab.appendChild(document.createTextNode(' '+v));
+    dd.insertBefore(lab, dd.querySelector('.genreOther'));
+  }
+  cb.checked = true; inp.value = '';
+  syncGenreSelectBtn();
+}
+function handleGenreCustomKey(e){ if(e.key==='Enter'){ e.preventDefault(); addCustomGenre(); } }
 function toggleGenreDropdown(e){
   if(e) e.stopPropagation();
   document.getElementById('genreDropdown').classList.toggle('open');
@@ -1840,6 +1897,7 @@ function saveForm(id){
     airYear: Number(document.getElementById('fAirYear').value)||0,
     releaseDate: document.getElementById('fRelease').value,
     format: document.getElementById('fFormat').value,
+    fromNovel: document.getElementById('fNovel').checked,
     watchUrl: normalizeUrl(document.getElementById('fWatchUrl').value),
     actor: document.getElementById('fActor').value.trim(),
     review: ((state.find(x=>x.id===id)||{}).review)||'',
