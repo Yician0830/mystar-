@@ -461,6 +461,11 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .field .chkLabel{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; margin:0;}
 .field .chkLabel input{width:auto; margin:0; accent-color:var(--rose-deep);}
 .g-novel{font-size:10.5px; color:var(--wisteria); margin-top:3px; white-space:nowrap;}
+
+/* 深色模式：灰色文字再亮一點 */
+:root[data-theme="dark"]{--ink-soft:#D2C5B4; --ink-faint:#8A7A67;}
+[data-theme="dark"] .monthCard.zero{opacity:.75;}
+[data-theme="dark"] .monthCard.zero .mChips b{color:var(--ink-soft);}
 </style>
 </head>
 <body>
