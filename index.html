@@ -1097,14 +1097,41 @@ function natKey(t){
 }
 function natCmp(a,b){ return natKey(a).localeCompare(natKey(b),'zh-Hant',{numeric:true}); }
 function titleTie(a,b){ return natCmp(a.title,b.title); }
+// 同一系列（第一季／第二季、(一)／(二)…）歸成一組：組與組之間照日期排，組內永遠由第一季排到最後一季
+function seriesInfo(t){
+  const k = natKey(t||'');
+  let seq = 1, m;
+  if((m = k.match(/第(\d+)\s*[季部期集]?/))) seq = Number(m[1]);
+  else if((m = k.match(/[（(](\d+)[)）]/))) seq = Number(m[1]);
+  else if((m = k.match(/\s(\d{1,2})$/))) seq = Number(m[1]);
+  const base = k.replace(/第\d+\s*[季部期集]?/g,'').replace(/[（(]\d+[)）]/g,'').replace(/\s\d{1,2}$/,'').replace(/\s+/g,'') || (t||'');
+  return {base, seq};
+}
+function sortByDateGrouped(items, desc){
+  const info = new Map(), gd = new Map();
+  items.forEach(x=>{
+    const si = seriesInfo(x.title); info.set(x, si);
+    const d = x.startDate || '';
+    if(!gd.has(si.base)) gd.set(si.base, d);
+    else { const cur = gd.get(si.base); gd.set(si.base, desc ? (d>cur?d:cur) : (d<cur?d:cur)); }
+  });
+  items.sort((a,b)=>{
+    const A = info.get(a), B = info.get(b);
+    if(A.base!==B.base){
+      const c = desc ? gd.get(B.base).localeCompare(gd.get(A.base)) : gd.get(A.base).localeCompare(gd.get(B.base));
+      return c || natCmp(A.base, B.base);
+    }
+    return (A.seq-B.seq) || (a.startDate||'').localeCompare(b.startDate||'') || natCmp(a.title, b.title);
+  });
+}
 function renderList(){
   let items = state.filter(notWish);
-  if(filters.sort==='date_asc') items.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||'') || titleTie(a,b));
+  if(filters.sort==='date_asc') sortByDateGrouped(items, false);
   else if(filters.sort==='progress_desc') items.sort((a,b)=>progressPct(b)-progressPct(a));
   else if(filters.sort==='progress_asc') items.sort((a,b)=>progressPct(a)-progressPct(b));
   else if(filters.sort==='rating_desc') items.sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
   else if(filters.sort==='title') items.sort((a,b)=>natCmp(a.title,b.title));
-  else items.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||'') || titleTie(a,b));
+  else sortByDateGrouped(items, true);
   if(filters.status!=='__all__') items = items.filter(x=>matchStatusTab(x,filters.status));
   if(filters.todayOnly) items = items.filter(x=>isWatching(x) && isDueToday(x));
   if(filters.format!=='__all__') items = items.filter(x=>fmtOf(x)===filters.format);
