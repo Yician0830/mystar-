@@ -381,6 +381,71 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .g-release.soon{color:var(--rose-deep);}
 .g-release.out{color:var(--matcha);}
 .g-release.none{color:var(--ink-soft); font-weight:400;}
+
+.wrapPromo{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:34px 0 4px; padding:16px 20px; border-radius:20px; background:linear-gradient(120deg,var(--rose-pale),var(--wisteria-pale)); border:1px solid rgba(0,0,0,.04); box-shadow:var(--shadow);}
+.wpTitle{font-family:'Zen Maru Gothic'; font-weight:900; font-size:16px;}
+.wpSub{font-size:12px; color:var(--ink-soft); margin-top:3px;}
+.wrapPromo .addBtn{flex:0 0 auto;}
+@media(max-width:480px){.wrapPromo{flex-direction:column; align-items:stretch; text-align:center;}}
+.trendCard{padding:16px 18px 14px;}
+.trendCard .cap{font-size:12px; font-weight:700; color:var(--ink-soft); margin-bottom:10px;}
+.trendBars{display:flex; align-items:flex-end; justify-content:center; gap:22px; min-height:150px; padding-top:6px;}
+.tbCol{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; min-width:52px;}
+.tbVal{font-family:'Zen Maru Gothic'; font-weight:900; font-size:16px; color:var(--ink);}
+.tbBar{width:38px; border-radius:10px 10px 4px 4px; background:linear-gradient(180deg,var(--rose),var(--rose-pale)); opacity:.9; transition:height .3s ease;}
+.tbBar.cur{background:linear-gradient(180deg,var(--rose-deep),var(--rose)); opacity:1;}
+.tbLab{font-size:12px; color:var(--ink-soft); padding-top:2px;}
+.archYear{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));}
+.yearCard{padding:14px 16px 14px;}
+.yearCard .yTop{display:flex; align-items:baseline; justify-content:space-between;}
+.yearCard .y{font-size:22px; color:var(--rose-deep);}
+.yearCard .yPct{font-size:11px; color:var(--ink-soft);}
+.yearCard .yStats{display:flex; gap:22px; margin:10px 0 12px;}
+.yearCard .yStats b{display:block; font-family:'Zen Maru Gothic'; font-weight:900; font-size:22px; line-height:1.1;}
+.yearCard .yStats small{font-size:11px; color:var(--ink-soft);}
+.yearCard .yBar{height:6px; border-radius:6px; background:var(--surface-soft); overflow:hidden;}
+.yearCard .yBar div{height:100%; border-radius:6px; background:linear-gradient(90deg,var(--rose),var(--rose-deep));}
+.monthGrid{gap:10px;}
+.monthCard{display:flex; flex-direction:column; gap:8px; padding:12px 14px;}
+.monthCard .mt{display:flex; align-items:center; gap:6px; font-size:14px;}
+.monthCard .mNow{font-size:10px; font-weight:700; color:#fff; background:var(--rose-deep); border-radius:999px; padding:1px 8px;}
+.monthCard .mChips{display:flex; gap:8px;}
+.monthCard .mChips span{flex:1; background:var(--surface-soft); border-radius:10px; padding:6px 4px; text-align:center; font-size:10.5px; color:var(--ink-soft);}
+.monthCard .mChips b{display:block; font-family:'Zen Maru Gothic'; font-weight:900; font-size:17px; line-height:1.2; color:var(--ink);}
+.monthCard.cur{border-color:var(--rose-deep); box-shadow:0 0 0 1px var(--rose-deep), var(--shadow);}
+.monthCard.zero{opacity:.55;}
+.monthCard.zero .mChips b{color:var(--ink-faint);}
+
+/* 統計卡／平台卡頂端：改成掛在上緣的小圓角色塊，並讓四張卡各有自己的顏色 */
+.stat::after,.platCard::before{content:''; position:absolute; top:0; left:50%; right:auto; width:34px; height:4px; transform:translateX(-50%); border-radius:0 0 6px 6px; background:var(--acc,var(--rose-deep)); opacity:.9;}
+.stat{--acc:var(--rose-deep); --acc-pale:var(--rose-pale);}
+.stat:nth-child(1){--acc:var(--sky); --acc-pale:var(--sky-pale);}
+.stat:nth-child(2){--acc:var(--matcha); --acc-pale:var(--matcha-pale);}
+.stat:nth-child(3){--acc:var(--wisteria); --acc-pale:var(--wisteria-pale);}
+.stat:nth-child(4){--acc:var(--rose-deep); --acc-pale:var(--rose-pale);}
+.stat .ic{color:var(--acc); background:var(--acc-pale);}
+.stat .n{color:var(--ink);}
+.platCard{--acc:var(--rose-deep);}
+.platCard:nth-child(4n+2){--acc:var(--wisteria);}
+.platCard:nth-child(4n+3){--acc:var(--sky);}
+.platCard:nth-child(4n+4){--acc:var(--matcha);}
+.platCard .plat-n{color:var(--acc);}
+.legend-more{font-size:11px; color:var(--ink-soft); margin:2px 0 0 17px;}
+
+/* 統計卡／平台卡頂端的色塊：移除 */
+.stat::after,.platCard::before{content:none !important; display:none !important;}
+
+.stat .sub{font-size:10.5px; color:var(--ink-soft); margin-top:3px; opacity:.85;}
+.formatBar{display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 6px;}
+.formatBar .fbLabel{font-size:12px; color:var(--ink-soft); margin-right:2px;}
+.fmtChip{display:inline-flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--ink-faint); border-radius:999px; padding:5px 12px; font-size:12.5px; color:var(--ink); cursor:pointer; font-family:inherit; box-shadow:var(--shadow);}
+.fmtChip b{font-family:'Zen Maru Gothic'; font-weight:900; color:var(--rose-deep);}
+.fmtChip:hover{border-color:var(--rose-deep);}
+
+.cardPlay{position:absolute; right:8px; bottom:12px; width:30px; height:30px; border-radius:50%; border:none; background:rgba(255,253,249,.92); color:var(--rose-deep); font-size:12px; line-height:1; padding:0 0 0 2px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:3; box-shadow:0 2px 8px rgba(0,0,0,.25); touch-action:manipulation;}
+.cardPlay:active{transform:scale(.9);}
+.f-cover .cardPlay{bottom:8px; width:28px; height:28px;}
+.g-cover.hasPlay .g-overlay{padding-right:46px;}
 </style>
 </head>
 <body>
@@ -396,7 +461,8 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 
 <div id="updateBanner" class="updateBanner"></div>
 
-<div class="grid4" id="statsBar" style="margin-bottom:20px;"></div>
+<div class="grid4" id="statsBar" style="margin-bottom:12px;"></div>
+<div class="formatBar" id="formatBar"></div>
 
 <div id="featuredSec" style="display:none;">
   <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
@@ -415,10 +481,13 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 </div>
 
 <div class="sec">📺 平台總覽</div>
-<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算，未設定則以 45 分鐘估算）</div>
+<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算；未設定時依形式估算：長劇 45、短劇 3、電影 120 分鐘）</div>
 <div class="platGrid" id="platGrid"></div>
 
-<div class="sec">🎉 年度總結 <button class="addBtn" onclick="openYearWrap()">✨ 產生年度總結卡</button></div>
+<div class="wrapPromo">
+  <div class="wpText"><div class="wpTitle">🎉 年度總結</div><div class="wpSub">一鍵產生今年的追劇回顧卡，可下載分享</div></div>
+  <button class="addBtn" onclick="openYearWrap()">✨ 產生年度總結卡</button>
+</div>
 
 <div class="twoCol">
   <div>
@@ -460,6 +529,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
   <button type="button" class="filterBtn" id="filterBtn" onclick="toggleFilterPanel()">篩選<span class="fbN" id="filterBtnN"></span></button>
 </div>
 <div class="filterPanel" id="filterPanel">
+  <div class="fpRow"><span class="fpLabel">形式</span><div class="chipRow" id="formatFilter"></div></div>
   <div class="fpRow"><span class="fpLabel">平台</span><div class="chipRow" id="platformFilter"></div></div>
   <div class="fpRow"><span class="fpLabel">評分</span><div class="chipRow" id="ratingFilter"></div></div>
   <div class="fpRow"><span class="fpLabel">標籤</span><div class="chipRow" id="tagFilter"></div></div>
@@ -614,7 +684,7 @@ if(window.matchMedia){
 }
 
 let state = [];
-let filters = { status:'__all__', platform:'__all__', rating:'__all__', tag:'__all__', search:'', sort:'date_desc', todayOnly:false };
+let filters = { status:'__all__', format:'__all__', platform:'__all__', rating:'__all__', tag:'__all__', search:'', sort:'date_desc', todayOnly:false };
 const CHART_COLORS=['var(--rose-deep)','var(--matcha)','var(--wisteria)','var(--gold)','var(--sky)','var(--rose)','#B98B56','#6B8E9E','#A97C9E','#8FA85C'];
 const COVER_GRADIENTS=[
   'linear-gradient(155deg, var(--rose-pale), var(--gold-pale))',
@@ -627,6 +697,15 @@ function coverGrad(i){ return COVER_GRADIENTS[i % COVER_GRADIENTS.length]; }
 const GENRES=['電影','愛情','影集','綜藝','偶像劇','恐怖','懸疑','動畫','喜劇','紀錄片','其他'];
 const STATUSES=[['想看','st-want'],['待播','st-upcoming'],['追劇中','st-watching'],['已完結','st-done'],['棄劇','st-drop']];
 const PLATFORM_OPTIONS=['Netflix','Disney+','Prime Video','HBO Max','Apple TV+','Viu','LINE TV','friDay影音','KKTV','MyVideo','愛奇藝','WeTV','YouTube','電影院'];
+const FORMAT_OPTIONS=['長劇','短劇','AI短劇','電影'];
+function inferFormat(x){
+  if((x.platform||'')==='電影院') return '電影';
+  if((x.platform||'').includes('短劇')) return '短劇';
+  if(Number(x.epTotal)===1) return '電影';
+  return '長劇';
+}
+function fmtOf(x){ return x.format || inferFormat(x); }
+function isShortForm(x){ const f=fmtOf(x); return f==='短劇' || f==='AI短劇'; }
 const COUNTRY_OPTIONS=['台灣','中國','韓國','日本','其他'];
 const GENRE_OPTIONS=['愛情','懸疑','恐怖','喜劇','奇幻','動作','家庭','職場','犯罪','歷史','音樂','紀錄片','青春校園','其他'];
 const TAG_PRESETS=['必刷神作','配樂超棒','下飯劇','補劇','已棄坑'];
@@ -674,7 +753,7 @@ function isOldAirYear(y){
 function isFav(x){ return !!x.favorite; }
 function migrateData(arr){
   // 舊資料：愛心原本等於 5 星。第一次遇到沒有 favorite 欄位的劇，沿用原本的愛心狀態，之後兩者各自獨立
-  (arr||[]).forEach(x=>{ if(x.favorite===undefined) x.favorite = Number(x.rating)===5; x.platform = canonicalPlatform(x.platform); });
+  (arr||[]).forEach(x=>{ if(x.favorite===undefined) x.favorite = Number(x.rating)===5; x.platform = canonicalPlatform(x.platform); if(!x.format) x.format = inferFormat(x); });
   return arr;
 }
 function isPending(x){ return x.status==='想看' || x.status==='待播'; }
@@ -815,7 +894,7 @@ async function save(){ await saveKeyCloud(STORE_KEY, state); render(); }
 function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
-  renderFeatured(); renderStats(); renderChart(); renderActors(); renderUpcoming(); renderWishlist(); renderFilters(); renderList();
+  renderFeatured(); renderStats(); renderFormatBar(); renderChart(); renderActors(); renderUpcoming(); renderWishlist(); renderFilters(); renderList();
   renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner();
 }
 function renderActors(){
@@ -847,7 +926,20 @@ function lastSeenText(x){
   return '最近看：'+n+' 天前';
 }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
-function epMinutes(x){ const n = Number(x.epLength); return n>0 ? n : 45; }
+const FORMAT_LEN={'長劇':45,'短劇':3,'AI短劇':3,'電影':120};
+function defaultLen(f){ return FORMAT_LEN[f]||45; }
+function epMinutes(x){ const n = Number(x.epLength); return n>0 ? n : defaultLen(fmtOf(x)); }
+let lastAutoLen='';
+function onFormatChange(initOnly){
+  const f=document.getElementById('fFormat'), l=document.getElementById('fEpLen');
+  if(!f||!l) return;
+  const d=defaultLen(f.value);
+  l.placeholder='不填則以 '+d+' 分鐘估算';
+  if(initOnly===true) return;
+  // 只在欄位是空的、或上一次是自動帶入的值時才覆蓋，不會動到你手動填的片長
+  const autoVal = f.value==='長劇' ? '' : String(d);
+  if(l.value==='' || l.value===lastAutoLen){ l.value=autoVal; lastAutoLen=autoVal; }
+}
 function isDueToday(x){ return Array.isArray(x.updateDays) && x.updateDays.includes(new Date().getDay()); }
 function todayChipHtml(){
   const n = state.filter(x=>isWatching(x) && isDueToday(x)).length;
@@ -870,6 +962,7 @@ function renderFeatured(){
     const dueToday = hasUpdateDays && x.updateDays.includes(today);
     return `<div class="f-card ${dueToday?'due-today':''}" onclick="openForm('${x.id}')">
       <div class="f-cover" style="background:${coverGrad(i)}">
+        ${x.watchUrl?`<button type="button" class="cardPlay" aria-label="前往觀看" title="前往觀看" onclick="openWatchLink('${x.id}', event)">▶</button>`:''}
         <span class="f-fav ${isFav(x)?'on':''}" onclick="toggleFavorite('${x.id}', event)">${isFav(x)?'❤':'♡'}</span>
         ${x.image?`<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<span class=&quot;f-fav ${isFav(x)?'on':''}&quot; onclick=&quot;toggleFavorite(\\'${x.id}\\', event)&quot;>${isFav(x)?'❤':'♡'}</span><div class=&quot;ph&quot;>🎬</div>'">`:'<div class="ph">🎬</div>'}
       </div>
@@ -893,25 +986,41 @@ const STAT_ICONS={
 function renderStats(){
   const watching = state.filter(isWatching).length;
   const done = state.filter(x=>x.status==='已完結' && !isWatching(x)).length;
-  const totalEp = state.filter(notWish).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
+  const totalEp = state.filter(x=>notWish(x) && !isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
+  const shortEp = state.filter(x=>notWish(x) && isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const thisMonth = todayStr().slice(0,7);
   const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
   document.getElementById('statsBar').innerHTML = [
-    [STAT_ICONS.tv,'追劇中',watching],[STAT_ICONS.check,'已看完',done],[STAT_ICONS.film,'累積集數',totalEp],[STAT_ICONS.plus,'本月新增',addedThisMonth]
-  ].map(([ic,l,n])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div></div>`).join('');
+    [STAT_ICONS.tv,'追劇中',watching],[STAT_ICONS.check,'已看完',done],[STAT_ICONS.film,'累積集數',totalEp, shortEp?'另有短劇 '+shortEp+' 集':''],[STAT_ICONS.plus,'本月新增',addedThisMonth]
+  ].map(([ic,l,n,sub])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`).join('');
+}
+function renderFormatBar(){
+  const el = document.getElementById('formatBar');
+  const items = state.filter(notWish);
+  const chips = FORMAT_OPTIONS.map(f=>[f, items.filter(x=>fmtOf(x)===f).length]).filter(([,n])=>n>0);
+  if(!chips.length){ el.innerHTML=''; return; }
+  el.innerHTML = '<span class="fbLabel">🎞️ 作品形式</span>' + chips.map(([f,n])=>`<button type="button" class="fmtChip" onclick="filterByFormat('${f}')">${f}<b>${n}</b></button>`).join('');
+}
+function filterByFormat(f){
+  filters.format = f;
+  render();
+  const target = document.getElementById('statusFilter');
+  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function renderChart(){
   const counts = {};
   state.filter(notWish).forEach(x=> (x.genres||[]).forEach(g=> counts[g]=(counts[g]||0)+1));
-  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const allEntries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const entries = allEntries.slice(0,5);
   const el = document.getElementById('genreChart');
   if(!entries.length){ el.innerHTML = '<div class="empty">還沒有紀錄,新增後這裡會自動統計</div>'; return; }
-  const total = entries.reduce((s,[,n])=>s+n,0);
+  const total = allEntries.reduce((s,[,n])=>s+n,0);
+  const rest = total - entries.reduce((s,[,n])=>s+n,0);
   let acc = 0;
   const stops = entries.map(([g,n],i)=>{
     const from = acc/total*360; acc += n; const to = acc/total*360;
     return `${CHART_COLORS[i%CHART_COLORS.length]} ${from}deg ${to}deg`;
-  }).join(', ');
+  }).join(', ') + (rest>0 ? `, var(--ink-faint) ${acc/total*360}deg 360deg` : '');
   const legend = entries.map(([g,n],i)=>{
     const pct = Math.round(n/total*100);
     return `<div class="legend-row"><span class="legend-dot" style="background:${CHART_COLORS[i%CHART_COLORS.length]}"></span><span class="legend-name">${esc(g)}</span><span class="legend-n">${n} 部・${pct}%</span><div class="legend-track"><div style="width:${pct}%;background:${CHART_COLORS[i%CHART_COLORS.length]}"></div></div></div>`;
@@ -920,7 +1029,7 @@ function renderChart(){
     <div class="donut" style="background:conic-gradient(${stops});">
       <div class="hole"><div class="n">${total}</div><div class="l">部次</div></div>
     </div>
-    <div class="legend">${legend}</div>
+    <div class="legend">${legend}${rest>0?`<div class="legend-more">另有 ${allEntries.length-entries.length} 種類型・${rest} 部次</div>`:''}</div>
   </div>`;
 }
 function matchStatusTab(x, tab){
@@ -939,6 +1048,9 @@ function renderFilters(){
   const plats = ['__all__',...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
   document.getElementById('platformFilter').innerHTML = plats.map(p=>
     `<button class="chip ${filters.platform===p?'active':''}" data-f="platform" data-v="${p}">${p==='__all__'?'全部平台':p}</button>`).join('');
+  const fmts = ['__all__',...FORMAT_OPTIONS.filter(f=>state.filter(notWish).some(x=>fmtOf(x)===f))];
+  document.getElementById('formatFilter').innerHTML = fmts.map(f=>
+    `<button class="chip ${filters.format===f?'active':''}" data-f="format" data-v="${f}">${f==='__all__'?'全部形式':f}</button>`).join('');
   const ratingOpts = [['__all__','全部評分'],['5','★5'],['4','★4以上']];
   document.getElementById('ratingFilter').innerHTML = ratingOpts.map(([v,l])=>
     `<button class="chip ${filters.rating===v?'active':''}" data-f="rating" data-v="${v}">${l}</button>`).join('');
@@ -952,9 +1064,10 @@ function toggleFilterPanel(){
   document.getElementById('filterPanel').classList.toggle('open');
 }
 function clearFilter(k){ filters[k]='__all__'; render(); }
-function clearAllFilters(){ filters.platform='__all__'; filters.rating='__all__'; filters.tag='__all__'; render(); }
+function clearAllFilters(){ filters.format='__all__'; filters.platform='__all__'; filters.rating='__all__'; filters.tag='__all__'; render(); }
 function renderActiveFilters(){
   const tags = [];
+  if(filters.format!=='__all__') tags.push(['format', filters.format]);
   if(filters.platform!=='__all__') tags.push(['platform', filters.platform]);
   if(filters.rating!=='__all__') tags.push(['rating', filters.rating==='5' ? '★5' : '★4以上']);
   if(filters.tag!=='__all__') tags.push(['tag', '#'+filters.tag]);
@@ -965,16 +1078,63 @@ function renderActiveFilters(){
   n.textContent = tags.length; n.classList.toggle('show', tags.length>0);
   document.getElementById('filterBtn').classList.toggle('on', tags.length>0);
 }
+const CN_DIGIT={'零':0,'〇':0,'一':1,'二':2,'兩':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+function cnToNum(str){
+  let total=0, cur=0;
+  for(const ch of str){
+    if(ch==='十'){ total += (cur||1)*10; cur=0; }
+    else if(ch==='百'){ total += (cur||1)*100; cur=0; }
+    else if(ch in CN_DIGIT){ cur = cur*10 + CN_DIGIT[ch]; }
+  }
+  return total+cur;
+}
+// 讓「第二季」排在「第三季」前、「第一季」排在「第二季」前（中文數字轉成阿拉伯數字再比較）
+function natKey(t){
+  const N='[零〇一二兩三四五六七八九十百]+';
+  return (t||'')
+    .replace(new RegExp('第('+N+')','g'), (m,n)=>'第'+cnToNum(n))
+    .replace(new RegExp('([（(])('+N+')([)）])','g'), (m,a,n,b)=>a+cnToNum(n)+b);
+}
+function natCmp(a,b){ return natKey(a).localeCompare(natKey(b),'zh-Hant',{numeric:true}); }
+function titleTie(a,b){ return natCmp(a.title,b.title); }
+// 同一系列（第一季／第二季、(一)／(二)…）歸成一組：組與組之間照日期排，組內永遠由第一季排到最後一季
+function seriesInfo(t){
+  const k = natKey(t||'');
+  let seq = 1, m;
+  if((m = k.match(/第(\d+)\s*[季部期集]?/))) seq = Number(m[1]);
+  else if((m = k.match(/[（(](\d+)[)）]/))) seq = Number(m[1]);
+  else if((m = k.match(/\s(\d{1,2})$/))) seq = Number(m[1]);
+  const base = k.replace(/第\d+\s*[季部期集]?/g,'').replace(/[（(]\d+[)）]/g,'').replace(/\s\d{1,2}$/,'').replace(/\s+/g,'') || (t||'');
+  return {base, seq};
+}
+function sortByDateGrouped(items, desc){
+  const info = new Map(), gd = new Map();
+  items.forEach(x=>{
+    const si = seriesInfo(x.title); info.set(x, si);
+    const d = x.startDate || '';
+    if(!gd.has(si.base)) gd.set(si.base, d);
+    else { const cur = gd.get(si.base); gd.set(si.base, desc ? (d>cur?d:cur) : (d<cur?d:cur)); }
+  });
+  items.sort((a,b)=>{
+    const A = info.get(a), B = info.get(b);
+    if(A.base!==B.base){
+      const c = desc ? gd.get(B.base).localeCompare(gd.get(A.base)) : gd.get(A.base).localeCompare(gd.get(B.base));
+      return c || natCmp(A.base, B.base);
+    }
+    return (A.seq-B.seq) || (a.startDate||'').localeCompare(b.startDate||'') || natCmp(a.title, b.title);
+  });
+}
 function renderList(){
   let items = state.filter(notWish);
-  if(filters.sort==='date_asc') items.sort((a,b)=>(a.startDate||'').localeCompare(b.startDate||''));
+  if(filters.sort==='date_asc') sortByDateGrouped(items, false);
   else if(filters.sort==='progress_desc') items.sort((a,b)=>progressPct(b)-progressPct(a));
   else if(filters.sort==='progress_asc') items.sort((a,b)=>progressPct(a)-progressPct(b));
   else if(filters.sort==='rating_desc') items.sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0));
-  else if(filters.sort==='title') items.sort((a,b)=>(a.title||'').localeCompare(b.title||'','zh-Hant'));
-  else items.sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  else if(filters.sort==='title') items.sort((a,b)=>natCmp(a.title,b.title));
+  else sortByDateGrouped(items, true);
   if(filters.status!=='__all__') items = items.filter(x=>matchStatusTab(x,filters.status));
   if(filters.todayOnly) items = items.filter(x=>isWatching(x) && isDueToday(x));
+  if(filters.format!=='__all__') items = items.filter(x=>fmtOf(x)===filters.format);
   if(filters.platform!=='__all__') items = items.filter(x=>x.platform===filters.platform);
   if(filters.rating==='5') items = items.filter(x=>Number(x.rating)===5);
   if(filters.rating==='4') items = items.filter(x=>Number(x.rating)>=4);
@@ -1001,16 +1161,17 @@ function cardTemplate(x,i){
   const showBar = !!x.epTotal && !finished && x.status!=='想看';
   const tagList = Array.isArray(x.tags) ? x.tags : [];
   return `<div class="g-card ${isWatching(x)?'hasStep':''}">
-      <div class="g-cover" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
+      <div class="g-cover ${x.watchUrl?'hasPlay':''}" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
         <div class="g-img">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}</div>
         <span class="status-badge g-badge ${badgeCls}">${esc(badgeText)}</span>
         <span class="g-fav ${isFav(x)?'on':''}" onclick="toggleFavorite('${x.id}', event)">${isFav(x)?'❤':'♡'}</span>
         <button type="button" class="cardMenuBtn" aria-label="更多" onclick="openCardMenu('${x.id}', event)">⋯</button>
+        ${x.watchUrl?`<button type="button" class="cardPlay" aria-label="前往觀看" title="前往觀看" onclick="openWatchLink('${x.id}', event)">▶</button>`:''}
         <div class="g-overlay"><div class="g-title">${esc(x.title)}</div></div>
         ${showBar?`<div class="g-coverbar"><div style="width:${pct}%"></div></div>`:''}
       </div>
       <div class="g-body" onclick="openForm('${x.id}')">
-        ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||''].filter(Boolean).join('・')}</div>`:''}
+        ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
         ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
         ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?(x.status==='待播'?`<span>共${x.epTotal}集</span>`:`<span>${x.epWatched||0}/${x.epTotal}集</span>`):''}</div>`:''}
         ${finished&&x.endDate?`<div class="g-done">✓ 看完 ${fmtMD(x.endDate)}</div>`:''}
@@ -1126,6 +1287,7 @@ function openCardMenu(id, ev){
   const m = document.createElement('div');
   m.id = 'cardMenu'; m.className = 'cardMenu';
   m.innerHTML = (isPending(it) ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
+    + (it.watchUrl ? `<button type="button" onclick="closeCardMenu();openWatchLink('${id}')">▶ 前往觀看</button>` : '')
     + `<button type="button" onclick="closeCardMenu();openForm('${id}')">編輯</button>`
     + `<button type="button" onclick="closeCardMenu();openForm('', '${id}')">複製</button>`
     + `<button type="button" class="del" onclick="closeCardMenu();delItem('${id}')">刪除</button>`;
@@ -1138,6 +1300,20 @@ function openCardMenu(id, ev){
 }
 document.addEventListener('click', closeCardMenu);
 window.addEventListener('scroll', closeCardMenu, true);
+function normalizeUrl(u){
+  u=(u||'').trim();
+  if(!u) return '';
+  if(/^(javascript|data|vbscript|file):/i.test(u)) return '';
+  if(/^[a-z][a-z0-9+.-]*:\/\//i.test(u)) return u;
+  return 'https://'+u.replace(/^\/+/,'');
+}
+function openWatchLink(id, ev){
+  if(ev) ev.stopPropagation();
+  const it = state.find(x=>x.id===id);
+  const u = it ? normalizeUrl(it.watchUrl) : '';
+  if(!u){ showToast('還沒有設定觀看連結'); return; }
+  window.open(u, '_blank', 'noopener');
+}
 function startWatching(id){
   const it = state.find(x=>x.id===id);
   if(!it) return;
@@ -1179,8 +1355,13 @@ function renderYearArchive(){
   const years = {};
   state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結' && x.endDate) years[y].done++; });
   const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
-  document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>`
-    <div class="card clickable" onclick="openYearDetail('${y}')"><div class="y">${y}</div><div class="m">觀看數量：${v.n}　已看完：${v.done}</div></div>`).join('')
+  document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>{
+    const pct = v.n ? Math.round(v.done/v.n*100) : 0;
+    return `<div class="card clickable yearCard" onclick="openYearDetail('${y}')">
+      <div class="yTop"><span class="y">${y}</span><span class="yPct">完成 ${pct}%</span></div>
+      <div class="yStats"><div><b>${v.n}</b><small>部觀看</small></div><div><b>${v.done}</b><small>部看完</small></div></div>
+      <div class="yBar"><div style="width:${pct}%"></div></div>
+    </div>`; }).join('')
     : '<div class="empty">還沒有可以彙整的年度資料</div>';
   const listAsc = [...listDesc].reverse();
   renderYearTrend(listAsc);
@@ -1196,20 +1377,14 @@ function openYearDetail(year){
 }
 function renderYearTrend(listAsc){
   const el = document.getElementById('yearTrend');
-  if(listAsc.length<2){ el.innerHTML=''; el.style.display='none'; return; }
+  if(!listAsc.length){ el.innerHTML=''; el.style.display='none'; return; }
   el.style.display='block';
   const max = Math.max(...listAsc.map(([,v])=>v.n),1);
-  const w=300,h=70,pad=14;
-  const stepX = (w-2*pad)/(listAsc.length-1);
-  const pts = listAsc.map(([y,v],i)=>{
-    const x = pad+i*stepX;
-    const yy = h-pad-((v.n/max)*(h-2*pad));
-    return {x,y:yy,label:y,val:v.n};
-  });
-  const poly = pts.map(p=>`${p.x},${p.y}`).join(' ');
-  const marks = pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="3" fill="var(--rose-deep)"></circle><text x="${p.x}" y="${p.y-8}" font-size="9" fill="var(--ink-soft)" text-anchor="middle">${p.val}</text><text x="${p.x}" y="${h+10}" font-size="9" fill="var(--ink-soft)" text-anchor="middle">${p.label}</text>`).join('');
-  el.innerHTML = `<div class="cap">年度觀看量趨勢</div><svg viewBox="0 0 ${w} ${h+16}" style="width:100%;height:auto;display:block;">
-    <polyline points="${poly}" fill="none" stroke="var(--rose)" stroke-width="2"/>${marks}</svg>`;
+  const cur = String(new Date().getFullYear());
+  el.innerHTML = '<div class="cap">年度觀看量</div><div class="trendBars">' + listAsc.map(([y,v])=>{
+    const h = Math.max(6, Math.round(v.n/max*100));
+    return `<div class="tbCol" title="${y}：${v.n} 部"><div class="tbVal">${v.n}</div><div class="tbBar ${y===cur?'cur':''}" style="height:${h}px"></div><div class="tbLab">${y}</div></div>`;
+  }).join('') + '</div>';
 }
 function renderPlatforms(){
   const plats = [...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
@@ -1229,14 +1404,16 @@ function filterByPlatform(p){
   if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function renderMonthGrid(){
-  const y = new Date().getFullYear();
+  const now = new Date();
+  const y = now.getFullYear(), curM = now.getMonth()+1;
   document.getElementById('curYear').textContent = y;
   let html = '';
   for(let m=1;m<=12;m++){
     const mm = String(m).padStart(2,'0'); const key = y+'-'+mm;
     const started = state.filter(x=>(x.startDate||'').startsWith(key)).length;
     const done = state.filter(x=>(x.endDate||'').startsWith(key) && x.status==='已完結').length;
-    html += `<div class="monthCard clickable" onclick="openMonthDetail('${key}')"><div class="mt">${y}/${mm}</div><div class="mm">本月觀看：${started} 部<br>本月看完：${done} 部</div></div>`;
+    const cls = (m===curM?' cur':'') + (!started && !done ? ' zero' : '');
+    html += `<div class="monthCard clickable${cls}" onclick="openMonthDetail('${key}')"><div class="mt">${m} 月${m===curM?'<span class="mNow">本月</span>':''}</div><div class="mChips"><span><b>${started}</b>觀看</span><span><b>${done}</b>看完</span></div></div>`;
   }
   document.getElementById('monthGrid').innerHTML = html;
 }
@@ -1282,7 +1459,8 @@ function buildYearWrap(year){
   const isManualPicks = manualPicks.length>0;
   const topPicks = (isManualPicks ? manualPicks : items.filter(x=>Number(x.rating)>0))
     .slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,5);
-  return {year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topPicks,isManualPicks};
+  const fmtCounts={}; items.forEach(x=>{ const f=fmtOf(x); fmtCounts[f]=(fmtCounts[f]||0)+1; });
+  return {fmtCounts,year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topPicks,isManualPicks};
 }
 function openYearWrap(){
   const years = getYearsWithData();
@@ -1330,7 +1508,9 @@ function toggleBestPick(id, year, checked){
 }
 function renderWrapCard(year){
   const d = buildYearWrap(year);
+  const fmtText = FORMAT_OPTIONS.filter(f=>d.fmtCounts[f]).map(f=>f+' '+d.fmtCounts[f]+' 部').join('・');
   const highlights = [
+    fmtText ? `<div class="hl-row">🎞️ 作品形式：<b>${esc(fmtText)}</b></div>` : '',
     d.topGenre ? `<div class="hl-row">🎭 最愛類型：<b>${esc(d.topGenre[0])}</b>（${d.topGenre[1]} 部）</div>` : '',
     d.topPlat ? `<div class="hl-row">📺 最常用平台：<b>${esc(d.topPlat[0])}</b>（${d.topPlat[1]} 部）</div>` : '',
     d.topActor ? `<div class="hl-row">🌟 常看演員：<b>${esc(d.topActor[0])}</b>（${d.topActor[1]} 部）</div>` : '',
@@ -1480,6 +1660,7 @@ async function tmdbPick(i){
       });
       syncGenreSelectBtn();
     }
+    if(!isTv){ const fs=val('fFormat'); if(fs) fs.value='電影'; onFormatChange(); }
     syncEpisodeComplete();
     tmdbClosePanel();
     showToast('已帶入資料 ✓');
@@ -1488,7 +1669,7 @@ async function tmdbPick(i){
   }
 }
 function openForm(id, copyId){
-  autoDoneFrom=null;
+  autoDoneFrom=null; lastAutoLen='';
   let existing = id ? state.find(x=>x.id===id) : null;
   // 複製：以原本那筆為範本開一份新的（進度、評分、日期歸零），讓你改完劇名再儲存
   const isCopy = !id && !!copyId && !!state.find(x=>x.id===copyId);
@@ -1496,7 +1677,7 @@ function openForm(id, copyId){
     const src = state.find(x=>x.id===copyId);
     existing = Object.assign({}, JSON.parse(JSON.stringify(src)), {
       id:'', status:'追劇中', rating:0, epWatched:0, lastWatchedDate:'', startDate:'', endDate:'',
-      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:''
+      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:'', watchUrl:''
     });
   }
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
@@ -1512,6 +1693,8 @@ function openForm(id, copyId){
       <div class="field"><label>狀態</label><select id="fStatus" onchange="onStatusChange()">${STATUSES.map(s=>`<option ${existing&&existing.status===s[0]?'selected':''}>${s[0]}</option>`).join('')}</select></div>
       ${platformFieldHtml(existing)}
     </div>
+    <div class="field"><label>作品形式</label><select id="fFormat" onchange="onFormatChange()">${FORMAT_OPTIONS.map(o=>`<option ${o===(existing?fmtOf(existing):'長劇')?'selected':''}>${o}</option>`).join('')}</select></div>
+    <div class="field"><label>🔗 觀看連結（App 或 YouTube 網址，選填）</label><input id="fWatchUrl" type="text" inputmode="url" autocomplete="off" value="${existing?esc(existing.watchUrl||''):''}" placeholder="https://..."></div>
     <div class="field" id="fReleaseField" style="display:none;">
       <label>📅 上映日（預計首播日期）</label>
       <input id="fRelease" type="date" value="${existing?existing.releaseDate||'':''}" onchange="onReleaseChange()">
@@ -1547,7 +1730,7 @@ function openForm(id, copyId){
       <div class="field"><label>總集數</label><input id="fEpT" type="number" min="0" oninput="syncEpisodeComplete()" value="${existing?existing.epTotal||'':''}"></div>
     </div>
     <div class="field" id="fLastField"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
-    <div class="field"><label>每集片長（分鐘，不填預設 45 分鐘）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder="例：電影 120／動漫 24／短劇 15"></div>
+    <div class="field"><label>每集片長（分鐘，不填依形式估算：長劇 45／短劇 3／電影 120）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder=""></div>
     <div class="row2 wantHide">
       <div class="field"><label>我開始看的日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
       <div class="field"><label>我看完的日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
@@ -1567,6 +1750,7 @@ function openForm(id, copyId){
   syncGenreSelectBtn();
   renderTagChips();
   syncEpisodeComplete();
+  onFormatChange(true);
   document.getElementById('overlay').classList.add('show');
 }
 function onReleaseChange(){
@@ -1648,6 +1832,8 @@ function saveForm(id){
     country: document.getElementById('fCountry').value.trim(),
     airYear: Number(document.getElementById('fAirYear').value)||0,
     releaseDate: document.getElementById('fRelease').value,
+    format: document.getElementById('fFormat').value,
+    watchUrl: normalizeUrl(document.getElementById('fWatchUrl').value),
     actor: document.getElementById('fActor').value.trim(),
     review: ((state.find(x=>x.id===id)||{}).review)||'',
     favorite: !!((state.find(x=>x.id===id)||{}).favorite)
