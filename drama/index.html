@@ -465,6 +465,8 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .field .chkLabel{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; margin:0;}
 .field .chkLabel input{width:auto; margin:0; accent-color:var(--rose-deep);}
 .g-novel{font-size:10.5px; color:var(--wisteria); margin-top:3px; white-space:nowrap;}
+.g-seasons{position:absolute; top:30px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; background:rgba(255,253,249,.9); color:var(--rose-deep); box-shadow:0 2px 6px rgba(0,0,0,.12); z-index:1; pointer-events:none;}
+.g-card.isSeries{box-shadow:5px 5px 0 -1px var(--surface-soft), 5px 5px 0 0 var(--ink-faint), var(--shadow);}
 
 /* 深色模式：灰色文字再亮一點 */
 :root[data-theme="dark"]{--ink-soft:#D2C5B4; --ink-faint:#8A7A67;}
@@ -958,10 +960,7 @@ function render(){
   renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner();
 }
 function renderActors(){
-  const counts = {};
-  state.filter(x=>notWish(x) && fmtOf(x)!=='AI短劇').forEach(x=>{
-    (x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=> counts[a]=(counts[a]||0)+1);
-  });
+  const counts = countBySeries(state.filter(x=>notWish(x) && fmtOf(x)!=='AI短劇'), actorList);
   const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const el = document.getElementById('actorChart');
   if(!entries.length){ el.innerHTML = '<div class="empty">還沒有演員紀錄，新增劇集時填寫演員欄位就會統計在這裡</div>'; return; }
@@ -1056,12 +1055,13 @@ const STAT_ICONS={
   plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>'
 };
 function renderStats(){
-  const watching = state.filter(isWatching).length;
-  const done = state.filter(x=>x.status==='已完結' && !isWatching(x)).length;
+  const sGroups = groupBySeries(state.filter(notWish));
+  const watching = sGroups.filter(g=>seriesStatus(g.items)==='追劇中').length;
+  const done = sGroups.filter(g=>seriesStatus(g.items)==='已完結').length;
   const totalEp = state.filter(x=>notWish(x) && !isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const shortEp = state.filter(x=>notWish(x) && isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const thisMonth = todayStr().slice(0,7);
-  const addedThisMonth = state.filter(x=>(x.startDate||'').startsWith(thisMonth)).length;
+  const addedThisMonth = distinctSeries(state.filter(x=>(x.startDate||'').startsWith(thisMonth)));
   document.getElementById('statsBar').innerHTML = [
     [STAT_ICONS.tv,'追劇中',watching],[STAT_ICONS.check,'已看完',done],[STAT_ICONS.film,'累積集數',totalEp, shortEp?'另有短劇 '+shortEp+' 集':''],[STAT_ICONS.plus,'本月新增',addedThisMonth]
   ].map(([ic,l,n,sub])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`).join('');
@@ -1069,7 +1069,7 @@ function renderStats(){
 function renderFormatBar(){
   const el = document.getElementById('formatBar');
   const items = state.filter(notWish);
-  const chips = FORMAT_OPTIONS.map(f=>[f, items.filter(x=>fmtOf(x)===f).length]).filter(([,n])=>n>0);
+  const chips = FORMAT_OPTIONS.map(f=>[f, distinctSeries(items.filter(x=>fmtOf(x)===f))]).filter(([,n])=>n>0);
   if(!chips.length){ el.innerHTML=''; return; }
   el.innerHTML = '<span class="fbLabel">🎞️ 作品形式</span>' + chips.map(([f,n])=>`<button type="button" class="fmtChip ${filters.format===f?'active':''}" onclick="filterByFormat('${f}')">${f}<b>${n}</b></button>`).join('');
 }
@@ -1078,8 +1078,7 @@ function filterByFormat(f){
   render();
 }
 function renderChart(){
-  const counts = {};
-  state.filter(notWish).forEach(x=> (x.genres||[]).forEach(g=> counts[g]=(counts[g]||0)+1));
+  const counts = countBySeries(state.filter(notWish), x=>x.genres);
   const allEntries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
   const entries = allEntries.slice(0,5);
   const el = document.getElementById('genreChart');
@@ -1111,7 +1110,7 @@ function renderFilters(){
   const statusEl = document.getElementById('statusFilter');
   const listed = state.filter(notWish);
   statusEl.innerHTML = ['__all__',...STATUSES.filter(s=>s[0]!=='想看' && s[0]!=='待播').map(s=>s[0])].map(s=>{
-    const n = s==='__all__' ? listed.length : listed.filter(x=>matchStatusTab(x,s)).length;
+    const n = distinctSeries(s==='__all__' ? listed : listed.filter(x=>matchStatusTab(x,s)));
     return `<button class="chip ${filters.status===s?'active':''}" data-f="status" data-v="${s}">${s==='__all__'?'全部':s}<span class="tabN">${n}</span></button>`;
   }).join('');
   statusEl.insertAdjacentHTML('beforeend', todayChipHtml());
@@ -1167,6 +1166,71 @@ function natKey(t){
 }
 function natCmp(a,b){ return natKey(a).localeCompare(natKey(b),'zh-Hant',{numeric:true}); }
 function titleTie(a,b){ return natCmp(a.title,b.title); }
+/* ===== 系列：同一部作品的多季。有填「系列名稱」就用它歸組，沒填則由劇名判斷（第N季／(N)／結尾數字）===== */
+let _seriesList = [];
+function seriesKey(x){
+  const n=(x.seriesName||'').trim();
+  return (n || seriesInfo(x.title).base).replace(/\s+/g,'').toLowerCase();
+}
+function seriesSeq(x){ return seriesInfo(x.title).seq; }
+function seriesDisplayBase(t){
+  const k = natKey(t||'');
+  return k.replace(/第\d+\s*[季部期集]?/g,'').replace(/[（(]\d+[)）]/g,'').replace(/\s\d{1,2}$/,'').trim() || (t||'');
+}
+function groupBySeries(items){
+  const m = new Map();
+  items.forEach(x=>{ const k=seriesKey(x); if(!m.has(k)) m.set(k,[]); m.get(k).push(x); });
+  return [...m.entries()].map(([key,list])=>({key, items:list}));
+}
+function distinctSeries(items){ return new Set(items.map(seriesKey)).size; }
+function countLabel(items){
+  const s = distinctSeries(items);
+  return s===items.length ? s+' 部' : s+' 部・共 '+items.length+' 季';
+}
+// 依系列統計：同一系列的各季合併後，每個值只算 1 次
+function countBySeries(items, getter){
+  const counts = {};
+  groupBySeries(items).forEach(g=>{
+    const set = new Set();
+    g.items.forEach(x=>(getter(x)||[]).forEach(v=>{ if(v) set.add(v); }));
+    set.forEach(v=>{ counts[v]=(counts[v]||0)+1; });
+  });
+  return counts;
+}
+function actorList(x){ return (x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean); }
+// 收合卡片的代表季：有在追的優先，否則取最新一季
+function repOf(items){
+  const w = items.filter(isWatching);
+  const pool = w.length ? w : items;
+  return pool.slice().sort((a,b)=>(seriesSeq(b)-seriesSeq(a)) || (b.startDate||'').localeCompare(a.startDate||''))[0];
+}
+function seriesLabel(items){
+  const named = items.find(x=>(x.seriesName||'').trim());
+  return named ? named.seriesName.trim() : seriesDisplayBase(repOf(items).title);
+}
+function seriesStatus(items){
+  if(items.some(isWatching)) return '追劇中';
+  if(items.every(x=>x.status==='棄劇')) return '棄劇';
+  if(items.every(x=>x.status==='已完結' || x.status==='棄劇')) return '已完結';
+  return items[0].status;
+}
+function knownSeriesNames(){
+  const set = new Set();
+  state.forEach(x=>{ const n=(x.seriesName||'').trim(); if(n) set.add(n); });
+  groupBySeries(state.filter(notWish)).forEach(g=>{ if(g.items.length>1) set.add(seriesLabel(g.items)); });
+  return [...set];
+}
+function openSeries(idx){
+  const arr = _seriesList[idx];
+  if(!arr) return;
+  const items = arr.slice().sort((a,b)=>(seriesSeq(a)-seriesSeq(b)) || (a.startDate||'').localeCompare(b.startDate||''));
+  const last = items[items.length-1];
+  document.getElementById('modal').innerHTML = `
+    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${esc(seriesLabel(items))}（共 ${items.length} 季）</h3>
+    <div class="yearDetailGrid">${items.map((x,i)=>cardTemplate(x,i)).join('')}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button><button class="btn save" onclick="openForm('', '${last.id}')">＋ 新增下一季</button></div>`;
+  document.getElementById('overlay').classList.add('show');
+}
 // 同一系列（第一季／第二季、(一)／(二)…）歸成一組：組與組之間照日期排，組內跟著排序方向：新→舊時最新一季在前，舊→新時第一季在前
 function seriesInfo(t){
   const k = natKey(t||'');
@@ -1180,7 +1244,7 @@ function seriesInfo(t){
 function sortByDateGrouped(items, desc){
   const info = new Map(), gd = new Map();
   items.forEach(x=>{
-    const si = seriesInfo(x.title); info.set(x, si);
+    const si = seriesInfo(x.title); si.base = seriesKey(x); info.set(x, si);
     const d = x.startDate || '';
     if(!gd.has(si.base)) gd.set(si.base, d);
     else { const cur = gd.get(si.base); gd.set(si.base, desc ? (d>cur?d:cur) : (d<cur?d:cur)); }
@@ -1211,43 +1275,58 @@ function renderList(){
   if(filters.tag!=='__all__') items = items.filter(x=>(x.tags||[]).includes(filters.tag));
   if(filters.search && filters.search.trim()){
     const q = filters.search.trim().toLowerCase();
-    items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q) || (x.tags||[]).some(t=>t.toLowerCase().includes(q)));
+    items = items.filter(x=>(x.title||'').toLowerCase().includes(q) || (x.seriesName||'').toLowerCase().includes(q) || (x.actor||'').toLowerCase().includes(q) || (x.tags||[]).some(t=>t.toLowerCase().includes(q)));
   }
+  const groups = groupBySeries(items);
+  _seriesList = [];
   const rc = document.getElementById('resultCount');
-  if(rc) rc.textContent = '共 '+items.length+' 部';
+  if(rc) rc.textContent = '共 '+groups.length+' 部' + (groups.length!==items.length ? '（含 '+items.length+' 季）' : '');
   if(items.length===0){ document.getElementById('listArea').innerHTML = '<div class="empty">找不到符合條件的紀錄</div>'; return; }
-  document.getElementById('listArea').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
+  document.getElementById('listArea').innerHTML = groups.map((g,i)=>{
+    if(g.items.length===1) return cardTemplate(g.items[0], i);
+    _seriesList.push(g.items);
+    return cardTemplate(repOf(g.items), i, g.items, _seriesList.length-1);
+  }).join('');
 }
 function fmtMD(d){
   const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(d||'');
   return m ? (parseInt(m[1],10)+'/'+parseInt(m[2],10)) : '';
 }
-function cardTemplate(x,i){
+function cardTemplate(x,i,grp,gi){
+  const isGrp = Array.isArray(grp) && grp.length>1;
+  const stText = isGrp ? seriesStatus(grp) : x.status;
   const catchUp = x.status==='已完結' && isWatching(x);
-  const badgeText = catchUp ? '補劇中' : x.status;
-  const badgeCls = catchUp ? 'st-watching' : (STATUSES.find(s=>s[0]===x.status)||['','st-want'])[1];
-  const pct = progressPct(x);
-  const finished = x.status==='已完結' && !isWatching(x);
-  const showBar = !!x.epTotal && !finished && x.status!=='想看';
+  const badgeText = catchUp ? '補劇中' : stText;
+  const badgeCls = catchUp ? 'st-watching' : (STATUSES.find(s=>s[0]===stText)||['','st-want'])[1];
+  const sum = k => grp.reduce((s,y)=>s+(Number(y[k])||0),0);
+  const rated = isGrp ? grp.filter(y=>Number(y.rating)>0) : [];
+  const v = isGrp ? {epWatched:sum('epWatched'), epTotal:sum('epTotal'), rating: rated.length ? Math.round(rated.reduce((s,y)=>s+Number(y.rating),0)/rated.length) : 0} : x;
+  const pct = isGrp ? (v.epTotal ? Math.min(100, Math.round(v.epWatched/v.epTotal*100)) : 0) : progressPct(x);
+  const finished = isGrp ? stText==='已完結' : (x.status==='已完結' && !isWatching(x));
+  const endD = isGrp ? grp.map(y=>y.endDate||'').sort().pop() : x.endDate;
+  const showBar = !!v.epTotal && !finished && x.status!=='想看';
+  const titleText = isGrp ? seriesLabel(grp) : x.title;
+  const openJs = isGrp ? 'openSeries('+gi+')' : "openForm('"+x.id+"')";
   const tagList = Array.isArray(x.tags) ? x.tags : [];
-  return `<div class="g-card ${isWatching(x)?'hasStep':''}">
-      <div class="g-cover ${x.watchUrl?'hasPlay':''}" style="background:${coverGrad(i)}" onclick="openForm('${x.id}')">
+  return `<div class="g-card ${isWatching(x)?'hasStep':''} ${isGrp?'isSeries':''}">
+      <div class="g-cover ${x.watchUrl?'hasPlay':''}" style="background:${coverGrad(i)}" onclick="${openJs}">
         <div class="g-img">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}</div>
         <span class="status-badge g-badge ${badgeCls}">${esc(badgeText)}</span>
+        ${isGrp?`<span class="g-seasons">共${grp.length}季</span>`:''}
         <span class="g-fav ${isFav(x)?'on':''}" onclick="toggleFavorite('${x.id}', event)">${isFav(x)?'❤':'♡'}</span>
         <button type="button" class="cardMenuBtn" aria-label="更多" onclick="openCardMenu('${x.id}', event)">⋯</button>
         ${x.watchUrl?`<button type="button" class="cardPlay" aria-label="前往觀看" title="前往觀看" onclick="openWatchLink('${x.id}', event)">▶</button>`:''}
-        <div class="g-overlay"><div class="g-title">${esc(x.title)}</div></div>
+        <div class="g-overlay"><div class="g-title">${esc(titleText)}</div></div>
         ${showBar?`<div class="g-coverbar"><div style="width:${pct}%"></div></div>`:''}
       </div>
-      <div class="g-body" onclick="openForm('${x.id}')">
+      <div class="g-body" onclick="${openJs}">
         ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
         ${x.fromNovel?'<div class="g-novel">📖 小說改編</div>':''}
         ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
-        ${(x.rating||x.epTotal)?`<div class="g-sub"><span class="g-rating">${x.rating?stars(x.rating):''}</span>${x.epTotal?(x.status==='待播'?`<span>共${x.epTotal}集</span>`:`<span>${x.epWatched||0}/${x.epTotal}集</span>`):''}</div>`:''}
-        ${finished&&x.endDate?`<div class="g-done">✓ 看完 ${fmtMD(x.endDate)}</div>`:''}
+        ${(v.rating||v.epTotal)?`<div class="g-sub"><span class="g-rating">${v.rating?stars(v.rating):''}</span>${v.epTotal?(x.status==='待播'?`<span>共${v.epTotal}集</span>`:`<span>${v.epWatched||0}/${v.epTotal}集</span>`):''}</div>`:''}
+        ${finished&&endD?`<div class="g-done">✓ 看完 ${fmtMD(endD)}</div>`:''}
         ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
-        ${isWatching(x)?epStepper(x):''}
+        ${isGrp&&isWatching(x)?`<div class="g-meta">▶ ${esc(x.title)}</div>`:''}${isWatching(x)?epStepper(x):''}
         ${tagList.length?`<div class="g-tags">${tagList.slice(0,2).map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}${tagList.length>2?`<span class="g-tag more">+${tagList.length-2}</span>`:''}</div>`:''}
       </div>
     </div>`;
@@ -1423,8 +1502,10 @@ function renderWishlist(){
   document.getElementById('wishGrid').innerHTML = items.map((x,i)=>cardTemplate(x,i)).join('');
 }
 function renderYearArchive(){
+  const byYear = {};
+  state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; (byYear[y]=byYear[y]||[]).push(x); });
   const years = {};
-  state.forEach(x=>{ const y=(x.startDate||'').slice(0,4); if(!y) return; years[y]=years[y]||{n:0,done:0}; years[y].n++; if(x.status==='已完結' && x.endDate) years[y].done++; });
+  Object.entries(byYear).forEach(([y,arr])=>{ years[y] = {n:distinctSeries(arr), done:distinctSeries(arr.filter(x=>x.status==='已完結' && x.endDate))}; });
   const listDesc = Object.entries(years).sort((a,b)=>b[0].localeCompare(a[0]));
   const curYear = String(new Date().getFullYear());
   document.getElementById('yearArchive').innerHTML = listDesc.length ? listDesc.map(([y,v])=>{
@@ -1455,7 +1536,7 @@ function openYearDetail(year){
   const items = state.filter(x=>(x.startDate||'').startsWith(year))
     .sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   document.getElementById('modal').innerHTML = `
-    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${esc(year)} 年看過的劇（${items.length} 部）</h3>
+    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${esc(year)} 年看過的劇（${countLabel(items)}）</h3>
     <div class="yearDetailGrid">${items.map((x,i)=>cardTemplate(x,i)).join('') || '<div class="empty">這年還沒有紀錄</div>'}</div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button></div>`;
   document.getElementById('overlay').classList.add('show');
@@ -1480,7 +1561,7 @@ function renderPlatforms(){
   const plats = [...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
   document.getElementById('platGrid').innerHTML = plats.length ? plats.map(p=>{
     const items = state.filter(x=>notWish(x) && x.platform===p);
-    const n = items.length;
+    const n = distinctSeries(items);
     const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
     const mins = items.reduce((s,x)=>s+(Number(x.epWatched)||0)*epMinutes(x),0);
     const hrs = Math.round(mins/60*10)/10;
@@ -1500,8 +1581,8 @@ function renderMonthGrid(){
   let html = '';
   for(let m=1;m<=12;m++){
     const mm = String(m).padStart(2,'0'); const key = y+'-'+mm;
-    const started = state.filter(x=>(x.startDate||'').startsWith(key)).length;
-    const done = state.filter(x=>(x.endDate||'').startsWith(key) && x.status==='已完結').length;
+    const started = distinctSeries(state.filter(x=>(x.startDate||'').startsWith(key)));
+    const done = distinctSeries(state.filter(x=>(x.endDate||'').startsWith(key) && x.status==='已完結'));
     const cls = (m===curM?' cur':'') + (!started && !done ? ' zero' : '');
     html += `<div class="monthCard clickable${cls}" onclick="openMonthDetail('${key}')"><div class="mt">${m} 月${m===curM?'<span class="mNow">本月</span>':''}</div><div class="mChips"><span><b>${started}</b>觀看</span><span><b>${done}</b>看完</span></div></div>`;
   }
@@ -1512,7 +1593,7 @@ function openMonthDetail(key){
     .sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
   const [yy,mm] = key.split('-');
   document.getElementById('modal').innerHTML = `
-    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${yy}/${mm} 看過的劇（${items.length} 部）</h3>
+    <h3 style="margin:0 0 14px;font-family:'Zen Maru Gothic';">${yy}/${mm} 看過的劇（${countLabel(items)}）</h3>
     <div class="yearDetailGrid">${items.map((x,i)=>cardTemplate(x,i)).join('') || '<div class="empty">這個月還沒有紀錄</div>'}</div>
     <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button></div>`;
   document.getElementById('overlay').classList.add('show');
@@ -1534,22 +1615,23 @@ function epInYear(x, year){
 }
 function buildYearWrap(year){
   const items = state.filter(x=>(x.startDate||'').startsWith(year));
-  const count = items.length;
+  const count = distinctSeries(items);
   const ep = state.reduce((s,x)=>s+epInYear(x,year),0);
   const mins = state.reduce((s,x)=>s+epInYear(x,year)*epMinutes(x),0);
   const hrs = Math.round(mins/60*10)/10;
-  const genreCounts={}; items.forEach(x=>(x.genres||[]).forEach(g=>genreCounts[g]=(genreCounts[g]||0)+1));
+  const genreCounts=countBySeries(items, x=>x.genres);
   const topGenre = Object.entries(genreCounts).sort((a,b)=>b[1]-a[1])[0];
-  const platCounts={}; items.forEach(x=>{ if(x.platform) platCounts[x.platform]=(platCounts[x.platform]||0)+1; });
+  const platCounts=countBySeries(items, x=>[x.platform]);
   const topPlat = Object.entries(platCounts).sort((a,b)=>b[1]-a[1])[0];
-  const actorCounts={}; items.filter(x=>fmtOf(x)!=='AI短劇').forEach(x=>(x.actor||'').split(/[、,，\/]/).map(s=>s.trim()).filter(Boolean).forEach(a=>actorCounts[a]=(actorCounts[a]||0)+1));
+  const actorCounts=countBySeries(items.filter(x=>fmtOf(x)!=='AI短劇'), actorList);
   const topActor = Object.entries(actorCounts).sort((a,b)=>b[1]-a[1])[0];
   const topRated = [...items].filter(x=>Number(x.rating)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0];
   const manualPicks = items.filter(x=>x.bestYear===year);
   const isManualPicks = manualPicks.length>0;
-  const topPicks = (isManualPicks ? manualPicks : items.filter(x=>Number(x.rating)>0))
+  const autoPicks = groupBySeries(items.filter(x=>Number(x.rating)>0)).map(g=>g.items.slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0]);
+  const topPicks = (isManualPicks ? manualPicks : autoPicks)
     .slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,5);
-  const fmtCounts={}; items.forEach(x=>{ const f=fmtOf(x); fmtCounts[f]=(fmtCounts[f]||0)+1; });
+  const fmtCounts=countBySeries(items, x=>[fmtOf(x)]);
   return {fmtCounts,year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topPicks,isManualPicks};
 }
 function openYearWrap(){
@@ -1765,9 +1847,13 @@ function openForm(id, copyId){
   const isCopy = !id && !!copyId && !!state.find(x=>x.id===copyId);
   if(isCopy){
     const src = state.find(x=>x.id===copyId);
+    // 複製＝新增下一季：帶入系列名稱，標題自動變成「系列名 第N季」
+    const copyLabel = (src.seriesName||'').trim() || seriesDisplayBase(src.title);
+    const copySeq = Math.max(1, ...state.filter(x=>seriesKey(x)===seriesKey(src)).map(seriesSeq)) + 1;
     existing = Object.assign({}, JSON.parse(JSON.stringify(src)), {
       id:'', status:'追劇中', rating:0, epWatched:0, lastWatchedDate:'', startDate:'', endDate:'',
-      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:'', watchUrl:''
+      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:'', watchUrl:'',
+      seriesName:copyLabel, title:copyLabel+' 第'+copySeq+'季'
     });
   }
   currentFormTags = existing && Array.isArray(existing.tags) ? [...existing.tags] : [];
@@ -1777,6 +1863,7 @@ function openForm(id, copyId){
   document.getElementById('modal').innerHTML = `
     <h3 class="maru">${isCopy?'複製':existing?'編輯':'新增'}影視劇</h3>
     <div class="field" id="fTitleField"><label>劇名</label><input id="fTitle" value="${existing?esc(existing.title):''}" placeholder="例：黑暗榮耀" oninput="clearTitleErr()"><div class="field-err">請輸入劇名喔</div></div>
+    <div class="field"><label>系列名稱（選填：同一部作品的多季填一樣的名字，列表會自動收合成一張卡）</label><input id="fSeries" value="${existing?esc(existing.seriesName||''):''}" placeholder="例：霸總的契約新娘" list="seriesSuggestions" autocomplete="off"><datalist id="seriesSuggestions">${knownSeriesNames().map(n=>`<option value="${esc(n)}">`).join('')}</datalist></div>
     <div class="field" style="margin-bottom:6px;"><button type="button" class="tmdbBtn" onclick="tmdbSearch()">🔍 從 TMDB 帶入海報與資料</button></div>
     <div id="tmdbPanel"></div>
     <div class="field"><label>封面圖片網址</label><input id="fImage" value="${existing?esc(existing.image||''):''}" placeholder="貼上圖片連結（例如海報 URL）" oninput="updateImgPreview()"></div>
@@ -1942,6 +2029,7 @@ function saveForm(id){
   const data = {
     id: id || uid(),
     title,
+    seriesName: document.getElementById('fSeries').value.trim(),
     image: document.getElementById('fImage').value.trim(),
     rating: Number(document.getElementById('fRating').value)||0,
     status: document.getElementById('fStatus').value,
