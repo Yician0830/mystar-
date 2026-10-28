@@ -465,8 +465,8 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .field .chkLabel{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--ink); cursor:pointer; margin:0;}
 .field .chkLabel input{width:auto; margin:0; accent-color:var(--rose-deep);}
 .g-novel{font-size:10.5px; color:var(--wisteria); margin-top:3px; white-space:nowrap;}
-.g-seasons{position:absolute; top:30px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; background:rgba(255,253,249,.9); color:var(--rose-deep); box-shadow:0 2px 6px rgba(0,0,0,.12); z-index:1; pointer-events:none;}
-.g-card.isSeries{box-shadow:5px 5px 0 -1px var(--surface-soft), 5px 5px 0 0 var(--ink-faint), var(--shadow);}
+.g-seasons{display:inline-block; font-size:10.5px; padding:2px 9px; border-radius:999px; font-weight:700; background:var(--rose-pale); color:var(--rose-deep); margin-bottom:4px;}
+
 
 /* 深色模式：灰色文字再亮一點 */
 :root[data-theme="dark"]{--ink-soft:#D2C5B4; --ink-faint:#8A7A67;}
@@ -508,6 +508,50 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 /* 表單：兩欄一排時，若其中一欄被隱藏，剩下的那欄自動撐滿整行，不會一長一短 */
 .row2{display:flex; gap:10px;}
 .row2 > .field{flex:1 1 0; min-width:0;}
+.toTop{position:fixed; right:18px; bottom:calc(20px + env(safe-area-inset-bottom)); width:44px; height:44px; border-radius:50%; border:1px solid var(--ink-faint); background:var(--surface); color:var(--rose-deep); font-size:20px; line-height:1; box-shadow:var(--shadow); cursor:pointer; z-index:59; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transform:translateY(8px); transition:opacity .2s ease, transform .2s ease; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.toTop.show{opacity:1; pointer-events:auto; transform:translateY(0);}
+.toTop:active{transform:scale(.92);}
+@media(max-width:700px){.toTop{bottom:calc(86px + env(safe-area-inset-bottom)); right:23px;}}
+
+/* ===== 美化 1：卡片選單鈕「⋯」在深色模式看不見（圓底固定是淺色，字色也固定成深色）===== */
+.cardMenuBtn{color:#6B5C4D;}
+
+/* ===== 美化 2：側欄（待播／想看）改成橫向精簡列，不再佔滿整面海報 ===== */
+@media(min-width:900px){ .listRow.hasWish{grid-template-columns:minmax(360px,28%) minmax(0,1fr);} }
+#upcomingGrid,#wishGrid{grid-template-columns:1fr; gap:8px;}
+.g-bodyTitle{display:none;}
+#sideCol .g-card{flex-direction:row; align-items:stretch; border-radius:12px;}
+#sideCol .g-cover{width:76px; flex:0 0 76px;}
+#sideCol .g-overlay,#sideCol .g-badge,#sideCol .g-seasons{display:none;}
+#sideCol .g-body{flex:1; min-width:0; padding:8px 10px; display:flex; flex-direction:column; justify-content:center;}
+#sideCol .g-bodyTitle{display:-webkit-box; font-size:13.5px; margin-bottom:3px;}
+#sideCol .g-fav{width:22px; height:22px; font-size:12px; top:4px; right:4px;}
+#sideCol .cardMenuBtn{width:22px; height:22px; font-size:13px; top:30px; right:4px;}
+#sideCol .cardPlay{width:24px; height:24px; right:4px; bottom:4px; font-size:10px;}
+
+/* ===== 美化 3：全部清單的分頁／搜尋／篩選列捲動時固定在頂端 ===== */
+.stickyBar{position:sticky; top:env(safe-area-inset-top,0px); z-index:40; background:var(--surface-soft); margin:0 -14px 4px; padding:8px 14px 2px; box-shadow:0 8px 10px -10px rgba(0,0,0,.35);}
+.stickyBar .tabRow{margin-bottom:8px;}
+.stickyBar .searchRow{margin-bottom:8px;}
+.stickyBar .filterPanel{max-height:55vh; overflow-y:auto;}
+.stickyBar .activeFilters{margin-bottom:6px;}
+
+/* ===== 美化 4：卡片資訊層次 ===== */
+.g-plat{font-weight:700; color:var(--ink);}
+.g-sub{margin-top:5px;}
+.g-coverbar{height:5px; background:rgba(255,255,255,.28);}
+.g-coverbar.done div{background:var(--matcha);}
+.g-done{font-weight:700; margin-top:5px;}
+.g-card.isDone .g-cover img{filter:saturate(.72) brightness(.9); transition:filter .2s ease;}
+.g-card.isDone:hover .g-cover img{filter:none;}
+.g-card.isLive{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
+
+/* ===== 美化 5：系列卡像一疊卡片（後面露出兩層邊）===== */
+#listArea{gap:16px 18px;}
+.g-card.isSeries{box-shadow:5px 5px 0 0 var(--surface), 5px 5px 0 1px var(--ink-faint), 10px 10px 0 0 var(--surface-soft), 10px 10px 0 1px var(--ink-faint), var(--shadow);}
+.g-card.isSeries.isLive{box-shadow:0 0 0 2px var(--rose-deep), 5px 5px 0 0 var(--surface), 5px 5px 0 1px var(--ink-faint), 10px 10px 0 0 var(--surface-soft), 10px 10px 0 1px var(--ink-faint), var(--shadow);}
+.g-card.isSeries:hover{transform:translate(-2px,-3px);}
+#sideCol .g-card.isSeries,.yearDetailGrid .g-card.isSeries{box-shadow:var(--shadow);}
 </style>
 </head>
 <body>
@@ -577,6 +621,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 <div class="mainListCol">
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
 <div class="formatBar" id="formatBar"></div>
+<div class="stickyBar" id="stickyBar">
 <div class="tabRow" id="statusFilter"></div>
 <div class="searchRow">
   <input type="text" id="searchBox" placeholder="🔍 搜尋劇名或演員..." oninput="filters.search=this.value; renderList();">
@@ -597,6 +642,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
   <div class="fpRow"><span class="fpLabel">標籤</span><div class="chipRow" id="tagFilter"></div></div>
 </div>
 <div class="activeFilters" id="activeFilters"></div>
+</div>
 <div class="resultCount" id="resultCount"></div>
 <div class="galleryGrid" id="listArea"></div>
 </div>
@@ -606,6 +652,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 <button class="fab" onclick="openForm()" aria-label="新增影視劇" title="新增影視劇">＋</button>
+<button class="toTop" id="toTop" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="回到頂端" title="回到頂端">↑</button>
 
 <script>
 /* ================= 與手帳共用的 Firebase 專案 ================= */
@@ -1304,27 +1351,30 @@ function cardTemplate(x,i,grp,gi){
   const pct = isGrp ? (v.epTotal ? Math.min(100, Math.round(v.epWatched/v.epTotal*100)) : 0) : progressPct(x);
   const finished = isGrp ? stText==='已完結' : (x.status==='已完結' && !isWatching(x));
   const endD = isGrp ? grp.map(y=>y.endDate||'').sort().pop() : x.endDate;
-  const showBar = !!v.epTotal && !finished && x.status!=='想看';
+  const showBar = !!v.epTotal && x.status!=='想看' && x.status!=='待播';
+  // 集數改放封面底部進度條；星星獨占一行；看完的卡片把總集數收進「✓ 看完」那行
+  const epText = !v.epTotal ? '' : ((x.status==='待播'||x.status==='想看') ? '共'+v.epTotal+'集' : ((finished||isWatching(x)) ? '' : (v.epWatched||0)+'/'+v.epTotal+'集'));
   const titleText = isGrp ? seriesLabel(grp) : x.title;
   const openJs = isGrp ? 'openSeries('+gi+')' : "openForm('"+x.id+"')";
   const tagList = Array.isArray(x.tags) ? x.tags : [];
-  return `<div class="g-card ${isWatching(x)?'hasStep':''} ${isGrp?'isSeries':''}">
+  return `<div class="g-card ${isWatching(x)?'hasStep isLive':''} ${isGrp?'isSeries':''} ${finished?'isDone':''}">
       <div class="g-cover ${x.watchUrl?'hasPlay':''}" style="background:${coverGrad(i)}" onclick="${openJs}">
         <div class="g-img">${x.image ? `<img src="${esc(x.image)}" alt="${esc(x.title)}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=&quot;ph&quot;>🎬</div>'">` : `<div class="ph">🎬</div>`}</div>
         <span class="status-badge g-badge ${badgeCls}">${esc(badgeText)}</span>
-        ${isGrp?`<span class="g-seasons">共${grp.length}季</span>`:''}
         <span class="g-fav ${isFav(x)?'on':''}" onclick="toggleFavorite('${x.id}', event)">${isFav(x)?'❤':'♡'}</span>
         <button type="button" class="cardMenuBtn" aria-label="更多" onclick="openCardMenu('${x.id}', event)">⋯</button>
         ${x.watchUrl?`<button type="button" class="cardPlay" aria-label="前往觀看" title="前往觀看" onclick="openWatchLink('${x.id}', event)">▶</button>`:''}
         <div class="g-overlay"><div class="g-title">${esc(titleText)}</div></div>
-        ${showBar?`<div class="g-coverbar"><div style="width:${pct}%"></div></div>`:''}
+        ${showBar?`<div class="g-coverbar ${finished?'done':''}"><div style="width:${finished?100:pct}%"></div></div>`:''}
       </div>
       <div class="g-body" onclick="${openJs}">
-        ${(x.platform||x.airYear)?`<div class="g-meta">${[esc(x.platform||''), x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
+        ${isGrp?`<span class="g-seasons">共${grp.length}季</span>`:''}
+        <div class="g-title g-bodyTitle">${esc(titleText)}</div>
+        ${(x.platform||x.airYear)?`<div class="g-meta">${[x.platform?`<b class="g-plat">${esc(x.platform)}</b>`:'', x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
         ${x.fromNovel?'<div class="g-novel">📖 小說改編</div>':''}
         ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
-        ${(v.rating||v.epTotal)?`<div class="g-sub"><span class="g-rating">${v.rating?stars(v.rating):''}</span>${v.epTotal?(x.status==='待播'?`<span>共${v.epTotal}集</span>`:`<span>${v.epWatched||0}/${v.epTotal}集</span>`):''}</div>`:''}
-        ${finished&&endD?`<div class="g-done">✓ 看完 ${fmtMD(endD)}</div>`:''}
+        ${(v.rating||epText)?`<div class="g-sub"><span class="g-rating">${v.rating?stars(v.rating):''}</span>${epText?`<span>${epText}</span>`:''}</div>`:''}
+        ${finished&&(endD||v.epTotal)?`<div class="g-done">✓ ${endD?'看完 '+fmtMD(endD):'已看完'}${v.epTotal?'・共 '+v.epTotal+' 集':''}</div>`:''}
         ${isWatching(x)&&lastSeenText(x)?`<div class="g-meta">${lastSeenText(x)}</div>`:''}
         ${isGrp&&isWatching(x)?`<div class="g-meta">▶ ${esc(x.title)}</div>`:''}${isWatching(x)?epStepper(x):''}
         ${tagList.length?`<div class="g-tags">${tagList.slice(0,2).map(t=>`<span class="g-tag">${esc(t)}</span>`).join('')}${tagList.length>2?`<span class="g-tag more">+${tagList.length-2}</span>`:''}</div>`:''}
@@ -1628,11 +1678,18 @@ function buildYearWrap(year){
   const topRated = [...items].filter(x=>Number(x.rating)>0).sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0];
   const manualPicks = items.filter(x=>x.bestYear===year);
   const isManualPicks = manualPicks.length>0;
-  const autoPicks = groupBySeries(items.filter(x=>Number(x.rating)>0)).map(g=>g.items.slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0))[0]);
-  const topPicks = (isManualPicks ? manualPicks : autoPicks)
-    .slice().sort((a,b)=>(Number(b.rating)||0)-(Number(a.rating)||0)).slice(0,5);
+  // 代表作以「系列」為單位：多季只列一次，用大標題（系列名），評分取各季平均
+  const sizeOf = x => items.filter(y=>seriesKey(y)===seriesKey(x)).length;
+  const toPick = g => {
+    const r = g.items.filter(x=>Number(x.rating)>0);
+    const avg = r.length ? Math.round(r.reduce((a,x)=>a+Number(x.rating),0)/r.length) : 0;
+    return {title: sizeOf(g.items[0])>1 ? seriesLabel(items.filter(y=>seriesKey(y)===g.key)) : g.items[0].title, rating: avg};
+  };
+  const topPicks = groupBySeries(isManualPicks ? manualPicks : items.filter(x=>Number(x.rating)>0))
+    .map(toPick).sort((a,b)=>b.rating-a.rating).slice(0,5);
+  const topRatedTitle = topRated ? (sizeOf(topRated)>1 ? seriesLabel(items.filter(y=>seriesKey(y)===seriesKey(topRated))) : topRated.title) : '';
   const fmtCounts=countBySeries(items, x=>[fmtOf(x)]);
-  return {fmtCounts,year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topPicks,isManualPicks};
+  return {fmtCounts,year,count,ep,hrs,topGenre,topPlat,topActor,topRated,topRatedTitle,topPicks,isManualPicks};
 }
 function openYearWrap(){
   const years = getYearsWithData();
@@ -1654,27 +1711,32 @@ function openYearWrap(){
   renderBestPickList(years[0]);
   document.getElementById('overlay').classList.add('show');
 }
+let _bestGroups=[];
 function renderBestPickList(year){
   const wrap = document.getElementById('bestPickList');
   if(!wrap) return;
   const items = state.filter(x=>(x.startDate||'').startsWith(year));
   if(!items.length){ wrap.innerHTML = '<div class="empty" style="padding:6px 0;">這年還沒有紀錄</div>'; return; }
-  const pickedCount = items.filter(x=>x.bestYear===year).length;
-  wrap.innerHTML = items.map(x=>{
-    const checked = x.bestYear===year;
+  _bestGroups = groupBySeries(items);
+  const pickedCount = _bestGroups.filter(g=>g.items.some(x=>x.bestYear===year)).length;
+  wrap.innerHTML = _bestGroups.map((g,i)=>{
+    const checked = g.items.some(x=>x.bestYear===year);
     const disable = (!checked && pickedCount>=5) ? 'disabled' : '';
-    return `<label class="bestPickRow"><input type="checkbox" ${checked?'checked':''} ${disable} onchange="toggleBestPick('${x.id}','${year}',this.checked)"><span>${esc(x.title)}</span>${x.rating?`<span class="bp-stars">${stars(x.rating)}</span>`:''}</label>`;
+    const r = g.items.filter(x=>Number(x.rating)>0);
+    const avg = r.length ? Math.round(r.reduce((s,x)=>s+Number(x.rating),0)/r.length) : 0;
+    const name = g.items.length>1 ? seriesLabel(g.items)+'（'+g.items.length+' 季）' : g.items[0].title;
+    return `<label class="bestPickRow"><input type="checkbox" ${checked?'checked':''} ${disable} onchange="toggleBestPick(${i},'${year}',this.checked)"><span>${esc(name)}</span>${avg?`<span class="bp-stars">${stars(avg)}</span>`:''}</label>`;
   }).join('');
 }
-function toggleBestPick(id, year, checked){
-  const it = state.find(x=>x.id===id);
-  if(!it) return;
+function toggleBestPick(i, year, checked){
+  const g = _bestGroups[i];
+  if(!g) return;
   if(checked){
-    const currentCount = state.filter(x=>x.bestYear===year).length;
-    if(currentCount>=5){ showToast('最多只能選5部喔'); renderBestPickList(year); return; }
-    it.bestYear = year;
-  } else if(it.bestYear===year){
-    it.bestYear = '';
+    const cnt = _bestGroups.filter(h=>h.items.some(x=>x.bestYear===year)).length;
+    if(cnt>=5){ showToast('最多只能選5部喔'); renderBestPickList(year); return; }
+    g.items.forEach(x=>{ x.bestYear = year; });
+  } else {
+    g.items.forEach(x=>{ if(x.bestYear===year) x.bestYear=''; });
   }
   save().then(()=>{ renderWrapCard(year); renderBestPickList(year); });
 }
@@ -1686,7 +1748,7 @@ function renderWrapCard(year){
     d.topGenre ? `<div class="hl-row">🎭 最愛類型：<b>${esc(d.topGenre[0])}</b>（${d.topGenre[1]} 部）</div>` : '',
     d.topPlat ? `<div class="hl-row">📺 最常用平台：<b>${esc(d.topPlat[0])}</b>（${d.topPlat[1]} 部）</div>` : '',
     d.topActor ? `<div class="hl-row">🌟 常看演員：<b>${esc(d.topActor[0])}</b>（${d.topActor[1]} 部）</div>` : '',
-    d.topRated ? `<div class="hl-row">🏆 最高評分：<b>${esc(d.topRated.title)}</b>（${stars(d.topRated.rating)}）</div>` : ''
+    d.topRated ? `<div class="hl-row">🏆 最高評分：<b>${esc(d.topRatedTitle)}</b>（${stars(d.topRated.rating)}）</div>` : ''
   ].filter(Boolean).join('');
   const topPicksHtml = d.topPicks.length ? `<div class="wrapTop5">
       <div class="wrapTop5Title">${d.isManualPicks?'⭐ 年度最佳代表作':'🏅 年度 Top '+d.topPicks.length}</div>
@@ -2103,6 +2165,14 @@ async function init(){
     });
   }
 }
+(function(){
+  const btn = document.getElementById('toTop');
+  if(!btn) return;
+  let ticking=false;
+  function upd(){ ticking=false; btn.classList.toggle('show', (window.scrollY||document.documentElement.scrollTop||0) > 500); }
+  window.addEventListener('scroll', ()=>{ if(!ticking){ ticking=true; requestAnimationFrame(upd); } }, {passive:true});
+  upd();
+})();
 init();
 </script>
 </body>
