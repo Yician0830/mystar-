@@ -88,7 +88,8 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .g-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:30px;color:rgba(74,61,54,0.35);}
 .g-badge{position:absolute; top:6px; left:6px; font-size:10px; padding:2px 8px; border-radius:999px; font-weight:700; box-shadow:0 2px 6px rgba(0,0,0,0.12);}
 .g-fav{position:absolute; top:6px; right:6px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.78); display:flex; align-items:center; justify-content:center; font-size:15px; touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:pointer; box-shadow:0 2px 6px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
-.g-fav.on{color:var(--rose-deep);}
+.g-fav.on{color:#E53950;}
+:root[data-theme="dark"] .g-fav.on,:root[data-theme="dark"] .f-fav.on{color:#FF5C70;}
 .g-fav::before,.f-fav::before{content:''; position:absolute; top:-6px; right:-6px; left:-8px; bottom:-2px;}
 .cardMenuBtn::before{content:''; position:absolute; top:-2px; right:-6px; left:-8px; bottom:-8px;}
 .g-fav:active,.f-fav:active{transform:scale(.88);}
@@ -152,7 +153,7 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .f-cover img{width:100%; height:100%; object-fit:cover; display:block;}
 .f-cover .ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:26px;color:rgba(74,61,54,0.35);}
 .f-fav{position:absolute; top:5px; right:5px; width:26px; height:26px; border-radius:50%; background:rgba(255,253,249,0.78); display:flex; align-items:center; justify-content:center; font-size:15px; touch-action:manipulation; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.12); z-index:2; color:var(--ink-faint);}
-.f-fav.on{color:var(--rose-deep);}
+.f-fav.on{color:#E53950;}
 .f-body{padding:8px 9px 9px;}
 .f-title{font-weight:700; font-size:12.5px; line-height:1.3; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;}
 .f-meta{font-size:10.5px; color:var(--ink-soft); margin-top:3px;}
@@ -441,6 +442,9 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .fmtChip{display:inline-flex; align-items:center; gap:6px; background:var(--surface); border:1px solid var(--ink-faint); border-radius:999px; padding:5px 12px; font-size:12.5px; color:var(--ink); cursor:pointer; font-family:inherit; box-shadow:var(--shadow);}
 .fmtChip b{font-family:'Zen Maru Gothic'; font-weight:900; color:var(--rose-deep);}
 .fmtChip:hover{border-color:var(--rose-deep);}
+.fmtChip.active{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
+.fmtChip.active b{color:#fff;}
+.mainListCol .formatBar{margin:0 2px 12px;}
 
 .cardPlay{position:absolute; right:8px; bottom:12px; width:30px; height:30px; border-radius:50%; border:none; background:rgba(255,253,249,.92); color:var(--rose-deep); font-size:12px; line-height:1; padding:0 0 0 2px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:3; box-shadow:0 2px 8px rgba(0,0,0,.25); touch-action:manipulation;}
 .cardPlay:active{transform:scale(.9);}
@@ -518,7 +522,6 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 <div id="updateBanner" class="updateBanner"></div>
 
 <div class="grid4" id="statsBar" style="margin-bottom:12px;"></div>
-<div class="formatBar" id="formatBar"></div>
 
 <div id="featuredSec" style="display:none;">
   <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
@@ -571,6 +574,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 </div>
 <div class="mainListCol">
 <div class="sec">🗂️ 全部清單 <button class="addBtn" onclick="openForm()">＋ 新增影視劇</button></div>
+<div class="formatBar" id="formatBar"></div>
 <div class="tabRow" id="statusFilter"></div>
 <div class="searchRow">
   <input type="text" id="searchBox" placeholder="🔍 搜尋劇名或演員..." oninput="filters.search=this.value; renderList();">
@@ -1067,13 +1071,11 @@ function renderFormatBar(){
   const items = state.filter(notWish);
   const chips = FORMAT_OPTIONS.map(f=>[f, items.filter(x=>fmtOf(x)===f).length]).filter(([,n])=>n>0);
   if(!chips.length){ el.innerHTML=''; return; }
-  el.innerHTML = '<span class="fbLabel">🎞️ 作品形式</span>' + chips.map(([f,n])=>`<button type="button" class="fmtChip" onclick="filterByFormat('${f}')">${f}<b>${n}</b></button>`).join('');
+  el.innerHTML = '<span class="fbLabel">🎞️ 作品形式</span>' + chips.map(([f,n])=>`<button type="button" class="fmtChip ${filters.format===f?'active':''}" onclick="filterByFormat('${f}')">${f}<b>${n}</b></button>`).join('');
 }
 function filterByFormat(f){
-  filters.format = f;
+  filters.format = (filters.format===f) ? '__all__' : f;
   render();
-  const target = document.getElementById('statusFilter');
-  if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function renderChart(){
   const counts = {};
