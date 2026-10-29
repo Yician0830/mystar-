@@ -587,6 +587,27 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .g-card.isSeries.isLive{box-shadow:0 0 0 2px var(--rose-deep), 5px 5px 0 0 var(--surface), 5px 5px 0 1px var(--ink-faint), 10px 10px 0 0 var(--surface-soft), 10px 10px 0 1px var(--ink-faint), var(--shadow);}
 .g-card.isSeries:hover{transform:translate(-2px,-3px);}
 #sideCol .g-card.isSeries,.yearDetailGrid .g-card.isSeries{box-shadow:var(--shadow);}
+
+/* ===== 正在觀看：橫式大卡片（海報在左、資訊在右），3 部時剛好排滿一列 ===== */
+.featuredScroll{grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr)) !important; gap:14px !important; padding:2px 2px 6px;}
+.f-card{display:flex !important; border-radius:18px; min-height:190px; transition:transform .15s ease, box-shadow .15s ease;}
+.f-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(90,60,45,.16);}
+.f-card.due-today:hover{box-shadow:0 0 0 2px var(--rose-deep), 0 10px 24px rgba(90,60,45,.16);}
+.f-card .f-cover{width:128px !important; flex:0 0 128px !important; aspect-ratio:auto !important; align-self:stretch; min-height:190px;}
+.f-card .f-cover img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
+.f-card .f-cover .ph{position:absolute; inset:0; font-size:30px;}
+.f-card .f-fav{top:8px; right:8px;}
+.f-card .cardPlay{left:8px; right:auto; bottom:8px; width:30px; height:30px;}
+.f-card .f-body{flex:1 !important; min-width:0; align-self:center !important; padding:14px 16px 14px 16px !important; display:flex; flex-direction:column; gap:2px;}
+.f-card .f-title{font-family:'Zen Maru Gothic'; font-size:15.5px; line-height:1.35;}
+.f-card .f-meta{font-size:12px; margin-top:2px;}
+.f-prog{display:flex; align-items:center; gap:10px; margin-top:10px;}
+.f-prog .progress-track{flex:1; height:8px; margin-top:0;}
+.f-pct{font-family:'Zen Maru Gothic'; font-weight:900; font-size:13px; color:var(--rose-deep); min-width:34px; text-align:right;}
+.f-left{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
+.f-card .f-update{font-size:11.5px; margin-top:6px;}
+.f-card .epStep{margin-top:10px;}
+@media(max-width:420px){ .f-card .f-cover{width:104px !important; flex-basis:104px !important;} }
 </style>
 </head>
 <body>
@@ -1317,8 +1338,8 @@ function renderFeatured(){
       </div>
       <div class="f-body">
         <div class="f-title">${esc(x.title)}</div>
-        <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
-        ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
+        <div class="f-meta">${[x.platform?`<b class="g-plat">${esc(x.platform)}</b>`:'', fmtOf(x)!=='長劇'?esc(fmtOf(x)):'', x.airYear||''].filter(Boolean).join('・')}</div>
+        ${x.epTotal?`<div class="f-prog"><div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div><span class="f-pct">${pct}%</span></div><div class="f-left">${x.epWatched||0} / ${x.epTotal} 集・還剩 ${Math.max(0,x.epTotal-(x.epWatched||0))} 集</div>`:''}
         ${lastSeenText(x)?`<div class="f-update ${staleDays(x)?'stale':''}">${lastSeenText(x)}</div>`:''}
         ${epStepper(x)}
         ${hasUpdateDays?`<div class="f-update ${dueToday?'today':''}">${dueToday?'🔴 今天更新':'🔔 每週'+x.updateDays.map(d=>WEEKDAY_LABELS[d]).join('、')+'更新'}</div>`:''}
