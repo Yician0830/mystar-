@@ -282,7 +282,11 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .epStep button{width:32px; height:32px; flex:0 0 32px; border-radius:50%; border:none; background:var(--surface); color:var(--rose-deep); font-size:18px; line-height:1; font-weight:700; cursor:pointer; box-shadow:0 1px 3px rgba(0,0,0,.12); display:flex; align-items:center; justify-content:center; font-family:'Zen Maru Gothic'; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
 .epStep button:active{transform:scale(.92); background:var(--rose-pale);}
 .epStep button:disabled{opacity:.35;}
-.epStep .epNum{font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; flex:1; text-align:center; padding:8px 0; cursor:pointer;}
+.epStep .epNum{font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; flex:1 1 0; min-width:0; overflow:hidden; text-overflow:clip; text-align:center; padding:8px 0; cursor:pointer;}
+.epStep{gap:2px;}
+.f-card .epStep{box-sizing:border-box; max-width:100%;}
+.f-card .epStep button{width:28px; height:28px; flex:0 0 28px; font-size:16px;}
+.f-card .epStep .epNum{font-size:11px;}
 .epStep .epNum:active{color:var(--rose-deep);}
 .toast.act{pointer-events:auto;}
 .toast .undoBtn{margin-left:10px; background:rgba(255,255,255,.22); color:inherit; border:none; border-radius:999px; padding:4px 12px; font-family:inherit; font-weight:700; font-size:12.5px; cursor:pointer;}
@@ -368,6 +372,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .monthCard{padding:12px 14px;}
 .monthCard .mt{color:var(--rose-deep);}
 @media(min-width:600px){.featuredScroll{grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px;}}
+@media(min-width:1100px){.featuredScroll{grid-template-columns:repeat(7,minmax(0,1fr));}}
 .addBtn{box-shadow:0 3px 10px rgba(0,0,0,.12);}
 .g-card{transition:transform .15s ease, box-shadow .15s ease;}
 .g-card:hover{transform:translateY(-3px); box-shadow:0 10px 24px rgba(90,60,45,.16);}
