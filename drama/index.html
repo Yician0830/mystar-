@@ -588,6 +588,24 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .g-card.isSeries:hover{transform:translate(-2px,-3px);}
 #sideCol .g-card.isSeries,.yearDetailGrid .g-card.isSeries{box-shadow:var(--shadow);}
 
+/* ===== 頂端統計卡：橫式，圖示在左、數字在右，每張有自己的色調 ===== */
+.grid4{gap:12px;}
+.stat{display:flex; align-items:center; gap:16px; text-align:left; padding:20px 22px; background:linear-gradient(135deg,var(--acc-pale) 0%,var(--surface) 65%); overflow:hidden;}
+.stat::before{content:''; position:absolute; right:-30px; top:-34px; width:110px; height:110px; border-radius:50%; background:var(--acc-pale); opacity:.75; pointer-events:none;}
+.stat .ic{position:relative; z-index:1; width:52px; height:52px; flex:0 0 52px; margin:0; border-radius:17px; background:var(--surface); color:var(--acc); box-shadow:0 3px 10px rgba(0,0,0,.07);}
+.stat .ic svg{width:25px; height:25px;}
+.stat .stTxt{position:relative; z-index:1; min-width:0;}
+.stat .l{font-size:12.5px; font-weight:700; color:var(--ink-soft); margin:0;}
+.stat .n{font-size:36px; line-height:1.1; margin-top:2px; color:var(--ink);}
+.stat .n .u{font-family:'Noto Sans TC'; font-size:13px; font-weight:500; color:var(--ink-soft); margin-left:4px;}
+.stat .sub{font-size:11.5px; color:var(--ink-soft); margin-top:5px; opacity:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+@media(max-width:520px){
+  .stat{padding:14px 12px; gap:10px;}
+  .stat .ic{width:40px; height:40px; flex-basis:40px; border-radius:13px;}
+  .stat .ic svg{width:20px; height:20px;}
+  .stat .n{font-size:28px;}
+}
+
 /* ===== 正在觀看：橫式大卡片（海報在左、資訊在右），3 部時剛好排滿一列 ===== */
 .featuredScroll{grid-template-columns:repeat(auto-fill,minmax(min(100%,400px),1fr)) !important; gap:14px !important; padding:2px 2px 6px;}
 .f-card{display:flex !important; border-radius:18px; min-height:190px; transition:transform .15s ease, box-shadow .15s ease;}
@@ -1360,10 +1378,15 @@ function renderStats(){
   const totalEp = state.filter(x=>notWish(x) && !isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const shortEp = state.filter(x=>notWish(x) && isShortForm(x)).reduce((s,x)=> s+(Number(x.epWatched)||0), 0);
   const thisMonth = todayStr().slice(0,7);
+  const dueNow = state.filter(x=>isWatching(x) && isDueToday(x)).length;
+  const doneThisYear = distinctSeries(state.filter(x=>x.status==='已完結' && (x.endDate||'').startsWith(String(new Date().getFullYear()))));
   const addedThisMonth = distinctSeries(state.filter(x=>(x.startDate||'').startsWith(thisMonth)));
   document.getElementById('statsBar').innerHTML = [
-    [STAT_ICONS.tv,'追劇中',watching],[STAT_ICONS.check,'已看完',done],[STAT_ICONS.film,'累積集數',totalEp, shortEp?'另有短劇 '+shortEp+' 集':''],[STAT_ICONS.plus,'本月新增',addedThisMonth]
-  ].map(([ic,l,n,sub])=>`<div class="stat"><div class="ic">${ic}</div><div class="n">${n}</div><div class="l">${l}</div>${sub?`<div class="sub">${sub}</div>`:''}</div>`).join('');
+    [STAT_ICONS.tv,'追劇中',watching,(dueNow?'今天 '+dueNow+' 部有更新':'目前沒有今日更新'),'部'],
+    [STAT_ICONS.check,'已看完',done,(doneThisYear?'今年看完 '+doneThisYear+' 部':'今年還沒有看完的'),'部'],
+    [STAT_ICONS.film,'累積集數',totalEp,(shortEp?'另有短劇 '+shortEp+' 集':'長劇與電影'),'集'],
+    [STAT_ICONS.plus,'本月新增',addedThisMonth,(new Date().getMonth()+1)+' 月開始看的作品','部']
+  ].map(([ic,l,n,sub,u])=>`<div class="stat"><div class="ic">${ic}</div><div class="stTxt"><div class="l">${l}</div><div class="n">${n}<span class="u">${u}</span></div>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`).join('');
 }
 function renderFormatBar(){
   const el = document.getElementById('formatBar');
