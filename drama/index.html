@@ -246,7 +246,17 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .f-update{font-size:10.5px; color:var(--ink-soft); margin-top:4px;}
 .f-update.today{color:var(--rose-deep); font-weight:700;}
 .f-update.stale{color:var(--gold); font-weight:700;}
-.rhythmStats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+.rhythmStats{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-bottom:14px;}
+@media(max-width:560px){.rhythmStats{grid-template-columns:repeat(2,1fr);}}
+.weekCalScroll{overflow-x:auto; padding:2px 2px 8px;}
+.weekCal{display:grid; grid-template-columns:repeat(7,minmax(104px,1fr)); gap:8px; min-width:760px;}
+.wcCol{background:var(--surface); border:1px solid rgba(0,0,0,.04); border-radius:14px; padding:8px; box-shadow:var(--shadow); min-height:70px;}
+.wcCol.today{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
+.wcHead{font-family:'Zen Maru Gothic'; font-weight:700; font-size:12.5px; margin-bottom:6px; display:flex; align-items:center; gap:6px;}
+.wcHead span{font-size:10px; color:#fff; background:var(--rose-deep); border-radius:999px; padding:0 7px;}
+.wcItem{font-size:12px; background:var(--rose-pale); color:var(--rose-deep); border-radius:8px; padding:5px 7px; margin-top:4px; cursor:pointer; line-height:1.35; word-break:break-all;}
+.wcItem small{display:block; opacity:.75; font-size:10.5px;}
+.wcEmpty{color:var(--ink-faint); font-size:12px; text-align:center; padding:4px 0;}
 .rStat{background:var(--surface-soft); border-radius:14px; padding:12px 8px; text-align:center;}
 .rStat b{display:block; font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; line-height:1.1; color:var(--rose-deep);}
 .rStat small{display:block; font-size:11.5px; color:var(--ink-soft); margin-top:3px;}
@@ -597,6 +607,10 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 <div id="featuredSec" style="display:none;">
   <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
   <div class="featuredScroll" id="featuredArea"></div>
+  <div id="weekCalWrap" style="display:none;">
+    <div class="sec" style="margin-top:26px;">🗓️ 每週更新</div>
+    <div class="weekCalScroll"><div class="weekCal" id="weekCal"></div></div>
+  </div>
 </div>
 
 <div class="twoCol top insight">
@@ -642,7 +656,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
   <div class="galleryGrid" id="upcomingGrid"></div>
 </div>
 <div id="wishSec" style="display:none;">
-  <div class="secMini"><span>📋 片單（想看）</span><span class="cnt" id="wishCount"></span></div>
+  <div class="secMini"><span>📋 片單（想看）</span><span style="display:flex;align-items:center;gap:6px;"><button type="button" class="addBtn" style="padding:4px 12px;font-size:12px;box-shadow:none;" onclick="openPicker(true)">🎲 抽一部</button><span class="cnt" id="wishCount"></span></span></div>
   <div class="galleryGrid" id="wishGrid"></div>
 </div>
 </div>
@@ -1046,6 +1060,69 @@ function renderActors(){
   el.innerHTML = entries.map(([a,n],i)=>`
     <div class="bar-row" style="cursor:pointer;" title="看 ${esc(a)} 的所有作品" onclick="openActor(${i})"><span class="bar-label" title="${esc(a)}">${esc(a)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><span class="bar-num">${n}</span></div>`).join('');
 }
+/* ===== 每週更新日曆 ===== */
+function renderWeekCal(items){
+  const wrap = document.getElementById('weekCalWrap');
+  if(!wrap) return;
+  const list = items.filter(x=>Array.isArray(x.updateDays) && x.updateDays.length);
+  if(!list.length){ wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  const today = new Date().getDay();
+  document.getElementById('weekCal').innerHTML = [1,2,3,4,5,6,0].map(d=>{
+    const ds = list.filter(x=>x.updateDays.includes(d));
+    return `<div class="wcCol ${d===today?'today':''}"><div class="wcHead">週${WEEKDAY_LABELS[d]}${d===today?'<span>今天</span>':''}</div>`
+      + (ds.length ? ds.map(x=>`<div class="wcItem" onclick="openForm('${x.id}')" title="${esc(x.title)}">${esc(x.title)}${x.epTotal?`<small>${x.epWatched||0}/${x.epTotal} 集</small>`:''}</div>`).join('') : '<div class="wcEmpty">—</div>')
+      + `</div>`;
+  }).join('');
+}
+
+/* ===== 重看紀錄 ===== */
+function addRewatch(id){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  it.rewatch = (Number(it.rewatch)||0) + 1;
+  it.lastRewatchDate = todayStr();
+  save();
+  showToast('🔁 已記錄第 '+it.rewatch+' 次重看');
+}
+
+/* ===== 隨機抽片：從「想看」抽一部，可偏好常看的類型 ===== */
+let _pickLastId = null, _pickWeighted = true;
+function openPicker(fresh){
+  const pool = state.filter(x=>x.status==='想看');
+  if(!pool.length){ showToast('片單是空的，先加幾部想看的吧'); return; }
+  if(fresh===true) _pickLastId = null;
+  const w = document.getElementById('pickW');
+  if(w) _pickWeighted = w.checked;
+  const counts = countBySeries(state.filter(notWish), x=>x.genres);
+  const weightOf = x => _pickWeighted ? 1 + (x.genres||[]).reduce((s,g)=>s+(counts[g]||0),0) : 1;
+  let cands = pool.length>1 ? pool.filter(x=>x.id!==_pickLastId) : pool;
+  const total = cands.reduce((s,x)=>s+weightOf(x),0);
+  let r = Math.random()*total, pick = cands[cands.length-1];
+  for(const x of cands){ r -= weightOf(x); if(r<=0){ pick = x; break; } }
+  _pickLastId = pick.id;
+  const liked = (pick.genres||[]).filter(g=>counts[g]).sort((a,b)=>counts[b]-counts[a]).slice(0,2);
+  const meta = [pick.platform, pick.airYear||'', fmtOf(pick)!=='長劇'?fmtOf(pick):'', pick.epTotal?'共'+pick.epTotal+'集':''].filter(Boolean).map(esc).join('・');
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru" style="margin:0 0 12px;">🎲 今天看這部吧</h3>
+    <div style="display:flex;gap:14px;align-items:flex-start;">
+      <div style="width:110px;flex:0 0 110px;aspect-ratio:2/3;border-radius:12px;overflow:hidden;background:${coverGrad(0)};display:flex;align-items:center;justify-content:center;font-size:28px;">${pick.image?`<img src="${esc(pick.image)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.remove()">`:'🎬'}</div>
+      <div style="min-width:0;flex:1;">
+        <div style="font-weight:700;font-size:16px;line-height:1.4;">${esc(pick.title)}</div>
+        ${meta?`<div style="font-size:12px;color:var(--ink-soft);margin-top:4px;">${meta}</div>`:''}
+        ${(pick.genres||[]).length?`<div class="g-tags" style="margin-top:8px;">${pick.genres.map(g=>`<span class="g-tag">${esc(g)}</span>`).join('')}</div>`:''}
+        ${_pickWeighted&&liked.length?`<div style="font-size:12px;color:var(--rose-deep);margin-top:10px;line-height:1.6;">你看過不少 ${liked.map(g=>'「'+esc(g)+'」（'+counts[g]+' 部）').join('、')}，應該合胃口</div>`:''}
+      </div>
+    </div>
+    <div class="field" style="margin:14px 0 0;"><label class="chkLabel"><input type="checkbox" id="pickW" ${_pickWeighted?'checked':''} onchange="openPicker()"> 偏好我常看的類型</label></div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">關閉</button>
+      <button class="btn ghost" onclick="openPicker()">🎲 再抽一次</button>
+      <button class="btn save" onclick="closeModal();startWatching('${pick.id}')">▶ 開始追劇</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+
 /* ===== 演員作品列表 ===== */
 let _actorTop = [];
 function openActor(i){
@@ -1111,6 +1188,7 @@ function renderRhythm(){
       <div class="rStat"><b>${wEp}</b><small>本週集數</small><em>約 ${Math.round(wMin/6)/10} 小時</em></div>
       <div class="rStat"><b>${streak}</b><small>連續追劇天數</small><em>${streak?'🔥 繼續保持':'今天看一集就接上了'}</em></div>
       <div class="rStat"><b>${activeDays}</b><small>${year} 年有看的天數</small><em>共 ${Object.keys(m).filter(k=>k.startsWith(String(year))).reduce((s,k)=>s+m[k].ep,0)} 集（有紀錄的）</em></div>
+      <div class="rStat"><b>${state.reduce((s,x)=>s+(Number(x.rewatch)||0),0)}</b><small>重看次數</small><em>${state.filter(x=>Number(x.rewatch)>0).length} 部重看過</em></div>
     </div>
     <div class="heatWrap"><div class="heat">${cells}</div></div>
     <div class="heatLegend">少<i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>多　<span>顏色深淺依當天觀看時間（30／90／180 分鐘）</span></div>`;
@@ -1223,6 +1301,7 @@ function renderFeatured(){
   if(!all.length){ sec.style.display='none'; return; }
   sec.style.display='block';
   document.getElementById('todayChipF').innerHTML = todayChipHtml();
+  renderWeekCal(all);
   const items = filters.todayOnly ? all.filter(isDueToday) : all;
   const today = new Date().getDay();
   if(!items.length){ document.getElementById('featuredArea').innerHTML = '<div class="empty" style="grid-column:1/-1;">今天沒有更新的劇</div>'; return; }
@@ -1524,6 +1603,7 @@ function cardTemplate(x,i,grp,gi){
         <div class="g-title g-bodyTitle">${esc(titleText)}</div>
         ${(x.platform||x.airYear)?`<div class="g-meta">${[x.platform?`<b class="g-plat">${esc(x.platform)}</b>`:'', x.airYear||'', (fmtOf(x)!=='長劇' ? esc(fmtOf(x)) : '')].filter(Boolean).join('・')}</div>`:''}
         ${x.fromNovel?'<div class="g-novel">📖 小說改編</div>':''}
+        ${Number(x.rewatch)>0?`<div class="g-novel">🔁 重看 ${Number(x.rewatch)} 次</div>`:''}
         ${x.status==='待播'?`<div class="${releaseClass(x)}">${esc(releaseText(x))}</div>`:''}
         ${(v.rating||epText)?`<div class="g-sub"><span class="g-rating">${v.rating?stars(v.rating):''}</span>${epText?`<span>${epText}</span>`:''}</div>`:''}
         ${finished&&(endD||v.epTotal)?`<div class="g-done">✓ ${endD?'看完 '+fmtMD(endD):'已看完'}${v.epTotal?'・共 '+v.epTotal+' 集':''}</div>`:''}
@@ -1641,6 +1721,7 @@ function openCardMenu(id, ev){
   m.id = 'cardMenu'; m.className = 'cardMenu';
   m.innerHTML = (isPending(it) ? `<button type="button" onclick="closeCardMenu();startWatching('${id}')">▶ 開始追劇</button>` : '')
     + (it.watchUrl ? `<button type="button" onclick="closeCardMenu();openWatchLink('${id}')">▶ 前往觀看</button>` : '')
+    + (!isPending(it) ? `<button type="button" onclick="closeCardMenu();addRewatch('${id}')">🔁 記一次重看</button>` : '')
     + `<button type="button" onclick="closeCardMenu();openForm('${id}')">編輯</button>`
     + `<button type="button" onclick="closeCardMenu();openForm('', '${id}')">複製</button>`
     + `<button type="button" class="del" onclick="closeCardMenu();delItem('${id}')">刪除</button>`;
@@ -2067,7 +2148,7 @@ function openForm(id, copyId){
     const copySeq = Math.max(1, ...state.filter(x=>seriesKey(x)===seriesKey(src)).map(seriesSeq)) + 1;
     existing = Object.assign({}, JSON.parse(JSON.stringify(src)), {
       id:'', status:'追劇中', rating:0, epWatched:0, lastWatchedDate:'', startDate:'', endDate:'',
-      watchLog:[], bestYear:'', favorite:false, review:'', releaseDate:'', watchUrl:'',
+      watchLog:[], bestYear:'', favorite:false, review:'', rewatch:0, lastRewatchDate:'', releaseDate:'', watchUrl:'',
       seriesName:copyLabel, title:copyLabel+' 第'+copySeq+'季'
     });
   }
@@ -2126,6 +2207,7 @@ function openForm(id, copyId){
     </div>
     <div class="field" id="fLastField"><label>最近一次看的日期（改已看集數時會自動更新為今天）</label><input id="fLast" type="date" value="${existing?existing.lastWatchedDate||'':''}"></div>
     <div class="field"><label>每集片長（分鐘，不填依形式估算：長劇 45／短劇 3／電影 120）</label><input id="fEpLen" type="number" min="1" value="${existing&&existing.epLength?existing.epLength:''}" placeholder=""></div>
+    <div class="field wantHide"><label>🔁 重看次數（看完後又重看的次數，0＝沒重看過；卡片選單也能「記一次重看」）</label><input id="fRewatch" type="number" min="0" value="${existing&&existing.rewatch?existing.rewatch:''}" placeholder="0"></div>
     <div class="row2 wantHide">
       <div class="field"><label>我開始看的日期</label><input id="fStart" type="date" value="${existing?existing.startDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
       <div class="field"><label>我看完的日期</label><input id="fEnd" type="date" value="${existing?existing.endDate||'':''}" onchange="syncWeekdayFieldVisibility()"></div>
@@ -2265,6 +2347,8 @@ function saveForm(id){
     fromNovel: document.getElementById('fNovel').checked,
     watchUrl: normalizeUrl(document.getElementById('fWatchUrl').value),
     actor: document.getElementById('fActor').value.trim(),
+    rewatch: Number(document.getElementById('fRewatch').value)||0,
+    lastRewatchDate: ((state.find(x=>x.id===id)||{}).lastRewatchDate)||'',
     review: ((state.find(x=>x.id===id)||{}).review)||'',
     favorite: !!((state.find(x=>x.id===id)||{}).favorite)
   };
