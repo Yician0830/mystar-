@@ -626,7 +626,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .f-card .f-update{font-size:11.5px; margin-top:8px;}
 /* 步進器永遠貼在卡片底部：同一列的卡片 −／＋ 會在同一個高度 */
 .f-card .f-body::after{content:''; order:4; flex:1 1 10px; min-height:10px;}
-.f-card .epStep{order:5; margin-top:0;}
+.f-card .epBox{order:5; margin-top:0;}
 @media(max-width:420px){ .f-card .f-cover{width:104px !important; flex-basis:104px !important;} }
 
 /* ===== 統計膠囊放在「正在觀看」標題同一行右側 ===== */
@@ -687,6 +687,14 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .prBar div{height:100%; border-radius:6px; background:linear-gradient(90deg,var(--rose),var(--rose-deep));}
 .prSub{font-size:11px; color:var(--ink-soft);}
 .platNote{font-size:10.5px; color:var(--ink-soft); line-height:1.5; border-top:1px dashed var(--ink-faint); padding-top:8px; margin-top:auto;}
+
+/* 短劇快速加多集 */
+.epBox{margin-top:8px;}
+.epBox .epStep{margin-top:0;}
+.epQuick{display:flex; gap:6px; margin-top:6px;}
+.epQuick button{flex:1; height:26px; border-radius:999px; border:1px solid var(--ink-faint); background:var(--surface); color:var(--rose-deep); font-family:'Zen Maru Gothic'; font-weight:700; font-size:12px; cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;}
+.epQuick button:active{transform:scale(.94); background:var(--rose-pale);}
+.epQuick button:disabled{opacity:.35;}
 </style>
 </head>
 <body>
@@ -1291,7 +1299,7 @@ function renderRhythm(){
   }
   el.innerHTML = `
     <div class="rhythmStats">
-      <div class="rStat"><b>${wEp}</b><small>本週集數</small><em>約 ${Math.round(wMin/6)/10} 小時</em></div>
+      <div class="rStat"><b>${Math.round(wMin/6)/10}</b><small>本週觀看小時</small><em>共 ${wEp} 集</em></div>
       <div class="rStat"><b>${streak}</b><small>連續追劇天數</small><em>${streak?'🔥 繼續保持':'今天看一集就接上了'}</em></div>
       <div class="rStat"><b>${activeDays}</b><small>${year} 年有看的天數</small><em>共 ${Object.keys(m).filter(k=>k.startsWith(String(year))).reduce((s,k)=>s+m[k].ep,0)} 集（有紀錄的）</em></div>
       <div class="rStat"><b>${state.reduce((s,x)=>s+(Number(x.rewatch)||0),0)}</b><small>重看次數</small><em>${state.filter(x=>Number(x.rewatch)>0).length} 部重看過</em></div>
@@ -1728,11 +1736,13 @@ function cardTemplate(x,i,grp,gi){
 }
 function epStepper(x){
   const w=Number(x.epWatched)||0, t=Number(x.epTotal)||0;
-  return `<div class="epStep" onclick="event.stopPropagation()">
+  const atEnd = t>0 && w>=t;
+  const quick = isShortForm(x) ? `<div class="epQuick">${[5,10,20].map(n=>`<button type="button" ${atEnd?'disabled':''} onclick="changeEp('${x.id}',${n},event)">＋${n}</button>`).join('')}</div>` : '';
+  return `<div class="epBox" onclick="event.stopPropagation()"><div class="epStep">
     <button type="button" aria-label="少一集" onclick="changeEp('${x.id}',-1,event)" ${w<=0?'disabled':''}>−</button>
     <span class="epNum" role="button" title="點一下直接輸入集數" onclick="openEpInput('${x.id}',event)">${w}${t?' / '+t:''} 集 ✎</span>
-    <button type="button" aria-label="多一集" onclick="changeEp('${x.id}',1,event)" ${t&&w>=t?'disabled':''}>＋</button>
-  </div>`;
+    <button type="button" aria-label="多一集" onclick="changeEp('${x.id}',1,event)" ${atEnd?'disabled':''}>＋</button>
+  </div>${quick}</div>`;
 }
 let undoSnap=null;
 function changeEp(id, delta, ev){
