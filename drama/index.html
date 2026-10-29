@@ -245,6 +245,26 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .wdBtn.on{background:var(--rose-deep); color:#fff; border-color:var(--rose-deep);}
 .f-update{font-size:10.5px; color:var(--ink-soft); margin-top:4px;}
 .f-update.today{color:var(--rose-deep); font-weight:700;}
+.f-update.stale{color:var(--gold); font-weight:700;}
+.rhythmStats{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:14px;}
+.rStat{background:var(--surface-soft); border-radius:14px; padding:12px 8px; text-align:center;}
+.rStat b{display:block; font-family:'Zen Maru Gothic'; font-weight:900; font-size:26px; line-height:1.1; color:var(--rose-deep);}
+.rStat small{display:block; font-size:11.5px; color:var(--ink-soft); margin-top:3px;}
+.rStat em{display:block; font-style:normal; font-size:10.5px; color:var(--ink-soft); margin-top:2px; opacity:.85;}
+.heatWrap{overflow-x:auto; padding-bottom:4px;}
+.heat{display:grid; grid-template-rows:repeat(7,12px); grid-auto-flow:column; grid-auto-columns:12px; gap:3px; width:max-content; margin:0 auto;}
+.heat i,.heatLegend i{display:inline-block; border-radius:3px; background:var(--surface-soft);}
+.heat i.x{background:transparent;}
+.heat i.f{opacity:.45;}
+.heat i.l1,.heatLegend i.l1{background:var(--rose); opacity:.35;}
+.heat i.l2,.heatLegend i.l2{background:var(--rose); opacity:.6;}
+.heat i.l3,.heatLegend i.l3{background:var(--rose-deep); opacity:.8;}
+.heat i.l4,.heatLegend i.l4{background:var(--rose-deep); opacity:1;}
+.heatLegend{display:flex; align-items:center; justify-content:center; gap:4px; margin-top:10px; font-size:11px; color:var(--ink-soft); flex-wrap:wrap;}
+.heatLegend i{width:12px; height:12px;}
+.heatLegend span{opacity:.8;}
+.updateBanner{flex-direction:column; align-items:flex-start;}
+.updateBanner .ub-enable{margin-left:0;}
 .f-card.due-today{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
 .imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
@@ -593,6 +613,9 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 <div class="sec">📺 平台總覽</div>
 <div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算；未設定時依形式估算：長劇 45、短劇 3、電影 120 分鐘）</div>
 <div class="platGrid" id="platGrid"></div>
+
+<div class="sec">📈 觀看節奏</div>
+<div class="card" id="rhythm"></div>
 
 <div class="wrapPromo">
   <div class="wpText"><div class="wpTitle">🎉 年度總結</div><div class="wpSub">一鍵產生今年的追劇回顧卡，可下載分享</div></div>
@@ -967,10 +990,12 @@ function renderUpdateBanner(){
   const today = new Date().getDay();
   const due = state.filter(x=>isWatching(x) && Array.isArray(x.updateDays) && x.updateDays.includes(today));
   const rel = state.filter(x=>x.status==='待播' && x.releaseDate===todayStr());
-  if(!due.length && !rel.length){ el.style.display='none'; el.innerHTML=''; return; }
+  const stale = state.filter(x=>staleDays(x)).sort((a,b)=>staleDays(b)-staleDays(a));
+  if(!due.length && !rel.length && !stale.length){ el.style.display='none'; el.innerHTML=''; return; }
   el.style.display='flex';
   const needsEnable = ('Notification' in window) && Notification.permission!=='granted';
   el.innerHTML = (due.length?`<span>🔔 今天更新：${due.map(x=>esc(x.title)).join('、')}</span>`:'')
+    + (stale.length?`<span>⏸ 久沒看：${stale.map(x=>esc(x.title)+'（'+staleDays(x)+' 天）').join('、')}</span>`:'')
     + (rel.length?`<span>🎬 今天上映：${rel.map(x=>esc(x.title)).join('、')}</span>`:'')
     + (needsEnable?'<button type="button" class="ub-enable" onclick="enableNotifications()">開啟通知提醒</button>':'');
   maybeNotifyToday(due.map(x=>x.title).concat(rel.map(x=>x.title+'（上映）')));
@@ -1009,7 +1034,7 @@ function uid(){ return 'd'+Date.now()+Math.floor(Math.random()*1000); }
 
 function render(){
   renderFeatured(); renderStats(); renderFormatBar(); renderChart(); renderActors(); renderUpcoming(); renderWishlist(); renderFilters(); renderList();
-  renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner();
+  renderYearArchive(); renderPlatforms(); renderMonthGrid(); renderUpdateBanner(); renderRhythm();
 }
 function renderActors(){
   const counts = countBySeries(state.filter(x=>notWish(x) && fmtOf(x)!=='AI短劇'), actorList);
@@ -1017,9 +1042,124 @@ function renderActors(){
   const el = document.getElementById('actorChart');
   if(!entries.length){ el.innerHTML = '<div class="empty">還沒有演員紀錄，新增劇集時填寫演員欄位就會統計在這裡</div>'; return; }
   const max = entries[0][1];
-  el.innerHTML = entries.map(([a,n])=>`
-    <div class="bar-row"><span class="bar-label" title="${esc(a)}">${esc(a)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><span class="bar-num">${n}</span></div>`).join('');
+  _actorTop = entries.map(e=>e[0]);
+  el.innerHTML = entries.map(([a,n],i)=>`
+    <div class="bar-row" style="cursor:pointer;" title="看 ${esc(a)} 的所有作品" onclick="openActor(${i})"><span class="bar-label" title="${esc(a)}">${esc(a)}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round(n/max*100)}%"></div></div><span class="bar-num">${n}</span></div>`).join('');
 }
+/* ===== 演員作品列表 ===== */
+let _actorTop = [];
+function openActor(i){
+  const name = _actorTop[i];
+  if(!name) return;
+  const items = state.filter(x=>fmtOf(x)!=='AI短劇' && actorList(x).includes(name))
+    .sort((a,b)=>(b.startDate||b.releaseDate||'').localeCompare(a.startDate||a.releaseDate||''));
+  document.getElementById('modal').innerHTML = `
+    <h3 style="margin:0 0 4px;font-family:'Zen Maru Gothic';">${esc(name)} 的作品（${countLabel(items)}）</h3>
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;">包含想看、待播的作品，方便挑下一部</div>
+    <div class="yearDetailGrid">${items.map((x,k)=>cardTemplate(x,k)).join('') || '<div class="empty">沒有紀錄</div>'}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="closeModal()">關閉</button></div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+
+/* ===== 觀看節奏：本週統計、連續天數、年度熱力圖（資料來自 watchLog）===== */
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function dayMap(){
+  const m = {};
+  state.forEach(x=>{
+    if(!Array.isArray(x.watchLog)) return;
+    const len = epMinutes(x);
+    x.watchLog.forEach(e=>{
+      if(!e.d) return;
+      const n = Number(e.n)||0;
+      const o = m[e.d] || (m[e.d]={ep:0,min:0});
+      o.ep += n; o.min += n*len;
+    });
+  });
+  return m;
+}
+function renderRhythm(){
+  const el = document.getElementById('rhythm');
+  if(!el) return;
+  const m = dayMap();
+  const now = new Date(); now.setHours(0,0,0,0);
+  const year = now.getFullYear();
+  // 本週（週一到今天）
+  const mon = new Date(now); mon.setDate(now.getDate() - ((now.getDay()+6)%7));
+  let wEp=0, wMin=0;
+  for(let d=new Date(mon); d<=now; d.setDate(d.getDate()+1)){ const o=m[ymd(d)]; if(o){ wEp+=o.ep; wMin+=o.min; } }
+  // 連續追劇天數：今天還沒看的話，從昨天算起
+  let streak=0; const c=new Date(now);
+  if(!(m[ymd(c)] && m[ymd(c)].ep>0)) c.setDate(c.getDate()-1);
+  while(m[ymd(c)] && m[ymd(c)].ep>0){ streak++; c.setDate(c.getDate()-1); }
+  // 今年有看的天數
+  const activeDays = Object.keys(m).filter(k=>k.startsWith(String(year)) && m[k].ep>0).length;
+  // 熱力圖：整年，週日為每欄起點
+  const jan1 = new Date(year,0,1), dec31 = new Date(year,11,31);
+  const start = new Date(jan1); start.setDate(jan1.getDate()-jan1.getDay());
+  let cells='';
+  for(let d=new Date(start); d<=dec31 || d.getDay()!==0; d.setDate(d.getDate()+1)){
+    if(d<jan1 || d>dec31){ cells+='<i class="x"></i>'; continue; }
+    const k = ymd(d), o = m[k];
+    const min = o ? o.min : 0;
+    const lv = !o||!o.ep ? 0 : min<30 ? 1 : min<90 ? 2 : min<180 ? 3 : 4;
+    const fut = d>now ? ' f' : '';
+    const tip = k + (o&&o.ep ? '：'+o.ep+' 集・約 '+(Math.round(min/6)/10)+' 小時' : '：沒有紀錄');
+    cells += `<i class="l${lv}${fut}" title="${tip}"></i>`;
+  }
+  el.innerHTML = `
+    <div class="rhythmStats">
+      <div class="rStat"><b>${wEp}</b><small>本週集數</small><em>約 ${Math.round(wMin/6)/10} 小時</em></div>
+      <div class="rStat"><b>${streak}</b><small>連續追劇天數</small><em>${streak?'🔥 繼續保持':'今天看一集就接上了'}</em></div>
+      <div class="rStat"><b>${activeDays}</b><small>${year} 年有看的天數</small><em>共 ${Object.keys(m).filter(k=>k.startsWith(String(year))).reduce((s,k)=>s+m[k].ep,0)} 集（有紀錄的）</em></div>
+    </div>
+    <div class="heatWrap"><div class="heat">${cells}</div></div>
+    <div class="heatLegend">少<i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i>多　<span>顏色深淺依當天觀看時間（30／90／180 分鐘）</span></div>`;
+}
+
+/* ===== 看完：先快速評分（還沒評分才問），再問要不要新增下一季 ===== */
+function promptFinish(id){
+  const it = state.find(x=>x.id===id);
+  if(!it) return;
+  if(Number(it.rating)>0){ promptNextSeason(id); return; }
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru" style="margin:0 0 6px;">🎉 看完「${esc(it.title)}」了！</h3>
+    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px;">幫這部打個分數吧，年度總結會用到</div>
+    <div class="starPick" id="quickStars" style="justify-content:center;font-size:36px;gap:8px;margin:10px 0 6px;">${[1,2,3,4,5].map(n=>`<span data-v="${n}" onclick="setQuickRating('${id}',${n})" onmouseenter="hoverQuickStars(${n})" onmouseleave="hoverQuickStars(0)">★</span>`).join('')}</div>
+    <div class="modal-actions"><button class="btn ghost" onclick="skipQuickRating('${id}')">之後再說</button></div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+function hoverQuickStars(n){
+  document.querySelectorAll('#quickStars span').forEach(s=> s.classList.toggle('on', Number(s.dataset.v)<=n));
+}
+function setQuickRating(id, n){
+  const it = state.find(x=>x.id===id);
+  if(it){ it.rating = n; save(); showToast('已評 '+n+' 星 ✓'); }
+  closeModal();
+  setTimeout(()=>promptNextSeason(id), 250);
+}
+function skipQuickRating(id){
+  closeModal();
+  setTimeout(()=>promptNextSeason(id), 250);
+}
+
+/* ===== 看完一季，提示新增下一季 ===== */
+function promptNextSeason(id){
+  const it = state.find(x=>x.id===id);
+  if(!it || fmtOf(it)==='電影') return;
+  const grp = state.filter(x=>seriesKey(x)===seriesKey(it));
+  const seasonLike = grp.length>1 || (it.seriesName||'').trim() || /第.+[季部期]|[（(]\d+[)）]|\s\d{1,2}$/.test(natKey(it.title));
+  if(!seasonLike) return;
+  if(seriesSeq(it) < Math.max(...grp.map(seriesSeq))) return;
+  document.getElementById('modal').innerHTML = `
+    <h3 class="maru" style="margin:0 0 6px;">🎉 看完「${esc(it.title)}」了！</h3>
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:6px;">要不要直接新增「${esc(seriesLabel(grp))}」的下一季？會帶入系列名稱、平台、類型等資料。</div>
+    <div class="modal-actions">
+      <button class="btn ghost" onclick="closeModal()">先不用</button>
+      <button class="btn save" onclick="openForm('', '${it.id}')">＋ 新增下一季</button>
+    </div>`;
+  document.getElementById('overlay').classList.add('show');
+}
+
 function stars(n){ n=Number(n)||0; return '★'.repeat(n)+'☆'.repeat(5-n); }
 function todayStr(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function daysSince(dateStr){
@@ -1027,13 +1167,19 @@ function daysSince(dateStr){
   const a=new Date(dateStr+'T00:00:00'), b=new Date(todayStr()+'T00:00:00');
   return Math.round((b-a)/86400000);
 }
+const STALE_DAYS=7;
+function staleDays(x){
+  if(!isWatching(x) || !x.lastWatchedDate || isEpDone(x.epWatched,x.epTotal)) return 0;
+  const n=daysSince(x.lastWatchedDate);
+  return (n!==null && n>=STALE_DAYS) ? n : 0;
+}
 function lastSeenText(x){
   if(!x.lastWatchedDate) return '';
   if(isEpDone(x.epWatched,x.epTotal)) return '';
   const n=daysSince(x.lastWatchedDate);
   if(n===null||n<0) return '';
   if(n===0) return '最近看：今天';
-  if(n>=30) return '⏸ 已 '+n+' 天沒看';
+  if(n>=STALE_DAYS) return '⏸ 已 '+n+' 天沒看';
   return '最近看：'+n+' 天前';
 }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
@@ -1072,7 +1218,8 @@ function todayChipHtml(){
 function toggleTodayOnly(){ filters.todayOnly = !filters.todayOnly; render(); }
 function renderFeatured(){
   const sec = document.getElementById('featuredSec');
-  const all = state.filter(isWatching).sort((a,b)=>(b.startDate||'').localeCompare(a.startDate||''));
+  // 依「最近看」排序：剛看過的在前面，很久沒看的往後排
+  const all = state.filter(isWatching).sort((a,b)=>(b.lastWatchedDate||b.startDate||'').localeCompare(a.lastWatchedDate||a.startDate||'') || (b.startDate||'').localeCompare(a.startDate||''));
   if(!all.length){ sec.style.display='none'; return; }
   sec.style.display='block';
   document.getElementById('todayChipF').innerHTML = todayChipHtml();
@@ -1093,7 +1240,7 @@ function renderFeatured(){
         <div class="f-title">${esc(x.title)}</div>
         <div class="f-meta">${esc(x.platform||'')}${x.epTotal?' ・ '+(x.epWatched||0)+'/'+x.epTotal:''}</div>
         ${x.epTotal?`<div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>`:''}
-        ${lastSeenText(x)?`<div class="f-update">${lastSeenText(x)}</div>`:''}
+        ${lastSeenText(x)?`<div class="f-update ${staleDays(x)?'stale':''}">${lastSeenText(x)}</div>`:''}
         ${epStepper(x)}
         ${hasUpdateDays?`<div class="f-update ${dueToday?'today':''}">${dueToday?'🔴 今天更新':'🔔 每週'+x.updateDays.map(d=>WEEKDAY_LABELS[d]).join('、')+'更新'}</div>`:''}
       </div>
@@ -1439,6 +1586,7 @@ function setEp(id, next){
   }
   save();
   showUndoToast(msg);
+  if(isEpDone(next,t) && !wasDone) setTimeout(()=>promptFinish(id), 500);
 }
 function showUndoToast(msg){
   const t = document.getElementById('toast');
@@ -2121,6 +2269,7 @@ function saveForm(id){
     favorite: !!((state.find(x=>x.id===id)||{}).favorite)
   };
   const idx = state.findIndex(x=>x.id===data.id);
+  const wasDonePrev = idx>=0 ? isEpDone(state[idx].epWatched, state[idx].epTotal) : true;
   {
     const prev = idx>=0 ? state[idx] : null;
     const manual = !prev || data.lastWatchedDate !== (prev.lastWatchedDate||'');
@@ -2147,6 +2296,7 @@ function saveForm(id){
   if(idx>=0) state[idx]=data; else state.push(data);
   closeModal(); save();
   showToast('已儲存 ✓');
+  if(!wasDonePrev && isEpDone(data.epWatched,data.epTotal)) setTimeout(()=>promptFinish(data.id), 500);
 }
 function delItem(id){
   if(!confirm('確定要刪除這筆紀錄嗎？')) return;
