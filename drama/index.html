@@ -273,8 +273,8 @@ h1{font-family:'Zen Maru Gothic'; font-size:20px; margin:4px 0 18px; display:fle
 .heatLegend{display:flex; align-items:center; justify-content:center; gap:4px; margin-top:10px; font-size:11px; color:var(--ink-soft); flex-wrap:wrap;}
 .heatLegend i{width:12px; height:12px;}
 .heatLegend span{opacity:.8;}
-.updateBanner{flex-direction:column; align-items:flex-start;}
-.updateBanner .ub-enable{margin-left:0;}
+.updateBanner{flex-direction:row; flex-wrap:wrap; align-items:center; gap:6px 18px; padding:12px 18px; margin-bottom:8px; line-height:1.6;}
+.updateBanner .ub-enable{margin-left:auto;}
 .f-card.due-today{box-shadow:0 0 0 2px var(--rose-deep), var(--shadow);}
 .imgPreview{width:100%; max-height:170px; border-radius:10px; overflow:hidden; margin:-2px 0 10px; background:var(--surface-soft); display:none;}
 .imgPreview img{width:100%; height:170px; object-fit:cover; display:block;}
@@ -623,17 +623,74 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 .f-prog .progress-track{flex:1; height:8px; margin-top:0;}
 .f-pct{font-family:'Zen Maru Gothic'; font-weight:900; font-size:13px; color:var(--rose-deep); min-width:34px; text-align:right;}
 .f-left{font-size:11.5px; color:var(--ink-soft); margin-top:4px;}
-.f-card .f-update{font-size:11.5px; margin-top:6px;}
+.f-card .f-update{font-size:11.5px; margin-top:8px;}
 .f-card .epStep{margin-top:10px;}
 @media(max-width:420px){ .f-card .f-cover{width:104px !important; flex-basis:104px !important;} }
+
+/* ===== 統計膠囊放在「正在觀看」標題同一行右側 ===== */
+.watchHead{flex-wrap:wrap; gap:10px 14px; align-items:center; margin-top:22px;}
+.watchHead .wtLeft{display:inline-flex; align-items:center; gap:12px;}
+.watchHead .wtLeft .todayChip{margin-left:0;}
+.watchHead .statPills{flex:0 1 auto; justify-content:flex-end; margin-left:auto; gap:8px;}
+.watchHead{padding-bottom:8px;}
+.watchHead::before{top:calc((100% - 8px)/2 - 10px); bottom:auto; height:20px;}
+.watchHead .statPills .stat{padding:3px 13px 3px 3px; box-shadow:0 1px 6px rgba(90,60,45,.10);}
+.watchHead .statPills .ic{width:26px; height:26px; flex-basis:26px;}
+.watchHead .statPills .ic svg{width:14px; height:14px;}
+.watchHead .statPills .n{font-size:18px;}
+.watchHead .statPills .l{font-size:12px;}
+@media(max-width:900px){ .watchHead .statPills{flex:0 0 100%; justify-content:flex-start; margin-left:0;} }
+
+/* ===== 統計膠囊樣式 ===== */
+.topRow{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+.topRow > a{flex:0 0 36px;}
+.topRight{margin-left:auto;}
+.statPills{flex:1 1 0; min-width:0; display:flex; flex-wrap:wrap; justify-content:flex-start; gap:10px; margin-left:2px;}
+.statPills .stat{flex:0 0 auto; display:flex; flex-direction:row; align-items:center; gap:8px; padding:5px 16px 5px 5px; border-radius:999px; background:var(--surface); text-align:left; overflow:visible; cursor:default;}
+.statPills .stat::before{display:none;}
+.statPills .ic{width:30px; height:30px; flex:0 0 30px; margin:0; border-radius:50%; background:var(--acc-pale); color:var(--acc); box-shadow:none;}
+.statPills .ic svg{width:16px; height:16px;}
+.statPills .stTxt{display:flex; align-items:baseline; gap:6px;}
+.statPills .n{order:1; font-size:20px; line-height:1.2; margin:0;}
+.statPills .n .u{font-size:11px; margin-left:2px;}
+.statPills .l{order:2; font-size:12.5px; font-weight:500; white-space:nowrap;}
+.statPills .sub{display:none;}
+@media(max-width:900px){
+  .statPills{order:3; flex:0 0 100%; justify-content:flex-start; gap:8px;}
+}
+@media(max-width:520px){
+  .statPills .stat{padding:4px 12px 4px 4px; gap:6px;}
+  .statPills .n{font-size:17px;}
+  .statPills .l{font-size:11.5px;}
+  .statPills .ic{width:26px; height:26px; flex-basis:26px;}
+}
+
+/* ===== 類型分布／常看演員／平台總覽 排在同一列 ===== */
+.threeCol{display:grid; grid-template-columns:1fr; gap:0 18px; align-items:stretch;}
+@media(min-width:760px){ .threeCol{grid-template-columns:1fr 1fr;} .threeCol .colPlat{grid-column:1 / -1;} }
+@media(min-width:1100px){ .threeCol{grid-template-columns:1.2fr 1fr 1fr;} .threeCol .colPlat{grid-column:auto;} }
+.threeCol .col{display:flex; flex-direction:column; min-width:0;}
+.threeCol .col .card{flex:1;}
+.platCardWrap{display:flex; flex-direction:column; gap:10px;}
+.platList{display:flex; flex-direction:column; gap:12px; max-height:260px; overflow-y:auto; padding-right:4px;}
+.platRow{cursor:pointer;}
+.platRow:hover .prName{color:var(--rose-deep);}
+.prTop{display:flex; align-items:baseline; justify-content:space-between; gap:8px;}
+.prName{font-family:'Zen Maru Gothic'; font-weight:700; font-size:13.5px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.prN{font-family:'Zen Maru Gothic'; font-weight:900; font-size:16px; color:var(--rose-deep);}
+.prN small{font-size:10.5px; font-weight:500; color:var(--ink-soft); margin-left:2px;}
+.prBar{height:6px; border-radius:6px; background:var(--surface-soft); margin:5px 0 4px; overflow:hidden;}
+.prBar div{height:100%; border-radius:6px; background:linear-gradient(90deg,var(--rose),var(--rose-deep));}
+.prSub{font-size:11px; color:var(--ink-soft);}
+.platNote{font-size:10.5px; color:var(--ink-soft); line-height:1.5; border-top:1px dashed var(--ink-faint); padding-top:8px; margin-top:auto;}
 </style>
 </head>
 <body>
 <div class="page">
 <h1><span>🎬</span> 追劇紀錄</h1>
-<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+<div class="topRow">
   <a href="https://yician0830.github.io/" style="text-decoration:none;background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:15px;" title="回到入口頁">🏠</a>
-  <div style="display:flex;align-items:center;gap:8px;">
+  <div class="topRight" style="display:flex;align-items:center;gap:8px;">
     <button id="notifyBtn" onclick="enableNotifications()" style="background:var(--surface);box-shadow:var(--shadow);border-radius:999px;width:36px;height:36px;border:none;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;" title="開啟追劇提醒通知">🔕</button>
     <div id="authBar"></div>
   </div>
@@ -641,10 +698,13 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
 
 <div id="updateBanner" class="updateBanner"></div>
 
-<div class="grid4" id="statsBar" style="margin-bottom:12px;"></div>
 
+<div class="sec watchHead">
+  <span class="wtLeft">📺 正在觀看<span id="todayChipF"></span></span>
+  <div class="statPills" id="statsBar"></div>
+</div>
+<div id="featuredEmpty" class="empty" style="display:none;">目前沒有追劇中的作品，從片單開始一部吧</div>
 <div id="featuredSec" style="display:none;">
-  <div class="sec"><span>📺 正在觀看</span><span id="todayChipF"></span></div>
   <div class="featuredScroll" id="featuredArea"></div>
   <div id="weekCalWrap" style="display:none;">
     <div class="sec" style="margin-top:26px;">🗓️ 每週更新</div>
@@ -652,7 +712,7 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
   </div>
 </div>
 
-<div class="twoCol top insight">
+<div class="threeCol">
   <div class="col">
     <div class="sec">📊 類型分布</div>
     <div class="card" id="genreChart"></div>
@@ -661,11 +721,14 @@ h1{font-size:24px; margin:6px 0 16px; letter-spacing:.5px;}
     <div class="sec">🎭 常看演員 Top5</div>
     <div class="card" id="actorChart"></div>
   </div>
+  <div class="col colPlat">
+    <div class="sec">📺 平台總覽</div>
+    <div class="card platCardWrap">
+      <div class="platList" id="platGrid"></div>
+      <div class="platNote">時數為估算值：依各劇自訂的每集片長計算，未設定時長劇 45、短劇 3、電影 120 分鐘</div>
+    </div>
+  </div>
 </div>
-
-<div class="sec">📺 平台總覽</div>
-<div style="font-size:11px;color:var(--ink-soft);margin:-6px 0 10px;">時數為估算值（依各劇自訂的每集片長計算；未設定時依形式估算：長劇 45、短劇 3、電影 120 分鐘）</div>
-<div class="platGrid" id="platGrid"></div>
 
 <div class="sec">📈 觀看節奏</div>
 <div class="card" id="rhythm"></div>
@@ -1048,7 +1111,7 @@ function renderUpdateBanner(){
   el.style.display='flex';
   const needsEnable = ('Notification' in window) && Notification.permission!=='granted';
   el.innerHTML = (due.length?`<span>🔔 今天更新：${due.map(x=>esc(x.title)).join('、')}</span>`:'')
-    + (stale.length?`<span>⏸ 久沒看：${stale.map(x=>esc(x.title)+'（'+staleDays(x)+' 天）').join('、')}</span>`:'')
+    + (stale.length?`<span>久沒看：${stale.map(x=>esc(x.title)+'（'+staleDays(x)+' 天）').join('、')}</span>`:'')
     + (rel.length?`<span>🎬 今天上映：${rel.map(x=>esc(x.title)).join('、')}</span>`:'')
     + (needsEnable?'<button type="button" class="ub-enable" onclick="enableNotifications()">開啟通知提醒</button>':'');
   maybeNotifyToday(due.map(x=>x.title).concat(rel.map(x=>x.title+'（上映）')));
@@ -1296,7 +1359,7 @@ function lastSeenText(x){
   const n=daysSince(x.lastWatchedDate);
   if(n===null||n<0) return '';
   if(n===0) return '最近看：今天';
-  if(n>=STALE_DAYS) return '⏸ 已 '+n+' 天沒看';
+  if(n>=STALE_DAYS) return '已 '+n+' 天沒看';
   return '最近看：'+n+' 天前';
 }
 function progressPct(x){ return x.epTotal ? Math.min(100, Math.round((x.epWatched||0)/x.epTotal*100)) : 0; }
@@ -1337,7 +1400,9 @@ function renderFeatured(){
   const sec = document.getElementById('featuredSec');
   // 依「最近看」排序：剛看過的在前面，很久沒看的往後排
   const all = state.filter(isWatching).sort((a,b)=>(b.lastWatchedDate||b.startDate||'').localeCompare(a.lastWatchedDate||a.startDate||'') || (b.startDate||'').localeCompare(a.startDate||''));
-  if(!all.length){ sec.style.display='none'; return; }
+  const emptyEl = document.getElementById('featuredEmpty');
+  if(!all.length){ sec.style.display='none'; if(emptyEl) emptyEl.style.display='block'; document.getElementById('todayChipF').innerHTML=''; return; }
+  if(emptyEl) emptyEl.style.display='none';
   sec.style.display='block';
   document.getElementById('todayChipF').innerHTML = todayChipHtml();
   renderWeekCal(all);
@@ -1386,7 +1451,7 @@ function renderStats(){
     [STAT_ICONS.check,'已看完',done,(doneThisYear?'今年看完 '+doneThisYear+' 部':'今年還沒有看完的'),'部'],
     [STAT_ICONS.film,'累積集數',totalEp,(shortEp?'另有短劇 '+shortEp+' 集':'長劇與電影'),'集'],
     [STAT_ICONS.plus,'本月新增',addedThisMonth,(new Date().getMonth()+1)+' 月開始看的作品','部']
-  ].map(([ic,l,n,sub,u])=>`<div class="stat"><div class="ic">${ic}</div><div class="stTxt"><div class="l">${l}</div><div class="n">${n}<span class="u">${u}</span></div>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`).join('');
+  ].map(([ic,l,n,sub,u])=>`<div class="stat" title="${esc(sub||'')}"><div class="ic">${ic}</div><div class="stTxt"><div class="l">${l}</div><div class="n">${n}<span class="u">${u}</span></div>${sub?`<div class="sub">${sub}</div>`:''}</div></div>`).join('');
 }
 function renderFormatBar(){
   const el = document.getElementById('formatBar');
@@ -1887,14 +1952,20 @@ function renderYearTrend(listAsc){
 }
 function renderPlatforms(){
   const plats = [...new Set(state.filter(notWish).map(x=>x.platform).filter(Boolean))];
-  document.getElementById('platGrid').innerHTML = plats.length ? plats.map(p=>{
+  const rows = plats.map(p=>{
     const items = state.filter(x=>notWish(x) && x.platform===p);
     const n = distinctSeries(items);
     const ep = items.reduce((s,x)=>s+(Number(x.epWatched)||0),0);
     const mins = items.reduce((s,x)=>s+(Number(x.epWatched)||0)*epMinutes(x),0);
-    const hrs = Math.round(mins/60*10)/10;
-    return `<div class="platCard" style="cursor:pointer;" onclick="filterByPlatform('${esc(p).replace(/'/g,"\\'")}')"><div class="plat-name">${esc(p)}</div><div class="plat-n">${n}<small>部</small></div><div class="plat-sub">${ep} 集 ・ 約 ${hrs} 小時</div></div>`;
-  }).join('') : '<div class="empty" style="grid-column:1/-1;">還沒有平台資料</div>';
+    return {p, n, ep, hrs: Math.round(mins/60*10)/10};
+  }).sort((a,b)=>b.n-a.n || b.ep-a.ep);
+  const max = rows.length ? rows[0].n : 1;
+  document.getElementById('platGrid').innerHTML = rows.length ? rows.map(r=>`
+    <div class="platRow" onclick="filterByPlatform('${esc(r.p).replace(/'/g,"\\'")}')" title="只看 ${esc(r.p)}">
+      <div class="prTop"><span class="prName">${esc(r.p)}</span><span class="prN">${r.n}<small>部</small></span></div>
+      <div class="prBar"><div style="width:${Math.max(6,Math.round(r.n/max*100))}%"></div></div>
+      <div class="prSub">${r.ep} 集 ・ 約 ${r.hrs} 小時</div>
+    </div>`).join('') : '<div class="empty">還沒有平台資料</div>';
 }
 function filterByPlatform(p){
   filters.platform = p;
